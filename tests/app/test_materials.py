@@ -369,7 +369,7 @@ class Previews(Server):
         self.assertEqual(("blocks", False), (got["view"], got["cut"]))  # whole
         blocks = got["blocks"]
         self.assertEqual({"t": "h", "n": 1, "text": "감마클라우드 면접 준비"}, blocks[0])  # the title
-        self.assertEqual("감마클라우드는 결제 플랫폼을 운영하는 가상의 회사다. 채용 공고", blocks[1]["text"])  # no marks, a link by its words
+        self.assertEqual("감마클라우드는 결제 플랫폼을 운영하는 가상의 회사다. 채용 공고 (https://example.com/jobs)", blocks[1]["text"])  # no marks, a link by its words and its address
         self.assertEqual([("승인 경로를 나눈 이유", "", 0), ("배포 시간을 줄이려고", "", 1), ("장애 대응 순서", "1.", 0)],
                          [(b["text"], b["mark"], b["depth"]) for b in blocks if b["t"] == "li"])  # bullets, a nested one, a numbered one
         self.assertEqual([(["주제", "준비"], True), (["정산", "끝냄"], False)], [(b["cells"], b.get("head", False)) for b in blocks if b["t"] == "row"])  # a table, its head marked
@@ -506,7 +506,8 @@ class Markdown(unittest.TestCase):
     """The markdown reader on its own: what a person's notes hold, as plain words."""
 
     def test_inline_marks_go_and_code_spans_stay(self):
-        self.assertEqual("bold link code == x and 2 * 3", M.inline("**bold** [link](http://x) `code == x` and 2 * 3"))  # code as written, a lone star kept
+        self.assertEqual("bold link (http://x) code == x and 2 * 3", M.inline("**bold** [link](http://x) `code == x` and 2 * 3"))  # code as written, a lone star kept, a link's address kept for the panel to link
+        self.assertEqual("a b (https://x.org/a_b_c) and https://y.org/d_e_", M.inline("*a* [b](https://x.org/a_b_c) and https://y.org/d_e_"))  # an address's underscores are not emphasis
         self.assertEqual("a & b", M.inline("<b>a</b> &amp; b"))  # tags out, entities as characters
         self.assertEqual("*not italic*", M.inline(r"\*not italic\*"))  # an escape is the character itself
 

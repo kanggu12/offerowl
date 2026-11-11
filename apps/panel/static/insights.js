@@ -391,7 +391,7 @@ function careerTile(d, host) {
   const top = kinds.slice(0, 3), restN = kinds.slice(3).reduce((s, [, n]) => s + n, 0) + ((ev.kinds || {}).other || 0) + ((ev.kinds || {}).skill || 0);   // three kinds, then the rest together (the skill lists too: the bar adds up to the facts the head counts)
   const KC = ["var(--blue-bar)", "var(--orange-bar)", "var(--ink-2)"];               // fixed order: the most common first (blue and orange stay apart; blue and violet did not)
   return tile("career", "layers", "Career and evidence", t("{n} facts, {m} of them with no company", { n: (d.kpi || {}).facts || 0, m: ev.unattached || 0 }),
-    segBar([...top.map(([k, n], i) => ({ n, words: t(KIND[k] || k), color: KC[i] })), ...(restN ? [{ n: restN, words: t("Other"), color: "var(--line-2)" }] : [])],
+    segBar([...top.map(([k, n], i) => ({ n, words: t(KIND[k] || k), color: KIND_COLOR[k] || KC[i] })), ...(restN ? [{ n: restN, words: t("Other"), color: "var(--ink-3)" }] : [])],
       { label: t("Facts by kind"), id: "kinds", compact: true }),
     lanes.length ? svg : h("p", { class: "ins-none", text: t("No role with a period yet.") }),
     legend([{ words: t("Employment"), color: "var(--ink-2)" }, { words: t("Education"), color: "var(--ink-3)", shape: "dash" }]));   // a school's lane is a dashed bar

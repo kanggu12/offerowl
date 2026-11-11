@@ -348,7 +348,22 @@ def inline(s: str) -> str:
     """One line of markdown as plain words; a code span keeps its words as written, without its backticks. Nothing of it
     becomes HTML: the page sets every word as text."""
     parts = re.split(r"`([^`]*)`", s)  # odd parts are code spans
-    return re.sub(r"[ \t]+", " ", "".join(p if i % 2 else plain(p) for i, p in enumerate(parts))).strip()  # one space between words
+    return re.sub(r"[ \t]+", " ", "".join(p if i % 2 else _words(p) for i, p in enumerate(parts))).strip()  # one space between words
+
+
+def _words(s: str) -> str:
+    """Plain words with every web address kept whole: a link written [words](address) is its words and its address, which
+    the panel shows as a link, and an address is held out of the marks' rules (an underscore in it is not emphasis)."""
+    held = []  # the addresses, in order
+
+    def hold(u: str) -> str:
+        held.append(u)  # kept as written
+        return f"\ue002{len(held) - 1}\ue003"  # a stand-in no rule matches
+
+    s = re.sub(r"(?<!!)\[([^\]]+)\]\((https?://[^)\s]+)(?:\s+\"[^\"]*\")?\)", lambda m: f"{m.group(1)} ({hold(m.group(2))})", s)  # a link: its words, its address
+    s = re.sub(r"<(https?://[^>\s]+)>", lambda m: hold(m.group(1)), s)  # an address in angle brackets
+    s = re.sub(r"https?://[A-Za-z0-9\-._~:/?#\[\]@!$&*+,;=%()]+", lambda m: hold(m.group(0)), s)  # a bare address
+    return re.sub(r"\ue002(\d+)\ue003", lambda m: held[int(m.group(1))], plain(s))  # the marks out, the addresses back
 
 
 def md_blocks(text: str) -> list[dict]:

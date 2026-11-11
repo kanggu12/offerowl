@@ -128,10 +128,13 @@ def version(path: str, platform: str | None = None) -> str:
 # Flags for a quiet headless browser that prints the page as its CSS asks (@page size, no header or footer line).
 # --font-render-hinting=none keeps glyph widths unhinted, so lines break where they break in other renderers.
 # --generate-pdf-document-outline turns the <h1> section titles into PDF bookmarks, as the container's LibreOffice does.
+# --use-mock-keychain (macOS) and --password-store=basic (Linux) keep the throwaway profile from asking the keychain or
+# a desktop keyring for its storage key: a dialog nobody answers would hold a headless browser until it is stopped.
 FLAGS = ["--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--disable-extensions",
          "--disable-dev-shm-usage", "--hide-scrollbars", "--mute-audio", "--font-render-hinting=none",
          "--allow-file-access-from-files", "--no-pdf-header-footer", "--generate-pdf-document-outline",
-         "--disable-background-networking", "--disable-component-update", "--disable-sync"]
+         "--disable-background-networking", "--disable-component-update", "--disable-sync",
+         "--use-mock-keychain", "--password-store=basic"]
 
 
 def _sandbox() -> list[str]:
@@ -190,19 +193,32 @@ def print_pdf(page: str | pathlib.Path, pdf: str | pathlib.Path, browser: str | 
 
 
 def dump_dom(page: str | pathlib.Path, browser: str | None = None, budget_ms: int = 30000, width: int = 1400,
-             height: int = 900, timeout: int = 180) -> str:
-    """The page's DOM after its scripts ran (the deck's overflow probe reads it)"""
+             height: int = 900, timeout: int = 90) -> str:
+    """The page's DOM after its scripts ran (the deck's overflow probe reads it). As a print keeps the PDF a browser
+    wrote before it failed to exit, a read keeps the whole page such a browser wrote out; a browser stopped before it
+    wrote the page is started once more with a fresh profile. A second such stop, or a browser that cannot start, is a
+    RuntimeError, which a build reports as the deck's failure in words (a slow macOS runner's TimeoutExpired ended a
+    build as an unexpected one). A read waits as long as a print, so the two starts take no longer than one did"""
     exe = browser or (find() or {}).get("path")
     if not exe:
         raise RuntimeError("no browser")
-    prof = tempfile.mkdtemp(prefix="offerowl-browser-")
-    try:
-        cmd = [exe, *_flags(exe), *_sandbox(), "--user-data-dir=" + prof, "--virtual-time-budget=%d" % budget_ms,
-               "--window-size=%d,%d" % (width, height), "--dump-dom", _uri(page)]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
-    finally:
-        shutil.rmtree(prof, ignore_errors=True)
-    return r.stdout
+    for _ in range(2):  # one more start after a hang: the next one usually settles
+        prof = tempfile.mkdtemp(prefix="offerowl-browser-")  # a profile of its own each time
+        try:
+            cmd = [exe, *_flags(exe), *_sandbox(), "--user-data-dir=" + prof, "--virtual-time-budget=%d" % budget_ms,
+                   "--window-size=%d,%d" % (width, height), "--dump-dom", _uri(page)]
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8",
+                                  errors="replace").stdout  # the DOM, printed when the page's time budget ran out
+        except subprocess.TimeoutExpired as e:  # run() stopped the browser itself
+            out = e.stdout or ""  # what it wrote before it was stopped
+            out = out.decode("utf-8", "replace") if isinstance(out, bytes) else out  # bytes on POSIX, text on Windows
+            if "</html>" in out.lower():  # the whole page came out: only the exit hung
+                return out
+        except OSError as e:  # not startable: said in words, as a missing browser is
+            raise RuntimeError(str(e)) from None
+        finally:
+            shutil.rmtree(prof, ignore_errors=True)  # the throwaway profile, whatever happened
+    raise RuntimeError("the browser did not finish reading the page in %d seconds, twice" % timeout)
 
 
 def page_result(dom: str) -> dict:

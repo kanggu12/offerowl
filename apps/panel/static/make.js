@@ -240,7 +240,7 @@ function chainCard() {                                                          
   const writing = task("autopilot").state === "running";                            // a run is writing: its counts are not final
   const kept = (S.facts && S.facts.counts && S.facts.counts.kept) || 0;             // the facts kept, each with its quote
   const kinds = {};                                                                 // the kept facts by kind (the rows come from /api/v1/facts, views.js)
-  for (const r of factRows()) if (r.status === "accepted") kinds[r.kind] = (kinds[r.kind] || 0) + 1;
+  for (const r of factRows()) if (r.status === "accepted") { const k = (r.edit && r.edit.kind) || r.kind; kinds[k] = (kinds[k] || 0) + 1; }   // the kind as the person set it, as Profile counts it
   const jid = bandEdition(), m = bandModel(jid), c = (m && m.counts) || {};         // the sentences of the edition the result is about
   const made = editionsMade();                                                      // every edition with PDFs, a row per language
   const per = { r: 0, d: 0, c: 0 }, langs = { ko: 0, en: 0 };                       // the documents by kind and the editions by language
@@ -273,7 +273,7 @@ function chainCard() {                                                          
     step("documents", "file", docs, tn(docs, "Document", "Documents"),
       docs ? h("div", { class: "ps-docs" }, segBar([["r", t("Resume"), 100], ["d", t("Portfolio deck"), 66], ["c", t("Cover letter"), 40]].map(([k, w, pc]) =>   // the documents by kind
         ({ n: per[k], words: w, color: `color-mix(in srgb, var(--aqua-bar) ${pc}%, var(--surface))` })), { label: t("Documents"), id: "chain-docs", compact: true }),
-        h("span", { class: "ps-langs", text: t("Korean {k}, English {e}", { k: langs.ko, e: langs.en }) })) : h("p", { class: "ps-none", text: t("The PDFs show here.") }), "documents"));
+        h("span", { class: "ps-langs", text: t("{n} editions: Korean {k}, English {e}", { n: langs.ko + langs.en, k: langs.ko, e: langs.en }) })) : h("p", { class: "ps-none", text: t("The PDFs show here.") }), "documents"));
 }
 function sameName(mats, i) {                                                        // a file's name, told apart from another file of the same name by its number
   const name = mats[i].name, same = mats.filter((x) => x.name === name);
@@ -441,7 +441,7 @@ function resultCard(run) {                                                      
     const fields = {}; for (const k of needs) fields[k.replace("_missing", "")] = String(UI.typed["mk-fix-" + k] || "").trim();
     if (Object.values(fields).some((v) => !v)) { toast(t("Fill in both.")); return; }
     await act("/api/v1/details", { fields }); forget("mk-fix-");
-    await act("/api/v1/autopilot", { again: run.job, theme: UI.theme, max_pages: UI.maxPages }, t("Making the PDFs again."));
+    await act("/api/v1/autopilot", { again: run.job, theme: UI.theme, max_pages: UI.maxPages }, t("Making the PDFs again."), "info");   // started, not done
   } },
     h("p", { class: "hint", style: "grid-column:1/-1", text: t("Your files do not give these. Fill them in and the PDFs are made again.") }),
     needs.includes("name_missing") ? h("label", { class: "field" }, h("span", { text: t("Your name") }), h("input", { "data-key": "mk-fix-name_missing", value: det.name || "", autocomplete: "name",

@@ -130,7 +130,8 @@ the same way: each company, title, period and project shows on its card.
 
 A posting given on **Make** becomes an application. **Applications** lists them beside the one open and takes more, pasted or by
 link. Each application keeps what it asks for in its own tabs: **Fit**, **Documents**, **Application questions**, **Interview** and
-**Progress**. You see at once how your profile fits, worked out on your PC.
+**Progress**. You see at once how your profile fits, worked out on your PC. When the reading finds no duty or requirement line
+in a posting, **Fit** takes the part that lists them: paste it and **Read the posting again**.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/guide-job-fit-dark.png">

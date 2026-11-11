@@ -37,6 +37,7 @@ function drawBar(el) {                                                          
           onclick: () => { UI.menu = !UI.menu; UI.agentPop = false; render(); } }, icon("gear")),
         UI.menu ? drawMenu() : null)));
   fitBar(el.querySelector(".bar-in"));                                              // one row, or the views on a row of their own
+  const note = document.getElementById("toast"); if (note && note.classList.contains("show")) placeToast(note);   // a note showing keeps its place in the bar drawn anew, and what it covers aside
 }
 function fitBar(bar) {                                                              // the bar on one row when it all fits; when not, the views go down whole
   if (!bar) return;                                                                 // and the wordmark, the lamps, undo and the settings keep the first row,

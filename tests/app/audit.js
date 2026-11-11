@@ -57,6 +57,7 @@
     const top = document.elementFromPoint(Math.min(Math.max((r.left + r.right) / 2, 0), vw - 1), Math.min(Math.max((r.top + r.bottom) / 2, 0), vh - 1));  // what is drawn at its middle
     if (!top || top === el || el.contains(top) || top.contains(el)) return false;   // itself
     if (!pinned(top) || pinned(top).contains(el)) return false;                     // not a bar, or the text is part of it
+    if (top.closest("#toast") && el.closest("#top")) return false;                  // a note over the bar's own words: they should have stepped aside (core.js stepAside), so it counts
     for (let x = top; x && x !== document.documentElement; x = x.parentElement) {   // the cover's fills, from the point upward
       if (x.contains(el)) return false;                                             // reached the text's own branch first: drawn over nothing opaque
       if (hides(x)) return true;                                                     // an opaque fill above the text hides it, or glass frosted past reading
@@ -110,7 +111,8 @@
       for (let a = el; a && a !== document.documentElement; a = a.parentElement) { // boxes that cut what spills
         const cs = getComputedStyle(a);                                             // how this box treats what spills
         const clipX = /hidden|clip/.test(cs.overflowX), clipY = /hidden|clip/.test(cs.overflowY);  // which directions this box cuts
-        if (!clipX && !clipY) continue;                                             // scrollers and visible boxes do not cut
+        if (/auto|scroll/.test(cs.overflowX + cs.overflowY)) break;                // a box that scrolls: what spills is read by scrolling it, and the boxes around it cut only the box itself
+        if (!clipX && !clipY) continue;                                             // visible boxes do not cut
         const ar = a.getBoundingClientRect();                                       // the cutting box on screen
         if (clipX && (r.right > ar.right + 1 || r.left < ar.left - 1)) {            // the line runs past its sides
           // with an ellipsis the cut is truncation, without one plain overflow

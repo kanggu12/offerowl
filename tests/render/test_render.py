@@ -332,5 +332,53 @@ class PageCountTest(unittest.TestCase):
             self.assertEqual(render.pdf_pages(f), 3)
 
 
+
+@unittest.skipIf(os.name == "nt", "a shell script stands in for the browser")
+class TestBrowserThatHangs(unittest.TestCase):
+    """The deck's DOM read with a browser that does not exit (a slow macOS runner ended a build as an unexpected
+    failure this way): the whole page it wrote is kept, one stopped before it is started once more, and a second stop is
+    a RuntimeError, which a build reports in words"""
+
+    def setUp(self):
+        import importlib.util  # browser.py from its file, as resume.py loads the renderer
+        spec = importlib.util.spec_from_file_location("offerowl_browser_test", ROOT / "src" / "render_html" / "browser.py")
+        self.browser = importlib.util.module_from_spec(spec)  # a private copy: the module's own state stays untouched
+        spec.loader.exec_module(self.browser)
+        self.dir = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-hang-"))  # the stand-in browser, its page and count
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        self.page = self.dir / "p.html"
+        self.page.write_text("<p>x</p>", encoding="utf-8")
+
+    def stand_in(self, says: str) -> str:
+        """A browser that counts its starts, writes `says` and never exits"""
+        fake = self.dir / "chrome"
+        fake.write_text(f"#!/bin/sh\necho x >> '{self.dir / 'starts'}'\nprintf '%s' '{says}'\nexec sleep 30\n",
+                        encoding="utf-8")
+        fake.chmod(0o755)
+        return str(fake)
+
+    def starts(self) -> int:
+        return len((self.dir / "starts").read_text(encoding="utf-8").split())
+
+    def test_a_page_written_whole_is_kept_when_only_the_exit_hangs(self):
+        dom = self.browser.dump_dom(self.page, browser=self.stand_in("<html><body><p>x</p></body></html>"), timeout=1)
+        self.assertIn("<p>x</p>", dom)
+        self.assertEqual(1, self.starts())  # not started again
+
+    def test_a_stop_before_the_page_is_tried_again_then_said(self):
+        with self.assertRaises(RuntimeError) as cm:
+            self.browser.dump_dom(self.page, browser=self.stand_in(""), timeout=1)
+        self.assertIn("twice", str(cm.exception))
+        self.assertEqual(2, self.starts())  # one more start after the first stop
+
+    def test_a_browser_that_cannot_start_is_said_in_words(self):
+        with self.assertRaises(RuntimeError):
+            self.browser.dump_dom(self.page, browser=str(self.dir / "no-such-browser"), timeout=1)
+
+    def test_the_throwaway_profile_asks_no_keychain(self):
+        self.assertIn("--use-mock-keychain", self.browser.FLAGS)  # macOS: no keychain dialog to wait on
+        self.assertIn("--password-store=basic", self.browser.FLAGS)  # Linux: no desktop keyring
+
+
 if __name__ == "__main__":
     unittest.main()

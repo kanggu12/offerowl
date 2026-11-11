@@ -772,6 +772,15 @@ class Api:
 
     # ------------------------------------------------------------------ jobs
 
+    def set_posting(self, jid: str, posting: str) -> None:
+        """A job's posting replaced by the text the person pasted (a posting whose duties the reading missed): one undo step."""
+        posting = str(posting or "").strip()[:200000]  # the text, bounded as a posting
+        if len(posting) < 20:  # too short to be a posting
+            raise ValueError("posting")  # nothing to analyze
+        job = self.ws.job(jid) or {}  # its card, for the undo key's words
+        with self.ws.change({"code": "undo_posting", "company": job.get("company") or job.get("role") or jid}, [f"jobs/{jid}/posting.md"]):
+            write_text(self.ws.job_dir(jid) / "posting.md", posting + "\n")  # as pasted
+
     def add_job(self, req: dict, select: bool = True) -> str:
         """A job from a pasted posting or a link: its folder, the posting, its card on the board. Returns its id. With
         select False (a run adds it) the job in view stays as it is."""
@@ -885,7 +894,7 @@ class Api:
                         st.setdefault("dates", {})[stage] = day
                 for k in ("next", "result", "company", "role"):  # the card's free text fields
                     if isinstance(req.get(k), str):  # only the fields that were sent
-                        st[k] = req[k].strip()[:200]  # trimmed and bounded
+                        st[k] = req[k].strip()[:1000 if k in ("next", "result") else 200]  # trimmed and bounded: a next step may hold a meeting's long link whole
                 if off:  # off the board: undo, or the Removed list, brings it back
                     st["removed"], st["removed_at"] = True, today()  # with the day the list shows
                 self.ws.save_job(st)  # one write for every change

@@ -79,7 +79,7 @@ def add_reminder(st: dict, at: str, text: str) -> dict:
     """Add a reminder to a job's status (changed in place). Returns it. Raises ValueError for a bad date or text."""
     if parse_at(at) is None:  # not a day or a day and a time
         raise ValueError("at")  # refused
-    text = str(text or "").strip()[:200]  # bounded
+    text = str(text or "").strip()[:1000]  # bounded, room for a meeting's long link
     if not text:  # a reminder needs words
         raise ValueError("text")  # refused
     rs = st.setdefault("reminders", [])  # the job's reminders

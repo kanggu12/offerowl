@@ -189,10 +189,13 @@ class Run(unittest.TestCase):
         self.patch.start()
 
     def tearDown(self):
-        self.patch.stop()
-        for k, v in self.env.items():  # the environment as it was
-            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
-        shutil.rmtree(self.tmp, ignore_errors=True)  # nothing left
+        try:
+            self.c.settle(120)  # a task still running (a job's analysis) would write into the folder after it is gone
+        finally:  # a task that hangs fails the test, and the stand-in, folder and environment are put back all the same
+            self.patch.stop()
+            for k, v in self.env.items():  # the environment as it was
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+            shutil.rmtree(self.tmp, ignore_errors=True)  # nothing left
 
     def steps(self, rec):
         """{step: state} of a finished run."""

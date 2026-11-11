@@ -311,6 +311,10 @@ class Router:
             return {"started": t.draw_figures(jid, lang_of(req.get("lang"))), "task": f"figures:{jid}"}  # the task's key
         if path == "/api/v1/jobs/analyze":  # analyze the posting again
             return {"started": t.analyze(a.need_job(req))}  # False when one already runs
+        if path == "/api/v1/jobs/posting":  # a job's posting written again (the part with the duties pasted in), read again at once
+            jid = a.need_job(req)  # which job
+            a.set_posting(jid, str(req.get("posting") or ""))  # one undo step
+            return {"job": jid, "started": t.analyze(jid, agent=False)}  # by words: nothing goes to the agent
         if path == "/api/v1/jobs/tailor":  # resume, cover letter and interview kit together
             jid = a.need_job(req)  # which job
             if (a.ws.job(jid) or {}).get("locked"):  # submitted copies are frozen

@@ -34,7 +34,7 @@ function bytes(n) {                                                             
 }
 function ownerWords(o) {                                                            // whose a file is, in words
   if (!o) return t("Profile");
-  if (o.job) return o.company + (o.role ? " · " + o.role : "");
+  if (o.job) return o.company + (o.role ? "\u00a0· " + o.role : "");               // the dot stays with the company: a wrapped line never opens with it
   return o.name || t("General edition");
 }
 function rowWords(r) {                                                              // what a row is, beyond its name
@@ -115,7 +115,7 @@ async function trashDo(r, what) {                                               
     const j = await act(r.restore.path, r.restore.body);                            // back where it was; one undo step takes it off again
     if (!j) { trashForget(); return; }                                              // refused: the list is read again, so it shows how things are
     if (j.read_again) toast(t("{name} is back. Read it again to bring back its facts.", { name: trashName(r) }),   // its facts could not come back whole
-      { words: t("Read it"), icon: "refresh", run: () => act("/api/v1/materials/read", { ids: [j.source] }, t("Reading it…")) });
+      { words: t("Read it"), icon: "refresh", run: () => act("/api/v1/materials/read", { ids: [j.source] }, t("Reading it…"), "info") }, "warn");   // back, but its facts not whole: a note that asks for care
     else toast(t("{name} is back.", { name: trashName(r) }), j.step ? { words: t("Undo"), run: () => undoOnly(j.step) } : null);   // its note takes it back to the Trash (the photo makes no step)
     return;
   }

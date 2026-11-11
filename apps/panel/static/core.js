@@ -157,8 +157,12 @@ async function api(path, body) {                                                
   if (body !== undefined && !NOT_SAVED.test(path)) flashSaved();                   // autosave: say it was kept (a request that keeps nothing says nothing)
   return j;                                                                         // callers read extra fields such as started or undone
 }
-async function act(path, body, okText) {                                            // a write from a button: errors become a toast
-  try { const j = await api(path, body); if (okText) toast(okText, null, "done"); schedule(); return j; }  // done, and polled while a task runs
+async function act(path, body, okText, okKind = "done") {                          // a write from a button: errors become a toast
+  try {
+    const j = await api(path, body);
+    if (okText) toast(okText, okKind === "done" && j && j.step ? { words: t("Undo"), run: () => undoOnly(j.step) } : null, okKind);   // a change made: its Undo on the note (a phone's band covers the bar's)
+    schedule(); return j;                                                           // polled while a task runs
+  }
   catch (e) { if (e.message !== "offline") toast(errorText(e), null, "bad"); return null; }      // the reason in words
 }
 let stateTag = { tag: "", of: null };                                               // the ETag of the state drawn, and that very state object
@@ -304,16 +308,27 @@ function errorText(e) {                                                         
 // A meeting's link, a booking page, a posting's address: written into a next step, a round's notes, a reminder or a file
 // the person added, each shows as a link that opens in a new tab, named for its service (Google Meet, Zoom, Calendly) or
 // its site, the whole address on hover. Only http and https; nothing of this page is passed on (noopener, noreferrer).
-const LINK_RE = /\bhttps?:\/\/[^\s<>"'`]+/gi;                                          // an address, up to a space or a quote
-const LINK_END = /[.,;:!?)\]}>'"’”…]+$/;                                            // the stop or bracket that ends a sentence, not the address
+const LINK_RE = /\bhttps?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&*+,;=%()]+/gi;            // an address in the characters an address holds: a word glued to it (a Korean ending, a CJK stop) is not part of it
 const LINK_NAMES = [[/(^|\.)meet\.google\.com$/, "Google Meet"], [/(^|\.)zoom\.(us|com)$/, "Zoom"], [/(^|\.)teams\.(microsoft|live)\.com$/, "Microsoft Teams"],
   [/(^|\.)webex\.com$/, "Webex"], [/(^|\.)calendly\.com$/, "Calendly"], [/^cal\.com$/, "Cal.com"], [/^calendar\.(google\.com|app\.google)$/, "Google Calendar"],
   [/^forms\.gle$/, "Google Forms"]];                                                // the services a meeting or a booking usually comes through
+function trimLink(u) {                                                              // the stop or bracket that ends a sentence, not the address
+  for (;;) {
+    const last = u.slice(-1);
+    if (/[.,;:!?\]}*]/.test(last)) { u = u.slice(0, -1); continue; }               // "...meet.google.com/abc." ends before the stop
+    if (last === ")" && (u.match(/\(/g) || []).length < (u.match(/\)/g) || []).length) { u = u.slice(0, -1); continue; }   // "(https://x.com/a)" ends before its bracket; "wiki/Foo_(bar)" keeps its own
+    return u;
+  }
+}
 function linksIn(text) {                                                            // each address in the words: [start, end, address]
   const s = String(text || ""), out = [];
   for (const m of s.matchAll(LINK_RE)) {
-    let u = m[0]; const tail = LINK_END.exec(u); if (tail) u = u.slice(0, tail.index);   // "...meet.google.com/abc." ends before the stop
-    if (u.length > 10) out.push([m.index, m.index + u.length, u]);                  // "http://" alone is not an address
+    let at = m.index;
+    for (const piece of m[0].split(/(?=https?:\/\/)/i)) {                           // two addresses written together are two links
+      const u = trimLink(piece);
+      if (u.length > 10) out.push([at, at + u.length, u]);                          // "http://" alone is not an address
+      at += piece.length;
+    }
   }
   return out;
 }
@@ -346,7 +361,7 @@ function placeToast(el) {                                                       
   el.classList.remove("inbar");
   const bar = document.querySelector("#top .bar-in");                              // the sticky bar
   if (!bar) return;
-  if (!matchMedia("(min-width: 861px)").matches) return stepAside(el, bar, ".brand, .brand-ver, .barpop, .actions, .views");   // a phone's bar scrolls away: its note is a band across the window's top (skin.css)
+  if (!matchMedia("(min-width: 861px)").matches) return stepAside(el, bar, ".brand, .brand-ver, .bar-in > .barchip, .barpop, .actions, .views");   // a phone's bar scrolls away: its note is a band across the window's top (skin.css)
   const keys = [...bar.children].filter((x) => x.matches(".barchip, .barpop, .actions") && x.getBoundingClientRect().width);   // the bar's own keys, at its right
   const mark = bar.querySelector(".brand-ver") || bar.querySelector(".brand");     // the wordmark and its version, at its left
   if (!keys.length || !mark) return;
@@ -359,7 +374,7 @@ function placeToast(el) {                                                       
   const chipFree = !bar.querySelector(".barpop .pop");                              // the agent's chip may step aside, unless its panel is open
   const rooms = [[from, k.left - 12], chipFree && keys.length > 1 ? [from, last.left - 12] : null, [most, (chipFree ? last : k).left - 12]].filter(Boolean);
   const fit = ([l, r]) => {                                                         // in a room: its size there, against the room's right end
-    el.style.setProperty("--toast-right", `${Math.round(innerWidth - r)}px`);
+    el.style.setProperty("--toast-right", `${Math.round(document.documentElement.clientWidth - r)}px`);   // the page's width, its scroll bar left out
     el.style.setProperty("--toast-max", `${Math.round(Math.max(240, r - l))}px`);
     return [el.offsetWidth, el.offsetHeight];
   };
@@ -368,18 +383,16 @@ function placeToast(el) {                                                       
     [wid, hgt] = fit(r); room = r;
     if (r[1] - r[0] >= 200 && hgt <= k.height + 12) break;                          // two lines at most, within the bar's row
   }
-  el.style.setProperty("--toast-right", `${Math.round(innerWidth - (room[0] + room[1]) / 2 - wid / 2)}px`);   // centred in its room, as Sidenote's notes stand
+  el.style.setProperty("--toast-right", `${Math.round(document.documentElement.clientWidth - (room[0] + room[1]) / 2 - wid / 2)}px`);   // centred in its room, as Sidenote's notes stand
   el.style.setProperty("--toast-top", `${Math.max(4, Math.round(k.top + k.height / 2 - hgt / 2))}px`);   // its middle on the keys' row, never above the window
-  stepAside(el, bar, ".views, .jobpick, .saved, .barpop");                         // the views' track whole: a note never lies across its rim
+  stepAside(el, bar, ".views, .jobpick, .saved, .bar-in > .barchip, .barpop");    // the views whole, and a run's chip: a note never lies across them
 }
-function stepAside(el, bar, what) {                                                 // laid out: what of the bar the note lies over steps aside while it shows (its glass would show it blurred)
-  requestAnimationFrame(() => {
-    const t = { left: el.offsetLeft, top: el.offsetTop, right: el.offsetLeft + el.offsetWidth, bottom: el.offsetTop + el.offsetHeight };   // where it comes to rest, not where its slide in has it now
-    for (const x of bar.querySelectorAll(what)) {
-      const r = x.getBoundingClientRect();
-      if (r.width && r.right > t.left - 6 && r.left < t.right + 6 && r.bottom > t.top && r.top < t.bottom) x.classList.add("under-toast");
-    }
-  });
+function stepAside(el, bar, what) {                                                 // what of the bar the note lies over steps aside while it shows (its glass would show it blurred)
+  const t = { left: el.offsetLeft, top: el.offsetTop, right: el.offsetLeft + el.offsetWidth, bottom: el.offsetTop + el.offsetHeight };   // where it comes to rest (laid out now), not where its slide in has it
+  for (const x of bar.querySelectorAll(what)) {                                     // at once: a frame later could come after the note had gone (a hidden tab) and hide them for good
+    const r = x.getBoundingClientRect();
+    if (r.width && r.right > t.left - 6 && r.left < t.right + 6 && r.bottom > t.top && r.top < t.bottom) x.classList.add("under-toast");
+  }
 }
 function toast(text, key, kind) {                                                   // a short note in the bar (at the top on a phone); key {words, run, icon}: one key in it (Undo)
   const el = $("toast");                                                            // the one toast
@@ -410,7 +423,7 @@ async function removeAct(path, body, words) {                                   
 async function undoOnly(id) {                                                       // a note's Undo: the change it named, only while it is still the newest
   const r = await act("/api/v1/undo", { only: id });                                // the server compares the names under its lock
   if (r) toast(r.moved ? t("A later change came first, so nothing was undone. The history lists both.")
-    : r.undone ? t("Undone: {what}", { what: undoLabel(r.undone) }) : t("Nothing to undo."));
+    : r.undone ? t("Undone: {what}", { what: undoLabel(r.undone) }) : t("Nothing to undo."), null, r.moved ? "warn" : r.undone ? "done" : "info");   // as the bar's Undo says it
 }
 
 // ---------------------------------------------------------------- the panel's own question

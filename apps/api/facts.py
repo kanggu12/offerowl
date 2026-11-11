@@ -15,6 +15,7 @@ of those files gives back exactly the profile that went with it.
 """
 from __future__ import annotations
 
+import ast  # a stored dict's text read back as a literal
 import copy  # the base profile is never changed in place
 import hashlib  # ids of imported items
 import json  # quotes of structured items
@@ -60,12 +61,33 @@ def pick(v):
 
 
 def text_of(v) -> str:
-    """A value as one line of text for a card (lists joined, None empty)."""
+    """A value as one line of text for a card (lists joined, None empty, a per-language field its Korean, else English)."""
+    v = pick(v)  # {ko, en}: one language, never the dict written out as text
     if v is None:  # an absent value reads as nothing
         return ""  # nothing
     if isinstance(v, (list, tuple)):  # a paragraph list or a row
         return " ".join(text_of(x) for x in v if x not in (None, ""))  # joined with spaces
     return str(v)  # numbers and strings
+
+
+def _undict(v):
+    """A field an older reading stored as a per-language dict written out ("{'ko': ..., 'en': ...}"): its text, as text_of
+    gives it now. Anything else as it is."""
+    if isinstance(v, str) and v.startswith("{") and ("'ko'" in v or "'en'" in v):  # the shape str(dict) left
+        try:
+            d = ast.literal_eval(v)  # a literal only: nothing runs
+        except (ValueError, SyntaxError):  # cut short or not a literal
+            return v  # as it was
+        if isinstance(d, dict):  # the per-language field it was
+            return text_of(d)  # its Korean, else its English
+    return v
+
+
+def as_read_now(c: dict) -> dict:
+    """A stored candidate with its text fields as a reading now writes them (read only: the file stays as it is)."""
+    if not isinstance(c, dict):  # not a candidate
+        return c
+    return {**c, **{k: _undict(c[k]) for k in ("title", "org", "period", "statement", "quote") if k in c}}
 
 
 def item_id(material: str, ref: list) -> str:
@@ -424,7 +446,8 @@ class Facts:
 
     # the files
     def candidates(self) -> list:
-        return read_json(self.ws.path("sources", "candidates.json"), {"kept": []}).get("kept", [])  # the list
+        kept = read_json(self.ws.path("sources", "candidates.json"), {"kept": []}).get("kept", [])  # the list
+        return [as_read_now(c) for c in kept]  # a text an older reading stored as a dict written out, as a reading now gives it
 
     def status(self) -> dict:
         return read_json(self.ws.path("sources", "review.json"), {})  # cid -> accepted | rejected

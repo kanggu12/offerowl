@@ -354,6 +354,24 @@ class TestTracker(PanelCase):
         job = next(j for j in self.get("/api/v1/state")["jobs"] if j["id"] == jid)
         self.assertEqual(2, len(job["rounds"]))
 
+    def test_posting_pasted_again(self):
+        """A job whose posting the reading found no duty lines in takes the part with them, pasted again from the Fit tab:
+        the posting is replaced in one undo step and read again; a next step and a reminder keep a long meeting link whole."""
+        jid = self.post("/api/v1/jobs", {"company": "감마클라우드", "role": "백엔드", "posting": "감마클라우드 백엔드 엔지니어를 찾습니다. 자세한 내용은 면접에서."})["job"]
+        posting = self.tmp / "data" / "workspace" / "jobs" / jid / "posting.md"
+        first = posting.read_text(encoding="utf-8")
+        self.post("/api/v1/jobs/posting", {"job": jid, "posting": "짧음"}, expect=400)  # too short to be a posting
+        out = self.post("/api/v1/jobs/posting", {"job": jid, "posting": POSTING.read_text(encoding="utf-8")})
+        self.assertEqual(jid, out["job"])
+        self.assertEqual(POSTING.read_text(encoding="utf-8").strip(), posting.read_text(encoding="utf-8").strip())  # replaced as pasted
+        self.post("/api/v1/undo", {})  # and back
+        self.assertEqual(first, posting.read_text(encoding="utf-8"))
+        link = "https://teams.microsoft.com/l/meetup-join/" + "x" * 230  # a long-form meeting link
+        st = self.post("/api/v1/tracker/edit", {"job": jid, "next": "2차 면접 " + link})["state"]
+        self.assertIn(link, next(j for j in st["jobs"] if j["id"] == jid)["next"])  # whole, not cut at 200
+        rec = self.post("/api/v1/reminders", {"job": jid, "at": "2099-01-01T09:30", "text": "접속 " + link})["reminder"]
+        self.assertIn(link, rec["text"])
+
     def test_board_timeline_reminders(self):
         jid = self.post("/api/v1/jobs", {"company": "감마클라우드", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # a card
         st = self.post("/api/v1/tracker/next", {"job": jid})["state"]  # preparing -> submitted

@@ -101,7 +101,7 @@ function detailsSheet(d) {
         field("name_en", "Name in English"), field("phone", "Phone", { type: "tel", auto: "tel" }),
         rich("headline", "Headline: one line on what you build and run", 2), rich("intro", "Introduction", 4))));
 }
-const KIND_COLOR = { role: "var(--band-ink, var(--ink))", project: "var(--blue-bar)", education: "var(--green-bar)", skill: "var(--violet-bar)", layer: "var(--red-bar)", competency: "var(--teal-bar)",   // a kind's colour, as its chip: the big kinds each their own
+const KIND_COLOR = { role: "var(--band-ink, var(--ink))", project: "var(--blue-bar)", education: "var(--green-bar)", skill: "var(--violet-bar)", layer: "var(--rose-bar)", competency: "var(--teal-bar)",   // a kind's colour, as its chip: the big kinds each their own
   paper: "var(--amber-bar)", patent: "var(--amber-bar)", award: "var(--amber-bar)", certificate: "var(--amber-bar)", card: "var(--orange-bar)", highlight: "var(--orange-bar)", about: "var(--orange-bar)",
   motivation: "var(--orange-bar)", profile: "var(--orange-bar)", typed: "var(--ink-2)", other: "var(--ink-3)" };   // the bars' colours (marks with no words on them), each a kind's own
 const FACT_PAGE = 12;                                                               // rows on one page of facts: a long list reads in pages, never as one scroll
@@ -209,7 +209,7 @@ function factRow(r) {                                                           
   // closed, the source's words in sight as a retrieval interface shows them, but never cut mid-way with an ellipsis: whole
   // when short, else their first sentence whole and a word that says there is more (a sentence too long to stop early stays
   // whole); the row opens all of them
-  const lead = (x) => { if (x.length <= 140) return [x, false]; const first = x.split(/(?<=[.!?。])\s+/)[0]; return first.length < x.length && first.length <= 160 ? [first, true] : [x, false]; };
+  const lead = (x) => { if (x.length <= 140) return [x, false]; const first = (/^.*?[.!?。](?=\s)/.exec(x) || [x])[0]; return first.length < x.length && first.length <= 160 ? [first, true] : [x, false]; };   // up to the first stop, no lookbehind (Safari before 16.4 could not read the file)
   return h("article", { class: "fact" + (dropped ? " dropped" : "") + (open || editing ? " open" : ""), "aria-label": `${t(KIND[v.kind] || "Other")}: ${v.title || ""}` },
     h("button", { class: "fact-row", type: "button", "aria-expanded": open ? "true" : "false", disabled: editing || null,   // the row opens its words
       onclick: () => { UI.factOpen = open ? null : r.cid; render(); } },
@@ -410,11 +410,13 @@ function jobDetail(j, phone) {                                                  
     phone ? h("div", { class: "jd-back" }, h("button", { class: "btn sm quiet", type: "button", onclick: () => { UI.jobPhone = false; render(); } }, icon("back"), t("All applications"))) : null,
     h("header", { class: "jd-head" },
       mono(j.company || j.role || j.id, "lg", j.stage),                             // the company's mark, in its stage's colour
-      h("div", { class: "jd-title" }, h("h2", { text: j.company || j.role || j.id }), j.company && j.role ? h("span", { class: "ro", text: j.role }) : null),
-      h("button", { class: "pillkey", type: "button", onclick: () => { UI.jobTab = "progress"; render(); }, title: t("Progress") }, stagePill(j)),   // where it stands, opening its progress
-      f && !(f.lines || []).length ? null                                            // no line of the posting could be rated: no score to show (the Fit tab says why)
-        : h("div", { class: "jd-score", role: "img", "aria-label": t("Fit {n} of 100", { n: f ? f.score : 0 }) }, h("span", { class: "hint", text: t("Fit") }),
-          h("b", { text: String(f ? f.score : "…") }), h("small", { text: "/ 100" })),
+      h("div", { class: "jd-title" },
+        h("div", { class: "jd-name" }, h("h2", { text: j.company || j.role || j.id }),   // the name, and on its line where it stands and how it fits: never pushed off by a long role
+          h("button", { class: "pillkey", type: "button", onclick: () => { UI.jobTab = "progress"; render(); }, title: t("Progress") }, stagePill(j)),   // where it stands, opening its progress
+          f && !(f.lines || []).length ? null                                        // no line of the posting could be rated: no score to show (the Fit tab says why)
+            : h("div", { class: "jd-score", role: "img", "aria-label": t("Fit {n} of 100", { n: f ? f.score : 0 }) }, h("span", { class: "hint", text: t("Fit") }),
+              h("b", { text: String(f ? f.score : "…") }), h("small", { text: "/ 100" }))),
+        j.company && j.role ? h("span", { class: "ro", text: j.role }) : null),
       h("span", { class: "grow" }),
       h("div", { class: "jd-acts" },
         j.locked ? h("button", { class: "btn", type: "button", onclick: () => { UI.doc = "resume"; go("documents"); }, text: t("See what was sent") })   // submitted: its documents are the sent copies, kept as they went
@@ -426,7 +428,15 @@ function jobDetail(j, phone) {                                                  
 }
 function fitPart(j, f) {                                                            // the posting line by line: a row each, its evidence when opened
   if (!f) return h("p", { class: "hint", text: t("Working out the fit…") });        // loading
-  if (!f.lines.length) return h("p", { class: "hint", text: t("Offerowl found no duty or requirement lines in this posting. Paste the part with the duties and requirements.") });
+  if (!f.lines.length) return h("form", { class: "posting-again", onsubmit: async (e) => { e.preventDefault();   // no line found: the part with the duties pasted here, read again at once
+      const box = e.target.elements.posting, v = box.value.trim();
+      if (v.length < 20) { box.setCustomValidity(t("Paste the part of the posting with its duties and requirements.")); box.reportValidity(); return; }
+      if (await act("/api/v1/jobs/posting", { job: j.id, posting: v }, t("The posting is read again."))) forget(`fit-posting-${j.id}`); } },
+    h("p", { class: "hint", text: t("Offerowl found no duty or requirement lines in this posting. Paste the part with the duties and requirements.") }),
+    h("label", { class: "field" }, h("span", { text: t("The posting's duties and requirements") }),
+      h("textarea", { name: "posting", "data-key": `fit-posting-${j.id}`, rows: 5, class: "short", placeholder: t("Paste the part of the posting with its duties and requirements."),
+        oninput: (e) => e.target.setCustomValidity("") })),
+    h("div", { class: "part-keys" }, h("button", { class: "btn primary", type: "submit", text: t("Read the posting again") }), sentLine(false)));
   const want = ["strong", "weak", "none"].includes(UI.fitFilter) ? UI.fitFilter : "all";   // the rating shown
   const lines = f.lines.map((ln, i) => ({ ln, i })).filter(({ ln }) => want === "all" || ln.rating === want);   // the lines of that rating, with their place
   const groups = [];                                                                // the posting's own sections, in its order
@@ -453,7 +463,7 @@ function fitLine(j, ln, i) {                                                    
   return h("li", { class: "fl" + (open ? " open" : "") },
     h("button", { class: "fl-row", type: "button", "aria-expanded": open ? "true" : "false", onclick: () => { UI.lineOpen = open ? null : key; render(); } },
       pill(RATING_CLS[ln.rating], t(RATING[ln.rating])), h("span", { class: "fl-txt", text: ln.text }),
-      h("span", { class: "fl-n", text: n ? tn(n, "{n} source", "{n} sources") : t("No evidence") })),
+      h("span", { class: "fl-n", text: !n ? t("No evidence") : ln.rating === "none" ? tn(n, "{n} source, not enough", "{n} sources, not enough") : tn(n, "{n} source", "{n} sources") })),   // a line not met says its sources fall short
     open ? h("div", { class: "fl-ev" }, n ? ln.evidence.slice(0, 3).map((e) => h("div", { class: "note" }, h("q", { text: unmarked(e.quote) }),
       h("span", { class: "from", text: [WHERE[e.where] ? t(WHERE[e.where]) : e.where, e.file ? t("From {file}", { file: e.file }) : ""].filter(Boolean).join(", ") })))
       : h("p", { class: "hint", text: t("No evidence in your profile covers this line.") }),
@@ -477,7 +487,8 @@ function docsPart(j, tk) {                                                      
       h("div", { class: "dp head", role: "row" }, h("span", { role: "columnheader", text: t("Document") }), langs.map(([, w]) => h("span", { role: "columnheader", text: w })), h("span", { "aria-hidden": "true" })),
       row(t("Resume"), langs.map(([l]) => made(built(l).pages, "{n} page", "{n} pages")), () => openDoc("resume")),
       row(t("Portfolio deck"), langs.map(([l]) => made(built(l).slides, "{n} slide", "{n} slides")), () => openDoc("deck")),
-      row(t("Cover letter"), langs.map(([l]) => made((built(l).cover || {}).pages, "{n} page", "{n} pages")), () => openDoc("cover")),
+      row(t("Cover letter"), langs.map(([l]) => made((built(l).cover || {}).pages, "{n} page", "{n} pages")), () => openDoc("cover"),
+        langs.some(([l]) => (built(l).cover || {}).pages) ? null : "Write it"),   // not made yet: the key says what it leads to
       row(t("Application questions"), h("span", { class: "dp-v across" + (qs.length ? "" : " none"), text: qs.length ? t("{a} of {n} answered", { a: answered, n: qs.length }) : t("No questions yet") }),
         () => { UI.jobTab = "questions"; render(); }, qs.length ? "" : "Add questions"),
       row(t("Interview kit"), h("span", { class: "dp-v across" + (iv && iv.ready ? "" : " none"), text: !iv ? t("Reading the interview kit…") : iv.ready ? t("{q} questions, {s} scripts", { q: iv.counts.questions, s: iv.counts.scripts }) : t("Not made yet") }),
@@ -682,7 +693,7 @@ async function addMaterials(jid, files) {                                       
   }
   UI.matSending = null;                                                             // done
   toast([added ? tn(added, "{n} file added.", "{n} files added.") : "", said[0] || "",   // what came in, and the first reason one did not
-    said.length > 1 ? tn(said.length - 1, "{n} more file was not added.", "{n} more files were not added.") : ""].filter(Boolean).join(" "));
+    said.length > 1 ? tn(said.length - 1, "{n} more file was not added.", "{n} more files were not added.") : ""].filter(Boolean).join(" "), null, added ? (said.length ? "warn" : "done") : "bad");
   refresh();                                                                        // the list shows them
 }
 async function saveMaterial(jid, m) {                                               // a copy on the Desktop, byte for byte
@@ -892,10 +903,10 @@ function trackTimeline() {                                                      
   for (const e of tl) { const d = String(e.at).slice(0, 10), last = days[days.length - 1]; if (last && last.day === d) last.items.push(e); else days.push({ day: d, items: [e] }); }
   return h("ol", { class: "timeline paper", style: "list-style:none;margin:0" }, days.map((d) => h("li", { class: "tl day" + (d.items.some((e) => e.due) ? " due" : "") },
     h("time", { text: d.day }), h("i", { "aria-hidden": "true" }),                    // the day, then its node on the line
-    h("span", { class: "tl-day" }, d.items.map((e) => h("button", { class: "tl-ev", type: "button", "data-stage": e.st || null, "data-kind": e.kind,   // each step: the company and what happened, in the stage's colour
+    h("span", { class: "tl-day" }, d.items.map((e) => [h("button", { class: "tl-ev", type: "button", "data-stage": e.st || null, "data-kind": e.kind,   // each step: the company and what happened, in the stage's colour
       onclick: () => openApplication(e.job, "progress"), title: String(e.at).replace("T", " ") },   // the name opens its progress; the time on hover
       h("b", { text: e.name }), e.kind === "reminder" ? h("span", { class: "chip pc", text: e.done ? t("Done") : e.due ? t("Due") : t("Reminder") }) : null,
-      h("span", { class: "tl-what" }, linked(e.text))))))));
+      h("span", { class: "tl-what", text: unlinked(e.text) })), linkKeys(e.text)])))));   // a link beside the step's key, never inside it
 }
 // ---------------------------------------------------------------- the interview rounds of one application (tracker.set_round)
 const ROUND_KIND = { call: "Recruiter call", first: "First interview", second: "Second interview", third: "Third interview", final: "Final interview",

@@ -144,9 +144,12 @@ class Draft(unittest.TestCase):
         self.c.post("/api/v1/facts/keep-all", {})  # every fact kept
 
     def tearDown(self):
-        for k, v in self.env.items():  # the environment as it was
-            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
-        shutil.rmtree(self.tmp, ignore_errors=True)  # nothing left
+        try:
+            self.c.settle(120)  # a job's analysis still running wrote into the folder again after it was removed
+        finally:  # a task that hangs fails the test, and the folder and environment are put back all the same
+            for k, v in self.env.items():  # the environment as it was
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+            shutil.rmtree(self.tmp, ignore_errors=True)  # nothing left
 
     def resume(self, job=None, lang="ko"):
         """The canvas's model."""
@@ -475,6 +478,7 @@ class Draft(unittest.TestCase):
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-draft-en-"))  # its own workspace
         self.addCleanup(shutil.rmtree, tmp, True)  # gone afterwards
         c = Client(tmp)  # the API
+        self.addCleanup(c.settle, 120)  # cleanups run last first: its tasks end before the folder goes
         c.post("/api/v1/example", {"lang": "en"})  # the fictional person in English
         c.wait("ingest")  # read
         c.post("/api/v1/facts/keep-all", {})  # kept
