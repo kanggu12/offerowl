@@ -101,7 +101,7 @@ body { margin: 0; padding: 18px; color: var(--ink); font: 400 10.5pt/1.5 "Preten
 .cue .tr { margin: .6mm 0 0; font-size: 7.5pt; line-height: 1.45; color: var(--off); }
 .cue b { font-weight: 750; }
 .cue mark.hl { color: inherit; padding: 0 .1em; background: linear-gradient(180deg, transparent 58%, var(--hl) 58%); font-weight: 750; }
-.cue .br { color: #aaa; font-weight: 400; }
+.cue .br { color: var(--off); font-weight: 400; }   /* a breath mark, as the deck and the search view draw it (4.5:1 on the card) */
 .cue .dir { color: var(--off); font-style: italic; font-size: .9em; }
 .cue code { font: 500 .92em/1 "JetBrains Mono", Consolas, monospace; }
 .empty { max-width: 210mm; margin: 40px auto; color: var(--off); }

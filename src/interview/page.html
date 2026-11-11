@@ -144,6 +144,8 @@ html.embedded[data-theme="dark"] { --key-fill: #121212; --key-line: #262626; }
 @media (prefers-color-scheme: dark) { html.embedded:not([data-theme="light"]) { --key-fill: #121212; --key-line: #262626; } }
 html.embedded body::before, html.embedded body::after { display: none; }
 html.embedded :is(kbd, .seg button, .menu button, .icon-btn, .engine, .search, .key, .pr-chip) { border-radius: 2px; box-shadow: none; }
+html.embedded :is(#theme, #practiceBtn) { display: none; }
+html.embedded .seg button { height: 34px; }   /* one height with the keys beside it, as every row of the panel keeps */   /* the panel sets the look and has its own Practice key: these two would only disagree with it */
 button { font: inherit; color: inherit; letter-spacing: inherit; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }   /* Classic's focus ring is the ink, not a blue */
 kbd { display: inline-block; font: 600 11px/1 var(--mono); padding: 3px 6px; margin: 0 2px; border-radius: 5px; color: var(--ink); background: var(--key-fill); border: 1px solid var(--key-line); box-shadow: var(--key-shadow); }

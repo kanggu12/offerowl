@@ -306,8 +306,11 @@ class Child:  # the same start, log and stop for run() and check()
         threading.Thread(target=self._pump, args=(self.proc,), name=f"{self.name}-log", daemon=True).start()
 
     def _pump(self, proc: subprocess.Popen) -> None:  # drains the pipe so a full buffer never stalls the child
-        for line in iter(proc.stdout.readline, b""):  # every line it prints
-            self.log.write(line)  # capped, so a chatty server cannot fill the disk
+        try:
+            for line in iter(proc.stdout.readline, b""):  # every line it prints
+                self.log.write(line)  # capped, so a chatty server cannot fill the disk
+        finally:  # its output ended (or reading failed): each restart's pipe goes now, not whenever its process object is collected
+            proc.stdout.close()
 
     def exited(self) -> int | None:  # polled by watch() and by the start-up waits
         """The exit code once it has ended; None while it runs (or before it was started)."""

@@ -155,7 +155,9 @@ def _make_thumbnail(data: bytes, width: int):
     except ImportError:
         return None
     try:
-        im = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))  # decoded, and turned upright as the browser would turn the original
+        # Only the two kinds a photo is taken in (clean() keeps no other): a file that is something else inside reaches none of
+        # Pillow's other decoders, whose flaws fill its advisories, whatever Pillow this Python can install.
+        im = ImageOps.exif_transpose(Image.open(io.BytesIO(data), formats=("JPEG", "PNG")))  # decoded, and turned upright as the browser would turn the original
         if im.width <= width:  # small already: the original is no larger than a copy would be
             return None
         im.thumbnail((width, width * 4), Image.LANCZOS)  # the width it may have, the height following its shape

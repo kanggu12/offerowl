@@ -25,13 +25,14 @@ env:
 
 jobs:
   lint-and-cli-tests:
-    # Quick: a few seconds of work after the tools are installed. Run on the oldest and a recent Python, because the code
-    # must keep working on the oldest one it claims to support (3.10).
+    # Quick: a few seconds of work after the tools are installed. Run on every Python the package claims (pyproject.toml's
+    # classifiers, 3.10 to 3.15): a module or method one of them drops (3.15 dropped load_module()) fails here first.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
-        python: ["3.10", "3.12"]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -122,11 +123,12 @@ jobs:
   package-install:
     # `pip install .` in a clean virtual environment on each system: the command starts, the doctor runs, and the
     # installed engine is complete (the app's own check starts the panel and reads a file through the engine).
-    name: pip install on ${{ matrix.os }}
+    name: pip install on ${{ matrix.os }} with Python ${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-latest]
+        python: ["3.10", "3.15"]  # the oldest and the newest Python the package claims
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
@@ -137,7 +139,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.10"  # the oldest Python the package claims
+          python-version: ${{ matrix.python }}
       - name: Install the package in a clean virtual environment
         shell: bash
         run: |

@@ -221,6 +221,22 @@ class SwitchTest(unittest.TestCase):
         import resume
         self.resume = resume
 
+    def test_only_offerowl_s_own_images_count_as_the_container(self):
+        """A container counts as Offerowl's (its tools called directly) only when it carries LibreOffice, as the render
+        image and the app image do; a plain Python image, a dev container or a CI job's has none and is taken for a PC (a
+        browser there typesets), and a PC with LibreOffice installed is still a PC"""
+        real = pathlib.Path.exists
+        def docker(here):  # /.dockerenv there or not, every other path as it is
+            return lambda p, *a, **k: here if str(p) == "/.dockerenv" else real(p, *a, **k)
+        soffice = lambda n: "/usr/bin/soffice" if n == "soffice" else None  # noqa: E731
+        with mock.patch.object(pathlib.Path, "exists", docker(True)):
+            with mock.patch.object(self.resume.shutil, "which", soffice):
+                self.assertTrue(self.resume.in_container())  # the render image, the app image
+            with mock.patch.object(self.resume.shutil, "which", lambda n: None):
+                self.assertFalse(self.resume.in_container())  # a container without LibreOffice
+        with mock.patch.object(pathlib.Path, "exists", docker(False)), mock.patch.object(self.resume.shutil, "which", soffice):
+            self.assertFalse(self.resume.in_container())  # a PC with LibreOffice
+
     def test_the_default_is_the_container(self):
         with mock.patch.dict(os.environ, {}, clear=False), mock.patch.object(self.resume.sys, "platform", "linux"):  # Linux or macOS
             os.environ.pop("OFFEROWL_RENDERER", None)

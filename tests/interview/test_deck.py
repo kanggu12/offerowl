@@ -115,6 +115,18 @@ class DeckTest(unittest.TestCase):
         self.assertEqual(own, ids[:len(own)])  # the named file's scripts first, as written
         self.assertEqual(len(ids), len(set(ids)))  # none twice
 
+    def test_inside_the_panel_the_pages_stand_on_its_desk(self):
+        """Inside the Offerowl panel the deck draws no grey desk and no bar of its own (the panel names it and has the key
+        that prints it); on its own, as printed, it keeps both."""
+        inside = deck.page(self.job, lang="ko", embedded=True)
+        self.assertIn('<html lang="ko" class="embedded">', inside)  # the page knows where it is shown
+        self.assertIn("html.embedded { background: transparent; }", inside)  # the panel's desk behind the pages
+        self.assertIn("html.embedded .bar { display: none; }", inside)  # no title and print key twice
+        alone = deck.page(self.job, lang="ko")
+        self.assertIn('<html lang="ko">', alone)  # on its own: the plain page
+        self.assertIn('<div class="bar">', alone)  # with its print key
+        self.assertEqual(inside.count('<section class="scene"'), alone.count('<section class="scene"'))  # the same scripts either way
+
 
 if __name__ == "__main__":  # the file can also run on its own
     unittest.main()

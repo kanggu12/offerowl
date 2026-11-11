@@ -118,6 +118,7 @@ class TalkApiTest(unittest.TestCase):
         self.assertIn("text/html", ctype)
         page = body.decode("utf-8")
         self.assertTrue(any(html.escape(W["none"]) in page for W in talk_page.WORDS.values()), page[:300])  # "no talk yet", in the kit's language
+        self.assertIn("background: #ffffff", page)  # a sheet of its own: its dark words never stand on the panel's dark desk
         self.assertNotIn(b"<script", body)
         code, _, _ = self.raw(f"/kit/{urllib.parse.quote(self.job)}/talk/deck.pdf")
         self.assertEqual(code, 404)
@@ -143,6 +144,7 @@ class TalkApiTest(unittest.TestCase):
             body, policy = r.read().decode("utf-8"), r.headers.get_all("Content-Security-Policy") or []
         self.assertNotIn("<script", body)
         self.assertTrue(any("script-src 'none'" in x for x in policy), policy)
+        self.assertIn("word-break: keep-all", body)  # a Korean word is never split across two lines, on the page or in its PDF
 
 
 if __name__ == "__main__":

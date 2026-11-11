@@ -1989,8 +1989,9 @@ def print_check(res: dict, out=None) -> None:
 # build
 
 def in_container() -> bool:
-    """Inside the render container the tools are on the path, so render/run.sh is not needed."""
-    return pathlib.Path("/.dockerenv").exists()  # Docker creates this file in every container it starts
+    """Inside one of Offerowl's images the tools are on the path, so render/run.sh is not needed. The engine's rule
+    (src/resume.py: in_container): a container with LibreOffice, as both images are; any other is taken for a PC."""
+    return pathlib.Path("/.dockerenv").exists() and shutil.which("soffice") is not None
 
 
 def sh(cmd: list[str]) -> subprocess.CompletedProcess:

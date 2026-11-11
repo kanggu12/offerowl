@@ -146,7 +146,7 @@ def set_reminder(st: dict, rid: str, done: bool | None = None, remove: bool = Fa
 
 def ics(jobs: list[dict]) -> str:
     """Every open reminder as an iCalendar file, so the person can put them in the calendar they already use."""
-    stamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")  # when the file was made
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")  # when the file was made, in UTC (utcnow() is deprecated from 3.12)
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//offerowl//tracker//EN", "CALSCALE:GREGORIAN"]  # the calendar's head
     for j in jobs:  # each job
         for r in j.get("reminders") or []:  # each reminder

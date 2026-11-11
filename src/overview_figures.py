@@ -43,6 +43,7 @@ NAVY, INK, GREY, FAINT, TINT = (31, 58, 95), (31, 31, 31), (107, 107, 107), (200
 LABELS = {"ko": ("경력", "학력", "병역"), "en": ("Career", "Study", "Service")}  # row names
 WARN = []  # notes raised while drawing (dropped bars, shortened labels)
 TILE = 512  # logo tile side in pixels (about 6 mm in the document)
+LOGO_FORMATS = ("PNG", "JPEG", "WEBP", "GIF", "BMP", "ICO")  # the kinds a logo comes in, as Pillow names them: no other decoder is reached
 TILE_BORDER = (211, 220, 232)  # the tile's light outline
 
 
@@ -442,7 +443,7 @@ def logo_tile(spec, path, navy):
         bb = d.textbbox((0, 0), text, font=f)
         d.text(((TILE - (bb[2] - bb[0])) / 2 - bb[0], (TILE - (bb[3] - bb[1])) / 2 - bb[1]), text, fill="white", font=f)
     else:
-        im = Image.open(spec["file"]).convert("RGBA")
+        im = Image.open(spec["file"], formats=LOGO_FORMATS).convert("RGBA")   # a logo's usual kinds; no other decoder of Pillow's is reached
         if im.width == im.height and all(im.getpixel(c)[3] == 0 for c in ((0, 0), (im.width - 1, 0), (0, im.height - 1), (im.width - 1, im.height - 1))):
             # A square image with transparent corners is a finished rounded tile already: keep it, only scale it to the tile size
             im.resize((TILE, TILE), Image.LANCZOS).save(path)

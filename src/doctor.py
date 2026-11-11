@@ -326,8 +326,9 @@ def os_kind() -> str:  # fix lines differ by system
 
 
 def in_container() -> bool:  # the same test as the engine (src/resume.py: in_container)
-    """True inside the Offerowl container, where the typesetting tools are called directly"""
-    return Path("/.dockerenv").exists()
+    """True inside one of Offerowl's own images, where the typesetting tools are called directly. Both carry LibreOffice; a
+    container that does not (a dev container, a CI job's) is taken for a PC, as the engine takes it"""
+    return Path("/.dockerenv").exists() and shutil.which("soffice") is not None
 
 
 def data_dir() -> Path:  # the same rule as apps/panel/server.py and apps/desktop/app.py (tests/packaging compares them)

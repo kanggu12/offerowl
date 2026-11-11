@@ -1824,3 +1824,9 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
   .brand { display: inline-flex; align-items: center; min-height: 44px; }
   .switch { position: relative; } .switch::before { content: ""; position: absolute; inset: -10px -2px; } }
 .posting-again { display: grid; gap: 10px; } .posting-again .hint { margin: 0; }          /* the Fit tab's paste: its sentence, the box, the key, one rhythm */
+
+/* ================================================================ the kit inside the panel (11-12): the interview tab's frames
+   The kit's search view and deck read as parts of the job's card (their own pages draw no desk there), so no frame is drawn
+   round them; the talk's script is a sheet of paper, edged as the documents' sheets are. */
+.ivframe { border: 0; border-radius: 0; }
+.ivframe.ivsheet { box-shadow: var(--sheet-shadow); }

@@ -122,7 +122,7 @@ def doctor() -> dict:
                  (["fonts:" + ",".join(missing_fonts)] if missing_fonts else []) + \
                  ([] if (ROOT / "node_modules" / "docx").is_dir() else ["node_modules"])
     docker = shutil.which("docker")
-    in_container = pathlib.Path("/.dockerenv").exists()
+    in_container = pathlib.Path("/.dockerenv").exists() and shutil.which("soffice") is not None  # one of Offerowl's images (src/resume.py's rule)
     return {
         "html": {"ok": not html_needs, "needs": html_needs,
                  "found": {"browser": b["path"] if b else None, "kind": b["kind"] if b else None,

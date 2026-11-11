@@ -67,8 +67,9 @@ class EngineReadyTests(Base):
         # typesetting was ready, and every build stopped with OSError
         a = self.make()
         import resume  # src/resume.py: the renderer's own report
+        # a PC, not one of Offerowl's images: inside a container the stand-in which() would find LibreOffice there too
         with mock.patch.object(sys, "platform", "win32"), mock.patch("shutil.which", return_value="C:/Program Files/Docker/docker.exe"), \
-                mock.patch.dict(os.environ, {}):
+                mock.patch.dict(os.environ, {}), mock.patch.object(resume, "in_container", return_value=False):
             with mock.patch.object(resume, "renderers", return_value={"html": {"ok": True}}):
                 self.assertEqual("", a.tasks.engine_ready())  # ready, through the browser
                 self.assertEqual("html", os.environ.get("OFFEROWL_RENDERER"))  # and the builds use it
@@ -805,6 +806,7 @@ class SameProfileTests(Base):
         src = a.ws.path("profile", "profile.json")  # the profile
         if not src.is_file():  # written when the facts are kept
             a.keep_all()
+        self.settle()  # the example's own writes are over before the test writes the file (a late one made the content differ)
         data = json.loads(src.read_text(encoding="utf-8"))  # its content
         a.tasks.profile_lang = lambda: "ko"  # a Korean profile, whatever the example's share of Hangul
         en = a.ws.path("profile", "profile.en.json")  # a translation of it
@@ -973,7 +975,8 @@ class DesktopServerLifeTests(unittest.TestCase):
         if watched:  # as server_env() starts it
             env["OFFEROWL_APP_PARENT"] = str(app.pid)
         server = subprocess.Popen([sys.executable, "-c", code], env=env, start_new_session=True)  # a session of its own, as Child starts it
-        self.addCleanup(lambda: server.poll() is None and server.kill())
+        self.addCleanup(server.wait, 10)  # reaped, so no ended process is left for the interpreter to find
+        self.addCleanup(lambda: server.poll() is None and server.kill())  # cleanups run last first: stopped, then reaped
         time.sleep(2)  # the module loaded and the watch running
         app.kill()  # the app killed: it gets no chance to stop its server
         app.wait()  # and its parent has seen it end
@@ -1086,7 +1089,8 @@ class DesktopDataFolderTests(unittest.TestCase):
             pidfile = pathlib.Path(tmp) / "inner.pid"  # where the inner process says who it is
             # the launcher ignores SIGTERM and starts an inner server that ignores it too, as a stuck one-file child would
             script = f"trap '' TERM; sh -c 'trap \"\" TERM; echo $$ > {pidfile}; while true; do sleep 1; done' & wait"
-            child = app.Child("server", ["sh", "-c", script], dict(os.environ), app.CappedLog(pathlib.Path(tmp) / "c.log"))
+            log = app.CappedLog(pathlib.Path(tmp) / "c.log")  # the child's log, closed below as the app closes it at quit
+            child = app.Child("server", ["sh", "-c", script], dict(os.environ), log)
             child.start()  # in a session of its own, as the app starts it
             for _ in range(50):  # the inner process has written its pid
                 if pidfile.is_file() and pidfile.read_text(encoding="utf-8").strip():
@@ -1094,6 +1098,7 @@ class DesktopDataFolderTests(unittest.TestCase):
                 time.sleep(0.1)
             inner = int(pidfile.read_text(encoding="utf-8").strip())  # the server under the launcher
             child.stop(timeout=1)  # what quitting does
+            log.close()  # and then the log, last
             time.sleep(0.3)  # the signal lands
             with self.assertRaises(ProcessLookupError):  # gone too, not orphaned
                 os.kill(inner, 0)

@@ -49,6 +49,7 @@ Return JSON: {{"facts": [{{"kind": one of {kinds}, "org": company or school or "
 
 
 IMAGES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp")  # image files that are read with OCR
+IMAGE_FORMATS = ("PNG", "JPEG", "TIFF", "BMP", "WEBP")  # the same kinds as Pillow names them: the only decoders a picture may reach
 MAX_PART = 64_000_000  # bytes of one XML part of a .docx or .pptx once inflated: a 300-page document's is a few MB
 MSG = {  # what this step says, in both languages with the same keys
     "en": {
@@ -103,7 +104,9 @@ def in_container(path: pathlib.Path, make_script) -> str:
         shutil.copy(path, src)
         rel = src.relative_to(ROOT)
         script = f"cd /work/{rel.parent} && " + make_script(src.name)
-        inside = pathlib.Path("/.dockerenv").exists()  # already inside a container (tests): run directly, on the host go through render/run.sh
+        # already inside one of Offerowl's images (the engine's rule, src/resume.py: in_container): run directly; elsewhere,
+        # a PC or a container without the tools, go through render/run.sh
+        inside = pathlib.Path("/.dockerenv").exists() and shutil.which("soffice") is not None
         try:
             r = subprocess.run((["bash", "-c", script.replace("/work/", str(ROOT) + "/")] if inside else [str(ROOT / "render" / "run.sh"), "bash", "-c", script]),
                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=CONTAINER_TIMEOUT)
@@ -149,7 +152,7 @@ def _ocr(path: pathlib.Path, block: bool, scratch: pathlib.Path) -> str:
         try:
             from PIL import Image  # the enlarging
             big = scratch / ("big" + path.suffix.lower())  # a copy beside nothing of the person's, gone with the folder
-            im = Image.open(path)
+            im = Image.open(path, formats=IMAGE_FORMATS)  # only the kinds IMAGES names: no other decoder of Pillow's is reached
             im.resize((im.width * 2, im.height * 2), Image.LANCZOS).save(big)
             path = big
         except Exception:  # noqa: BLE001  no Pillow, or a picture it cannot open: read as it is

@@ -183,6 +183,17 @@ class TestPhotoThumbnail(PanelCase):
         self.assertEqual((P.THUMB_MAX, P.THUMB_MAX * 4 // 3), Image.open(io.BytesIO(self.raw_get("/api/v1/photo?w=4000")[1])).size)  # a width past the cap: the cap
         self.assertEqual("image/png", self.raw_get("/api/v1/photo?w=x")[0])  # not a width: the photo itself
 
+    def test_only_a_photo_s_two_kinds_reach_a_decoder(self):
+        """A small copy is decoded from a JPEG or a PNG only: bytes of any other kind (a BMP here, as if a file held something
+        other than its name says) reach none of Pillow's other decoders, and the original is sent as it is."""
+        for kind in ("JPEG", "PNG"):  # the two kinds a photo is kept in
+            buf = io.BytesIO()
+            Image.new("RGB", (600, 800), (120, 150, 180)).save(buf, kind)
+            self.assertIsNotNone(P._make_thumbnail(buf.getvalue(), 240), kind)  # a small copy
+        buf = io.BytesIO()
+        Image.new("RGB", (600, 800), (120, 150, 180)).save(buf, "BMP")  # a kind Pillow reads, but no photo is kept in
+        self.assertIsNone(P._make_thumbnail(buf.getvalue(), 240))  # not decoded: the original goes as it is
+
 
 if __name__ == "__main__":
     unittest.main()

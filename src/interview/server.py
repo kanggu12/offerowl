@@ -214,7 +214,8 @@ class Handler(http.server.BaseHTTPRequestHandler):  # the routes; make_server bi
             n = qs.get("n", [""])[0]  # scripts per part
             lang = qs.get("lang", [""])[0]  # the deck's own words
             body = deck.page(self.index.job, qs.get("kinds", [""])[0] or None, qs.get("ids", [""])[0] or None,  # the page
-                             int(n) if n.isdigit() else None, lang if lang in ("ko", "en") else None)  # a bad value falls back
+                             int(n) if n.isdigit() else None, lang if lang in ("ko", "en") else None,  # a bad value falls back
+                             embedded=qs.get("embed", [""])[0] == "1")  # inside the panel, which names and prints it itself
             self._send(200, body, "text/html; charset=utf-8", {"Content-Security-Policy": page_policy(body, SCRIPT.findall(cue.PRINT_SCRIPT))})  # its print key's script only
         elif url.path == "/talk":  # the presentation interview's script, with the keys to its PDFs (talk.py writes them)
             from interview import talk_page  # the page

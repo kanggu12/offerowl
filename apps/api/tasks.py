@@ -47,6 +47,14 @@ FIGURE_CALLS = 6  # model calls one round of figures may take; projects share a 
 MEASURED_CALLS = 0  # calls of figure_draft's measured step: off until its charts are judged worth their place on a real profile
 
 
+def in_image() -> bool:
+    """Inside one of Offerowl's own images (the render container, the app image), where the tools are called directly. The
+    engine's own rule (src/resume.py: in_container), so the panel's state and the builds never disagree about where they run:
+    a container without LibreOffice (a dev container, a CI job's) is taken for a PC."""
+    import resume  # src/resume.py, on the path set above
+    return resume.in_container()
+
+
 def letter_sentences(path: Path) -> int:
     """How many sentences with words a drafted cover letter holds (0 for a missing file or an empty skeleton)."""
     doc = read_json(path, None)  # the draft
@@ -564,8 +572,9 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         if not (ROOT / "node_modules" / "docx").is_dir():  # the resume writer's library
             self.engine_needs = needs  # nothing the browser lacks: the libraries come first
             return "engine_not_ready"  # the fix button installs them
-        # no container runtime on this PC, or Windows, where the container's starter (render/run.sh, a shell script) cannot run
-        if not Path("/.dockerenv").exists() and (sys.platform == "win32" or not shutil.which("docker")):
+        # not inside one of Offerowl's images, and no container runtime on this PC, or Windows, where the container's starter
+        # (render/run.sh, a shell script) cannot run
+        if not in_image() and (sys.platform == "win32" or not shutil.which("docker")):
             try:  # the browser renderer may still typeset here (docs/ARCHITECTURE.md)
                 import resume  # the renderer switch lives in src/resume.py
                 rep = resume.renderers()  # which renderers this PC can run
@@ -599,8 +608,8 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
     def _setup(self) -> None:
         self._set("setup", step="installing")  # the step the page shows
         env = {**os.environ, "OFFEROWL_NET": "1"}  # run.sh opens the network for this alone
-        # inside the container, on Windows (render/run.sh is a shell script it cannot start), or no Docker but npm on this PC
-        direct = Path("/.dockerenv").exists() or sys.platform == "win32" or (not shutil.which("docker") and shutil.which("npm"))
+        # inside one of Offerowl's images, on Windows (render/run.sh is a shell script it cannot start), or no Docker but npm here
+        direct = in_image() or sys.platform == "win32" or (not shutil.which("docker") and shutil.which("npm"))
         npm = shutil.which("npm")  # its full path: on Windows npm is npm.cmd, which a command list without a shell never finds
         if direct and npm is None:  # nothing here can install them
             self._set("setup", state="error", step="", error={"code": "setup_failed", "detail": "npm"})  # the page says so, with its retry

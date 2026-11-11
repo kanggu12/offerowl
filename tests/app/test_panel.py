@@ -287,6 +287,7 @@ class TestJobs(PanelCase):
         finally:
             os.environ.pop("OFFEROWL_ALLOW_LOCAL_LINKS", None)  # back to the rule
             web.shutdown()  # the site stops
+            web.server_close()  # and its socket goes
         r = self.post("/api/v1/jobs", {"url": f"http://127.0.0.1:{web.server_address[1]}/job"}, expect=400)  # this PC is never fetched otherwise
         self.assertEqual("bad_link", r["what"])  # refused by name
         r = self.post("/api/v1/jobs", {"url": "file:///etc/passwd"}, expect=400)  # not a web link
@@ -723,6 +724,8 @@ class TestStandinAsAProgram(unittest.TestCase):
         self.addCleanup(shutil.rmtree, tmp, True)
         child = subprocess.Popen([sys.executable, "-I", str(ROOT / "apps" / "api" / "standin.py"), "serve", "0"], cwd=tmp,  # -I: no PYTHONPATH, no script folder
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+        self.addCleanup(child.stderr.close)  # cleanups run last first: its pipes close after it is stopped and reaped
+        self.addCleanup(child.stdout.close)
         self.addCleanup(child.wait, 10)  # reaped after it is stopped below
         self.addCleanup(child.kill)  # it serves until stopped
         line = child.stdout.readline().strip()  # its port, or nothing when it died

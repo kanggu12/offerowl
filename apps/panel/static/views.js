@@ -787,7 +787,8 @@ function ivFrame(j, b, path) {                                                  
   }
   const look = `embed=1&theme=${document.documentElement.dataset.theme === "dark" ? "dark" : "light"}`;   // inside the panel, in the panel's theme
   const url = `/kit/${enc(j.id)}/` + path + (path.includes("?") ? "&" : "?") + look;   // the kit, at the panel's own address (web.py kit_proxy)
-  return h("iframe", { class: "ivframe", src: url, title: path.startsWith("deck") ? t("Interview deck") : t("Search the scripts"), "data-key": "ivframe-" + j.id + "-" + path });
+  const name = path.startsWith("deck") ? t("Interview deck") : path.startsWith("talk") ? t("Presentation script") : t("Search the scripts");   // what a screen reader names the frame
+  return h("iframe", { class: "ivframe" + (path.startsWith("talk") ? " ivsheet" : ""), src: url, title: name, "data-key": "ivframe-" + j.id + "-" + path });
 }
 async function openKit(jid, hash) {                                                 // the kit's own page, started when nothing answers there
   const tab = window.open("", "_blank");                                            // opened in the click itself: after the waits below the browser would block it

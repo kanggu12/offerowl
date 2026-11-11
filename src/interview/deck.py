@@ -185,6 +185,8 @@ CSS = """
 :root { --ink: #1d1c1d; --ink-2: #3f3e3f; --off: #6e6e73; --rule: #d4d6db; --navy: #1b2e4b; --hl: rgba(242, 199, 68, .9); --well: #f3f4f6; }
 * { box-sizing: border-box; }
 html { background: #e9eaed; }
+html.embedded { background: transparent; }   /* inside the Offerowl panel (?embed=1): its desk shows through and the pages stand on it, as its documents do */
+html.embedded .bar { display: none; }   /* the panel names the deck and has the key that prints it */
 body { margin: 0; padding: 16px; color: var(--ink); font: 400 10pt/1.55 "Pretendard Variable", Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
   word-break: keep-all; overflow-wrap: break-word; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .bar { display: flex; align-items: center; gap: 12px; max-width: 297mm; margin: 0 auto 12px; font-size: 10pt; color: var(--ink-2); }
@@ -230,7 +232,7 @@ table.lines td.by { width: 34%; } table.lines td.lamp { width: 13%; white-space:
 .talk .me { font-size: 10pt; }
 .talk b, .note b { font-weight: 750; }
 mark.hl { color: inherit; padding: 0 .1em; background: linear-gradient(180deg, transparent 58%, var(--hl) 58%); font-weight: 750; }
-.br { color: #b0b0b5; font-weight: 400; }
+.br { color: var(--off); font-weight: 400; }   /* ' / ' marks a breath: faint beside the words, yet readable when rehearsing (5.1:1 on the page) */
 .dir { color: var(--off); font-style: italic; font-size: .92em; }
 code { font: 500 .92em/1 "JetBrains Mono", Consolas, monospace; }
 .note { margin: 1mm 0 3mm; padding: 2.5mm 3mm; background: var(--well); border-radius: 3px; font-size: 9pt; color: var(--ink-2); }
@@ -333,8 +335,8 @@ def record(job):
     return st if isinstance(st, dict) else {}
 
 
-def page(job, kinds=None, ids=None, n=None, lang=None, fonts="fonts"):
-    """The deck as one HTML page."""
+def page(job, kinds=None, ids=None, n=None, lang=None, fonts="fonts", embedded=False):
+    """The deck as one HTML page. embedded: shown inside the Offerowl panel, which names it and prints it itself."""
     s = i18n.page(lang)  # the page's language
     unref = _unref(job.kit)  # the writer's cross-references are removed, as on the search view
     scenes = scenes_of(job)  # every script
@@ -365,7 +367,8 @@ def page(job, kinds=None, ids=None, n=None, lang=None, fonts="fonts"):
             body.append(stall_page(s))  # the lines that buy time
     sheet = "".join(body) if body else f'<p class="empty">{html.escape(s["deck_empty"])}</p>'  # the deck, or why there is none
     count = s["deck_count"].format(n=len(pages))  # how many scripts it holds
-    return (f'<!doctype html><html lang="{s["lang"]}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+    look = ' class="embedded"' if embedded else ""  # inside the panel: no bar of its own, the panel's desk behind the pages
+    return (f'<!doctype html><html lang="{s["lang"]}"{look}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>{html.escape(s["deck_title"] + " " + company)}</title><style>{CSS.replace("{fonts}", fonts)}</style></head><body>'
             f'<div class="bar"><h1>{html.escape(s["deck_title"])}</h1><span class="n">{html.escape(count)}</span>'
             f'{PRINT_KEY.format(label=html.escape(s["deck_print"]))}</div>{sheet}{PRINT_SCRIPT}</body></html>')

@@ -67,6 +67,19 @@ class ServerTest(unittest.TestCase):  # the server over real HTTP on localhost
         self.assertEqual(self.get(base + "/fonts/PretendardVariable.woff2")[0], 200)  # a bundled font is served
         self.assertEqual(self.get(base + "/fonts/../server.py")[0], 404)  # a path that climbs out of the fonts folder is not
 
+    def test_inside_the_panel_the_kit_leaves_the_look_and_the_keys_to_it(self):
+        """Inside the Offerowl panel (?embed=1) the kit's deck draws no desk and no bar, and its search view hides the look
+        switch and the Practice key, which the panel has itself; opened on its own, the deck keeps its bar."""
+        base, _ = self.start()  # a plain server
+        code, inside = self.get(base + "/deck?lang=ko&embed=1")  # as the panel's frame asks for it
+        self.assertEqual(code, 200)
+        self.assertIn('class="embedded"', inside)  # the deck knows it is inside the panel
+        code, alone = self.get(base + "/deck?lang=ko")  # opened in a tab of its own
+        self.assertEqual(code, 200)
+        self.assertNotIn('class="embedded"', alone)  # the plain page, with its print key
+        code, page = self.get(base + "/")  # the search view: embedding is read in the page itself (?embed=1)
+        self.assertIn("html.embedded :is(#theme, #practiceBtn) { display: none; }", page)  # the two keys that would disagree with the panel
+
     @unittest.skipIf(importlib.util.find_spec("numpy") is None, "numpy is not installed: the optional model path needs it")
     def test_optional_model_path_with_a_stand_in(self):
         """With a stand-in embedder the switch shows, /api/dense answers after switch-on, and is 503 when off."""

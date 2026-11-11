@@ -48,6 +48,14 @@ NOTE = ("# 감마클라우드 면접 준비\n\n가상의 회사 **감마클라�
 VIEWS = [(2560, 1440), (1440, 900), (390, 844)]  # the window sizes measured: a wide screen, a laptop, a phone
 THEMES = ("light", "dark")  # both looks are measured
 LANGS = ("ko", "en")  # both languages are measured
+# A frame's page loads again after each switch of language, look and size (its address carries the look): wait for its
+# document to be whole, or eight seconds at most, before the screenshot.
+FRAME_LOADED = """new Promise((done) => {
+  const f = document.querySelector('iframe.ivframe');
+  const ready = () => f && f.contentDocument && f.contentDocument.readyState === 'complete' && f.contentDocument.body && f.contentDocument.body.childElementCount > 0;
+  const t0 = Date.now();
+  (function wait() { if (!f || ready() || Date.now() - t0 > 8000) setTimeout(done, 400); else setTimeout(wait, 100); })();
+})"""
 NAMES = [SAMPLE.name, NOTES.name]  # the person's own file names, allowed on screen
 KINDS = ("overflow", "truncated", "overlap", "markup", "paths", "contrast", "align", "center")  # what the audit counts
 # the user guide's screenshots: a state of the walk -> (file, window, themes, the part to keep or None for the window).
@@ -169,6 +177,7 @@ class Walk:
                     self.landed()  # the scroll's event has reached the page (a resized window moves a scrolled page too)
                     self.page.evaluate(SETTLED)  # what moves has come to rest
                     found = self.page.evaluate(AUDIT, NAMES)  # the in-page measure
+                    self.audit_frames(found)  # and inside the kit's pages that the panel shows in frames
                     file = self.out / f"{self.n:02d}_{name}_{lang}_{theme}_{w}x{h}.png"  # numbered, so the files sort in walk order
                     self.page.screenshot(path=str(file))  # kept for the eye's check
                     counts = {k: len(found[k]) for k in KINDS}  # one number per kind
@@ -179,6 +188,23 @@ class Walk:
                           (" ".join(f"{k} {v}" for k, v in bad.items()) or "clean"), flush=True)
         self.guide_shots(name, drawer, scroll)  # the guide's pictures of this state, when asked for
         self.view("ko", "light", 1440, 900, False)  # back to the walk's own view
+
+    def audit_frames(self, found: dict) -> None:
+        """The same measure inside each frame of the kit's own pages (served at the panel's address under /kit/, so the
+        walk can read them): what it finds there counts with the panel's, named by the frame's page."""
+        for frame in self.page.frames[1:]:  # the panel's own document is the first
+            if "/kit/" not in frame.url:  # only the kit's pages; nothing else is framed from this origin
+                continue
+            try:
+                inner = frame.evaluate(AUDIT, NAMES)  # the kit's page, measured as the panel is
+            except Exception as e:  # a frame torn down by a redraw between the listing and the measure
+                print(f"   frame {frame.url} not measured: {e}"[:200], flush=True)
+                continue
+            where = "kit " + frame.url.split("/kit/", 1)[1].split("?", 1)[0]  # which page: its path under the job
+            for k in KINDS:  # each finding marked with the page it was found on
+                found[k] += [{**x, "frame": where} if isinstance(x, dict) else f"[{where}] {x}" for x in inner[k]]
+            found["texts"] += inner["texts"]  # what was read, all together
+            found["keys"] += inner["keys"]
 
     def guide_shots(self, name: str, drawer: bool, scroll: str | None):
         """The user guide's screenshots of a state (GUIDE), in English as the guide is, into the guide's folder."""
@@ -357,6 +383,11 @@ def main() -> int:  # 0 only when nothing was found
             w.api("/api/v1/interview/kit", {"job": jid, "lang": "ko"})  # the map again, now covered by the scenes
             w.wait("boardOf(S.job) && boardOf(S.job).scripts.length > 0")  # scripts on the board
             w.shoot("interview_scripts", scroll=".scripts")  # the script cards
+            # the kit's own pages in the panel's frame: its search view and its deck, each drawn again in every look and size
+            for part in ("search", "deck"):
+                page.evaluate(f"UI.ivPart = '{part}'; render()")  # the sub-tab, as its key sets it
+                w.wait("document.querySelector('iframe.ivframe')", timeout=120)  # the kit started and its frame placed
+                w.shoot("interview_" + part, prep=FRAME_LOADED)  # the frame's page, read in after each switch
             page.evaluate("""async ([jid, text]) => { await fetch(`/api/v1/jobs/materials?job=${encodeURIComponent(jid)}`, { method: 'POST', body: new Blob([text]),
                 headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent('면접 준비 노트.md') } }); }""", [jid, NOTE])  # a note of the person's own, sent as the page sends a file
             page.evaluate("refresh()"); w.wait("job() && (job().materials || []).length === 1")  # listed with the job

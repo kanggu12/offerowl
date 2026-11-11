@@ -47,6 +47,8 @@ class PanelKeys(unittest.TestCase):
         except Exception as exc:  # noqa: BLE001  Playwright without its browser
             cls.pw.stop()
             cls.srv.terminate()
+            cls.srv.wait(timeout=20)  # a skipped class has no tearDownClass: the server is reaped here
+            cls.srv.stdout.close()
             raise unittest.SkipTest(f"no Chromium for Playwright: {exc}")
         ctx = cls.browser.new_context(viewport={"width": 1440, "height": 900}, locale="ko-KR", bypass_csp=True)
         ctx.add_init_script("try { localStorage.setItem('offerowl-setup-seen', '1'); } catch (_) {}")  # the setup guide is not the subject here
@@ -65,12 +67,16 @@ class PanelKeys(unittest.TestCase):
         cls.pw.stop()
         cls.srv.terminate()
         cls.srv.wait(timeout=20)
+        cls.srv.stdout.close()  # the pipe its address came through goes with it
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def test_1_a_redraw_keeps_the_reader_s_place_and_the_sentence(self):
         p = self.page
+        # every page of the resume laid out first: on a slow run the document was still 1,607 px tall and the scroll stopped at 707
+        p.wait_for_function("document.documentElement.scrollHeight >= 1800 + window.innerHeight", timeout=30000)
         p.evaluate("window.scrollTo(0, 1800)")
         p.wait_for_timeout(300)
+        self.assertEqual(1800, p.evaluate("Math.round(window.scrollY)"))  # the place the redraw must keep
         p.evaluate("$('canvas')._key = null; render()")  # the same document drawn again, as a state change does
         p.wait_for_timeout(700)
         self.assertEqual(1800, p.evaluate("Math.round(window.scrollY)"))  # not thrown back to the top

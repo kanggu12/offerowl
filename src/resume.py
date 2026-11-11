@@ -182,8 +182,10 @@ def renderer() -> str:
 
 
 def in_container() -> bool:
-    """Inside the render container the tools are called directly, without render/run.sh"""
-    return pathlib.Path("/.dockerenv").exists()
+    """Inside one of Offerowl's own images (the render container, the app image) the tools are called directly, without
+    render/run.sh. Both carry LibreOffice; a container that does not (a dev container, a CI job's, a plain Python image) is
+    taken for a PC, so its browser typesets there instead of the tools it lacks being called"""
+    return pathlib.Path("/.dockerenv").exists() and shutil.which("soffice") is not None
 
 
 def local() -> bool:

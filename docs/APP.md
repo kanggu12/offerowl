@@ -517,7 +517,8 @@ python3 apps/desktop/app.py --check                  # the desktop app's own che
 - `walk.py` drives Chromium. It times the first look (the make view, then the example person's resume), then measures
   every state (Make with the example, the resume, a selected sentence, an edit and an
   unsupported sentence, the profile, a fact being edited and one being typed in, the job form, the fit, the tailored job, the resume for
-  the job, the cover letter without an agent, the typeset view without a PDF, the interview board and its scripts, the job's materials with a note open,
+  the job, the cover letter without an agent, the typeset view without a PDF, the interview board and its scripts, the
+  kit's search view and its deck in the interview tab's frame, the presentation's script, the job's materials with a note open,
   the tracker's board and timeline, the Library and its Trash with the question before deleting for good and a removal's
   note with its Undo key (then one put back and one deleted through the keys), each inspector tab, the menu, the agent on
   through the stand-in, the agent's panel, the
@@ -537,6 +538,9 @@ python3 apps/desktop/app.py --check                  # the desktop app's own che
   - center: a one-line key whose words or sign sit more than a pixel off its middle, up or down, and across when its
     contents are centred. The words' middle is their body from the font's own measure (Hangul syllables, or the
     capital's height for Latin letters and figures), not the text's box, which holds the font's whole ascent and descent.
+
+  The kit's own pages that the interview tab shows in frames are served at the panel's address (under `/kit/`), so the
+  same audit runs inside each of them too; what it finds there counts with the panel's and names the frame's page.
 
   The audit first runs on a page with one planted defect of each kind and stops when it misses one. The last lines
   read `first run: N s from the page to the example's resume (backend none)` and

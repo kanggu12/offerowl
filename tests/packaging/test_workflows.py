@@ -40,6 +40,12 @@ def scripts(doc: dict) -> list:
     return [s["run"] for job in doc["jobs"].values() for s in steps(job) if "run" in s]
 
 
+def claimed_pythons() -> list:
+    """The Python versions pyproject.toml's classifiers name, oldest first (read as text: tomllib is not in 3.10)"""
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    return sorted(re.findall(r'"Programming Language :: Python :: (3\.\d+)"', text), key=lambda v: int(v.split(".")[1]))
+
+
 class WorkflowFilesTest(unittest.TestCase):
     def setUp(self):
         need_yaml(self)
@@ -264,12 +270,21 @@ class CiTest(unittest.TestCase):
                      "docker compose -f deploy/docker/compose.yaml config --quiet", "kubeconform"):
             self.assertIn(want, text)
 
-    def test_pip_install_is_tried_on_the_three_systems_from_the_oldest_python(self):
+    def test_pip_install_is_tried_on_the_three_systems_with_the_oldest_and_the_newest_python(self):
         job = self.doc["jobs"]["package-install"]
         self.assertEqual(job["strategy"]["matrix"]["os"], ["ubuntu-24.04", "macos-latest", "windows-latest"])
+        claimed = claimed_pythons()
+        self.assertEqual(job["strategy"]["matrix"]["python"], [claimed[0], claimed[-1]])  # the oldest and the newest it claims
         python = [s for s in steps(job) if s.get("uses", "").startswith("actions/setup-python")][0]["with"]["python-version"]
-        self.assertEqual(python, "3.10")
+        self.assertEqual(python, "${{ matrix.python }}")
         self.assertIn("python -m venv", " ".join(scripts({"jobs": {"j": job}})))
+
+    def test_the_quick_tests_run_on_every_python_the_package_claims(self):
+        claimed = claimed_pythons()
+        self.assertEqual(self.doc["jobs"]["lint-and-cli-tests"]["strategy"]["matrix"]["python"], claimed)  # none left untested
+        lower = re.search(r'requires-python = ">=(3\.\d+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
+        self.assertEqual(lower, claimed[0])  # the oldest one named is the oldest pip installs it on
+        self.assertEqual(["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"], claimed)  # each one between, none skipped
 
     def test_the_app_image_is_built_and_started_the_way_compose_starts_it(self):
         job = self.doc["jobs"]["app-image"]

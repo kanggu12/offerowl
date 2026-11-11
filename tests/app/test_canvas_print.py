@@ -127,6 +127,8 @@ class LivePagesBreakAsThePdf(unittest.TestCase):
         except Exception as exc:  # noqa: BLE001  Playwright without its browser
             cls.pw.stop()
             cls.srv.terminate()
+            cls.srv.wait(timeout=20)  # a skipped class has no tearDownClass: the server is reaped here
+            cls.srv.stdout.close()
             raise unittest.SkipTest(f"no Chromium for Playwright: {exc}")
         ctx = cls.browser.new_context(viewport={"width": 1440, "height": 900}, locale="ko-KR", bypass_csp=True)
         ctx.add_init_script("try { localStorage.setItem('offerowl-setup-seen', '1'); } catch (_) {}")  # the setup guide is not the subject here
@@ -145,6 +147,7 @@ class LivePagesBreakAsThePdf(unittest.TestCase):
         cls.pw.stop()
         cls.srv.terminate()
         cls.srv.wait(timeout=20)
+        cls.srv.stdout.close()  # the pipe its address came through goes with it
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def headings(self) -> list:

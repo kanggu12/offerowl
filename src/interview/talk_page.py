@@ -96,7 +96,8 @@ def script_html(result: dict, folder: pathlib.Path, served: bool = False, keys: 
 {font(700, 'Pretendard-Bold.ttf')}
 @page {{ size: A4; margin: 13mm 13mm 14mm 13mm; }}
 :root {{ --accent: {accent}; }}
-body {{ font-family: "Pretendard", sans-serif; color: #151515; background: #ffffff; margin: 0; font-size: 10.4pt; line-height: 1.62; }}
+body {{ font-family: "Pretendard", sans-serif; color: #151515; background: #ffffff; margin: 0; font-size: 10.4pt; line-height: 1.62;
+  word-break: keep-all; overflow-wrap: break-word; }}
 .hd {{ border-bottom: 2px solid #151515; padding-bottom: 6px; margin-bottom: 8px; }}
 .hd h1 {{ font-size: 17pt; margin: 0; letter-spacing: -0.3px; }} .hd h1::before {{ content: ""; display: inline-block; width: 18px; height: 3px; background: var(--accent); vertical-align: middle; margin-right: 8px; }}
 .hd div {{ font-size: 9.5pt; color: #5a5a5a; margin-top: 2px; }} .hd .warn {{ color: #8a4a12; }}
@@ -162,5 +163,6 @@ def served(folder: pathlib.Path, lang: str = "ko", keys: bool = True) -> str:
     except (OSError, ValueError):  # not made yet, or being written
         W = WORDS["en" if lang == "en" else "ko"]
         return (f'<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><title>{H.escape(W["title"].format(who="").strip(" ,"))}</title>'
-                f'<style>body {{ font-family: sans-serif; margin: 40px; color: #151515; }}</style></head><body><p>{H.escape(W["none"])}</p></body></html>')
+                f'<style>body {{ font-family: sans-serif; margin: 0; padding: 40px; color: #151515; background: #ffffff; word-break: keep-all; }}</style>'
+                f'</head><body><p>{H.escape(W["none"])}</p></body></html>')  # a sheet of its own: dark text never stands on the panel's dark desk
     return script_html(result, folder, served=True, keys=keys)

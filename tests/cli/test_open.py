@@ -7,6 +7,7 @@ Run: python3 -m unittest discover -s tests/cli
 import contextlib  # the launcher's printed lines
 import http.server  # a stand-in panel
 import importlib.machinery  # the launcher has no .py name
+import importlib.util  # a module from a spec
 import io  # captured output
 import json  # the health answer
 import os  # the environment
@@ -54,8 +55,13 @@ def stand_in(answer: dict):
 
 
 def launcher():
-    """The launcher as a module, not started."""
-    return importlib.machinery.SourceFileLoader("offerowl_launcher_open", str(LAUNCHER)).load_module()
+    """The launcher as a module, not started. It has no .py suffix, so the loader is named by hand; the module is made from a
+    spec and run with exec_module (load_module() warned from 3.4 and is gone in 3.15)."""
+    loader = importlib.machinery.SourceFileLoader("offerowl_launcher_open", str(LAUNCHER))
+    spec = importlib.util.spec_from_file_location("offerowl_launcher_open", str(LAUNCHER), loader=loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
 
 
 class OpenPage(unittest.TestCase):
@@ -104,6 +110,7 @@ class OpenCommand(unittest.TestCase):
 
     def test_the_running_panel_is_shown_and_its_address_printed(self):
         srv, port = stand_in({"ok": True, "app": "offerowl", "api": 1})  # an Offerowl panel
+        self.addCleanup(srv.server_close)  # cleanups run last first: its socket closes after it stops
         self.addCleanup(srv.shutdown)
         code, out, err, shown = self.run_open(port)
         self.assertEqual(0, code, err)
@@ -112,6 +119,7 @@ class OpenCommand(unittest.TestCase):
 
     def test_another_program_on_the_port_is_not_taken_for_the_panel(self):
         srv, port = stand_in({"ok": True, "app": "something-else"})  # not ours
+        self.addCleanup(srv.server_close)  # cleanups run last first: its socket closes after it stops
         self.addCleanup(srv.shutdown)
         code, out, err, shown = self.run_open(port)
         self.assertEqual(1, code)

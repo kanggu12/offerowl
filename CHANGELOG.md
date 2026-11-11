@@ -6,6 +6,53 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-12
+
+What a look at the interview tab's own pages inside the panel, at what the tests leave open, and at every Python from 3.10
+to 3.15 found after 0.6.1.
+
+### Security
+
+- Pillow now opens a picture only as the kinds its path takes in: a photo as a JPEG or a PNG, a picture read for its words
+  as a PNG, JPEG, TIFF, BMP or WebP, a logo as a PNG, JPEG, WebP, GIF, BMP or ICO. A file whose inside is any other kind
+  Pillow knows is refused before a decoder reads it. On Python 3.10 the newest Pillow is 12.3.0, which carries advisories
+  fixed only in 13.0.0 (13.0.0 needs Python 3.11); most of them are in decoders a photo, a screenshot or a logo never needs,
+  which no file reaches now.
+
+### Fixed
+
+- The presentation's script split a Korean word across two lines, on its page and in the PDF printed from it: a line now
+  breaks between words.
+- Inside the panel the interview kit's search view had a look switch and a Practice key of its own beside the panel's
+  (the switch could turn the frame dark in a light panel): the panel's keys are the only ones. Its keys and its choice of
+  language stand one height in their row.
+- Inside the panel the interview deck drew a grey desk and a bar with a second print key, light in the dark theme: its
+  pages stand on the panel's own desk, as the documents' pages do, and the panel's key prints it.
+- The breath marks (" / ") in the interview deck and on the cue cards were too faint to rehearse by (2.2:1): they read as
+  the search view's do (5.1:1 and 4.5:1).
+- The interview tab's frames had a box drawn round them inside the job's card; the presentation's script now stands as a
+  sheet, edged as the documents' sheets are. A screen reader named the script's frame "Search the scripts".
+- Before a presentation was made, its frame said so in dark words on the dark theme's desk.
+- The desktop app kept each server's output pipe open after the server ended until the process object was collected;
+  it closes when the output ends.
+- The tracker's calendar file stamped its time with a call Python deprecated in 3.12; the same UTC time comes from the call
+  that replaces it. A test loaded the launcher with a method Python 3.15 removed.
+- Installed with pip inside a container that is not one of Offerowl's own images (a dev container, a CI job's, a plain
+  Python image), the engine took itself for the app image and called LibreOffice, which was not there: no document could
+  be made even with a browser at hand, the panel said the typesetting was ready, and the doctor said to build the app
+  image again. Only a container that carries LibreOffice, as both of Offerowl's images do, counts as one of them, in the
+  engine, the panel, the doctor, the cover letters and the reading of scans alike; any other is taken for a PC, and its
+  browser typesets.
+
+### Changed
+
+- Python 3.13, 3.14 and 3.15 are named beside 3.10 to 3.12: the quick checks run on each of the six, and `pip install` is
+  tried on each system with the oldest and the newest.
+- The walk measures the interview tab's search view and deck (two more states), and its audit runs inside the kit's
+  pages that the panel shows in frames as well.
+- The tests close what they open (a test server's socket, a started program's pipes, the desktop app's log) and reap
+  what they start; a scroll test waits for every page of the resume before it scrolls.
+
 ## [0.6.1] - 2026-11-12
 
 What a check of every view, its keys and its code found after 0.6.0.
@@ -106,6 +153,7 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/kanggu12/offerowl/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/kanggu12/offerowl/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/kanggu12/offerowl/releases/tag/v0.6.0

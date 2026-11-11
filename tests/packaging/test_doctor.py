@@ -104,6 +104,19 @@ class ChecksTest(unittest.TestCase):
             with mock.patch.dict(os.environ, {"HOME": home, **env}, clear=True):
                 self.assertEqual(doctor.data_dir(), app.data_dir(), env)
 
+    def test_the_container_is_offerowl_s_own_image_as_the_engine_says(self):
+        """The doctor's rule is the engine's: a container with LibreOffice is Offerowl's image (its tools checked), one
+        without is taken for a PC (its browser checked), so a plain Python image is never told to build the app image"""
+        import resume  # the engine's rule, beside the doctor's
+        real = pathlib.Path.exists  # the doctor's Path is this class
+        for here, tool, want in ((True, "/usr/bin/soffice", True), (True, None, False), (False, "/usr/bin/soffice", False)):
+            seen = lambda p, *a, **k: here if str(p) == "/.dockerenv" else real(p, *a, **k)  # noqa: E731
+            which = lambda n: tool if n == "soffice" else None  # noqa: E731
+            with mock.patch.object(pathlib.Path, "exists", seen), mock.patch.object(doctor.shutil, "which", which), \
+                    mock.patch.object(resume.shutil, "which", which):
+                self.assertEqual(want, doctor.in_container(), (here, tool))
+                self.assertEqual(doctor.in_container(), resume.in_container(), (here, tool))  # the same rule in both
+
     def test_libs_are_reported_with_the_exact_command_that_installs_them(self):
         tree = self.tmp / "tree"
         (tree / "node_modules" / "docx").mkdir(parents=True)

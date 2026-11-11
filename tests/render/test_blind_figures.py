@@ -64,6 +64,21 @@ class FigureTests(unittest.TestCase):
             f = getattr(self.OF, kind)(prof, "en", self.dir / f"{kind}_{'b' if table else 'o'}.png", self.OF.NAVY)
         return Image.open(f).convert("RGB")
 
+    def test_a_logo_is_read_in_a_logo_s_kinds_only(self):
+        """A logo file is decoded as a PNG, JPEG, WebP, GIF, BMP or ICO; a file of another kind Pillow knows (a TGA here)
+        reaches no decoder and the tile is not drawn (the run notes it and leaves that logo out)."""
+        from PIL import Image, UnidentifiedImageError  # the files and the refusal
+        for kind, suffix in (("PNG", ".png"), ("GIF", ".gif")):  # usual logo files
+            f = self.dir / ("logo" + suffix)
+            Image.new("RGBA", (64, 64), (20, 40, 80, 255)).save(f, kind)
+            self.OF.logo_tile({"file": str(f)}, self.dir / f"tile_{kind}.png", self.OF.NAVY)
+            self.assertTrue((self.dir / f"tile_{kind}.png").is_file(), kind)  # drawn
+        tga = self.dir / "logo.png"  # named as a PNG, a TGA inside
+        Image.new("RGBA", (64, 64), (20, 40, 80, 255)).save(tga, "TGA")
+        with self.assertRaises(UnidentifiedImageError):
+            self.OF.logo_tile({"file": str(tga)}, self.dir / "tile_tga.png", self.OF.NAVY)
+        self.assertFalse((self.dir / "tile_tga.png").exists())  # nothing drawn from it
+
     def test_the_hierarchy_figure_covers_a_name_with_a_bar_of_its_width(self):
         from PIL import ImageChops  # where two pictures differ
         prof = {"summary": {"layers": [["Payments", "Kafka, Redis", "Alphapay checkout, order events"], ["Platform", "Kubernetes", "internal tools"]]}}

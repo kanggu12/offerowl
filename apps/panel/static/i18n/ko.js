@@ -693,7 +693,7 @@ CATALOGS.ko = {
   "form answers {a}/{n}": "문항 답 {a}/{n}",
   "Set the result's day to {d}": "결과 날짜를 {d}로",
   "Docs": "서류",
-  "Presentation": "발표", "Prepare a presentation": "발표 준비하기", "Reading the presentation…": "발표 자료를 읽는 중…",
+  "Presentation": "발표", "Presentation script": "발표 대본", "Prepare a presentation": "발표 준비하기", "Reading the presentation…": "발표 자료를 읽는 중…",
   "What the interviewers asked for": "면접관이 요청한 발표", "Topics, one a line, in their order": "요청 항목(한 줄에 하나, 요청한 순서대로)",
   "About me and my strengths\nWhat my work taught me\nThe hardest problem I solved\nWhy this role, and my plan": "소개와 핵심 역량\n업무로 배운 경험과 기술\n가장 도전적이었던 문제\n지원 계기와 커리어 계획",
   "Minutes": "발표 시간(분)", "Day and time": "일정", "Format": "형식", "Presentation + Q&A, video call": "발표와 질의응답, 화상 면접",
