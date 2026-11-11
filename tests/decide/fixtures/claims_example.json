@@ -1,0 +1,133 @@
+{
+ "_comment": "Claim-strength cases written for the decision evaluation from the fictional example person (examples/sample_ko.json and the example kit's resume). Each claim is held against the evidence it would cite. overclaim: the evidence gives the work to a team, a colleague, a proposal, help or taking part, and the claim drops that. supported: the evidence makes the same claim, or the claim keeps the qualifier. The rule check was not tuned on these cases; one of them (joined against founded) uses a word outside its lists on purpose, as new text will.",
+ "items": [
+  {
+   "id": "c1",
+   "gold": "supported",
+   "input": {
+    "claim": "Built the shared deploy path on Argo CD and Helm.",
+    "evidence": "Argo CD 와 Helm 으로 팀 공용 배포 경로를 만들고, 환경별 설정을 저장소 한 곳으로 모았다."
+   }
+  },
+  {
+   "id": "c2",
+   "gold": "overclaim",
+   "input": {
+    "claim": "Designed the shared deploy path on Argo CD and Helm.",
+    "evidence": "동료가 설계한 Argo CD 배포 경로를 팀 공용으로 옮기는 작업에 참여했다."
+   }
+  },
+  {
+   "id": "c3",
+   "gold": "overclaim",
+   "input": {
+    "claim": "Owned the incident procedures for order failures.",
+    "evidence": "주문 장애 유형별 대응 절차를 팀과 함께 문서로 만들었다."
+   }
+  },
+  {
+   "id": "c4",
+   "gold": "supported",
+   "input": {
+    "claim": "Wrote the incident procedures for order failures with the team.",
+    "evidence": "주문 장애 유형별 대응 절차를 팀과 함께 문서로 만들었다."
+   }
+  },
+  {
+   "id": "c5",
+   "gold": "overclaim",
+   "input": {
+    "claim": "Led the move of order events to Kafka.",
+    "evidence": "I proposed moving order status changes to Kafka events, and the order team built it."
+   }
+  },
+  {
+   "id": "c6",
+   "gold": "supported",
+   "input": {
+    "claim": "Proposed publishing order status changes as Kafka events.",
+    "evidence": "I proposed moving order status changes to Kafka events, and the order team built it."
+   }
+  },
+  {
+   "id": "c7",
+   "gold": "supported",
+   "input": {
+    "claim": "Implemented the Redis cache for order lookups.",
+    "evidence": "자주 읽는 주문 조회에 Redis 캐시를 두고 무효화 규칙을 정했다."
+   }
+  },
+  {
+   "id": "c8",
+   "gold": "overclaim",
+   "input": {
+    "claim": "Implemented the Redis cache for order lookups.",
+    "evidence": "주문 조회 캐시 도입을 도왔다. 무효화 규칙은 선배가 정했다."
+   }
+  },
+  {
+   "id": "c9",
+   "gold": "overclaim",
+   "input": {
+    "claim": "결제 승인 서비스 재설계를 주도했다",
+    "evidence": "결제 승인 서비스 재설계에 참여해 재시도 정책 부분을 맡았다"
+   }
+  },
+  {
+   "id": "c10",
+   "gold": "supported",
+   "input": {
+    "claim": "결제 승인 서비스를 재설계했다",
+    "evidence": "단일 애플리케이션에서 승인 기능을 분리해 승인 경로를 독립 배포 단위로 만들었다"
+   }
+  },
+  {
+   "id": "c11",
+   "gold": "overclaim",
+   "input": {
+    "claim": "사내 배포 플랫폼을 구축했다",
+    "evidence": "사내 배포 플랫폼 구축을 동료와 함께 진행했다"
+   }
+  },
+  {
+   "id": "c12",
+   "gold": "supported",
+   "input": {
+    "claim": "Set up the on-call training with the order failure procedures.",
+    "evidence": "주문 장애 유형별 대응 절차를 문서로 만들고 당번 교육에 썼다."
+   }
+  },
+  {
+   "id": "c13",
+   "gold": "overclaim",
+   "input": {
+    "claim": "Architected the event pipeline between orders and settlement.",
+    "evidence": "Helped the platform team design the event pipeline between orders and settlement."
+   }
+  },
+  {
+   "id": "c14",
+   "gold": "supported",
+   "input": {
+    "claim": "Helped design the event pipeline between orders and settlement.",
+    "evidence": "Helped the platform team design the event pipeline between orders and settlement."
+   }
+  },
+  {
+   "id": "c15",
+   "gold": "overclaim",
+   "input": {
+    "claim": "Founded the payments platform team.",
+    "evidence": "결제플랫폼팀에 백엔드 엔지니어로 합류했다."
+   }
+  },
+  {
+   "id": "c16",
+   "gold": "supported",
+   "input": {
+    "claim": "Ran the weekly release review.",
+    "evidence": "주간 배포 검토 회의를 운영했다."
+   }
+  }
+ ]
+}

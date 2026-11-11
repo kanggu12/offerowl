@@ -1,0 +1,7 @@
+{
+ "_comment": "Render settings of the English example letter. person replaces profile.person for this letter only.",
+ "out": "cover_example_en",
+ "lang": "en",
+ "theme": "navy",
+ "person": {"tagline": "BACKEND PLATFORM ENGINEER"}
+}

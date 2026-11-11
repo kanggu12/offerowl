@@ -1,0 +1,1772 @@
+/* Offerowl's skin: the look laid over the design system (tokens.css, components.css) and the layout (app.css).
+   Its values are measured from a design system known for its restraint (Vercel's Geist: an even near-white page, boxes
+   with a hairline rim, near-black keys with white words, tight headings, small badges of a pale fill and a strong word),
+   with Offerowl's own choices on top: square corners; glass for what holds controls (the cards, the board's columns,
+   the bar once the page slides under it, menus) and opaque surfaces for what is read; the resume's head on Make; and
+   colour for meaning only, never a background: the stages, a result, what goes to the AI agent, keeping and dropping,
+   a move to the next stage, the steps of the chain, the figures. */
+
+/* ================================================================ tokens */
+:root, :root[data-theme] { --r-sm: 2px; --r-md: 2px; --r-lg: 2px; --r-xl: 2px; --r-chip: 2px; --r-pill: 2px; --page-w: 2160px; }   /* square, the pills and counts too (lamps and knobs stay round: they are dots) */
+:root, :root[data-theme="light"] {
+  --desk: #fafafa; --desk-top: #fafafa; --desk-low: #fafafa;                          /* the page: one even near-white */
+  --surface: #ffffff; --surface-2: #fafafa; --hover: #f2f2f2; --press: #ebebeb;        /* a box, a box inside it, a key under the mouse, pressed */
+  --line: #ebebeb; --line-2: #d4d4d4;                                                /* hairlines: a box's rim, a key's rim under the mouse */
+  --ink: #171717; --ink-2: #4d4d4d; --ink-3: #666666;                                /* words: main, secondary, quiet (5.7:1 on white) */
+  --paper: #ffffff; --paper-2: #fafafa; --paper-line: #ebebeb; --rule-2: #d4d4d4; --pane-rule: #ebebeb; --pane-hover: #f2f2f2; --pane-on: #ebebeb; --seg-on: #ffffff; --seg-bg: #f2f2f2;
+  --well: #f5f5f5; --well-line: #ebebeb;
+  --primary: #171717; --primary-ink: #ffffff;
+  --blue: #0058b8; --violet: #6c1aab; --amber: #8f4700; --orange: #a8320a; --green: #0e6f2c; --red: #b42328; --teal: #006b54;   /* words in a meaning colour: 4.5:1 or more on their own pale badge */
+  --blue-bar: #0072f5; --violet-bar: #8e4ec6; --amber-bar: #f5a524; --orange-bar: #f76b15; --green-bar: #2e9e4f; --red-bar: #e5484d;   /* the same colours for marks with no words */
+  --soft: 10%;                                                                        /* how much of a meaning colour a badge's fill takes */
+  --glass: rgba(255, 255, 255, .82); --glass-line: rgba(0, 0, 0, .08); --float: 0 4px 8px -4px rgba(0, 0, 0, .06), 0 16px 32px -12px rgba(0, 0, 0, .14);
+  --card-glass: rgba(255, 255, 255, .72); --card-rim: rgba(0, 0, 0, .08); --card-lit: inset 0 1px 0 rgba(255, 255, 255, .95); --card-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 26px -18px rgba(0, 0, 0, .2);
+  --stage-preparing: #5c5c5c; --stage-submitted: #0058b8; --stage-interview: #8f4700; --stage-result: #8f8f8f;   /* the result's gray is for marks with no words */
+  --focus: #171717;
+}
+:root[data-theme="dark"] {
+  --desk: #0a0a0a; --desk-top: #0a0a0a; --desk-low: #0a0a0a;
+  --surface: #121212; --surface-2: #0f0f0f; --hover: #1c1c1c; --press: #232323;
+  --line: #262626; --line-2: #3a3a3a;
+  --ink: #ededed; --ink-2: #c7c7c7; --ink-3: #a1a1a1;
+  --paper: #121212; --paper-2: #0f0f0f; --paper-line: #262626; --rule-2: #3a3a3a; --pane-rule: #262626; --pane-hover: #1c1c1c; --pane-on: #232323; --seg-on: #232323; --seg-bg: #171717;
+  --well: #0f0f0f; --well-line: #262626;
+  --primary: #ededed; --primary-ink: #0a0a0a;
+  --blue: #52a8ff; --violet: #c472fb; --amber: #ffb224; --orange: #ff8a4c; --green: #62c073; --red: #ff6166; --teal: #0ac7b4;
+  --blue-bar: #52a8ff; --violet-bar: #c472fb; --amber-bar: #ffb224; --orange-bar: #ff8a4c; --green-bar: #62c073; --red-bar: #ff6166;
+  --soft: 16%;
+  --glass: rgba(18, 18, 18, .8); --glass-line: rgba(255, 255, 255, .08); --float: 0 4px 8px -4px rgba(0, 0, 0, .5), 0 16px 32px -12px rgba(0, 0, 0, .7);
+  --card-glass: rgba(24, 24, 26, .72); --card-rim: rgba(255, 255, 255, .08); --card-lit: inset 0 1px 0 rgba(255, 255, 255, .05); --card-shadow: 0 12px 30px -18px rgba(0, 0, 0, .8);
+  --stage-preparing: #a1a1a1; --stage-submitted: #52a8ff; --stage-interview: #ffb224; --stage-result: #7d7d7d;
+  --focus: #ededed;
+}
+
+/* ================================================================ the page, boxes and type */
+html, body::before { background: var(--desk); }
+body::before { background: var(--desk) !important; }
+body { color: var(--ink); }
+/* what holds controls is glass: the cards, the board's columns, the heads */
+.card, .glass, .dochead, .jobs-viz, .col, .active-card, .rhead {
+  background: var(--card-glass); border: 1px solid var(--card-rim); border-radius: 2px; box-shadow: var(--card-lit), var(--card-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4); }
+/* what holds words to read is opaque: your details, the facts, the list of applications, an application */
+.paper, .viewsheet, .facts-sheet, .joblist, .jobdetail { background: var(--surface); border: 1px solid var(--line); border-radius: 2px; box-shadow: var(--card-shadow);
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.card > h2, .card-h h3 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.card > h2 { border-bottom: 1px solid var(--line); }
+.viewhead h1 { font-size: 28px; font-weight: 600; letter-spacing: -.04em; }
+.viewhead .sub { color: var(--ink-3); }
+.hint { color: var(--ink-3); }
+/* what floats over the page is glass: the bar once the page slides under it, menus, lists, the toast */
+.bar { background: transparent; }
+.bar.under { background: var(--glass); border-bottom-color: var(--line); box-shadow: none; -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+.menu, .pop > .card, .toast { background: var(--glass); border: 1px solid var(--glass-line); border-radius: 2px; box-shadow: var(--float);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+.card.insp { background: var(--surface); }
+
+/* ================================================================ keys: by what they do */
+.btn, .btn.icon, .iconbtn, .btn.small, .btn.sm { height: auto; min-height: var(--ctl-h); border-radius: 2px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  box-shadow: none; font-size: 14px; font-weight: 500; letter-spacing: -.005em; -webkit-backdrop-filter: none; backdrop-filter: none; transition: background-color .15s, border-color .15s, color .15s; }
+:root[data-theme="light"] .btn { border-color: var(--line); }
+.btn.small, .btn.sm { min-height: var(--ctl-h-sm); font-size: 13px; }
+.btn:hover:not(:disabled), .btn.icon:hover:not(:disabled), .iconbtn:hover:not(:disabled), .btn.small:hover:not(:disabled), .btn.sm:hover:not(:disabled) { background: var(--hover); border-color: var(--line-2); }
+:root .btn:hover:not(:disabled) { filter: none; }
+.btn:active:not(:disabled) { background: var(--press); transform: none; box-shadow: none; }
+.btn.primary, .btn.small.primary, .btn.sm.primary, a.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+:root .btn.primary:hover:not(:disabled), :root .btn.small.primary:hover:not(:disabled), :root .btn.sm.primary:hover:not(:disabled) { background: var(--primary); border-color: var(--primary); filter: none; opacity: .88; }
+.btn.quiet, .btn.ghost, .btn.small:is(.quiet, .ghost), .btn.sm:is(.quiet, .ghost) { background: transparent; border-color: transparent; color: var(--ink-2); }
+:root .btn.quiet:hover:not(:disabled), :root .btn.ghost:hover:not(:disabled) { background: var(--hover); border-color: transparent; color: var(--ink); }
+.btn.go, .btn.small.go, .btn.sm.go, :root[data-theme="light"] .btn.small.go, :root[data-theme="light"] .btn.sm.go {
+  background: color-mix(in srgb, var(--green) var(--soft), var(--surface)); border-color: color-mix(in srgb, var(--green) 30%, transparent); color: var(--green); }
+.btn.agent { background: color-mix(in srgb, var(--orange) var(--soft), var(--surface)); border-color: color-mix(in srgb, var(--orange) 30%, transparent); color: var(--orange); }
+:root .btn.agent:hover:not(:disabled) { background: color-mix(in srgb, var(--orange) 16%, var(--surface)); border-color: color-mix(in srgb, var(--orange) 45%, transparent); }
+.btn.danger { background: transparent; border-color: transparent; color: var(--red); }
+:root .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--red) var(--soft), var(--surface)); border-color: transparent; }
+.btn.move { --mv: var(--ink-2); color: var(--mv); background: var(--surface); border-color: var(--line); }
+.btn.move[data-to="submitted"] { --mv: var(--stage-submitted); } .btn.move[data-to="interview"] { --mv: var(--stage-interview); }
+.btn[aria-pressed="true"] { background: var(--press); border-color: var(--line-2); box-shadow: none; }
+.btn.go[aria-pressed="true"] { background: color-mix(in srgb, var(--green) 18%, var(--surface)); }
+.btn:disabled { opacity: .4; }
+.btn svg { width: 15px; height: 15px; }
+
+/* ================================================================ the views, choices of a few, tabs */
+.views { gap: 2px; padding: 0; background: none; border: 0; }
+.views button { min-height: 32px; padding: 0 10px; border-radius: 2px; border: 0; background: transparent; color: var(--ink-3); font-size: 14px; font-weight: 500; box-shadow: none; gap: 7px; }
+.views button:hover { background: var(--hover); color: var(--ink); }
+.views button[aria-current="page"] { background: var(--press); color: var(--ink); box-shadow: none; }
+.views button svg { width: 15px; height: 15px; }
+.seg { gap: 0; padding: 2px; border-radius: 2px; background: var(--seg-bg); border: 1px solid var(--line); width: fit-content; max-width: 100%; }
+.seg button { min-height: 30px; padding: 0 10px; gap: 6px; border-radius: 2px; border: 0; background: transparent; color: var(--ink-3); font-size: 13px; font-weight: 500; box-shadow: none; }
+.seg button:hover { color: var(--ink); background: transparent; }
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); border: 0; }
+:root[data-theme="dark"] .seg button[aria-pressed="true"], :root[data-theme="dark"] .seg button[aria-selected="true"] { background: var(--press); }
+.seg button svg { width: 14px; height: 14px; }
+.menu .seg { width: auto; }
+.tabs { border-bottom: 1px solid var(--line); gap: 4px; }
+.tabs [role="tab"] { gap: 6px; border-radius: 0; color: var(--ink-3); font-size: 14px; font-weight: 500; }
+.tabs [role="tab"]:hover { color: var(--ink); background: none; }
+.tabs [role="tab"][aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.tabs [role="tab"] svg { width: 15px; height: 15px; }
+
+/* ================================================================ fields and dropdowns (combo.js) */
+.input, .field input, .field textarea, .sendbox, :root[data-theme="light"] :is(.input, .field input, .field textarea, .sendbox) {
+  border-radius: 2px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.input:focus, .field :is(input, textarea):focus { outline: none; border-color: var(--ink-3); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent); }
+.sendbox:focus-within { outline: none; border-color: var(--ink-3); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent); }
+.combo-native { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important; overflow: hidden; }
+.combo { position: relative; display: inline-flex; min-width: 0; max-width: 100%; vertical-align: middle; }
+.field .combo, .jobpick .combo, .menu .combo { display: flex; width: 100%; }
+.combo-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; height: var(--ctl-h); padding: 0 10px 0 12px; cursor: pointer; border-radius: 2px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 500; text-align: left; transition: border-color .15s, background-color .15s; }
+.combo.sm .combo-btn, .combo.fk .combo-btn, .menu .combo-btn { height: var(--ctl-h-sm); font-size: 13px; }
+.combo-btn:hover:not(:disabled) { border-color: var(--line-2); }
+.combo-btn[aria-expanded="true"] { border-color: var(--ink-3); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent); }
+.combo-btn:disabled { opacity: .4; cursor: not-allowed; }
+.combo-val { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.combo-mark { width: 15px; height: 15px; flex: none; color: var(--ink-3); transition: transform .18s; }
+.combo-btn[aria-expanded="true"] .combo-mark { transform: rotate(180deg); color: var(--ink); }
+.combo-list { position: fixed; z-index: 70; max-width: min(420px, calc(100vw - 16px)); margin: 0; padding: 4px; list-style: none; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 2px; box-shadow: var(--float); animation: combo-pop .14s ease-out; transform-origin: top left; }
+.combo-list.up { transform-origin: bottom left; }
+@keyframes combo-pop { from { opacity: 0; transform: translateY(-4px); } }
+html[data-motion="off"] .combo-list { animation: none; }
+.combo-list li { display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 8px; border-radius: 2px; font-size: 14px; line-height: 1.4; color: var(--ink); cursor: pointer; }
+.combo-list li:hover, .combo-list li.on { background: var(--hover); }
+.combo-list li[aria-selected="true"] { font-weight: 600; }
+.combo-list li[aria-disabled="true"] { color: var(--ink-3); cursor: default; }
+.combo-list .combo-group { padding: 8px 10px 4px; font-size: 12px; font-weight: 500; color: var(--ink-3); cursor: default; }
+.combo-list .combo-group:hover { background: none; }
+.combo-tick { width: 14px; height: 14px; flex: none; color: var(--ink); opacity: 0; }
+.combo-tick svg { width: 100%; height: 100%; display: block; }
+.combo-list li[aria-selected="true"] .combo-tick { opacity: 1; }
+
+/* ================================================================ badges: a pale fill and a strong word; a stage, a result, a count */
+.pill, .chip, .barchip { border-radius: 2px; }
+.chip { background: var(--press); color: var(--ink-2); font-weight: 500; }
+.chip.count { background: var(--press); color: var(--ink-2); font-weight: 500; min-width: 20px; }
+.chip.ok { background: color-mix(in srgb, var(--green) var(--soft), var(--surface)); color: var(--green); }
+.chip.bad { background: color-mix(in srgb, var(--red) var(--soft), var(--surface)); color: var(--red); }
+.chip.warn { background: color-mix(in srgb, var(--amber) var(--soft), var(--surface)); color: var(--amber); }
+.chip.pc { background: color-mix(in srgb, var(--blue) var(--soft), var(--surface)); color: var(--blue); }
+.chip.ai { background: color-mix(in srgb, var(--orange) var(--soft), var(--surface)); color: var(--orange); }
+.pill { background: color-mix(in srgb, currentColor 10%, var(--surface)); font-weight: 500; }
+.st-tag, .stage-chip { --tc: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 7px; border-radius: 2px; font-size: 12px; font-weight: 500;
+  color: var(--tc); background: color-mix(in srgb, var(--tc) var(--soft), var(--surface)); white-space: nowrap; line-height: 1; }
+.st-tag::before, .stage-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tc); flex: none; }
+:is(.st-tag, .stage-chip)[data-stage="preparing"] { --tc: var(--stage-preparing); } :is(.st-tag, .stage-chip)[data-stage="submitted"] { --tc: var(--stage-submitted); }
+:is(.st-tag, .stage-chip)[data-stage="interview"] { --tc: var(--stage-interview); } :is(.st-tag, .stage-chip)[data-stage="result"] { --tc: var(--ink-3); }
+.st-tag[data-result="offer"] { --tc: var(--green); }
+.fitnum { font-size: 12px; font-weight: 500; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lang { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.switch, .toggle .track { box-shadow: none; }
+.switch[aria-checked="true"], .toggle input:checked + .track { background: var(--green-bar); }
+.switch::after, .toggle .track::after { box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+.barchip { background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); }
+.barchip:hover { background: var(--hover); }
+
+/* ================================================================ a company's mark: its initials, in its stage's colour */
+.mono { --mc: var(--ink-3); display: inline-grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 2px; font-size: 12px; font-weight: 600; letter-spacing: .01em; line-height: 1;
+  color: var(--mc); background: color-mix(in srgb, var(--mc) var(--soft), var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mc) 22%, transparent); }
+.mono.sm { width: 22px; height: 22px; font-size: 10px; } .mono.lg { width: 44px; height: 44px; font-size: 16px; }
+.mono[data-stage="preparing"] { --mc: var(--stage-preparing); } .mono[data-stage="submitted"] { --mc: var(--stage-submitted); }
+.mono[data-stage="interview"] { --mc: var(--stage-interview); } .mono[data-stage="result"] { --mc: var(--stage-result); }
+
+/* ================================================================ the drop zone and the boxes inside a box */
+.drop { border-radius: 2px; border: 1px dashed var(--line-2); background: var(--surface-2); }
+.drop.over { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 6%, var(--surface)); }
+.drop > svg, .drop svg.big { width: 26px; height: 26px; padding: 0; color: var(--ink-3); background: none; box-shadow: none; }
+.make-in .drop { min-height: 128px; padding: var(--gap-l) var(--pad-m); gap: var(--gap-s); }
+.tile, .tile .thumb, .band, .note, .well, .empty.glass { border-radius: 2px; }
+.band { border: 1px solid var(--line); }
+.who-box { padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.who-box .ava { color: var(--ink); background: var(--press); box-shadow: none; border-radius: 2px; }
+
+/* ================================================================ Make: the resume's head, the chain, the applications going, three columns */
+.rhead { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); margin-bottom: var(--gap-l); }
+.rhead-name { display: grid; align-content: center; gap: 6px; padding: 18px 24px; border-right: 1px solid var(--card-rim); }
+.rhead-name .n { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; font-size: 32px; font-weight: 600; letter-spacing: -.04em; line-height: 1.1; color: var(--ink); }
+.rhead-name .n small { font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: var(--ink-3); }
+
+.rhead-name .owl { display: flex; align-items: center; gap: 10px; } .rhead-name .owl img { width: 32px; height: 32px; }
+.rhead-name .tagline { font-size: 13px; font-weight: 500; letter-spacing: .02em; color: var(--ink-3); }
+.rhead-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; gap: 8px 20px; padding: 14px 24px; font-size: 14px; }
+.rhead-facts b { font-weight: 500; color: var(--ink-3); white-space: nowrap; }
+.rhead-facts span { color: var(--ink); overflow-wrap: anywhere; }
+.rhead-facts .viz { max-width: 640px; }
+.rhead-facts .next { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 500; text-align: left; cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--line-2); text-underline-offset: 4px; }
+.rhead-facts .next:hover { text-decoration-color: var(--ink); }
+.card.chain { padding: 12px var(--pad-l) 8px; margin-bottom: var(--gap-l); background: var(--surface-2); border: 1px solid var(--line); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .06);   /* sunk into the page (asked for) */
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.chain-step { padding-top: 26px; }
+.chain-n { font-size: 30px; font-weight: 600; letter-spacing: -.04em; }
+.chain-label { font-weight: 500; color: var(--ink-2); }
+.chain-step::after { width: 14px; height: 14px; margin-left: -7px; top: 3px; }
+.chain-step.has::after { box-shadow: 0 0 0 3px var(--surface-2); }
+.chain-step::before { height: 2px; top: 9px; }
+.active { margin-bottom: var(--gap-l); }
+.active-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--gap-s); }
+.active-h h2 { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.active-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--gap-m); }
+.active-card { --st: var(--stage-preparing); position: relative; display: grid; gap: 4px; align-content: start; padding: 12px 14px; }
+.active-card[data-stage="submitted"] { --st: var(--stage-submitted); } .active-card[data-stage="interview"] { --st: var(--stage-interview); }
+.ac-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.ac-top .hint { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ac-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ac-name > div { display: grid; min-width: 0; }
+.ac-co { font-size: 14px; font-weight: 600; letter-spacing: -.01em; } .ac-role { font-size: 12px; color: var(--ink-3); }
+.ac-next { margin-top: 4px; font-size: 12px; font-weight: 500; color: var(--ink); }
+.ac-keys { display: flex; gap: 6px; margin-top: 8px; }
+@media (max-width: 1100px) { .active-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .active-row, .rhead { grid-template-columns: minmax(0, 1fr); } .rhead-name { border-right: 0; border-bottom: 1px solid var(--line); } .rhead-name .n { font-size: 26px; } }
+.flow { counter-reset: flowstep; }
+.flow-col:nth-child(1) { --col: var(--blue); } .flow-col:nth-child(2) { --col: var(--orange); } .flow-col:nth-child(3) { --col: var(--green); }
+.flow-col { grid-row: span 3; }
+.flow-cards { display: contents; }
+.flow-cards > .card { align-self: stretch; }
+.colhead h2 { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.colhead h2::before { counter-increment: flowstep; content: counter(flowstep); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 2px;
+  font-size: 12px; font-weight: 600; color: var(--col, var(--ink)); background: color-mix(in srgb, var(--col, var(--ink)) var(--soft), var(--surface)); }
+.flow-col + .flow-col::before { opacity: .4; }
+/* the agent's card */
+.ag-bars { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 12px; padding-bottom: 1px; border-bottom: 1px solid var(--line); }
+.ag-bars i { position: relative; flex: 0 1 14px; min-height: 3px; background: var(--violet-bar); }
+.ag-bars i b { position: absolute; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--violet-bar) 45%, var(--blue-bar)); }
+.ag-err { margin-top: 6px; font-size: 12px; font-weight: 500; color: var(--red); }
+.agentcard .usage-sub b { color: var(--ink); font-weight: 600; }
+.usage .stat b { font-weight: 600; letter-spacing: -.02em; }
+
+/* ================================================================ the applications: the list, the board, the timeline */
+.jobs-viz { padding: 12px 16px; }
+.jobsplit { grid-template-columns: 340px minmax(0, 1fr); }
+.joblist { padding: 4px; }
+.jobrow { grid-template-columns: 30px minmax(0, 1fr) auto; grid-template-areas: "mono co fit" "mono ro fit"; column-gap: 10px; row-gap: 0; padding: 8px 10px; align-items: center;
+  border: 0; border-radius: 2px; background: transparent; }
+.jobrow .mono { grid-area: mono; align-self: center; } .jobrow .co { grid-area: co; font-size: 14px; font-weight: 600; letter-spacing: -.01em; } .jobrow .ro { grid-area: ro; font-size: 12px; color: var(--ink-3); }
+.jobrow .fitcount { grid-area: fit; flex-direction: column; align-items: flex-end; gap: 4px; }
+.jobrow + .jobrow { margin-top: 0; }
+.jobrow:hover { background: var(--hover); }
+.jobrow[aria-current="true"] { background: var(--press); border: 0; box-shadow: none; }
+.jd-head { align-items: center; }
+.jd-title h2 { font-size: 22px; font-weight: 600; letter-spacing: -.03em; }
+.board { gap: var(--gap-l); }
+.col { --st: var(--stage-preparing); min-height: 0; padding: 12px; }
+.col[data-stage="submitted"] { --st: var(--stage-submitted); } .col[data-stage="interview"] { --st: var(--stage-interview); } .col[data-stage="result"] { --st: var(--stage-result); }
+.col > .card-h h3 { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; }
+.col > .card-h h3::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--st); }
+.col.over { outline: none; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--st); }
+.tcard { position: relative; border-radius: 2px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: none; cursor: grab; }
+.tcard:hover { transform: none; border-color: var(--line-2); box-shadow: 0 4px 12px -6px rgba(0, 0, 0, .12); }
+.tcard.lifted { opacity: .45; }
+.tcard:active { cursor: grabbing; }
+.tc-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tcard .co { font-weight: 600; }
+.tnext-view { display: block; width: 100%; padding: 3px 0; border: 0; background: none; text-align: left; font-size: 13px; font-weight: 500; color: var(--ink); cursor: grab; }
+.tnext-view.none { color: var(--ink-3); font-weight: 400; }
+.tnext-view:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+.col[data-stage="result"] .tcard { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 6px 10px; }
+.col[data-stage="result"] .tcard :is(.tnext-view, .tnext, .tfoot) { display: none; }
+.col[data-stage="result"] .tcard .ro { font-size: 12px; color: var(--ink-3); }
+.col[data-stage="result"] .tcard .st-tag { margin-left: auto; }
+.timeline { position: relative; padding: 6px var(--pad-l); }
+.tl.day { position: relative; grid-template-columns: 96px 22px minmax(0, 1fr); align-items: start; padding: 8px 0; }
+.tl.day::before { content: ""; position: absolute; left: calc(96px + var(--gap-m) + 10px); top: 0; bottom: 0; width: 1px; background: var(--line); }
+.tl.day time { padding-top: 4px; color: var(--ink-3); }
+.tl.day i { position: relative; z-index: 1; width: 9px; height: 9px; margin-top: 8px; border-radius: 50%; border: 0; justify-self: center; background: var(--ink-3); box-shadow: 0 0 0 4px var(--surface); }
+.tl.day.due i { background: var(--blue); }
+.tl-day { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.tl-ev { --st: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border: 1px solid var(--line); border-radius: 2px; background: var(--surface);
+  color: var(--ink); font-size: 12px; cursor: pointer; }
+.tl-ev[data-stage="preparing"] { --st: var(--stage-preparing); } .tl-ev[data-stage="submitted"] { --st: var(--stage-submitted); }
+.tl-ev[data-stage="interview"] { --st: var(--stage-interview); } .tl-ev[data-stage="result"] { --st: var(--stage-result); } .tl-ev[data-kind="reminder"] { --st: var(--blue); }
+.tl-ev::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--st); }
+.tl-ev b { font-weight: 600; } .tl-ev .tl-what { color: var(--ink-3); }
+.tl-ev:hover { background: var(--hover); border-color: var(--line-2); }
+.fl-row { padding: 5px var(--gap-xs); }
+.fact-row .kind { display: inline-flex; align-items: center; justify-self: start; height: 20px; padding: 0 7px; border-radius: 2px; font-size: 12px; font-weight: 500;
+  color: var(--k, var(--ink-2)); background: color-mix(in srgb, var(--k, var(--ink-3)) var(--soft), var(--surface)); }
+.fact-row .kind[data-kind="role"] { --k: var(--ink); } .fact-row .kind[data-kind="project"] { --k: var(--blue); } .fact-row .kind[data-kind="education"] { --k: var(--green); }
+.fact-row .kind:is([data-kind="skill"], [data-kind="layer"], [data-kind="competency"]) { --k: var(--violet); }
+.fact-row .kind:is([data-kind="paper"], [data-kind="patent"], [data-kind="award"], [data-kind="certificate"]) { --k: var(--amber); }
+.fact-row .kind:is([data-kind="card"], [data-kind="highlight"], [data-kind="about"], [data-kind="motivation"], [data-kind="profile"]) { --k: var(--orange); }
+
+/* ================================================================ figures (viz.js) */
+.viz { margin: 0; display: grid; gap: 6px; min-width: 0; }
+.vb-track { display: flex; gap: 2px; height: 8px; background: var(--well); overflow: hidden; }
+.viz.compact .vb-track { height: 6px; }
+.vb-seg { min-width: 3px; background: var(--c); transform-origin: left center; }
+.vb-empty { flex: 1; }
+.vb-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-3); }
+.vb-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.vb-key i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.vb-key b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.vb-key.zero i { opacity: .35; } .vb-key.zero b { color: var(--ink-3); }
+.fit-viz { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); align-items: center; gap: var(--gap-xl); padding: 12px 16px; margin-bottom: var(--gap-m);
+  background: var(--surface-2); border: 1px solid var(--line); }
+.facts-viz { margin: 0 0 var(--gap-m); }
+.qcol .viz { margin: 2px 0 6px; }
+.ins-sec .viz { margin-top: 8px; }
+@media (max-width: 640px) { .fit-viz { grid-template-columns: minmax(0, 1fr); } }
+
+/* ================================================================ the interview tab, documents, the toast */
+.ivtop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--gap-m); margin-bottom: var(--gap-m); }
+.ivtop .part-keys { margin: 0; }
+.ivframe { display: block; width: 100%; height: calc(100vh - var(--bar-h) - 200px); min-height: 640px; border: 1px solid var(--line); border-radius: 2px; background: transparent; }
+.ivframe-wait { display: grid; place-items: center; min-height: 320px; }
+.dochead { padding: 14px 18px; }
+.dochead .viewhead h1 { font-size: 24px; }
+.stage > .band { margin-bottom: var(--gap-m); }
+.layout[data-view="documents"] .pages { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); padding: var(--gap-xl) var(--gap-xl) var(--gap-xl) 0; }
+.pages { padding: var(--gap-xl) 0; }
+.sheet { border-radius: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 12px 32px -16px rgba(0, 0, 0, .22); }
+.mlabel { color: var(--ink-3); font-weight: 600; }
+.toast { left: auto; right: 24px; bottom: 24px; transform: translateY(12px); max-width: min(480px, calc(100vw - 48px)); }
+.toast.show { transform: none; }
+@media (max-width: 640px) { .toast { right: 16px; left: 16px; max-width: none; } }
+
+/* a finished application is one line in the list, so two dozen fit one screen without a scroll of their own */
+.jobrow[data-stage="result"] { grid-template-columns: 22px auto minmax(0, 1fr) auto; grid-template-areas: "mono co ro fit"; padding: 4px 10px; column-gap: 8px; }
+.jobrow[data-stage="result"] .mono { width: 22px; height: 22px; font-size: 10px; }
+.jobrow[data-stage="result"] .co { font-size: 13px; }
+.jobrow[data-stage="result"] .ro { align-self: center; }
+.jobrow[data-stage="result"] .fitcount .fitnum { display: none; }
+.jobrow[data-stage="result"] + .jobrow:not([data-stage="result"]), .jobrow:not([data-stage="result"]) + .jobrow[data-stage="result"] { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+
+/* ================================================================ what the walk measured (tests/app/walk.py) */
+.chip.count { display: inline-grid; place-items: center; height: 18px; line-height: 18px; padding: 0 6px; }   /* a count inside a key sits on the key's middle */
+.seg button { flex: 0 0 auto; }                                     /* a choice keeps its words and its icon whole: a narrow row wraps rather than squeezes */
+.seg.stages { width: 100%; } .seg.stages button { flex: 1 1 0; }    /* the four stages share their row */
+:root, :root[data-theme="light"] { --solid: rgba(255, 255, 255, .96); } :root[data-theme="dark"] { --solid: rgba(20, 20, 20, .96); }
+.menu, .pop > .card, .toast { background: var(--solid); }            /* what lies over words is nearly opaque: nothing reads through it */
+.bar.under { background: color-mix(in srgb, var(--desk) 94%, transparent); }
+.tl-ev { height: auto; min-height: 26px; padding: 3px 9px; flex-wrap: wrap; }   /* a long step wraps inside its badge */
+.mono[data-stage="result"] { --mc: var(--ink-3); }                  /* a finished application's mark in a gray that reads */
+.jobrow[data-stage="result"] + .jobrow:not([data-stage="result"]), .jobrow:not([data-stage="result"]) + .jobrow[data-stage="result"] { padding-top: 4px; border-top: 0; margin-top: 12px; }
+@media (max-width: 640px) {                                           /* a phone: a resume's table reads as its rows stacked, each row's cells wrapping between words */
+  .sheet .r-table, .sheet .r-table tbody, .sheet .r-table td { display: block; width: auto; }
+  .sheet .r-table thead { display: none; }                            /* the heads are for the printed page's columns */
+  .sheet .r-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; padding: 6px 0; border-bottom: 1px solid var(--c-rule); }
+  .sheet .r-table td, .sheet .r-table td.k { padding: 0; border: 0; background: none; }
+  .sheet .r-table td.k { font-weight: 700; }
+}
+@media (max-width: 640px) { .doctools .seg button svg { display: none; } }   /* a phone's third of a row holds the document's name whole, not its icon */
+@media (max-width: 640px) { .jtabs [role="tab"] svg { display: none; } }   /* a phone's third of a row holds the tab's word whole, its count beside or under it (app.css) */
+@media (max-width: 640px) { .jtabs [role="tab"] { padding-inline: 6px; column-gap: 4px; } }   /* and the count beside it even in Edge's wider glyphs on Windows (measured: 2 px short at 390), where under it the two lines sat 1.4 px low */
+
+/* ================================================================ the evidence's way (Make): four steps in the sunken panel, each its count and what it is made of.
+   The facts are the evidence, in the owl's amber; a sentence with evidence carries that amber on; what has none is red */
+.card.chain.pipe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0; gap: 0; }
+.pipe-step { --sc: var(--ink-3); position: relative; display: grid; align-content: start; gap: 10px; min-width: 0; padding: 12px 18px 14px; border: 0; background: none;
+  color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s; }
+.pipe-step + .pipe-step { border-left: 1px solid var(--line); }
+.pipe-step + .pipe-step::before { content: ""; position: absolute; left: -6px; top: 20px; width: 10px; height: 10px; background: var(--surface-2);
+  border-top: 1px solid var(--line-2); border-right: 1px solid var(--line-2); transform: rotate(45deg); }   /* the way on, on the line between two steps */
+.pipe-step:hover { background: color-mix(in srgb, var(--sc) 4%, transparent); }
+.pipe-step[data-kind="sources"] { --sc: var(--blue); } .pipe-step[data-kind="facts"] { --sc: var(--amber); }
+.pipe-step[data-kind="sentences"] { --sc: var(--orange); } .pipe-step[data-kind="documents"] { --sc: var(--green); }
+.ps-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ps-icon { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 2px; color: var(--sc); background: color-mix(in srgb, var(--sc) var(--soft), var(--surface)); }
+.ps-icon svg { width: 14px; height: 14px; }
+.ps-label { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.ps-n { margin-left: auto; font-size: 28px; font-weight: 600; letter-spacing: -.04em; line-height: 1; color: var(--sc); font-variant-numeric: tabular-nums; }
+.pipe-step:not(.has) .ps-n { color: var(--ink-3); }
+.pipe-step.bad .ps-n { color: var(--red); }
+.ps-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 12px; }
+.ps-files li { display: grid; grid-template-columns: minmax(0, max-content) minmax(40px, 1fr) auto; align-items: center; gap: 10px; }
+.ps-files .nm { color: var(--ink); overflow-wrap: anywhere; } .ps-files .n { color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ps-files i { display: block; height: 6px; background: var(--well); } .ps-files i b { display: block; height: 100%; background: var(--blue-bar); }
+.ps-files .more { display: block; color: var(--ink-3); }
+.ps-none { font-size: 12px; color: var(--ink-3); }
+.ps-docs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 12px; color: var(--ink-2); }
+.ps-doc { display: inline-flex; align-items: center; gap: 6px; } .ps-doc svg { width: 13px; height: 13px; color: var(--green); }
+.ps-doc b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ps-doc.zero, .ps-doc.zero b { color: var(--ink-3); } .ps-doc.zero svg { color: var(--ink-3); }
+.ps-langs { flex-basis: 100%; color: var(--ink-3); }
+@media (max-width: 1100px) { .card.chain.pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pipe-step:nth-child(3) { border-left: 0; } .pipe-step:nth-child(n + 3) { border-top: 1px solid var(--line); } .pipe-step:nth-child(3)::before { display: none; } }
+@media (max-width: 640px) { .card.chain.pipe { grid-template-columns: minmax(0, 1fr); }
+  .pipe-step + .pipe-step { border-left: 0; border-top: 1px solid var(--line); } .pipe-step + .pipe-step::before { display: none; } }
+
+/* the front door is the resume's head: the photo, the name and its line as one block at its own width; the rest of the row is where things stand */
+.rhead { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); }
+.rhead-name { grid-template-columns: auto minmax(0, max-content); grid-template-areas: "photo n" "photo tagline"; align-content: center; column-gap: 18px; row-gap: 6px; padding: 14px 32px 14px 14px; }
+.rhead-name:not(:has(.rhead-photo)) { grid-template-areas: "n" "tagline"; padding-left: 24px; }
+.rhead-photo { grid-area: photo; width: 66px; height: 88px; object-fit: cover; border-radius: 2px; background: var(--well); }
+.rhead-name .n { grid-area: n; align-self: end; } .rhead-name .tagline { grid-area: tagline; align-self: start; }
+.rhead-facts { padding: 14px 28px; }
+.card.chain { border-radius: 2px; }                                   /* square, as every box (app.css drew it round) */
+
+/* the four steps' bars on one line and their legends on the next; documents' languages under their legend */
+.ps-docs { display: grid; gap: 6px; } .ps-langs { font-size: 12px; }
+/* a row of applications: every card as tall as the row, its keys on its foot, so the keys of a row stand on one line */
+.active-card { display: flex; flex-direction: column; }
+.active-card .ac-keys { margin-top: auto; padding-top: 8px; }
+.rhead-facts .viz { max-width: none; }
+@media (max-width: 900px) {                                           /* a narrow window: the head's two parts one above the other */
+  .rhead { grid-template-columns: minmax(0, 1fr); }
+  .rhead-name { border-right: 0; border-bottom: 1px solid var(--card-rim); padding-right: 14px; }
+  .rhead-facts { padding: 12px 16px; }
+}
+.sent-panel h3 { display: inline-flex; align-items: center; gap: 8px; } .sent-panel h3 svg { width: 16px; height: 16px; color: var(--green); }
+.sent-panel .matlist { width: min(560px, 100%); } .mono-hash { font-family: var(--mono); }
+
+/* ================================================================ the desk at night: Offerowl's own light
+   Someone works late at a desk on their resume and their interviews. One warm lamp from the top left lights the
+   page, so every card casts its shadow right and down, away from it; the desk has the grain of paper; text marked
+   with the mouse is highlighted as with a pen; and the owl's eyes in the bar glow while something is being made.
+   From 20:00 to 06:00 on this PC the lamp is on (core.js sets data-hour); by day it is only a warmth. The light
+   falls on the page and never fills a surface with a colour. */
+:root, :root[data-theme="light"] {
+  --met-strong: #0f7b6c; --met-weak: #b8b8b8; --met-none: #c4302b;                 /* met, in part, not met: two poles and a neutral middle (validate_palette.js) */
+  --ev-submitted: #0058b8; --ev-interview: #b86e00;                                  /* the weeks' columns */
+  --eye: #f2c744; --eye-mark: #c99400;                                               /* the owl's eyes, the logo's own yellow; darker where it is a mark on white */
+  --lamp: rgba(255, 184, 92, .04); --lamp-night: rgba(255, 178, 84, .07);            /* the lamp's pool of light, by day and at night: a warmth, never a colour */
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .04), 6px 12px 28px -18px rgba(54, 36, 12, .24);   /* lit from the top left */
+  --rainbow: linear-gradient(100deg, #ff4d6d, #ffb347, #f2e14c, #4cd97b, #4cc9f0, #7b61ff, #e84cf0, #ff4d6d);   /* what goes to the AI, as Sidenote's composer draws it */
+  --rainbow-glow: 0 0 0 3px rgba(123, 97, 255, .09), 0 0 18px -6px rgba(123, 97, 255, .42);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+:root[data-theme="dark"] {
+  --met-strong: #2fa58f; --met-weak: #555555; --met-none: #e0574c;
+  --ev-submitted: #3a8fd8; --ev-interview: #c4841a;
+  --eye-mark: #f2c744;
+  --lamp: rgba(255, 168, 76, .04); --lamp-night: rgba(255, 164, 72, .085);
+  --card-shadow: 6px 14px 32px -18px rgba(0, 0, 0, .85);
+  --rainbow-glow: 0 0 0 3px rgba(123, 97, 255, .15), 0 0 20px -6px rgba(123, 97, 255, .55);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+:root { --lamp-now: var(--lamp); }
+:root[data-hour="night"] { --lamp-now: var(--lamp-night); }
+body::before { background: radial-gradient(1200px 640px at 3% -8%, var(--lamp-now), transparent 64%), var(--grain), var(--desk) !important; }
+::selection { background: color-mix(in srgb, var(--eye) 42%, transparent); color: inherit; }   /* a highlighter's yellow */
+input, textarea { caret-color: var(--eye-mark); }
+/* the owl is awake while something is made: its eyes glow over the logo's own (a 28px mark: the eyes sit 10px and 19.5px in) */
+.brand { position: relative; }
+.brand::before, .brand::after { content: ""; position: absolute; top: calc(50% + 1.6px); width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--eye);
+  opacity: 0; pointer-events: none; }
+.brand::before { left: 10.3px; } .brand::after { left: 19.6px; }
+:root[data-working="on"] .brand::before, :root[data-working="on"] .brand::after { animation: owl-awake 2.6s ease-in-out infinite; }
+:root[data-working="on"] .brand::after { animation-delay: .08s; }
+@keyframes owl-awake { 0%, 100% { opacity: .15; box-shadow: 0 0 2px 0 rgba(242, 199, 68, .2); } 50% { opacity: .95; box-shadow: 0 0 9px 3px rgba(242, 199, 68, .6); } }
+html[data-motion="off"][data-working="on"] .brand::before, html[data-motion="off"][data-working="on"] .brand::after { animation: none; opacity: .9; box-shadow: 0 0 7px 2px rgba(242, 199, 68, .5); }
+.lit.busy::before { background: var(--eye-mark); box-shadow: 0 0 6px color-mix(in srgb, var(--eye) 60%, transparent); }   /* working: the lamp's own colour */
+
+/* ================================================================ the rainbow rim: what goes to the AI agent, and nothing else
+   The rim marks only the places that hand something to the agent (11-10: the bar where the person writes to the agent, and
+   the places that take the files it reads): the command bar's key and its box (below), and on Make and the profile the
+   drop zones and the box for paths (class "ai"). Every other field keeps its plain rim and, in use, the panel's focus
+   colour. The rim is the box's own border: a transparent border over two backgrounds, its fill inside and the rainbow under
+   the rim; while a file is held over it, or the box is in use, the light runs slowly along it. */
+.sendbox.ai, .drop.ai { border: 1.5px solid transparent !important; background: linear-gradient(var(--ai-fill, var(--surface)), var(--ai-fill, var(--surface))) padding-box, var(--rainbow) border-box !important;
+  background-size: 100% 100%, 200% 100% !important; }
+.drop.ai { --ai-fill: var(--surface-2); }                                             /* a drop zone's own well */
+.drop.ai.over { --ai-fill: color-mix(in srgb, var(--blue) 6%, var(--surface)); }       /* a file held over it */
+.sendbox.ai:focus-within, .drop.ai.over { box-shadow: var(--rainbow-glow) !important; animation: rainbow-run 7s linear infinite; }
+@keyframes rainbow-run { to { background-position: 0 0, 200% 0; } }
+.input:focus, .field :is(input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select):focus, .sendbox:not(.ai):focus-within, .lib-q:focus-within,
+.combo-btn[aria-expanded="true"], .combo-btn:focus-visible {                          /* any other field in use: the panel's focus colour, still */
+  outline: none; border-color: var(--focus) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent) !important; }
+html[data-motion="off"] :is(.sendbox, .drop, .ask-fab, .ask-input textarea) { animation: none !important; }
+.sendbox textarea, .lib-q input { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+/* ================================================================ Insights (insights.js): the person's whole search on one screen */
+.ins { display: grid; gap: 10px; min-width: 0; }
+.ins-tile, .ins-kpi, .lib-top { background: var(--card-glass); border: 1px solid var(--card-rim); border-radius: 2px; box-shadow: var(--card-lit), var(--card-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4); }
+.ins-tile { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px 14px 14px; }
+.ins-head { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.ins-head h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); white-space: nowrap; }
+.ins-ic { display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 2px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
+.ins-ic svg { width: 13px; height: 13px; }
+.ins-sub { margin-left: auto; min-width: 0; font-size: 12px; color: var(--ink-3); text-align: right; overflow-wrap: anywhere; }
+.ins h4 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.ins h4 svg { width: 13px; height: 13px; color: var(--ink-3); }
+.ins-none { margin: 0; font-size: 13px; color: var(--ink-3); }
+.ins-foot { margin: auto 0 0; font-size: 12px; color: var(--ink-3); }
+.ins-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+.ins-key { display: inline-flex; align-items: center; gap: 6px; }
+.ins-key i { width: 10px; height: 10px; flex: none; border-radius: 1px; background: var(--c); }
+.ins-key.ring i { border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
+.ins-key b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* the numbers at the top */
+.ins-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.ins-kpi { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 70px; padding: 12px 14px; }
+.ins-kpi .ins-ic { width: 34px; height: 34px; } .ins-kpi .ins-ic svg { width: 16px; height: 16px; }
+.ins-kpi-t { display: grid; gap: 2px; min-width: 0; }
+.ins-kpi-w { font-size: 12px; color: var(--ink-3); }
+.ins-kpi-n { font-size: 22px; font-weight: 650; line-height: 1.1; letter-spacing: -.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ins-kpi-s { font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
+.ins-kpi.ghost { background: linear-gradient(100deg, transparent 30%, var(--lamp-night) 50%, transparent 70%) 0 0 / 220% 100%, var(--card-glass); animation: lamp-sweep 1.5s linear infinite; }
+@keyframes lamp-sweep { to { background-position: -220% 0, 0 0; } }
+html[data-motion="off"] .ins-kpi.ghost { animation: none; }
+/* the persona, across the view: who the facts say, what the profile aims at, the strongest areas and the ones to build */
+.ins-persona { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.55fr) minmax(0, 1fr); gap: 0; padding: 0; }
+.ins-persona > * { min-width: 0; padding: 12px 16px 14px; }
+.ins-persona > * + * { border-left: 1px solid var(--card-rim); }
+.pa-id { display: flex; flex-direction: column; gap: 8px; }
+.pa-head { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--ink); }
+.pa-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pa-chips li { padding: 4px 7px; font-size: 11.5px; line-height: 1.3; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line); border-radius: 2px; }
+.pa-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 10px 18px; margin: 0; }
+.pa-card { display: grid; gap: 3px; min-width: 0; }
+.pa-card dt { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--ink-3); }
+.pa-card dd { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.pa-sw { display: grid; align-content: start; gap: 10px; }
+.pa-list { display: grid; gap: 5px; margin: 6px 0 0; padding: 0; list-style: none; }
+.pa-list li { display: grid; grid-template-columns: minmax(0, 1fr) 64px 34px; align-items: center; gap: 8px; font-size: 12.5px; }
+.pa-name { color: var(--ink); overflow-wrap: anywhere; }
+.pa-bar { position: relative; height: 6px; background: var(--well); }
+.pa-bar i { position: absolute; inset: 0 auto 0 0; background: var(--c); transform-origin: left; }
+.pa-list b { font-size: 12px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+/* the grid of figures */
+.ins-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.ins-grid > .ins-tile { grid-column: span 4; }
+.ins-grid > .ins-career { grid-column: 1 / -1; }
+.ins-svg { display: block; max-width: 100%; height: auto; overflow: visible; }   /* drawn at its own width (insights.js): its words never grow with the box */
+.ins-svg text { font-family: inherit; }
+.ins-svg .grid { stroke: var(--line); stroke-width: 1; } .ins-svg .grid.v { stroke-dasharray: 2 3; }
+.ins-svg .mid { stroke: var(--line-2); stroke-dasharray: 3 3; } .ins-svg :is(.axis, .tick) { stroke: var(--line-2); }
+.ins-svg .ax { font-size: 10.5px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ins-svg .qd { font-size: 10.5px; fill: var(--ink-3); }
+.ins-svg .lb { font-size: 11px; fill: var(--ink-2); }
+.ins-svg .ct { font-size: 10.5px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ins-svg .mk { fill: var(--c, var(--ink-2)); transform-box: fill-box; transform-origin: left center; }
+.ins-svg .col .mk { transform-origin: center bottom; }
+.ins-svg circle.mk { stroke: var(--surface); stroke-width: 2; transform-origin: center; transition: r .12s; }   /* a ring of the surface where marks touch */
+.ins-svg circle.mk.ring { fill: var(--surface); stroke: var(--c); stroke-width: 2; }
+.ins-svg .hit { fill: transparent; }
+.ins-svg :is(.dot, .col, .lane) { cursor: default; outline: none; }
+.ins-svg .dot:is(:hover, :focus-visible) circle.mk { r: 6.5; }
+.ins-svg .col:is(:hover, :focus-visible) .mk { filter: brightness(1.1) saturate(1.1); }
+.ins-svg :is(.col, .lane):focus-visible .hit { stroke: var(--focus); stroke-width: 1.5; }
+.ins-svg .lane.role .mk { fill: var(--ink-2); }
+.ins-svg .lane.education .mk { fill: transparent; stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 3 2; }
+.ins-svg .lane:is(:hover, :focus-visible) .lb { fill: var(--ink); }
+.ins-svg .lane:is(:hover, :focus-visible) .hit { fill: color-mix(in srgb, var(--ink) 4%, transparent); }
+/* the funnel */
+.fn-steps { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.fn-step { display: grid; grid-template-columns: 64px minmax(0, 1fr) 28px 38px; align-items: center; gap: 8px; font-size: 12.5px; outline: none; }
+.fn-w { color: var(--ink-2); }
+.fn-track { position: relative; height: 14px; background: var(--well); }
+.fn-bar { position: absolute; inset: 0 auto 0 0; background: var(--c); transform-origin: left; }
+.fn-n { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.fn-p { font-size: 12px; text-align: right; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.fn-ends { display: grid; gap: 6px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); }
+/* the areas */
+.ar-rows { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.ar-row { display: grid; grid-template-columns: 116px minmax(0, 1fr) 24px 54px; align-items: center; gap: 8px; font-size: 12.5px; outline: none; }
+.ar-name { line-height: 1.25; color: var(--ink); overflow-wrap: anywhere; }
+.ar-track { display: flex; height: 12px; }
+.ar-bar { display: flex; gap: 2px; height: 100%; min-width: 3px; }
+.ar-bar i { flex-basis: 0; min-width: 2px; background: var(--c); transform-origin: left; }
+.ar-n { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.ar-ev { font-size: 12px; text-align: right; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+:is(.ar-row, .fn-step, .pa-list li, .rd-cov):is(:hover, :focus-visible) { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+/* the lines to work on */
+.gp-rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.gp-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 8px; }
+.gp-t { display: grid; gap: 1px; min-width: 0; }
+.gp-area { font-size: 11px; font-weight: 500; color: var(--ink-3); }
+.gp-text { font-size: 12.5px; line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
+/* readiness */
+.rd-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.rd-item { display: grid; grid-template-columns: 22px minmax(0, 1fr) 72px; grid-template-areas: "mono name fit" ". meta meta"; align-items: center; gap: 3px 8px;
+  padding: 7px 0; border-top: 1px solid var(--line); }
+.rd-item:first-child { padding-top: 0; border-top: 0; }
+.rd-item > .mono { grid-area: mono; }
+.rd-name { grid-area: name; display: flex; align-items: baseline; gap: 6px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.rd-name b { font-size: 13px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.rd-name small { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.rd-name:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.rd-fit { grid-area: fit; display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.rd-fit b { width: 22px; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.rd-fit small { font-size: 11.5px; color: var(--ink-3); }
+.rd-fitbar { width: 40px; height: 6px; background: linear-gradient(var(--c), var(--c)) 0 0 / var(--w) 100% no-repeat, var(--well); }
+.rd-meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; }
+.rd-meta small { font-size: 11.5px; color: var(--ink-3); }
+.rd-meta .rd-next { color: var(--ink-2); overflow-wrap: anywhere; }
+.rd-cov { display: inline-flex; align-items: center; gap: 6px; outline: none; }
+.rd-seg { display: flex; gap: 2px; width: 72px; height: 6px; } .rd-seg i { flex-basis: 0; background: var(--c); transform-origin: left; }
+.ins-more { align-self: flex-start; margin-top: auto; }
+/* the hover's numbers */
+.viz-tip { position: fixed; z-index: 90; max-width: 300px; padding: 6px 9px; font-size: 12px; line-height: 1.45; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-2); border-radius: 2px; box-shadow: var(--float); pointer-events: none; }
+.viz-tip[hidden] { display: none; }
+
+/* ================================================================ the Library (library.js): every file in and out, in one table */
+.lib { display: grid; gap: 10px; min-width: 0; }
+.lib-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 12px 14px; }
+.lib-sum { display: flex; align-items: center; gap: 10px; }
+.lib-sum .ins-ic { width: 34px; height: 34px; } .lib-sum .ins-ic svg { width: 16px; height: 16px; }
+.lib-sum h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+.lib-sum p { margin: 0; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lib-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.lib-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lib-groups .chip.count { margin-left: 2px; }
+.lib-owner { flex: none; width: 240px; margin: 0; }
+.lib-q { display: flex; flex: 1 1 240px; align-items: center; gap: 8px; height: var(--ctl-h); margin: 0; padding: 0 10px; border: 1px solid var(--line); border-radius: 2px; background: var(--surface); }
+.lib-q svg { width: 15px; height: 15px; flex: none; color: var(--ink-3); }
+.lib-q input { flex: 1; min-width: 0; height: 100%; padding: 0; outline: none; font: inherit; font-size: 14px; color: var(--ink); }
+.lib-table { background: var(--surface); border: 1px solid var(--line); border-radius: 2px; box-shadow: var(--card-shadow); }
+.lib-row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 72px 84px calc(3 * var(--ctl-h-sm) + 8px); align-items: center; gap: 12px; min-height: 46px;
+  padding: 6px 12px; border-top: 1px solid var(--line); }
+.lib-row:first-child { border-top: 0; }
+.lib-headrow { min-height: 34px; font-size: 12px; font-weight: 500; color: var(--ink-3); background: var(--surface-2); }
+.lib-headrow > :nth-child(4), .lib-headrow > :nth-child(5) { text-align: right; }
+.lib-row:not(.lib-headrow):hover { background: var(--hover); }
+.lib-file { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lib-ic { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 2px; color: var(--c); background: color-mix(in srgb, var(--c) var(--soft), var(--surface)); }
+.lib-ic svg { width: 15px; height: 15px; }
+.lib-name { display: grid; gap: 1px; min-width: 0; }
+.lib-name b { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.lib-name small { font-size: 11.5px; color: var(--ink-3); overflow-wrap: anywhere; }
+.lib-own { min-width: 0; }
+.lib-ownkey { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 0; border: 0; background: none; color: var(--ink-2); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.lib-ownkey > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.lib-ownkey:hover > span:last-child { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.lib-ownic { display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 2px; color: var(--ink-3); }
+.lib-ownic svg { width: 12px; height: 12px; }
+.lib-about { font-size: 12.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.lib-size, .lib-date { font-size: 12.5px; text-align: right; white-space: nowrap; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lib-keys { display: grid; grid-template-columns: repeat(3, var(--ctl-h-sm)); justify-content: end; gap: 4px; }   /* three fixed places, so a key stands in the same column on every row */
+.lib-keys > * { width: var(--ctl-h-sm); min-width: 0; padding: 0; justify-content: center; }
+.lib-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lib-pager .flip svg { transform: scaleX(-1); }
+.lib-pageno { min-width: 44px; text-align: center; color: var(--ink-2); }
+
+/* ================================================================ Insights and the Library on a narrow screen: the same rows and columns, fewer of them */
+@media (max-width: 1180px) {
+  .ins-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ins-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .ins-grid > .ins-tile { grid-column: span 3; }
+  .ins-grid > .ins-career { grid-column: 1 / -1; }
+  .ins-persona { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .ins-persona > .pa-sw { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; border-left: 0; border-top: 1px solid var(--card-rim); }
+  .lib-top { grid-template-columns: auto minmax(0, 1fr); }
+  .lib-acts { grid-column: 1 / -1; justify-content: flex-start; }
+  .lib-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.2fr) 64px 76px calc(3 * var(--ctl-h-sm) + 8px); gap: 10px; }
+}
+@media (max-width: 720px) {
+  .ins, .lib { gap: 8px; }
+  .ins-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .ins-kpi { gap: 10px; min-height: 0; padding: 10px 12px; }
+  .ins-kpi .ins-ic { width: 28px; height: 28px; } .ins-kpi .ins-ic svg { width: 14px; height: 14px; }
+  .ins-kpi-n { font-size: 19px; }
+  .ins-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .ins-grid > .ins-tile, .ins-grid > .ins-career { grid-column: auto; }
+  .ins-persona { grid-template-columns: minmax(0, 1fr); }
+  .ins-persona > * { padding: 12px 14px; }
+  .ins-persona > * + * { border-left: 0; border-top: 1px solid var(--card-rim); }
+  .ins-persona > .pa-sw { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pa-cards { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .ar-row { grid-template-columns: 96px minmax(0, 1fr) 22px 50px; gap: 6px; }
+  .lib-top { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .lib-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .lib-groups button { justify-content: center; padding: 0 6px; }
+  .lib-owner, .lib-q { flex: 1 1 100%; width: 100%; }
+  .lib-headrow { display: none; }
+  .lib-row { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "file file keys" "own own own" "about size date"; gap: 6px 10px; padding: 10px 12px; }
+  .lib-file { grid-area: file; } .lib-keys { grid-area: keys; align-self: start; } .lib-own { grid-area: own; } .lib-about { grid-area: about; }
+  .lib-size { grid-area: size; } .lib-date { grid-area: date; }
+}
+
+/* ================================================================ glass, as Sidenote draws it, lit by the desk's lamp
+   The desk is a light grey a step lighter at the top (as Sidenote's frame), with the paper's grain and the lamp's
+   warmth on it, so a card of glass shows what lies under it. A card is white at 72%, blurred, with a lit rim on its
+   top and left and a darker one on its bottom and right, and it stands off the desk with a soft shadow down and to the
+   right and a light one up and to the left: the light comes from the lamp at the top left. Sidenote's own values. */
+:root, :root[data-theme="light"] {
+  --desk: #f4f4f3; --desk-top: #f8f8f7; --desk-low: #efefee;
+  --card-glass: rgba(255, 255, 255, .72); --card-rim: rgba(29, 28, 29, .10);
+  --card-lit: inset 1px 1px 0 rgba(255, 255, 255, .85), inset -1px -1px 0 rgba(29, 28, 29, .06);
+  --card-shadow: 5px 5px 12px rgba(29, 28, 29, .10), -4px -4px 10px rgba(255, 255, 255, .85);
+  --glass: rgba(255, 255, 255, .72);
+}
+:root[data-theme="dark"] {
+  --desk: #141416; --desk-top: #17181a; --desk-low: #111113;
+  --surface: #1c1d20; --surface-2: #18191b; --hover: #25262a; --press: #2c2d31; --line: #2a2b2f; --line-2: #3d3e43;
+  --well: #18191b; --well-line: #2a2b2f; --seg-bg: #18191b; --seg-on: #2c2d31; --pane-rule: #2a2b2f; --pane-hover: #25262a; --pane-on: #2c2d31;
+  --card-glass: rgba(29, 30, 33, .72); --card-rim: rgba(232, 232, 232, .10);
+  --card-lit: inset 1px 1px 0 rgba(255, 255, 255, .10), inset -1px -1px 0 rgba(0, 0, 0, .35);
+  --card-shadow: 6px 6px 16px rgba(0, 0, 0, .55), -5px -5px 14px rgba(255, 255, 255, .035);
+  --glass: rgba(24, 25, 28, .72);
+}
+body::before { background: radial-gradient(1200px 640px at 3% -8%, var(--lamp-now), transparent 64%), var(--grain),
+  linear-gradient(180deg, var(--desk-top) 0, var(--desk) 42%, var(--desk-low) 100%) !important; }
+html { background: var(--desk); }
+.paper, .viewsheet, .facts-sheet, .joblist, .jobdetail, .lib-table { box-shadow: var(--card-lit), var(--card-shadow); }   /* what is read: nearly solid, standing off the desk as the glass does */
+:root[data-theme="dark"] :is(.card, .glass, .dochead, .jobs-viz, .col, .active-card, .rhead, .ins-tile, .ins-kpi, .lib-top) {
+  -webkit-backdrop-filter: blur(22px) brightness(1.06); backdrop-filter: blur(22px) brightness(1.06); }
+
+/* ================================================================ the time left to the next interview, beside it on Make */
+.rhead-facts .until { display: inline-flex; align-items: center; margin-left: 8px; padding: 2px 7px; font-size: 12px; font-weight: 600; white-space: nowrap; border-radius: 2px;
+  color: var(--amber); background: color-mix(in srgb, var(--amber) var(--soft), var(--surface)); vertical-align: 1px; }
+
+/* ================================================================ the lamp in every box, the logo's colours on the keys
+   Every box is a pane of glass under the same desk lamp: its light falls from the box's top left corner and fades
+   across it, its rim is lit warm on the top and left, its shadow falls right and down. Brighter after dark (core.js sets
+   data-hour). Colour comes from the logo alone: the owl's blue on the main key by day, the owl's white brows with its
+   blue on the main key in the dark theme, and the yellow of its eyes only where the keyboard is and on the view in use. */
+:root, :root[data-theme="light"] {
+  --lamp-box: rgba(255, 190, 110, .075); --lamp-box-night: rgba(255, 184, 100, .12);
+  --card-lit: inset 1px 1px 0 rgba(255, 246, 232, .95), inset -1px -1px 0 rgba(29, 28, 29, .06);
+  --primary: #2a4a78; --primary-ink: #ffffff; --focus: #2a4a78;                    /* the owl's blue */
+  --owl-eye-ink: #8a6400;                                                           /* the eyes' yellow, dark enough to read on white */
+}
+:root[data-theme="dark"] {
+  --lamp-box: rgba(255, 176, 86, .055); --lamp-box-night: rgba(255, 172, 80, .09);
+  --card-lit: inset 1px 1px 0 rgba(255, 220, 170, .12), inset -1px -1px 0 rgba(0, 0, 0, .35);
+  --primary: #e9eef6; --primary-ink: #16263e; --focus: #f2c744;                     /* the owl's brows and its blue; the eyes where the keyboard is */
+  --owl-eye-ink: #f2c744;
+}
+:root { --lamp-box-now: var(--lamp-box); }
+:root[data-hour="night"] { --lamp-box-now: var(--lamp-box-night); }
+.card, .glass, .dochead, .jobs-viz, .col, .active-card, .rhead, .ins-tile, .ins-kpi, .lib-top {
+  background: radial-gradient(140% 120% at 0% 0%, var(--lamp-box-now), transparent 55%), var(--card-glass); }
+.views button[aria-current="page"] svg { color: var(--owl-eye-ink); }               /* the view in use: its mark lit */
+
+/* ================================================================ badges, calm: a neutral chip with a rim, its meaning on its dot
+   A column of coloured words pulls the eye to one side of a screen, and a fill of a tenth of a colour barely shows on
+   the surface (measured 1.02:1). So a badge is a neutral chip with a hairline rim, its words in the secondary ink, and
+   its meaning on its dot: the stage's colour; met, in part or not met as the figures draw them. A company's mark is
+   neutral too, its stage being on its badge. Colour stays whole on the keys, the figures, and the one chip that asks
+   for attention, the time left to an interview. The big counts of the evidence's way are ink; their bars keep colour. */
+:root, :root[data-theme] { --badge-bg: color-mix(in srgb, var(--ink) 5%, var(--surface)); --badge-rim: color-mix(in srgb, var(--ink) 12%, transparent); }
+:root, :root[data-theme="light"] { --met-none: #c0504a; }                           /* not met, a calmer red (validate_palette.js passes) */
+:root[data-theme="dark"] { --met-none: #d0635b; }
+.st-tag, .stage-chip, :root[data-theme] .st-tag, :root[data-theme] .stage-chip { color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); }
+.st-tag::before, .stage-chip::before { width: 7px; height: 7px; }
+.pill.rate { color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); font-weight: 500; }
+:is(.pill, .lit).rate::before { box-shadow: none; }
+:is(.pill, .lit).rate.strong::before { --lamp: var(--met-strong); background: var(--met-strong); }
+:is(.pill, .lit).rate.weak::before { --lamp: var(--ink-3); background: var(--met-weak); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent); }
+:is(.pill, .lit).rate.none::before { --lamp: var(--met-none); background: var(--met-none); }
+.mono, .mono[data-stage], .mono[data-stage="result"] { color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); }
+.mono.sm { font-size: 11px; }
+.ps-n { color: var(--ink); }
+.ar-bar i, .rd-seg i { min-width: 2px; } .ar-track { height: 10px; }
+.jobrow[data-stage="result"] .mono { font-size: 11px; }
+.chip.count, .seg button .chip.count, :root[data-theme] .chip.count { background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); color: var(--ink-2); }
+
+/* ================================================================ the desk mat under the glass
+   Glass reads only over something: a desk mat's grid of 48 px, sharp in the gaps and blurred under each card, the
+   lamp's warmth spreading from the top left and the desk falling into shade toward the bottom right. The cards are
+   thinner glass so the grid and the light show through them. */
+:root, :root[data-theme="light"] { --mat-line: rgba(29, 28, 29, .07); --lamp-wide: rgba(255, 184, 96, .2); --shade: rgba(40, 30, 20, .07); --card-glass: rgba(255, 255, 255, .58); }
+:root[data-theme="dark"] { --mat-line: rgba(255, 255, 255, .055); --lamp-wide: rgba(255, 170, 80, .14); --shade: rgba(0, 0, 0, .4); --card-glass: rgba(29, 30, 33, .55); }
+body::before { background: radial-gradient(1500px 1000px at 0% -10%, var(--lamp-wide), transparent 62%), radial-gradient(1400px 900px at 110% 120%, var(--shade), transparent 60%),
+  var(--grain), linear-gradient(180deg, var(--desk-top) 0, var(--desk) 42%, var(--desk-low) 100%) !important; }
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(var(--mat-line) 1px, transparent 1px), linear-gradient(90deg, var(--mat-line) 1px, transparent 1px); background-size: 48px 48px; background-position: -1px -1px;
+  -webkit-mask-image: linear-gradient(160deg, #000 0, rgba(0, 0, 0, .6) 55%, rgba(0, 0, 0, .25) 100%); mask-image: linear-gradient(160deg, #000 0, rgba(0, 0, 0, .6) 55%, rgba(0, 0, 0, .25) 100%); }
+.card, .glass, .dochead, .jobs-viz, .col, .active-card, .rhead, .ins-tile, .ins-kpi, .lib-top, :root[data-theme="dark"] :is(.card, .glass, .dochead, .jobs-viz, .col, .active-card, .rhead, .ins-tile, .ins-kpi, .lib-top) {
+  -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); }
+
+/* ================================================================ each box after its own kind
+   An application's card carries its way as four steps across it (passed, now, still ahead) with the stage's name and
+   day at the end, and its fit across from its name: nothing heavy sits in one corner. The persona is an ID card. */
+.active-card { --sc: var(--stage-preparing); gap: 8px; }
+.active-card[data-stage="submitted"] { --sc: var(--stage-submitted); } .active-card[data-stage="interview"] { --sc: var(--stage-interview); }
+.active-card .ac-track { margin-top: auto; }                                        /* the way, then the keys, at the card's foot */
+.active-card .ac-keys { align-items: center; min-height: 32px; margin-top: 0; padding-top: 0; }   /* one height with or without a fit beside the keys */
+.ac-fit { display: grid; justify-items: end; gap: 3px; margin-left: auto; line-height: 1; }
+.ac-fit b { font-size: 17px; font-weight: 650; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ac-fit small { font-size: 11px; color: var(--ink-3); }
+.ac-track { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.ac-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+.ac-steps i { height: 4px; background: var(--line-2); }
+.ac-steps i.done { background: color-mix(in srgb, var(--sc) 45%, var(--line-2)); }
+.ac-steps i.now { background: var(--sc); }
+.ac-stage { display: inline-flex; align-items: baseline; gap: 5px; font-size: 12px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.ac-stage small { font-size: 11px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pa-who { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; }
+.pa-who > div { display: grid; gap: 3px; min-width: 0; }
+.pa-who b { font-size: 18px; font-weight: 650; letter-spacing: -.02em; color: var(--ink); }
+.pa-who span { font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--ink-3); overflow-wrap: anywhere; }
+.pa-photo { width: 48px; height: 60px; object-fit: cover; border-radius: 2px; box-shadow: 0 0 0 1px var(--badge-rim); }
+.ins-kpi-t { flex: 1; }
+.ins-mini { position: relative; display: flex; gap: 2px; width: 100%; height: 4px; margin-top: 5px; }   /* a number's parts, thin, under it */
+.ins-mini i { flex-basis: 0; min-width: 2px; background: var(--c); transform-origin: left; }
+.ins-mini.scale { display: block; background: var(--well); }
+.ins-mini.scale i { position: absolute; inset: 0 auto 0 0; }
+.ins-mini.scale b { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--met-strong); }   /* the best posting's fit */
+
+/* ================================================================ what the review found (an independent look at every view)
+   Every status pill is the calm badge too; a kind of file is told by its icon and its words, not by a column of one
+   colour; the agent's orange is an orange, not a red; a card's mark keeps to its top line however long the role. */
+.pill, :root[data-theme] .pill { color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); font-weight: 500; }
+.lib-ic, :root[data-theme] .lib-ic { color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); }
+:root, :root[data-theme="light"] { --orange: #b9460c; }
+.active-card .ac-name { align-items: flex-start; }
+
+/* ================================================================ notes on a board: the applications as sticky notes
+   An application in progress is a note stuck on the board: a square of sticky-note paper in its stage's colour (canary
+   yellow while it is being prepared, blue once submitted, apricot at the interview, grey once ended), no rim, flat and a
+   touch lighter where it is glued at the top, curling and darker toward its foot. Its bottom right corner is folded up: the
+   corner is gone (the board shows through, the lifted corner's shadow on it) and the paper's back lies over the note as a
+   triangle, its own shadow beside it. Its bottom left corner lifts off the board too. An ended note lies flat, unfolded. The notes sit on a board of their own (Make's "Applications in progress",
+   the Board's columns), so they read as one group. */
+:root, :root[data-theme="light"] {
+  --note-preparing: #fdf0a8; --note-submitted: #d9e8f8; --note-interview: #fcdcc0; --note-result: #e7e7e4;   /* sticky-note paper, not a tinted card */
+  --note-key: rgba(255, 255, 255, .62); --note-key-rim: rgba(29, 28, 29, .12);
+  --board: rgba(29, 28, 29, .028); --board-rim: rgba(29, 28, 29, .07);
+  --flap-mix: #000; --flap-pct: 74%;                                                  /* the folded corner's back: in the shade of the fold */
+}
+:root[data-theme="dark"] {
+  --note-preparing: #3b3724; --note-submitted: #25303c; --note-interview: #3e3022; --note-result: #2b2b2d;
+  --note-key: rgba(255, 255, 255, .06); --note-key-rim: rgba(255, 255, 255, .1);
+  --board: rgba(255, 255, 255, .022); --board-rim: rgba(255, 255, 255, .06);
+  --flap-mix: #fff; --flap-pct: 78%;                                                  /* on dark paper the turned-up back catches the light */
+}
+:where(.active-card, .tcard) { --note: var(--note-preparing); }                    /* a note's paper: its stage's below decides */
+.active-card, .tcard, :root[data-theme] .active-card, :root[data-theme] .tcard {
+  --fold: 20px;                                                                     /* the folded corner's size */
+  --paper-top: color-mix(in srgb, var(--note) 82%, #fff); --paper-foot: color-mix(in srgb, var(--note) 88%, #000);
+  background:
+    linear-gradient(to left top, transparent 50%, color-mix(in srgb, var(--note) var(--flap-pct), var(--flap-mix)) 50%, color-mix(in srgb, var(--note) 90%, var(--flap-mix)))
+      right bottom / var(--fold) var(--fold) no-repeat,                              /* the corner's back, turned up over the note */
+    linear-gradient(to left top, transparent 50%, rgba(40, 30, 10, .16) 50%) right bottom / calc(var(--fold) + 3px) calc(var(--fold) + 3px) no-repeat,   /* its shadow on the paper */
+    linear-gradient(-45deg, transparent calc(var(--fold) * .7071), var(--paper-foot) 0) left bottom / 100% var(--fold) no-repeat,   /* the foot, its corner gone */
+    linear-gradient(180deg, var(--paper-top) 0, color-mix(in srgb, var(--note) 90%, #fff) 14%, var(--note) 32%, var(--note) 62%, var(--paper-foot) 100%)
+      left top / 100% calc(100% - var(--fold)) no-repeat;                           /* glued flat at the top, curling and darker toward the foot */
+  border: 0; border-radius: 1px; box-shadow: none; padding-bottom: calc(var(--fold) + 2px); -webkit-backdrop-filter: none; backdrop-filter: none; }   /* the keys clear of the fold */
+.col[data-stage="result"] .tcard { --fold: 0px; padding-bottom: 6px; }              /* an ended note lies flat */
+:is(.active-card, .tcard)[data-stage="submitted"] { --note: var(--note-submitted); }
+:is(.active-card, .tcard)[data-stage="interview"] { --note: var(--note-interview); }
+:is(.active-card, .tcard)[data-stage="result"] { --note: var(--note-result); }
+:is(.active-card, .tcard) :is(.btn, .mono) { background: var(--note-key); box-shadow: inset 0 0 0 1px var(--note-key-rim); border-color: transparent; }
+:is(.active-card, .tcard) .btn:hover:not(:disabled) { background: color-mix(in srgb, var(--note-key) 60%, #fff); }
+.active { padding: 14px 16px 16px; background: var(--board); box-shadow: inset 0 0 0 1px var(--board-rim); border-radius: 2px; }   /* the board the notes are stuck on */
+.active .active-h { margin: 0 0 12px; }
+.col.glass, :root[data-theme] .col.glass { background: var(--board); box-shadow: inset 0 0 0 1px var(--board-rim); border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+@media (max-width: 1100px) { .active-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .active-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .active-card { padding: 10px; } .active-card .ac-role { display: none; } }
+
+/* ================================================================ each part in its own area: a head, then what belongs to it
+   Words that only follow one another lose where one part ends. So each part of a view sits in an area of its own: a
+   faint panel with a hairline rim, its head on top. Make's three steps, the fit's groups of lines, the interview's
+   columns, the timeline's days. */
+.flow-col { padding: 14px 16px 16px; background: var(--board); box-shadow: inset 0 0 0 1px var(--board-rim); border-radius: 2px; }
+.flow-col::before { display: none; }
+.fl-group { padding: 10px 12px 6px; background: var(--board); box-shadow: inset 0 0 0 1px var(--board-rim); border-radius: 2px; }
+.fl-group + .fl-group { margin-top: 10px; }
+.fl-sec { margin: 0 0 4px; }
+.qboard { align-items: stretch; }                                                   /* a row of columns, one height */
+.qcol.glass { display: flex; flex-direction: column; }
+.tl.day { padding: 10px 12px; border-radius: 2px; }
+.tl.day:nth-child(odd) { background: var(--board); }
+.tl i { align-self: start; margin-top: 4px; }                                      /* the day's dot on its first line */
+.tl-ev { text-align: left; }
+
+/* ================================================================ what the review found, part two */
+.band.info, .band.ai, .band.ok, :root[data-theme] :is(.band.info, .band.ai, .band.ok) { background: var(--board); border-color: var(--board-rim); }   /* a note, never a coloured panel */
+.chip.ok, .chip.bad, .chip.warn, .chip.pc, .chip.ai, :root[data-theme] :is(.chip.ok, .chip.bad, .chip.warn, .chip.pc, .chip.ai) {
+  color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); }
+.combo.fk .combo-btn { height: var(--ctl-h); }                                      /* a list beside a search field, the same height */
+.jobrow .fitcount { align-self: start; }
+.jl-sep { display: flex; align-items: center; gap: 8px; padding: 12px 10px 4px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.menu hr { border-top-color: var(--line); }
+.lib-keys .btn.danger, .factlist .acts .btn.danger, .btn.icon.danger { border-color: var(--line); }
+.fit-viz { display: block; }
+.rhead-facts .until { margin-left: 0; }
+.rhead-facts > span:has(.until) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.rhead-facts > b { align-self: start; padding-top: 2px; }
+.vb-key.zero i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }   /* a part of nothing: an empty ring in its colour */
+@media (max-width: 859px) {
+  .jobsplit { grid-template-columns: minmax(0, 1fr); }
+  .viewhead .seg.modes { flex: 1 1 100%; } .viewhead .seg.modes button { flex: 1 1 0; justify-content: center; }
+  .fact:not(.open) > .fact-row::after { content: "›"; align-self: center; padding-left: 8px; color: var(--ink-3); font-size: 18px; line-height: 1; }   /* the row opens: its keys are inside */
+}
+.fact-row .kind, :root[data-theme] .fact-row .kind { color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); }   /* the kind of a fact: words on a calm chip, no column of colour */
+.fact-row .kind::before { content: ""; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--k, var(--ink-3)); flex: none; }   /* its kind's colour, as the kinds' bar draws it */
+.fact-row .kind[data-kind="competency"] { --k: var(--teal); }
+
+/* ================================================================ shapes after their kind: a note, a ribbon, a folder, a badge
+   Each kind of box has a shape of its own, kept small. A sticky note lifts at its two bottom corners, so its shadow
+   curls under them. The evidence's way is a ribbon of four arrows pointing on. The Library's head is a folder with its
+   tab. The persona is a badge with the slot its lanyard goes through. */
+.active-row, .col { position: relative; z-index: 0; }                               /* the notes' own layer: their curled shadows lie under them, over the board */
+.active-card, .tcard { position: relative; }
+/* no box shadow on a note: a square one would show under its folded corner; the two lifted corners cast its shadow */
+:is(.active-card, .tcard)::before, :is(.active-card, .tcard)::after {               /* the two bottom corners, lifted off the board */
+  content: ""; position: absolute; z-index: -1; bottom: 11px; width: 44%; height: 20%; max-height: 36px; pointer-events: none;
+  box-shadow: 0 16px 11px rgba(60, 42, 15, .4); }
+:is(.active-card, .tcard)::before { left: 7px; transform: rotate(-4.2deg); }
+:is(.active-card, .tcard)::after { right: 2px; bottom: 6px; width: 40%; transform: rotate(4.2deg); }   /* under the folded corner, seen through it */
+:root[data-theme="dark"] :is(.active-card, .tcard)::before, :root[data-theme="dark"] :is(.active-card, .tcard)::after { box-shadow: 0 12px 10px rgba(0, 0, 0, .65); }
+.tcard.lifted::before, .tcard.lifted::after { display: none; }
+
+.card.chain.pipe { gap: 6px; padding: 6px; background: transparent; box-shadow: none; border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.pipe-step, :root[data-theme] .pipe-step { --tip: 14px; padding: 12px calc(18px + var(--tip)) 14px calc(16px + var(--tip)); border: 0;
+  background: radial-gradient(140% 120% at 0% 0%, var(--lamp-box-now), transparent 55%), var(--card-glass); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3);
+  clip-path: polygon(0 0, calc(100% - var(--tip)) 0, 100% 50%, calc(100% - var(--tip)) 100%, 0 100%, var(--tip) 50%); }   /* an arrow: notched behind, pointing on */
+.pipe-step:first-child { padding-left: 16px; clip-path: polygon(0 0, calc(100% - var(--tip)) 0, 100% 50%, calc(100% - var(--tip)) 100%, 0 100%); }
+.pipe-step:last-child { padding-right: 16px; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--tip) 50%); }
+.pipe-step + .pipe-step { border-left: 0; margin-left: calc(-1 * var(--tip) + 2px); }
+.pipe-step + .pipe-step::before { display: none; }
+.pipe-step:hover { background: radial-gradient(140% 120% at 0% 0%, var(--lamp-box-now), transparent 55%), color-mix(in srgb, var(--sc) 6%, var(--card-glass)); }
+@media (max-width: 900px) { .pipe-step, .pipe-step:first-child, .pipe-step:last-child { clip-path: none; padding: 12px 16px 14px; margin-left: 0; } .card.chain.pipe { gap: 8px; } }
+
+.lib-top { position: relative; margin-top: 14px; }                                  /* a folder: its tab on top */
+.lib-top::before { content: ""; position: absolute; left: -1px; top: -14px; width: 132px; height: 14px; background: inherit; border: 1px solid var(--card-rim); border-bottom: 0;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%); -webkit-backdrop-filter: inherit; backdrop-filter: inherit; }
+
+.ins-persona { position: relative; }
+.ins-persona::before { content: ""; position: absolute; top: 9px; left: 50%; width: 42px; height: 7px; margin-left: -21px; border-radius: 2px;   /* the badge's slot for its lanyard */
+  background: var(--desk); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .28), 0 1px 0 rgba(255, 255, 255, .6); }
+:root[data-theme="dark"] .ins-persona::before { box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .06); }
+@media (max-width: 720px) { .ins-persona::before { display: none; } }
+
+/* ================================================================ a phone keeps to one screen's width and a short scroll */
+@media (max-width: 720px) {
+  .board { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 86%; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; padding-bottom: 6px; }   /* the board's columns side by side, one at a time */
+  .board > .col { scroll-snap-align: start; }
+  .tabs.jtabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }      /* an application's tabs on one line that slides */
+  .tabs.jtabs::-webkit-scrollbar { display: none; }
+  .tabs.jtabs [role="tab"] { flex: none; }
+}
+
+/* ================================================================ contrast and density (11-10: "the cards and the background look the same", "too much padding")
+   The desk is a step darker and the cards a step more solid, with a crisp rim, so every box stands clear of the desk
+   while the grid still shows faintly through it. One rhythm between the parts of a view: 12 px. A part's head and its
+   cards sit in one box, never a box inside a box. */
+:root, :root[data-theme="light"] { --desk: #ebeae6; --desk-top: #efeeea; --desk-low: #e6e5e0; --card-glass: rgba(255, 255, 255, .88); --card-rim: rgba(29, 28, 29, .11);
+  --mat-line: rgba(29, 28, 29, .05); --board: rgba(29, 28, 29, .035); --board-rim: rgba(29, 28, 29, .08);
+  --lamp-wide: rgba(255, 184, 96, .16); --shade: rgba(40, 30, 20, .06);
+  --card-shadow: 0 1px 2px rgba(29, 28, 29, .08), 5px 5px 12px rgba(29, 28, 29, .09), -4px -4px 10px rgba(255, 255, 255, .8); }
+:root[data-theme="dark"] { --desk: #0e0e10; --desk-top: #111113; --desk-low: #0b0b0c; --card-glass: rgba(33, 34, 38, .9); --card-rim: rgba(255, 255, 255, .1);
+  --mat-line: rgba(255, 255, 255, .04); --board: rgba(255, 255, 255, .03); --board-rim: rgba(255, 255, 255, .07);
+  --lamp-wide: rgba(255, 170, 80, .12); --shade: rgba(0, 0, 0, .36);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .5), 6px 6px 16px rgba(0, 0, 0, .5), -5px -5px 14px rgba(255, 255, 255, .035); }
+/* 11-11: the same desk a step quieter, its grid, lamp and shade each a little under what they were and none of them gone
+   (the boards still show them between their notes, and a note's opaque paper keeps them from behind its words); a crisp
+   contact shadow under every card, so its edge reads before its glass */
+#canvas { row-gap: 12px; }
+#canvas > .rhead, #canvas > .card.chain, #canvas > .active, #canvas > .flow { margin-bottom: 0; }
+.active { padding: 12px 12px 14px; }
+.active .active-h { margin-bottom: 10px; }
+.active-row { gap: 10px; }
+.flow { column-gap: 12px; row-gap: 12px; }
+.flow-col, :root[data-theme] .flow-col { padding: 0; background: none; box-shadow: none; }        /* the column is its head and its cards: no panel round them */
+.flow-col .colhead { padding: 0 2px; }
+.flow-cards { gap: 12px; }
+.flow-cards > .card { padding: 14px 16px; }
+.rhead-name { padding: 14px 24px 14px 14px; } .rhead-facts { padding: 12px 24px; gap: 6px 18px; }
+
+/* ---- pages of a long list (core.js pager): the count on the left, the pages numbered on the right */
+.pgr { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px 2px; }
+.pgr-info { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pgr-keys { display: flex; align-items: center; gap: 4px; }
+.pgr-n { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 2px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-2); font: inherit; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color .12s, border-color .12s; }
+.pgr-n:hover:not(:disabled):not([aria-current]) { background: var(--hover); border-color: var(--line-2); color: var(--ink); }
+.pgr-n[aria-current="page"] { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 600; cursor: default; }
+.pgr-n:disabled { opacity: .35; cursor: default; }
+.pgr-arrow svg { width: 14px; height: 14px; } .pgr-arrow.flip svg { transform: scaleX(-1); }
+.pgr-gap { min-width: 18px; text-align: center; color: var(--ink-3); }
+@media (max-width: 720px) { .pgr { flex-direction: column; align-items: stretch; } .pgr-keys { justify-content: center; } }
+
+/* ================================================================ the command bar (ask.js): a key at the bottom right, a bar to write to the agent */
+#askbar { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
+#askbar > * { pointer-events: auto; }
+.ask-fab { display: inline-flex; align-items: center; gap: 9px; height: 44px; padding: 0 7px 0 13px; border-radius: 2px; cursor: pointer; color: var(--ink); font: inherit;
+  border: 1.5px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--rainbow) border-box; background-size: 100% 100%, 200% 100%;
+  box-shadow: var(--rainbow-glow), 0 8px 22px -12px rgba(0, 0, 0, .35); }             /* a closed bar: the rim of the box where you write to the agent */
+.ask-fab-i { display: inline-flex; color: var(--fab-lamp, var(--ink-3)); }           /* the agent's mark in its lamp's colour */
+.ask-fab-i svg { width: 17px; height: 17px; }
+.ask-fab[data-lamp="ok"] { --fab-lamp: var(--green); } .ask-fab[data-lamp="warn"] { --fab-lamp: var(--amber); } .ask-fab[data-lamp="off"] { --fab-lamp: var(--ink-3); }
+.ask-fab[data-lamp="busy"] { --fab-lamp: var(--ink-2); } .ask-fab[data-lamp="busy"] .ask-fab-i { animation: lamp 1.2s var(--ease) infinite; }   /* working: the mark breathes, as the bar's chip does */
+.ask-fab-w { font-size: 13.5px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }   /* the box's own words, a step softer than what you type */
+.ask-fab:hover .ask-fab-w { color: var(--ink); }
+.ask-fab-k { margin-left: 4px; padding: 4px 6px; font-family: inherit; font-size: 11px; font-weight: 600; line-height: 1; letter-spacing: .02em; color: var(--ink-3); white-space: nowrap;
+  background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); border-radius: 2px; }   /* its key, as the version beside the wordmark is drawn */
+.ask-fab:hover { animation: rainbow-run 7s linear infinite; }
+.ask-fab.working { animation: rainbow-run 3s linear infinite; }
+html[data-motion="off"] .ask-fab { animation: none; }
+html[data-motion="off"] .ask-fab-i { animation: none !important; }
+.ask-panel { display: flex; flex-direction: column; width: min(540px, calc(100vw - 32px)); max-height: min(72vh, 680px); background: var(--surface); border: 1px solid var(--line-2);
+  border-radius: 2px; box-shadow: var(--float); overflow: hidden; }
+.ask-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.ask-head > svg { width: 16px; height: 16px; color: var(--ink-2); }
+.ask-sub { font-size: 12px; color: var(--ink-3); }
+.ask-log { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; min-height: 120px; }   /* one column never wider than the bar */
+.ask-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }   /* a wide table scrolls in its answer and never pushes the asks off the bar */
+.ask-me { justify-self: end; max-width: 86%; margin: 0; padding: 8px 10px; border-radius: 2px; background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim);
+  font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-ans { max-width: 92%; min-width: 0; overflow-x: auto; display: grid; gap: 6px; padding: 8px 10px; border-left: 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
+.ask-ans p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-ans.bad p { color: var(--ink-2); }
+.ask-ans small { font-size: 11.5px; color: var(--ink-3); }
+.ask-tools { display: flex; flex-wrap: wrap; gap: 4px; }
+.ask-empty { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-3); }
+.ask-input { display: flex; align-items: stretch; gap: 8px; padding: 10px 12px 4px; border-top: 1px solid var(--line); }
+.ask-input textarea { flex: 1; min-height: 44px; max-height: 160px; resize: vertical; padding: 8px 10px; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--ink);
+  border: 1.5px solid transparent; border-radius: 2px; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--rainbow) border-box; background-size: 100% 100%, 200% 100%; }
+.ask-input textarea:focus { outline: none; box-shadow: var(--rainbow-glow); animation: rainbow-run 7s linear infinite; }
+.ask-input .btn { align-self: stretch; min-width: 44px; justify-content: center; }
+.ask-hint { margin: 0; padding: 4px 12px 10px; font-size: 11.5px; color: var(--ink-3); }
+@media (max-width: 2559px) { .ask-fab { width: 44px; padding: 0; justify-content: center; } .ask-fab-w, .ask-fab-k { display: none; } }   /* the closed bar needs the room beside the page (2560 px and up): narrower, the key is the agent's mark alone, so it covers no key of the page */
+@media (max-width: 720px) { #askbar { right: 12px; bottom: 12px; }   /* a phone */
+  .ask-ans { max-width: 100%; } #askpanel .ask-table th, #askpanel .ask-table td { padding: 5px 6px; word-break: keep-all; } #askpanel .ask-table td.nw { white-space: normal; } }   /* a phone's bar is narrow: an answer takes its width, and a cell may wrap between its words (never inside one) */
+.ask-ans ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.ask-ans code { font-family: var(--mono); font-size: 12px; padding: 0 4px; background: var(--badge-bg); border-radius: 2px; }
+.ask-table { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+.ask-table th, .ask-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.ask-table th { font-weight: 600; color: var(--ink-2); background: var(--surface-2); }
+.ask-table td { word-break: keep-all; }
+/* the ended applications in the list: the role starts in one column whatever the company's name */
+.jobrow[data-stage="result"] { grid-template-columns: 22px minmax(0, 7.5em) minmax(0, 1fr) auto; }
+.jobrow[data-stage="result"] .co { overflow-wrap: anywhere; }
+/* the timeline on a phone: the day over its steps, not a column beside them */
+@media (max-width: 720px) {
+  .tl.day { grid-template-columns: 14px minmax(0, 1fr); grid-template-areas: "dot day" ". ev"; row-gap: 4px; }
+  .tl.day::before { left: 6px; }
+  .tl.day time { grid-area: day; padding-top: 0; font-weight: 600; color: var(--ink-2); }
+  .tl.day i { grid-area: dot; margin-top: 4px; }
+  .tl.day .tl-day { grid-area: ev; }
+}
+.rhead-facts .until.past { border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); }
+.rhead-facts .until.past:hover { color: var(--ink); background: var(--hover); }
+.brand-ver { align-self: center; margin: 2px 14px 0 -6px; padding: 2px 6px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--ink-3);
+  background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); border-radius: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* the walk's findings, 11-10: the page's end clear of the bar's key; grey words on the notes and the board a step darker */
+#canvas { padding-bottom: 72px; }                                                  /* the last lines scroll clear of the bar's key */
+#toast { bottom: 76px; }                                                            /* a note shows above the key, never under it */
+:root:not([data-theme="dark"]) :is(.active-card, .tcard, section.col) { --ink-3: #575757; }   /* grey words on the post-its' paper: the paper is darker than a white card */
+.jobrow[data-stage="result"] { align-items: center; }
+.jobrow[data-stage="result"] .fitcount { align-self: center; flex-wrap: nowrap; }   /* an ended row: its tag and fit on its one line, in its middle */
+@media (max-width: 860px) {                                                          /* a phone: the wordmark, its version and the three square keys on one row */
+  .bar-in { column-gap: var(--gap-s); }                                              /* the keys 8 px apart, as the two inside .actions */
+  .brand { margin-right: 0; }
+  .brand-ver { margin: 2px 0 0 -3px; padding: 1px 4px; font-size: 10px; }           /* 5 px from the wordmark */
+  .bar-in > .grow { margin-right: calc(-1 * var(--gap-s)); }                         /* the free space adds no gap of its own */
+}
+@media (max-width: 389px) { .brand img { height: 24px; } }                            /* narrow phones: a smaller wordmark keeps the row whole */
+
+.bar-in.two .views { order: 5; flex: 1 1 100%; }                                     /* too narrow for one row (app.js fitBar): the views under the rest, from the left */
+@media (max-width: 860px) {                                                          /* a phone: the applications in progress on one row that slides sideways, as the board */
+  .active-row.many { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 216px; overflow-x: auto; scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain; margin: 0 -12px; padding: 2px 12px 14px; scroll-padding: 0 12px; }   /* to the screen's edges, room for the paper's shadow */
+  .active-row.many > .active-card { scroll-snap-align: start; }
+}
+.menu-ver { margin: 0; padding: 2px var(--gap-s) 4px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }   /* the settings' foot: which Offerowl this is */
+@media (max-width: 359px) { .brand-ver { display: none; } }                           /* under 360 px the row has no room: the settings' foot says it */
+/* a day or a time field (core.js pickField): the words as the panel writes them, the browser's calendar or clock a key away */
+.pickfield, .field > .pickfield { position: relative; display: flex; min-width: 0; font-weight: 400; color: var(--ink); font-size: inherit; }   /* a field, not the label's caption (.field > span) */
+.pickfield > input:not(.pick) { flex: 1 1 auto; min-width: 0; padding-right: calc(var(--ctl-h) + 2px); font-variant-numeric: tabular-nums; }
+.pickfield > .pick-key { position: absolute; top: 1px; right: 1px; bottom: 1px; height: auto; min-height: 0; width: calc(var(--ctl-h) - 2px); border: 0; background: transparent; box-shadow: none; color: var(--ink-3); }
+.pickfield > .pick-key:hover { color: var(--ink); background: var(--hover); }
+.pickfield > .pick { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }   /* opened by the key, never seen */
+@media (max-width: 1100px) { body:has(#scrim.open) #askbar { display: none; } }   /* a drawer open over the page: the command bar's key steps aside, as a sheet's own close key is there */
+:root:not([data-theme="dark"]) .btn.agent:hover:not(:disabled) { color: color-mix(in srgb, var(--orange) 80%, #000); }   /* the hover's deeper fill keeps 4.5:1 */
+:root[data-theme="dark"] .btn.agent:hover:not(:disabled) { color: color-mix(in srgb, var(--orange) 80%, #fff); }
+@media (max-width: 640px) { .active-row:not(.many) { grid-template-columns: minmax(0, 1fr); } }   /* one application in progress on a phone: the note across, its keys and fit side by side */
+.field textarea.short { field-sizing: content; min-height: calc(2lh + 18px); max-height: calc(8lh + 18px); }   /* as tall as its words, two lines to eight: no line half shown under the last (rows where field-sizing is unknown) */
+body:has(#setup:not([hidden])) #askbar { display: none; }                          /* the setup guide is the page while it is open: the agent comes after it */
+.pa-card { align-content: start; }                                                   /* each persona card's label sits right above its words, whatever its neighbour holds */
+:root[data-theme] .btn.go[aria-pressed="false"], .btn.go[aria-pressed="false"] { background: var(--surface); border-color: var(--line); color: var(--ink-2); }   /* a toggle not on yet is a plain key: only the state that is on wears green */
+.btn.go[aria-pressed="true"] svg { width: 13px; height: 13px; }
+@media (hover: hover) {                                                              /* a pointer: an empty next step shows on the card it is over, not on every card */
+  .tcard .tnext-view.none { opacity: 0; transition: opacity var(--t-fast, .12s) ease; }
+  .tcard:is(:hover, :focus-within) .tnext-view.none { opacity: 1; }
+}
+.rhead-name { justify-content: start; }                                              /* the photo's column at its own width: the name stays beside it at every width */
+.rhead-name .n.none { font-size: 18px; font-weight: 600; letter-spacing: 0; }
+.rhead-name .n.none .linkish { color: var(--ink-2); text-decoration: underline dotted; text-underline-offset: 4px; }
+@media (min-width: 600px) and (max-width: 860px) { .views { grid-template-columns: repeat(3, minmax(0, 1fr)); } }   /* a tablet: the six views in two rows of three, not three of two */
+.tcard .tc-top > .st-tag { margin-left: auto; flex: none; }                         /* an ended card's result at the right of its name */
+@media (min-width: 1101px) { .jobsplit { grid-template-columns: clamp(340px, 24vw, 460px) minmax(0, 1fr); } }   /* the list wider on a wide screen: a role reads on one line more often */
+/* a problem said on a neutral surface: its dot, list marks or lamp in red, never a pink panel (colour for meaning only) */
+.band:not(.info, .ai, .ok, .offer), :root[data-theme] .band:not(.info, .ai, .ok, .offer) { background: var(--board); border-color: var(--board-rim); }
+.band:not(.info, .ai, .ok, .offer, .issues, .gaps)::before { content: ""; flex: none; align-self: center; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+.band.issues { display: grid; gap: 4px; margin: 0; padding: 10px 12px 10px 28px; } .band.issues li::marker { color: var(--red); }
+.band.gaps { display: grid; gap: 8px; } .band.gaps > b { display: inline-flex; align-items: center; gap: 8px; }
+.band.gaps ul { margin: 0; padding-left: 18px; } .band.gaps li::marker { color: var(--red); }
+.gap-words { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 640px) {                                                          /* a phone: Make PDFs, Export and the lock on one row, the lock by its sign */
+  .viewhead .docacts > .btn.lockkey { flex: 0 0 var(--ctl-h); width: var(--ctl-h); padding: 0; justify-content: center; }
+  .viewhead .docacts > .btn.lockkey .w { display: none; }
+  .viewhead .docacts > .btn:not(.lockkey):not(.agent) { flex: 1 1 auto; }           /* each at least its words' width: a narrow phone moves the lock down rather than cut a word */
+}
+@media (min-width: 861px) and (max-width: 1500px) {                                  /* a laptop: the views a little tighter, so the bar keeps one row in English beside the job picker */
+  .views button { padding: 0 9px; gap: 6px; }
+  .jobpick { min-width: 170px; flex-basis: 170px; }
+}
+@media (max-width: 640px) { .lib-groups button svg { display: none; } .lib-groups button { white-space: nowrap; font-size: 12px; } }   /* a phone: the kind's words and count on one line, its sign left out */
+.r-fig { background: #f3f3f1; }                                                      /* while the figure loads, a pale paper where it will print (its PNG is opaque, so this never shows through) */
+@media (max-width: 860px) { .bar-in.tight .brand img { height: 24px; } .bar-in.tighter .brand-ver { display: none; } }   /* app.js fitBar: a phone row that does not fit */
+.active-row { row-gap: 16px; } .col:not([data-stage="result"]) .tcard + .tcard { margin-top: 4px; }   /* room under each note for its lifted corners' shadow, not covered by the next row (the ended ones stay close) */
+@media (min-width: 861px) { .active-row, .active-row.many { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } .active-card { aspect-ratio: 1; } }   /* square notes, as many as fit a row */
+@media (max-width: 860px) { .active-row.many > .active-card { aspect-ratio: 1; } }   /* a phone's sliding row: square notes too (a lone note across the screen stays as long as its words) */
+/* the progress tab: each stage's day in a field of its own, and the interview rounds (views.js progressPart, roundsPart) */
+.pdates { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--gap-s) var(--gap-m); }
+.prow.nodate { grid-template-columns: minmax(0, 1fr); } .prow.nodate.with-result { grid-template-columns: auto minmax(0, 1fr); }
+.rounds { display: grid; gap: var(--gap-s); }
+.round-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--gap-s); }
+.round, .round-form { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 2px; background: var(--surface); }
+.round-h { display: flex; align-items: center; gap: 10px; min-width: 0; } .round-h .when { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.round-asked .k { font-size: 12px; color: var(--ink-3); } .round-asked ul { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13px; }
+.round-notes { margin: 0; font-size: 13px; color: var(--ink-2); white-space: pre-wrap; }
+.round-top { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr); gap: var(--gap-s); align-items: end; }
+@media (max-width: 859px) { .prow.nodate, .prow.nodate.with-result { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .round-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .round-top > :first-child { grid-column: 1 / -1; } }
+.rhead-facts .agenda { display: grid; gap: 2px; justify-items: start; }             /* the rounds ahead, one a line, the nearest first */
+/* 11-10 second review: English notes a little wider (their keys' words are longer), a short answer cell on one line, the
+   phone's application without the list's head above it, the latest documents' day kept whole */
+.active-card .ac-keys .btn { padding-inline: 10px; }   /* a little closer, so English keys and a three-digit fit stay on the note */
+.ask-table td.nw { white-space: nowrap; }
+.rhead-facts .nowrap { white-space: nowrap; }
+.own-result { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ins-svg .lead { stroke: var(--ink-3); stroke-width: 1; }   /* a label set a little away from its dot, joined to it */
+
+/* ================================================================ removing, the Trash, and the panel's own question
+   Removing never asks: the thing waits in the Trash and the note that says so holds Undo. Deleting for good asks first, on
+   the panel's own sheet (core.js askFirst), whose one solid red key is the only one in the panel: red means it cannot be
+   taken back. The rest stays in the panel's greys; a removed thing's mark is grey too, its colour gone with it. */
+:root, :root[data-theme="light"] { --on-red: #ffffff; }                               /* words on the solid red key: 6.5:1 on #b42328 */
+:root[data-theme="dark"] { --on-red: #0a0a0a; }                                       /* the dark theme's red is light: dark words on it, 6.4:1 */
+.toast.keyed { display: flex; align-items: center; gap: 12px; padding-right: 8px; pointer-events: auto; }   /* a note with a key takes clicks */
+.toast .toast-w { flex: 1 1 auto; min-width: 0; }                                     /* the words wrap, the key keeps its width */
+.toast .toast-key { flex: none; }
+#confirm { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; }   /* over the guide (60) and the toast */
+#confirm[hidden] { display: none; }
+.confirm-scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--desk) 60%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }   /* as the guide's */
+.confirm { position: relative; display: grid; gap: 14px; width: min(460px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 22px 22px 18px;
+  border: 1px solid var(--paper-line); border-radius: 10px; background: var(--paper); box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .55); }   /* opaque: it is read */
+.confirm h2 { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.02em; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
+.confirm-text { display: grid; gap: 12px; }
+.confirm-text p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink-2); overflow-wrap: anywhere; }
+.confirm-lines { display: grid; gap: 6px; margin: 0; padding: 10px 12px; list-style: none; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--paper-2); }
+.confirm-lines li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.confirm-lines svg { flex: none; margin-top: 2.5px; color: var(--green); }             /* what stays: a tick, in the colour that means kept */
+.confirm-keys { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.btn.danger-solid { background: var(--red); border-color: var(--red); color: var(--on-red); }
+:root .btn.danger-solid:hover:not(:disabled) { background: var(--red); border-color: var(--red); color: var(--on-red); opacity: .88; }
+@media (max-width: 640px) {                                                            /* a phone: the sheet rises from the foot, its keys whole-width, the safe one last */
+  #confirm { place-items: end stretch; padding: 12px; }
+  .confirm { width: auto; padding: 20px 18px 16px; }
+  .confirm-keys { flex-direction: column-reverse; }
+  .confirm-keys .btn { width: 100%; justify-content: center; }
+}
+.lib-groups .lib-trash svg { color: var(--ink-3); }                                   /* the Trash's key, last of the kinds: grey, as what it holds */
+.lib-groups .lib-trash[aria-pressed="true"] svg { color: var(--ink); }
+.trash-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 2px; background: var(--surface); }
+.trash-head p { flex: 1 1 320px; margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+.trash-ic { color: var(--ink-3); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }   /* a removed thing's mark, without its kind's colour */
+.trash-own { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; font-size: 12.5px; color: var(--ink-2); }
+.trash-own > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.lib-keys.trash-keys { grid-template-columns: repeat(2, var(--ctl-h-sm)); }            /* put back, delete for good: the second always in the last place */
+.trash-asides { display: grid; gap: 6px; margin-top: 6px; }
+.trash-asides h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); }
+.trash-asides .hint { margin: 0 0 4px; font-size: 12.5px; }
+.trash-line { align-self: center; color: var(--ink-3); }                               /* where things were removed: how many wait in the Trash, a key away */
+.trash-line svg { width: 14px; height: 14px; }
+@media (max-width: 720px) { .lib-groups .lib-trash { grid-column: 1 / -1; } }         /* a phone: the Trash on a row of its own under the kinds */
+
+/* ================================================================ keys, lit by the desk's lamp (11-10)
+   A key is a small square of paper on the desk under the same lamp as the cards: lit along its top edge, a soft shadow down
+   and to the right, pressed into the desk while it is held. Its colour says what it does, in the panel's meaning colours
+   only: the view's one main key filled with the owl's blue; a key whose work goes to the agent orange, one that turns a
+   thing on or keeps it green, a move on the board its stage's colour, each a pale fill of its colour with a rim and a
+   shadow of the same; one that takes a thing away red words with no face. Every other key is the paper itself (in the
+   dark, a lifted grey). Square, as every box of the panel; no padding or line changes here (the block below sets those). */
+:root, :root[data-theme="light"] {
+  --key-face: linear-gradient(180deg, #ffffff, #f5f5f3) #f9f9f7;                     /* paper lit from above; the colour under it is what text is read on */
+  --key-face-hi: linear-gradient(180deg, #ffffff, #efefec) #f6f6f4;                  /* under the pointer: the lamp a little nearer */
+  --key-held: #ebebe8;                                                               /* pressed into the desk */
+  --key-edge: rgba(29, 28, 29, .16); --key-edge-hi: rgba(29, 28, 29, .28);           /* its rim, and under the pointer */
+  --key-lift: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 1px rgba(29, 28, 29, .05), 1px 2px 4px -1px rgba(54, 36, 12, .2);   /* lit top, shadow down-right */
+  --key-lift-hi: inset 0 1px 0 #ffffff, 0 1px 2px rgba(29, 28, 29, .07), 2px 4px 9px -3px rgba(54, 36, 12, .28);
+  --key-sunk: inset 1px 1px 3px rgba(29, 28, 29, .2), inset -1px -1px 0 rgba(255, 255, 255, .8);   /* held: the light falls into it */
+  --key-tint-lit: inset 0 1px 0 rgba(255, 255, 255, .75);                            /* the lit top of a coloured key */
+  --key-groove: inset 1px 1px 2px rgba(29, 28, 29, .1), inset -1px -1px 0 rgba(255, 255, 255, .75);   /* a choice's track, cut into the desk */
+}
+:root[data-theme="dark"] {
+  --key-face: linear-gradient(180deg, #2d2e33, #242529) #28292d;
+  --key-face-hi: linear-gradient(180deg, #34353b, #2a2b30) #2f3035;
+  --key-held: #1b1c1f;
+  --key-edge: rgba(255, 255, 255, .11); --key-edge-hi: rgba(255, 255, 255, .2);
+  --key-lift: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .45), 1px 2px 5px -1px rgba(0, 0, 0, .6);
+  --key-lift-hi: inset 0 1px 0 rgba(255, 255, 255, .11), 0 1px 2px rgba(0, 0, 0, .5), 2px 4px 10px -3px rgba(0, 0, 0, .7);
+  --key-sunk: inset 1px 1px 3px rgba(0, 0, 0, .7), inset -1px -1px 0 rgba(255, 255, 255, .05);
+  --key-tint-lit: inset 0 1px 0 rgba(255, 255, 255, .07);
+  --key-groove: inset 1px 1px 3px rgba(0, 0, 0, .55), inset -1px -1px 0 rgba(255, 255, 255, .04);
+}
+.btn, .btn.icon, .iconbtn, .btn.small, .btn.sm { background: var(--key-face); border-color: var(--key-edge); box-shadow: var(--key-lift);   /* the paper key */
+  transition: background-color .15s, border-color .15s, box-shadow .15s, color .15s; }
+:root .btn:hover:not(:disabled), :root .iconbtn:hover:not(:disabled) { background: var(--key-face-hi); border-color: var(--key-edge-hi); box-shadow: var(--key-lift-hi); }
+.btn:active:not(:disabled), .btn[aria-pressed="true"] { background: var(--key-held); border-color: var(--key-edge); box-shadow: var(--key-sunk); }   /* held, or a toggle that is on */
+.btn:disabled { box-shadow: none; }                                                    /* not a key to press now: flat, as well as faint */
+/* text keys: words only, a tint under the pointer */
+.btn:is(.quiet, .ghost, .danger), .btn.small:is(.quiet, .ghost, .danger), .btn.sm:is(.quiet, .ghost, .danger) { background: transparent; border-color: transparent; box-shadow: none; }
+:root .btn:is(.quiet, .ghost):hover:not(:disabled) { background: var(--hover); border-color: transparent; box-shadow: none; }
+:root .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--red) var(--soft), var(--surface)); border-color: color-mix(in srgb, var(--red) 25%, transparent); box-shadow: none; }
+/* the main key: the owl's blue, filled, its top lit */
+.btn.primary, .btn.small.primary, .btn.sm.primary, a.btn.primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 84%, #ffffff), var(--primary)) var(--primary);   /* its colour under the gradient: what its words are read on */
+  border-color: color-mix(in srgb, var(--primary) 80%, #000000); color: var(--primary-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .24), 0 1px 2px rgba(15, 25, 45, .18), 1px 3px 8px -2px color-mix(in srgb, var(--primary) 60%, transparent); }
+:root .btn.primary:hover:not(:disabled), :root .btn.small.primary:hover:not(:disabled), :root .btn.sm.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 74%, #ffffff), color-mix(in srgb, var(--primary) 92%, #ffffff)) var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 80%, #000000); opacity: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28), 0 1px 2px rgba(15, 25, 45, .2), 2px 5px 12px -3px color-mix(in srgb, var(--primary) 65%, transparent); }
+.btn.primary:active:not(:disabled) { background: var(--primary); box-shadow: inset 1px 1px 3px rgba(0, 0, 0, .35); }
+/* a key with a meaning colour: a pale fill of it, its rim and its shadow of the same */
+.btn.agent { --kc: var(--orange); } .btn.go { --kc: var(--green); } .btn.move { --kc: var(--mv); }
+.btn:is(.agent, .go, .move), .btn.small:is(.agent, .go, .move), .btn.sm:is(.agent, .go, .move), :root[data-theme="light"] .btn:is(.small, .sm).go {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--kc) 6%, var(--surface)), color-mix(in srgb, var(--kc) 13%, var(--surface))) color-mix(in srgb, var(--kc) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--kc) 38%, transparent); color: var(--kc);
+  box-shadow: var(--key-tint-lit), 0 1px 1px rgba(29, 28, 29, .05), 1px 2px 5px -1px color-mix(in srgb, var(--kc) 34%, transparent); }
+:root .btn:is(.agent, .go, .move):hover:not(:disabled) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--kc) 10%, var(--surface)), color-mix(in srgb, var(--kc) 18%, var(--surface))) color-mix(in srgb, var(--kc) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--kc) 52%, transparent);
+  box-shadow: var(--key-tint-lit), 0 1px 2px rgba(29, 28, 29, .07), 2px 4px 10px -3px color-mix(in srgb, var(--kc) 44%, transparent); }
+.btn:is(.agent, .go, .move):active:not(:disabled), .btn.go[aria-pressed="true"] { background: color-mix(in srgb, var(--kc) 20%, var(--surface)); box-shadow: inset 1px 1px 3px color-mix(in srgb, var(--kc) 30%, rgba(0, 0, 0, .2)); }
+:root[data-theme] .btn.go[aria-pressed="false"], .btn.go[aria-pressed="false"] { background: var(--key-face); border-color: var(--key-edge); color: var(--ink-2); box-shadow: var(--key-lift); }   /* a toggle not on yet is a plain key */
+.btn.danger-solid { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 1px 3px 8px -2px color-mix(in srgb, var(--red) 55%, transparent); }   /* deleting for good: the one solid red */
+/* a choice of a few: a track cut into the desk, the choice made standing in it */
+.seg { box-shadow: var(--key-groove); }
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"], :root[data-theme="dark"] .seg button[aria-pressed="true"], :root[data-theme="dark"] .seg button[aria-selected="true"] {
+  background: var(--key-face); box-shadow: var(--key-lift); color: var(--ink); }
+/* the view in use on the bar: pressed into it */
+.views button[aria-current="page"] { background: var(--key-held); box-shadow: var(--key-sunk); }
+/* in the dark a shadow is darkness, never a glow of the key's own colour */
+:root[data-theme="dark"] .btn.primary, :root[data-theme="dark"] .btn.small.primary, :root[data-theme="dark"] .btn.sm.primary {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 1px 2px rgba(0, 0, 0, .5), 1px 3px 8px -2px rgba(0, 0, 0, .65); }
+:root[data-theme="dark"] .btn.primary:hover:not(:disabled) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 1px 2px rgba(0, 0, 0, .5), 2px 5px 12px -3px rgba(0, 0, 0, .75); }
+:root[data-theme="dark"] .btn:is(.agent, .go, .move) { box-shadow: var(--key-tint-lit), 0 1px 2px rgba(0, 0, 0, .45), 1px 2px 5px -1px rgba(0, 0, 0, .55); }
+:root[data-theme="dark"] .btn:is(.agent, .go, .move):hover:not(:disabled) { box-shadow: var(--key-tint-lit), 0 1px 2px rgba(0, 0, 0, .5), 2px 4px 10px -3px rgba(0, 0, 0, .65); }
+/* a key that cannot be pressed now stands flat, whatever its colour */
+.btn:disabled, .btn.primary:disabled, .btn:is(.agent, .go, .move):disabled, .btn.danger-solid:disabled { box-shadow: none; }
+
+/* ================================================================ the words of a key in its middle, the same in every browser
+   A key's words sat up to a pixel apart from one browser to the next, and a pixel low in all of them. Two things place them:
+   - a line taller than its font has leading to share out above and below the words. Chromium rounds the upper half down to a
+     whole pixel; Firefox and WebKit split it evenly. A one-line key therefore takes the font's own line (normal: no leading to
+     share), and a key that may wrap takes a line two whole pixels taller than its words, one above and one below;
+   - words whose line is an odd number of pixels tall (13 px words are 15) cannot sit in the middle of an even inside: they
+     would start on half a pixel, which each browser rounds its own way once the key itself sits on a fraction of a pixel.
+     One pixel above such words leaves an even rest, so every browser starts them on the same whole pixel.
+   Read from the painted pixels of each kind of key in Chromium, Firefox and WebKit, Korean and English, wide and narrow: the
+   words' middle is within half a pixel of the key's, and the three agree. Last in the last sheet, so no later rule takes it
+   back; a rule that sets a key's padding sets padding-inline, never the shorthand */
+.btn, .iconbtn, .seg button, .views button, .tabs [role="tab"], .barchip, .pgr-n, .combo-val { line-height: normal; }   /* one line: the font's own */
+.menu .item { line-height: calc(1em + 4px); }                                        /* may wrap: a whole pixel above and below each line */
+@media (max-width: 859px) { .seg button, .tabs [role="tab"] { line-height: calc(1em + 4px); } }   /* a phone's choices and tabs wrap too */
+.btn.small, .btn.sm, .barchip, .seg button, .pgr-n, .menu .item, .combo.sm .combo-btn, .combo.fk .combo-btn, .menu .combo-btn { padding-top: 1px; }   /* 13 px words: an odd line in an even inside */
+/* a badge or a date beside such words is an even number of pixels tall: it takes the pixel back below itself, so it too starts
+   on a whole pixel, in the key's exact middle */
+:is(.btn.small, .btn.sm, .barchip, .seg button, .menu .item) > :is(.chip, .when) { margin-bottom: 1px; }
+@media (max-width: 640px) { .lib-groups button { padding-top: 0; } .seg.lib-groups button > .chip { margin-bottom: 0; } }   /* the Library's kinds in 12 px on a phone: an even line, so no pixel above it */
+.chip:not(.count) { line-height: 20px; }                                             /* a badge: a whole height, an even leading (1.7 of 12 px was 20.4) */
+.rhead-facts .until, .rhead-facts .until.past { line-height: 18px; }                 /* the same for the time left, and for the key it becomes once the day has passed */
+@media (max-width: 859px) { .insp .tabs [role="tab"] { align-self: flex-end; } }       /* beside the sheet's 44 px close key a tab stretched to 45: its own 44, still on the row's line */
+@media (min-width: 860px) { .bar-in { padding-bottom: 7px; } }                        /* the bar's 36 px keys in a 40 px row: two whole pixels above and below (39 left a half) */
+/* the presentation interview (views.js talkPart): the brief as a form, the made talk's keys, its script in the kit's frame */
+.talk { display: grid; gap: 12px; }
+.talk-brief { display: grid; gap: 10px; padding: 16px; }
+.talk-brief h3 { margin: 0; font-size: 15px; }
+.talk-row { display: grid; grid-template-columns: 140px 1fr 1fr; gap: 10px; }
+@media (max-width: 720px) { .talk-row { grid-template-columns: 1fr; } }
+
+/* ================================================================ a note's keys and fit, inside its paper (11-11)
+   A note in progress holds its two keys and its fit on one line. English words are longer than Korean, and on a 205 px note
+   the fit reached 23 px past the paper onto its folded corner. A little less room around the keys and a note never narrower
+   than 214 px keep them inside, in either language, at every width from 870 to 3000 px (measured with two-digit fits); at
+   1440 px a row still holds six notes */
+@media (min-width: 641px) { .active-card { padding-inline: 12px; } }                   /* a phone keeps its own 10 px */
+.active-card .ac-keys { gap: 4px; }
+.active-card .ac-keys .btn { padding-inline: 8px; gap: 4px; }
+@media (min-width: 861px) { .active-row, .active-row.many { grid-template-columns: repeat(auto-fill, minmax(214px, 1fr)); } }
+
+/* ================================================================ the fields, one look (11-11)
+   Every place to write is a flat pane on its sheet: a rim a step darker than a card's hairline (a white field on white
+   paper had no edge; its inner shade, --field-in, is flat since the panel went flat glass below), and in the dark a fill
+   below its sheet's. The rim darkens under the
+   mouse; in use every field takes the panel's focus colour and its soft ring, eased in (the answers' boxes drew a thick
+   outline instead, the Library's search a second ring inside its own). Words in a field are 13 px as on the page, a box of
+   several lines a little more leading, the placeholder the quiet ink (4.5:1 or more in both looks). A choice (combo.js)
+   keeps a key's raised fill with the fields' rim and words. The browser's own parts (a number's arrows, a search's cross,
+   autofill's blue) take the panel's look or step aside. The command bar's box grows with its words from one line, its key a
+   square at the foot. A phone's fields write in 16 px: smaller, and Safari zooms the whole page in on a tap. */
+:root, :root[data-theme="light"] { --field-bg: #ffffff; --field-rim: #d4d4d4; --field-rim-hover: #a3a3a3; --field-in: inset 0 1px 2px rgba(0, 0, 0, .06); }
+:root[data-theme="dark"] { --field-bg: rgba(0, 0, 0, .24); --field-rim: #3d3e43; --field-rim-hover: #5c5d63; --field-in: inset 0 1px 2px rgba(0, 0, 0, .45); }
+:root[data-theme] :is(.input, .field input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [type="color"]), .field textarea, .qa textarea, .sendbox:not(.ai), .lib-q) {
+  border: 1px solid var(--field-rim); background: var(--field-bg); box-shadow: var(--field-in); color: var(--ink);
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+:root[data-theme] :is(.input, .field input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [type="color"]), .field textarea, .qa textarea, .sendbox:not(.ai), .lib-q):hover {
+  border-color: var(--field-rim-hover); }                                             /* under the mouse: the rim a step darker (in use, the focus colour below wins) */
+:root[data-theme] :is(.qa textarea, .tnext):focus { outline: none; border-style: solid; border-radius: 2px; border-color: var(--focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent) !important; background: var(--field-bg); }   /* the answers' boxes and a card's next step: the same focus as every field */
+.field.lib-q input:not([type="checkbox"], [type="radio"], [type="file"]):is(:focus, :focus-visible), .sendbox textarea:is(:focus, :focus-visible) {
+  outline: none; border: 0 !important; box-shadow: none !important; }                /* the words inside a search or a send box: the box shows the focus, once */
+:is(.field textarea, .qa textarea) { line-height: 20px; }                              /* several lines: 1.54 of 13 px, the answers' leading too */
+:is(input, textarea)::placeholder { color: var(--ink-3); opacity: 1; }                 /* the quiet ink, never the browser's grey (3.7:1 in the dark) */
+:root[data-theme] .combo-btn { border-color: var(--field-rim); }                       /* a choice beside a field: one rim */
+:root[data-theme] .combo-btn:hover:not(:disabled) { border-color: var(--field-rim-hover); }
+.field .combo-btn { font-size: 13px; padding-top: 1px; }                               /* a form's choice in the form's 13 px (an odd line: one pixel above, as for every 13 px key) */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }            /* a number is typed: no arrows of the browser's own */
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin: 0 0 0 6px; cursor: pointer; background: var(--ink-3);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 1.5l7 7M8.5 1.5l-7 7' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E") center / 10px 10px no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 1.5l7 7M8.5 1.5l-7 7' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E") center / 10px 10px no-repeat; }   /* a search's cross in the quiet ink */
+input[type="search"]::-webkit-search-cancel-button:hover { background: var(--ink); }
+:is(input, textarea):-webkit-autofill { -webkit-text-fill-color: var(--ink); caret-color: var(--ink); transition: background-color 600000s 0s, color 600000s 0s; }   /* a filled-in name or mail keeps the field's own fill */
+.ask-input { align-items: flex-end; }                                                  /* the key at the foot of a box that grows */
+.ask-input textarea { min-height: 44px; padding: 10px 12px; font-size: 13px; line-height: 20px; resize: none; field-sizing: content; }   /* one line to start, as tall as its words up to 160 px */
+.ask-input .btn { align-self: flex-end; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; }   /* a square key, the box's first line high */
+@media (max-width: 640px), (pointer: coarse) {
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), textarea) { font-size: 16px !important; }   /* no zoom on a tap */
+  :is(.field textarea, .qa textarea) { line-height: 22px; }
+}
+
+/* ================================================================ the palette in tune (11-11)
+   Every meaning colour keeps its family, set in OKLCH so no family outweighs another. Words: one lightness and one chroma
+   per look (L .50 C .135 on light, 4.7:1 or more on paper, desk and card; L .78 C .12 on dark, a fifth less chroma than
+   before, so they glow less, 7.5:1 or more). Marks with no words (bars, steps, columns): the chart palette's validated steps,
+   in the light band L .43 to .77 and the dark band .48 to .67, and only neighbours that stay apart for colour-blind eyes
+   too (scripts/validate_palette.js of the dataviz method: Make's chain blue, yellow, violet, aqua; a sentence with evidence
+   violet beside red without; the weeks' columns blue and yellow; Insights' kinds blue and orange). The notes' papers: one
+   lightness and nearly one chroma, so the preparing yellow no longer outshouts the others */
+:root, :root[data-theme="light"] {
+  --blue: #2663ae; --violet: #5b55ac; --red: #a23d3a; --orange: #a0421c; --amber: #865901; --green: #087736; --teal: #05736a;
+  --blue-bar: #2a78d6; --violet-bar: #6250d6; --amber-bar: #eda100; --orange-bar: #eb6834; --green-bar: #008300; --aqua-bar: #1baf7a; --red-bar: #e34948; --teal-bar: #0b9488;
+  --stage-submitted: var(--blue); --stage-interview: var(--amber); --ev-submitted: var(--blue-bar); --ev-interview: var(--amber-bar);
+  --note-preparing: #f3eac8; --note-submitted: #dbecfe; --note-interview: #fee4ce; }
+:root[data-theme="dark"] {
+  --blue: #87bafe; --violet: #aeaefe; --red: #fb9890; --orange: #f89c7b; --amber: #e4ac59; --green: #7ccd8e; --teal: #44d0c1;
+  --blue-bar: #3987e5; --violet-bar: #9085e9; --amber-bar: #c98500; --orange-bar: #d95926; --green-bar: #008300; --aqua-bar: #199e70; --red-bar: #e66767; --teal-bar: #0d8d82;
+  --stage-submitted: var(--blue); --stage-interview: var(--amber); --ev-submitted: var(--blue-bar); --ev-interview: var(--amber-bar);
+  --note-preparing: #45402c; --note-submitted: #334150; --note-interview: #4c3c2e; }
+
+/* ================================================================ the notes, quieter (11-11)
+   A note is paper first: one even tint with a soft sheen, a touch lighter where it is glued at the top and only a breath
+   deeper at its foot (never grey); its folded corner is the paper's own back in a lighter shade of the paper, a little
+   smaller, its shadow faint; the two lifted corners cast a soft shadow. What sits on it is drawn on the paper, not stuck
+   to it: the keys and the initials are outlines with no fill of their own, and the small grey words keep 4.5:1 on the
+   dark papers too */
+.active-card, .tcard, :root[data-theme] .active-card, :root[data-theme] .tcard {
+  --fold: 16px;
+  --paper-top: color-mix(in srgb, var(--note) 88%, #fff); --paper-foot: color-mix(in srgb, var(--note) 96%, #000);
+  background:
+    linear-gradient(to left top, transparent 50%, color-mix(in srgb, var(--note) var(--flap-pct), var(--flap-mix)) 50%, color-mix(in srgb, var(--note) 92%, var(--flap-mix)))
+      right bottom / var(--fold) var(--fold) no-repeat,
+    linear-gradient(-45deg, transparent calc(var(--fold) * .7071), var(--paper-foot) 0) left bottom / 100% var(--fold) no-repeat,
+    linear-gradient(180deg, var(--paper-top) 0, var(--note) 26%, var(--note) 70%, var(--paper-foot) 100%) left top / 100% calc(100% - var(--fold)) no-repeat; }
+:root, :root[data-theme="light"] { --flap-mix: #fff; --flap-pct: 62%; --note-key-rim: rgba(29, 28, 29, .18); }
+:root[data-theme="dark"] { --flap-mix: #fff; --flap-pct: 84%; --note-key-rim: rgba(255, 255, 255, .16); }
+.col[data-stage="result"] .tcard { --fold: 0px; }                                   /* an ended note still lies flat */
+:root[data-theme] :is(.active-card, .tcard) :is(.btn, .mono) { background: transparent; box-shadow: inset 0 0 0 1px var(--note-key-rim); border-color: transparent; }
+:root[data-theme] :is(.active-card, .tcard) .btn:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 30%, transparent); }
+:root[data-theme="dark"] :is(.active-card, .tcard) { --ink-3: #b9b9b9; }             /* the small grey words on a dark paper: 4.5:1 or more */
+
+/* ================================================================ loose ends, measured (11-11 late)
+   What a walk on the owner's own data and a look at every state found: the chain of Make kept its arrows below a
+   laptop's width (the arrow rule wins on specificity, so a phone's plain cards never came), keys a thumb misses on a
+   phone, an ended application's role squeezed into a column of its own, Insights' last number set lower than its row,
+   and labels that broke onto a second line in a column a few pixels short */
+@media (max-width: 1100px) {                                                           /* two columns or one: the chain's steps are plain cards */
+  .pipe-step, :root[data-theme] .pipe-step, :root[data-theme] .pipe-step:first-child, :root[data-theme] .pipe-step:last-child {
+    clip-path: none; padding: 12px 16px 14px; }                                        /* an arrow at a row's end would point at nothing */
+  .pipe-step + .pipe-step, :root[data-theme] .pipe-step + .pipe-step { margin-left: 0; }   /* the next row's first card starts at the page's edge, not 12 px left of it */
+  .card.chain.pipe { gap: 8px; padding: 0; } }                                         /* the room an arrow's overlap took; edges in line with the cards above and below */
+
+@media (max-width: 599px) {                                                            /* a phone: the six views three by two */
+  .views { grid-template-columns: repeat(3, minmax(0, 1fr)); }                         /* two rows of 44 px take less height than three of 32 */
+  .views button { padding: 0 6px; gap: 6px; } }                                        /* each third holds its word whole */
+@media (max-width: 429px) { .views button svg { display: none; } }                     /* a narrow phone: the words alone ("Applications" needs the whole third) */
+@media (max-width: 640px), (pointer: coarse) {                                         /* a thumb: every key at least 44 px high */
+  .views button, .seg button, .pgr-n, .btn.icon, a.btn.icon, .jobrow, .tnext-view { min-height: 44px; }   /* the views, choices, pages, icon keys, list rows, a note's words */
+  .pgr-n { min-width: 44px; }                                                          /* a page's number is a square key */
+  .tco { min-width: 44px; }                                                            /* a note's short name (two letters) is still a whole key wide */
+  .tl-ev { height: auto; min-height: 44px; }                                           /* a day's events on the timeline */
+  :is(.rd-name, .lib-ownkey, .linkish.nm) { display: inline-flex; align-items: center; min-height: 44px; } }   /* names that open a job, an owner, an edition */
+
+.jobrow[data-stage="result"] {                                                        /* an ended application: two lines like the others, only smaller */
+  grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "mono co fit" "mono ro fit"; padding: 6px 10px; column-gap: 8px; row-gap: 0; }
+.jobrow[data-stage="result"] .ro { align-self: start; }                                /* the role under the name, not in a column of its own */
+.col[data-stage="result"] .tcard .tc-top { flex: 1 1 100%; }                          /* an ended note: the name and how it ended on the first line, the result at its right */
+.col[data-stage="result"] .tcard .ro { flex: 1 1 100%; }                              /* the role always on the second line, never beside the result */
+
+@media (min-width: 861px) and (max-width: 2559px) {                                   /* beside a page with 40 px margins: the key fits in the margin, never across a card */
+  #askbar { right: 4px; }
+  .ask-fab { width: 32px; height: 32px; } .ask-fab-i svg { width: 15px; height: 15px; } }   /* 32 px in the 40 px margin, 4 px clear of the page and of the window's edge */
+body:has(#menu, .barpop .pop, .confirm) #askbar { display: none; }                   /* the settings, the agent's panel or a question open: the command bar's key steps aside, never across their edges */
+.layout { padding-bottom: 88px; }                                                  /* the page's end scrolls clear of the command bar's key (44 px, 20 px off the foot) */
+@media (max-width: 860px) { .layout { padding-bottom: 72px; } }                     /* a phone's key sits 12 px off the foot */
+.combo-btn, .combo.sm .combo-btn, .combo.fk .combo-btn, .menu .combo-btn { height: auto; }   /* a long value grows its field, never spills over the rim */
+.combo-btn { min-height: var(--ctl-h); } .combo.sm .combo-btn, .combo.fk .combo-btn, .menu .combo-btn { min-height: var(--ctl-h-sm); }
+.combo-val { padding-block: 5px; line-height: 1.35; }                              /* two lines of a long job's name, each whole, inside the field */
+.combo.sm .combo-val, .combo.fk .combo-val, .menu .combo-val { padding-block: 3px; }   /* a small field keeps its 28 px for one line */
+@media (min-width: 861px) { .jobpick { flex-grow: 10; max-width: 360px; } .jobpick select { max-width: 360px; } }   /* the bar's free room goes to the job's name first, the gap before the keys after */
+@media (min-width: 1501px) { .jobpick, .jobpick select { max-width: 440px; } }     /* a wide bar: room for a long name on one line */
+.docstate { display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; font-size: 13px; font-weight: 500; color: var(--ink-2); }   /* a document's state in its head: words and a sign, not a key */
+.docstate.ok { color: var(--green); } .docstate svg { flex: none; }
+/* the settings and the agent's panel are sheets, not cards hanging from the bar: from the bar's foot to the window's, at the
+   page's right edge (a phone: across), the page dimmed behind. A card of its own height ended across whatever lay under it */
+.menu, .pop { height: calc(100dvh - var(--bar-h)); overflow-y: auto; overscroll-behavior: contain; }   /* height, not bottom: the bar may be the box a fixed sheet is placed in */
+.menu { align-content: start; }                                                       /* its rows from the top of the sheet */
+.pop { display: flex; } .pop > .card { flex: 1 1 auto; overflow-y: auto; }            /* the agent's card fills the sheet */
+@media (min-width: 861px) {
+  .menu, .pop { position: fixed; top: var(--bar-h); right: max(var(--pad-x), calc((100vw - var(--page-w)) / 2 + var(--pad-x))); z-index: 40; border-radius: 0; }
+  .menu { width: 300px; } .pop { width: 372px; } }
+body:has(#menu, .barpop .pop) #scrim { display: block; position: fixed; inset: var(--bar-h) 0 0 0; z-index: 29; background: rgba(0, 0, 0, .3); }   /* under the bar's own layer (30), where the sheet is drawn: over the page, never over the sheet; a tap on it closes the sheet (app.js) */
+:root[data-theme="dark"] body:has(#menu, .barpop .pop) #scrim { background: rgba(0, 0, 0, .6); }
+body:has(#askpanel) #scrim { display: block; position: fixed; inset: var(--bar-h) 0 0 0; z-index: 34; background: rgba(0, 0, 0, .3); }   /* the open command bar is a dialog: the page dims behind it (a tap closes it, app.js) */
+:root[data-theme="dark"] body:has(#askpanel) #scrim { background: rgba(0, 0, 0, .6); }
+.scrim.open { background: rgba(0, 0, 0, .3); } :root[data-theme="dark"] .scrim.open { background: rgba(0, 0, 0, .6); }   /* the inspector's drawer: dark enough that what it lies across reads as behind it */
+@media (max-width: 720px) {                                                           /* a phone: the open command bar rises from the foot across the screen, as the inspector does */
+  body:has(#askpanel) #scrim { inset: 0; }
+  body:has(#askpanel) #askbar { left: 0; right: 0; bottom: 0; }
+  #askpanel { width: 100%; height: 78dvh; max-height: none; border-radius: 0; border-width: 1px 0 0; } }
+.setup { min-height: min(460px, calc(100dvh - min(12vh, 112px) - var(--gap-l))); }   /* every step of the guide one height: Next and Done stay where the hand is */
+@media (max-width: 859px) { .setup { min-height: min(520px, calc(100dvh - 2 * var(--gap-l))); } }   /* a phone too (its steps ran 354 to 486 px) */
+.dp .across { text-align: center; }                                                   /* one value for both languages sits under both, not under the first */
+.jtabs .w-s { display: none; }                                                        /* the questions tab's short name, for a phone */
+@media (max-width: 640px) { .jtabs .w-l { display: none; } .jtabs .w-s { display: inline; }   /* five tabs on one row of a phone: its underline in one row, not under either of two */
+  .jtabs { grid-template-columns: repeat(5, auto); justify-content: space-between; column-gap: 2px; } .jtabs > *, .jtabs > :nth-child(n + 4) { grid-column: auto; }
+  .jtabs [role="tab"] { font-size: 13px; padding-inline: 5px; min-width: 44px; justify-content: center; }   /* 360 px and up hold all five, each a thumb wide ("Fit" too); narrower, the row slides */
+  .jtabs [role="tab"] .chip.count { display: none; } }                                 /* a phone's tab is its word alone: a count under it set the word 2 px off its middle (the tab itself shows the count) */
+@media (max-width: 389px) { html:lang(en) .jtabs { grid-template-columns: repeat(6, minmax(0, 1fr)); } html:lang(en) .jtabs > * { grid-column: span 2; }   /* English under 390 px: its longer words */
+  html:lang(en) .jtabs > :nth-child(n + 4) { grid-column: span 3; } }                  /* three, then two, as before: "Documents" whole */
+@media (max-width: 640px) { .pdates { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }   /* a phone's 16 px day needs 200 px beside its calendar key: one column at 390 */
+  .seg.results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } }        /* the four results two by two, none alone on a row */
+.mat-code { margin: 0; padding: 10px 12px; overflow-x: auto; background: var(--well); border: 1px solid var(--line); border-radius: 2px;
+  font-family: var(--mono); font-size: 12px; line-height: 1.55; white-space: pre; color: var(--ink); }   /* a code block in a note: the page's own, its long lines slide */
+.btn.quiet.danger, .btn.small.quiet.danger, .btn.sm.quiet.danger { color: var(--red); }   /* a removal reads red wherever it is, a word or a sign (the quiet look left it grey) */
+.photo-keys { display: flex; gap: 4px; } .photo-keys > .btn:first-child { flex: 1 1 auto; justify-content: center; }   /* the photo's keys on one row */
+.photo-cell { width: auto; min-width: 120px; } .photo-cell .toggle { white-space: nowrap; }   /* "On the resume" on one line beside its switch */
+.map-key { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12px; }   /* a phone's map: its numbered dots named under it */
+.map-key li { display: flex; align-items: baseline; gap: 6px; min-width: 0; } .map-key b { flex: none; min-width: 2ch; white-space: nowrap; color: var(--ink-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+.map-key span { min-width: 0; overflow-wrap: anywhere; } .map-key small { margin-left: auto; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hint.warn { color: var(--amber); }                                                   /* a hint that asks for a look: the warning family, words at 4.5:1 */
+.expgrp { display: inline-flex; gap: var(--gap-s); min-width: 0; }                          /* Export and the lock beside it: never one of them alone on a row */
+@media (max-width: 640px) { .viewhead .docacts > .expgrp { flex: 1 1 auto; } .expgrp > .btn:not(.lockkey) { flex: 1 1 auto; justify-content: center; }
+  .expgrp > .btn.lockkey { flex: 0 0 var(--ctl-h); width: var(--ctl-h); padding: 0; justify-content: center; } .expgrp > .btn.lockkey .w { display: none; } }
+#docbody > .shots, #docbody > div > .shots { justify-items: center; }               /* the typeset pages in the middle of their column: an image sized by a share of its track sits at the track's start, and the track is the column's width */
+@media (min-width: 861px) {                                                           /* a wide window: the note in the bar, left of its keys, never across a card (core.js placeToast) */
+  #toast.inbar { left: auto; bottom: auto; right: var(--toast-right); top: var(--toast-top); max-width: var(--toast-max); transform: translateY(-4px); padding-block: 4px; }   /* a bar's height: its key and words in the 56 px row */
+  #toast.inbar.show { transform: none; } }
+.under-toast { visibility: hidden; opacity: 0; transition: opacity .15s var(--ease), visibility 0s .15s; }   /* what of the bar a note lies over steps aside while it shows, as Sidenote's signals do */
+.pages.actual { overflow-x: auto; justify-content: start; overscroll-behavior-x: contain; }   /* a phone's page at its own size: it slides sideways in its column */
+@media (max-width: 640px) { .doctools .zoomseg { grid-column: 1 / -1; width: 100%; } .doctools .zoomseg button { flex: 1 1 0; } }   /* the two sizes across a phone's row */
+@media (max-width: 860px) {                                                          /* a phone's bar scrolls away: a note is a band along the screen's top edge, the bar's own surface, never a card across the page */
+  #toast { top: 0; bottom: auto; left: 0; right: 0; max-width: none; border-radius: 0; border-width: 0 0 1px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); transform: translateY(-100%); }
+  #toast.show { transform: none; } }
+@media (min-width: 861px) { .views button { min-height: 36px; } }                    /* the views as high as the bar's keys beside them: one height in the bar */
+.btn:disabled, .combo-btn:disabled, .pgr-n:disabled { opacity: .5; }               /* faded, still read: a disabled key's words at 3:1 or more (at .4 they were 2.6:1) */
+@media (max-width: 859px) { .setup-row .seg { flex: 1 1 100%; } }                    /* a phone's guide: a row's choices under its name, across the sheet, not 300 px and short of its edge */
+.ins-key.dot i { border-radius: 50%; }                                              /* a legend for dots marks its keys with dots */
+.ins-key.dash i { background: transparent; box-shadow: none; border: 1.5px dashed var(--c); border-radius: 1px; }   /* and a dashed bar's with a dashed square */
+.doctools .insp-toggle { margin-left: auto; }                                         /* the inspector's key always at the row's right end, whether the row wraps before it or not */
+.fact-ev .ev-more { margin-left: 6px; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; text-decoration: underline dotted; text-underline-offset: 3px; }   /* more of the source's words, after the sentence shown: the row opens them */
+.flow-cards > .card { align-self: start; }                                          /* Make's cards each at their own height, as app.css lays them: the rows keep their tops in line, a short card no longer grows a blank foot */
+@media (max-width: 640px) { .lib-groups { grid-template-columns: repeat(3, auto); } }   /* a phone: each kind as wide as its words, so a long one keeps its count inside its key */
+@media (max-width: 359px) { .lib-groups button { padding-inline: 4px; gap: 4px; } }   /* under 360 px: a little less room around the words, the count still inside */
+.ins-kpi-t { align-self: stretch; align-content: start; }                              /* every number tile's words from the same top, with or without a bar under them */
+.fn-step { grid-template-columns: 80px minmax(0, 1fr) 28px 38px; }                     /* "On the board" on one line */
+@media (min-width: 641px) { .ar-row { grid-template-columns: 144px minmax(0, 1fr) 24px 54px; } }   /* "Observability & reliability" on one line */
+
+/* ================================================================ owl glass (11-12)
+   The owl's desk under its lamp, made of frosted glass and flat: nothing carved into the desk or raised off it, no
+   grid. The desk is a cool pale grey (a deep slate after dark), the lamp's warm light spreading from the top left and
+   the night's blue gathering at the bottom right, so every pane has light to frost. A pane is frosted glass: a milky
+   tint with the frost's fine grain, brighter at its lit top left, a bright rim and one soft shadow under it. The bar is
+   such a pane across the window, always there, the views a track in it with the view in use a brighter pane in the
+   track. A key is a flat pane of the same glass with a hairline rim: no light along its top, no shadow, brighter
+   under the pointer, a shade deeper when held. What holds words to read stays opaque (the sheets, the
+   inspector, the menus); a note is frosted glass in the bar with its kind's mark, as Sidenote's notes are. */
+:root, :root[data-theme="light"] {
+  --desk: #e8ebf0; --desk-top: #f2f4f7; --desk-low: #e1e5eb;                         /* cool, pale, lighter at the top */
+  --lamp-wide: rgba(255, 200, 138, .32); --shade: rgba(66, 92, 148, .2);              /* the lamp's warmth from the top left, the night's blue at the bottom right */
+  --mat-line: transparent;                                                            /* no grid */
+  --card-glass: rgba(255, 255, 255, .46); --card-rim: rgba(255, 255, 255, .78);       /* frosted white, its edge catching the light */
+  --sheen: linear-gradient(145deg, rgba(255, 255, 255, .5), rgba(255, 255, 255, .08) 55%, rgba(255, 255, 255, 0));   /* bright at the lit corner, thinner across */
+  --card-lit: inset 0 1px 0 #ffffff;
+  --card-shadow: 0 0 0 1px rgba(30, 36, 52, .05), 0 1px 2px rgba(30, 36, 52, .05), 0 14px 32px -18px rgba(30, 36, 52, .34);   /* a hairline, a contact shadow, one soft shadow */
+  --board: rgba(255, 255, 255, .34); --board-rim: rgba(255, 255, 255, .8);            /* a tray of thinner glass the notes are stuck on */
+  --bar-glass: linear-gradient(180deg, rgba(255, 255, 255, .74), rgba(255, 255, 255, .56));
+  --bar-rule: rgba(30, 36, 52, .1); --bar-lit: rgba(255, 255, 255, .9); --bar-shadow: 0 10px 26px -20px rgba(30, 36, 52, .5);
+  --key-face: rgba(255, 255, 255, .66);                                                /* a flat pane of the glass */
+  --key-face-hi: rgba(255, 255, 255, .94);
+  --key-held: rgba(226, 230, 237, .9);
+  --key-edge: rgba(30, 36, 52, .15); --key-edge-hi: rgba(30, 36, 52, .28);
+  --key-lift: 0 0 0 0 transparent; --key-lift-hi: 0 0 0 0 transparent;                /* no shadow: flat */
+  --key-sunk: 0 0 0 0 transparent;
+  --key-tint-lit: 0 0 0 0 transparent;
+  --key-groove: inset 0 0 0 1px rgba(30, 36, 52, .07);                                 /* a choice's track: a rim, not a cut */
+  --toast-glass: rgba(255, 255, 255, .52); --toast-rim: rgba(255, 255, 255, .85); --toast-lift: 0 0 0 1px rgba(30, 36, 52, .07), 0 12px 28px -12px rgba(30, 36, 52, .38);
+  --toast-info: var(--blue); --field-in: 0 0 0 0 transparent; --toast-lift-bar: 0 0 0 1px rgba(30, 36, 52, .06), 0 4px 10px -6px rgba(30, 36, 52, .3);
+  --note-shadow: drop-shadow(0 1px 1px rgba(40, 30, 15, .08)) drop-shadow(4px 8px 10px rgba(40, 30, 15, .1));
+}
+:root[data-theme="dark"] {
+  --desk: #0e0f13; --desk-top: #13151a; --desk-low: #0b0c0f;
+  --lamp-wide: rgba(255, 168, 84, .17); --shade: rgba(78, 108, 188, .22);
+  --mat-line: transparent;
+  --card-glass: rgba(30, 32, 40, .5); --card-rim: rgba(255, 255, 255, .11);
+  --sheen: linear-gradient(145deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .03) 45%, rgba(255, 255, 255, .012));
+  --card-lit: inset 0 1px 0 rgba(255, 255, 255, .1);
+  --card-shadow: 0 1px 0 rgba(0, 0, 0, .35), 0 18px 40px -22px rgba(0, 0, 0, .9);
+  --board: rgba(255, 255, 255, .03); --board-rim: rgba(255, 255, 255, .08);
+  --bar-glass: linear-gradient(180deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .03)), rgba(16, 17, 22, .64);
+  --bar-rule: rgba(255, 255, 255, .08); --bar-lit: rgba(255, 255, 255, .06); --bar-shadow: 0 12px 30px -20px rgba(0, 0, 0, .95);
+  --key-face: rgba(255, 255, 255, .06);
+  --key-face-hi: rgba(255, 255, 255, .11);
+  --key-held: rgba(255, 255, 255, .03);
+  --key-edge: rgba(255, 255, 255, .13); --key-edge-hi: rgba(255, 255, 255, .24);
+  --key-lift: 0 0 0 0 transparent; --key-lift-hi: 0 0 0 0 transparent;
+  --key-sunk: 0 0 0 0 transparent;
+  --key-tint-lit: 0 0 0 0 transparent;
+  --key-groove: inset 0 0 0 1px rgba(255, 255, 255, .06);
+  --toast-glass: rgba(28, 30, 37, .56); --toast-rim: rgba(255, 255, 255, .12); --toast-lift: 0 14px 32px -12px rgba(0, 0, 0, .85);
+  --toast-info: var(--blue); --field-in: 0 0 0 0 transparent; --toast-lift-bar: 0 4px 10px -6px rgba(0, 0, 0, .7);
+  --note-shadow: drop-shadow(0 1px 1px rgba(0, 0, 0, .35)) drop-shadow(4px 8px 12px rgba(0, 0, 0, .35));
+}
+/* the desk: the lamp's pool, the night's, the grain and a fall of light from the top; no grid */
+body::after { display: none; }
+body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-wide), transparent 64%), radial-gradient(1300px 950px at 106% 114%, var(--shade), transparent 62%),
+  var(--grain), linear-gradient(180deg, var(--desk-top) 0, var(--desk) 46%, var(--desk-low) 100%) !important; }
+/* the panes: frosted glass with a lit corner (the reading surfaces and menus keep their own, opaque, rules: .card.insp, .pop > .card) */
+.card, .glass, .dochead, .jobs-viz, .rhead, .ins-tile, .ins-kpi, .lib-top {
+  background: var(--sheen), var(--grain), radial-gradient(140% 120% at 0% 0%, var(--lamp-box-now), transparent 55%), var(--card-glass); border-color: var(--card-rim);
+  box-shadow: var(--card-lit), var(--card-shadow); }
+:root[data-theme] :is(.card, .glass, .dochead, .jobs-viz, .rhead, .ins-tile, .ins-kpi, .lib-top) { -webkit-backdrop-filter: blur(20px) saturate(1.8); backdrop-filter: blur(20px) saturate(1.8); }
+.paper, .viewsheet, .facts-sheet, .joblist, .jobdetail { box-shadow: var(--card-lit), var(--card-shadow); }   /* opaque, and lit and shadowed as the panes are */
+.active, .flow-col, .fl-group { -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); }   /* the trays: the desk frosted behind the notes */
+/* the bar: a pane of glass across the window, at every scroll. Its frost is a layer of its own: a blur on the bar itself
+   would make it the box its sheets (position: fixed) are placed in, and leave them nothing to see through */
+.bar, .bar.under { background: transparent; border-bottom: 1px solid var(--bar-rule); box-shadow: var(--bar-shadow); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bar::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--grain), var(--bar-glass); box-shadow: inset 0 1px 0 var(--bar-lit);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8); backdrop-filter: blur(24px) saturate(1.8); }
+@media (max-width: 860px) { .bar { position: relative; } }                             /* a phone's bar scrolls away with the page, still the box its glass fills */
+/* the bar holds its parts as they are, with no box round any of them (a box in the bar was a box in a box): the version
+   a word beside the wordmark, the views words with their marks, the view in use in the ink with a line of the owl's eye
+   colour along the bar's foot under it, the agent's state its lamp and name, Undo and the settings bare marks; under the
+   pointer a part takes a faint tint of the bar's own glass */
+.brand-ver, :root[data-theme] .brand-ver { padding: 0; background: none; box-shadow: none; border: 0; color: var(--ink-3); font-weight: 600; }
+.views, :root[data-theme] .views { padding: 0; gap: 4px; background: none; border: 0; border-radius: 0; box-shadow: none; height: auto; }
+.views button, :root[data-theme] .views button { position: relative; border: 0; background: transparent; box-shadow: none; color: var(--ink-2); font-weight: 500; }
+.views button:hover, :root[data-theme] .views button:hover { background: var(--bar-hover); color: var(--ink); }
+.views button[aria-current="page"], :root[data-theme] .views button[aria-current="page"] { background: transparent; color: var(--ink); box-shadow: none; }
+.views button[aria-current="page"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: var(--view-line); height: 2px; background: var(--owl-eye-ink); pointer-events: none; }
+@media (min-width: 861px) { .views button, :root[data-theme] .views button { min-height: 36px; height: 36px; }
+  .views { --view-line: -10px; } .bar-in.two .views { --view-line: -8px; } }   /* the line on the bar's own foot (measured: 10 px below the views on one row, 8 on two) */
+@media (max-width: 860px) { .views { --view-line: 3px; } .views button[aria-current="page"]::after { left: 50%; right: auto; width: 28px; margin-left: -14px; } }   /* a phone's grid of views: the line under the word */
+#top .barchip, :root[data-theme] #top .barchip { background: transparent; border-color: transparent; box-shadow: none; }
+#top .barchip:hover, #top .barchip[aria-expanded="true"] { background: var(--bar-hover); }
+#top .actions .btn.icon, :root[data-theme] #top .actions .btn.icon { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-2); }
+#top .actions .btn.icon:hover:not(:disabled), :root[data-theme] #top .actions .btn.icon:hover:not(:disabled) { background: var(--bar-hover); border-color: transparent; color: var(--ink); }
+#top .actions .btn.icon[aria-expanded="true"], #top .actions .btn.icon:active:not(:disabled) { background: var(--bar-held); border-color: transparent; }
+#top .jobpick .combo-btn, :root[data-theme] #top .jobpick .combo-btn { background: transparent; border-color: transparent; box-shadow: none; font-weight: 600; color: var(--ink); }   /* the job in view: its name and the arrow, as the bar's other parts */
+#top .jobpick .combo-btn:hover, #top .jobpick .combo-btn[aria-expanded="true"] { background: var(--bar-hover); border-color: transparent; }
+@media (min-width: 861px) { #top .jobpick { flex: 0 1 auto; min-width: 0; padding-left: 12px; border-left: 1px solid var(--bar-rule); } #top .jobpick .combo, #top .jobpick .combo-btn { width: auto; max-width: 360px; }
+  #top .bar-in.two .jobpick { padding-left: 0; border-left: 0; } }   /* as wide as the name: its arrow beside it, not at the end of an empty field */
+:root, :root[data-theme="light"] { --bar-hover: rgba(30, 36, 52, .055); --bar-held: rgba(30, 36, 52, .09); }
+:root[data-theme="dark"] { --bar-hover: rgba(255, 255, 255, .06); --bar-held: rgba(255, 255, 255, .1); }
+/* the keys: flat panes, no gradient, no light along the top, no shadow; the main key a flat fill of the owl's blue, a
+   coloured key a flat pale fill of its colour with its rim */
+.btn.primary, .btn.small.primary, .btn.sm.primary, a.btn.primary, :root[data-theme] :is(.btn.primary, .btn.small.primary, .btn.sm.primary, a.btn.primary) {
+  background: var(--primary); border-color: color-mix(in srgb, var(--primary) 82%, #000000); box-shadow: none; }
+:root .btn.primary:hover:not(:disabled), :root .btn.small.primary:hover:not(:disabled), :root .btn.sm.primary:hover:not(:disabled), :root[data-theme] .btn.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 88%, #ffffff); box-shadow: none; }
+.btn.primary:active:not(:disabled), :root[data-theme] .btn.primary:active:not(:disabled) { background: color-mix(in srgb, var(--primary) 88%, #000000); box-shadow: none; }
+.btn:is(.agent, .go, .move), .btn.small:is(.agent, .go, .move), .btn.sm:is(.agent, .go, .move), :root[data-theme] .btn:is(.agent, .go, .move), :root[data-theme="light"] .btn:is(.small, .sm).go {
+  background: color-mix(in srgb, var(--kc) 11%, var(--surface)); box-shadow: none; }
+:root .btn:is(.agent, .go, .move):hover:not(:disabled), :root[data-theme] .btn:is(.agent, .go, .move):hover:not(:disabled) { background: color-mix(in srgb, var(--kc) 17%, var(--surface)); box-shadow: none; }
+.btn:is(.agent, .go, .move):active:not(:disabled), .btn.go[aria-pressed="true"] { background: color-mix(in srgb, var(--kc) 22%, var(--surface)); box-shadow: none; }
+:root[data-theme] .btn.go[aria-pressed="false"] { background: var(--key-face); box-shadow: none; }
+.btn.danger-solid, :root[data-theme] .btn.danger-solid { box-shadow: none; }
+.btn:disabled, .btn.primary:disabled, .btn:is(.agent, .go, .move):disabled, .btn.danger-solid:disabled { box-shadow: none; }   /* not a key to press now */
+/* a note: frosted glass, its kind's mark, its words, its key; in the bar on a laptop or wider, a band across the top on a phone */
+.toast, #toast, :root[data-theme] #toast { background: var(--grain), var(--toast-glass); border: 1px solid var(--toast-rim); border-radius: 2px; color: var(--ink); font-weight: 500;
+  box-shadow: var(--card-lit), var(--toast-lift); -webkit-backdrop-filter: blur(16px) saturate(1.8); backdrop-filter: blur(16px) saturate(1.8); }
+#toast { display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 9px; }
+#toast.keyed { padding-right: 6px; }
+#toast .toast-mark { --tk: var(--toast-info); flex: none; display: inline-flex; align-items: center; justify-content: center; color: var(--tk); }   /* the mark bare, in its kind's colour */
+#toast[data-kind="done"] .toast-mark { --tk: var(--green); }
+#toast[data-kind="bad"] .toast-mark { --tk: var(--red); }
+#toast[data-kind="warn"] .toast-mark { --tk: var(--amber); }
+#toast .toast-mark svg { width: 17px; height: 17px; }
+#toast .toast-w { line-height: 1.3; }                                                /* two lines still within the bar's row */
+@media (min-width: 861px) { #toast.inbar, :root[data-theme] #toast.inbar { min-height: 36px; padding-block: 3px; box-shadow: var(--card-lit), var(--toast-lift-bar); } }   /* as high as the keys beside it, its shadow short: the bar's own line stays clean under it */
+@media (max-width: 860px) { #toast, :root[data-theme] #toast { border-width: 0 0 1px; border-color: var(--bar-rule); box-shadow: var(--bar-shadow); padding-inline: 12px; } }   /* a band in the bar's place, its key as far from the edge as the bar's keys */
+/* the notes stay flat paper: no lifted corners, the paper's own outline for a shadow (it follows the folded corner) */
+:is(.active-card, .tcard)::before, :is(.active-card, .tcard)::after { display: none; }
+.active-card, .tcard { filter: var(--note-shadow); }
+.tcard.lifted { filter: none; }                                                        /* the note left behind while one is dragged, faded: no shadow of its own */
+/* Make's chain: its arrows' ends in line with the cards above and below (the arrow rule beat the ends' on specificity, so
+   the first step kept its notch and the last its point), and the arrows the same frosted glass as the cards, their rim
+   and shadow drawn round the arrows' outline (a clip-path cuts a box's own border and shadow) */
+:root[data-theme] .pipe-step { background: var(--sheen), var(--grain), radial-gradient(140% 120% at 0% 0%, var(--lamp-box-now), transparent 55%), var(--card-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8); backdrop-filter: blur(20px) saturate(1.8); }
+:root[data-theme] .pipe-step:hover { background: var(--sheen), var(--grain), color-mix(in srgb, var(--sc) 6%, var(--card-glass)); }
+@media (min-width: 1101px) {
+  .card.chain.pipe { padding-inline: 0; filter: var(--arrow-edge); }
+  :root[data-theme] .pipe-step:first-child { padding-left: 16px; clip-path: polygon(0 0, calc(100% - var(--tip)) 0, 100% 50%, calc(100% - var(--tip)) 100%, 0 100%); }
+  :root[data-theme] .pipe-step:last-child { padding-right: 16px; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--tip) 50%); } }
+@media (max-width: 1100px) { :root[data-theme] .pipe-step { border: 1px solid var(--card-rim); box-shadow: var(--card-lit), var(--card-shadow); } }   /* plain cards: the cards' rim and shadow */
+:root, :root[data-theme="light"] { --arrow-edge: drop-shadow(0 -1px 0 rgba(255, 255, 255, .95)) drop-shadow(0 0 1px rgba(30, 36, 52, .14)) drop-shadow(0 10px 14px rgba(30, 36, 52, .1)); }
+:root[data-theme="dark"] { --arrow-edge: drop-shadow(0 -1px 0 rgba(255, 255, 255, .1)) drop-shadow(0 0 1px rgba(255, 255, 255, .08)) drop-shadow(0 12px 18px rgba(0, 0, 0, .5)); }
+/* the persona's badge slot sat over its columns as a stray bar: gone */
+.ins-persona::before { display: none; }
+/* the command bar's key on a phone or a tablet: a frosted bar along the foot, as the top bar is, so it never lies over a
+   card (floating at the corner it covered the page's figures); the page keeps room for it at its end */
+@media (max-width: 860px) {
+  body:not(:has(#askpanel)) #askbar { left: 0; right: 0; bottom: 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); align-items: stretch; pointer-events: auto;
+    border-top: 1px solid var(--bar-rule); box-shadow: 0 -10px 26px -20px rgba(30, 36, 52, .5); }
+  body:not(:has(#askpanel)) #askbar::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--grain), var(--bar-glass);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8); backdrop-filter: blur(24px) saturate(1.8); }
+  body:not(:has(#askpanel)) #askbar > .ask-fab { width: 100%; height: 44px; justify-content: flex-start; padding: 0 10px 0 12px; }
+  body:not(:has(#askpanel)) #askbar .ask-fab-w { display: inline; }
+  body:has(#askbar .ask-fab) { padding-bottom: 61px; } }
+/* a link in words a person or the agent wrote: its service's or site's name in the link colour, the mark of a new tab,
+   a hairline under it (a full line under the pointer); beside a key that holds the words, the links stand after it */
+.xlink { display: inline-flex; align-items: center; gap: 3px; color: var(--blue); font-weight: 600; text-decoration: none; white-space: nowrap;
+  border-bottom: 1px solid color-mix(in srgb, var(--blue) 35%, transparent); line-height: 1.25; }
+.xlink svg { width: 12px; height: 12px; flex: none; }
+.xlink:hover { border-bottom-color: currentColor; }
+.xlink:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.xlinks { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.rhead .xlinks { margin-left: 8px; }                                                  /* Make's head: after the next step's words */
+.tcard .xlinks { margin: 2px 0 0; font-size: 12.5px; }                                 /* a note on the board: under its next step */
+.next-links { margin: 6px 0 0; }                                                       /* the progress tab: under the next step's field */
+/* badges without a box (a chip's frame in a card was a box in a box): a badge is its dot and its words; a count is its
+   number beside the words it counts; the line that says where an action's data goes is a quiet word beside its heading.
+   Companies' marks keep their square: they stand for a face. A chip that asks for care keeps a dot of its colour */
+.pill, .st-tag, .stage-chip, .pill.rate, .chip.ok, .chip.bad, .chip.warn, .chip.pc, .chip.ai, .chip.count, .fact-row .kind, .insp .chip,
+:root[data-theme] :is(.pill, .st-tag, .stage-chip, .pill.rate, .chip.ok, .chip.bad, .chip.warn, .chip.pc, .chip.ai, .chip.count, .fact-row .kind, .insp .chip) {
+  background: none; box-shadow: none; border-color: transparent; padding-left: 0; padding-right: 0; }
+.chip.count, :root[data-theme] .chip.count, .lib-groups .chip.count { min-width: 0; margin-left: 0; color: var(--ink-3); font-variant-numeric: tabular-nums; }   /* as wide as its digits: an empty frame width set the key's words off its middle */
+.chip.pc, .chip.ai { color: var(--ink-3); font-weight: 500; }
+.chip:not(.count):is(.ok, .bad, .warn)::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--cc); }
+.chip.count:is(.ok, .bad, .warn), :root[data-theme] .chip.count:is(.ok, .bad, .warn) { color: var(--cc); font-weight: 600; }   /* a count that asks for care: its number in the colour (a dot before it stacked in the count's grid) */
+.chip.ok { --cc: var(--green); } .chip.bad { --cc: var(--red); } .chip.warn { --cc: var(--amber); }
+/* ================================================================ the review of every view (11-12)
+   Three independent reviews of every view, on the owner's own data, against the owner's rules: no box inside a box,
+   rows and columns in line, flat keys, frosted glass for what holds controls, colour only where it means something. */
+
+/* Make's three steps: each a pane of the glass with its head inside and its parts divided by a hairline (a part's head and
+   its cards in one box, never a box in a box), the three panes the same height; the step's number a figure, not a tile */
+.flow { align-items: stretch; }
+.flow-col, :root[data-theme] .flow-col { display: flex; flex-direction: column; grid-row: auto; padding: 16px 18px 18px; border: 1px solid var(--card-rim); border-radius: 2px;
+  background: var(--sheen), var(--grain), radial-gradient(140% 120% at 0% 0%, var(--lamp-box-now), transparent 55%), var(--card-glass);
+  box-shadow: var(--card-lit), var(--card-shadow); -webkit-backdrop-filter: blur(20px) saturate(1.8); backdrop-filter: blur(20px) saturate(1.8); }
+.flow-col .colhead, :root[data-theme] .flow-col .colhead { margin: 0; padding: 0 0 12px; border-bottom: 1px solid var(--line); }
+.colhead h2::before { width: auto; height: auto; margin-right: 2px; background: none; box-shadow: none; font-size: 15px; font-weight: 700; }
+.flow-cards, :root[data-theme] .flow-cards { display: flex; flex-direction: column; gap: 0; align-self: stretch; width: 100%; }   /* the pane's width: its cards lay out by their own width (container), and a column sized to its content gave them none */
+.flow-cards > .card, :root[data-theme] .flow-cards > .card { align-self: stretch; margin: 0; padding: 16px 0 0; background: none; border: 0; border-radius: 0; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.flow-cards > .card + .card, :root[data-theme] .flow-cards > .card + .card { margin-top: 16px; border-top: 1px solid var(--line); }
+
+/* Make's head: the label of the applications on the line of its legend; on a phone each label over its value */
+.rhead-facts > b:first-of-type { padding-top: 10px; }
+.rhead-facts .until.past, :root[data-theme] .rhead-facts .until.past { display: inline-flex; align-items: center; gap: 6px; padding: 0; background: none; box-shadow: none; font: inherit; font-weight: 600; height: auto; min-height: 0;
+  color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.rhead-facts .until.past::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex: none; }
+.rhead-facts .until.past:hover { color: var(--ink); text-decoration-color: currentColor; }
+@media (max-width: 640px) { .rhead-facts { grid-template-columns: minmax(0, 1fr); row-gap: 2px; } .rhead-facts > b { padding-top: 8px; }
+  .rhead-facts > b:first-of-type { padding-top: 0; } .rhead-facts .next { text-decoration: none; } .rhead-facts .next:hover { text-decoration: underline; } }
+/* the four counts' marks and the Library's file kinds: the mark alone */
+.ps-icon, .lib-ic, :root[data-theme] :is(.ps-icon, .lib-ic) { background: none; box-shadow: none; border: 0; }
+/* the board's notes: their keys outlines on the paper, the move key too (the flat keys' rule had given it a fill) */
+:root[data-theme] :is(.active-card, .tcard) :is(.btn.move, .btn.go, .btn.agent) { background: transparent; box-shadow: inset 0 0 0 1px var(--note-key-rim); border-color: transparent; }
+:root[data-theme] :is(.active-card, .tcard) :is(.btn.move, .btn.go, .btn.agent):hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: inset 0 0 0 1px var(--note-key-rim); }
+/* a note's paper is one even colour, no light along its top */
+:is(.active-card, .tcard) { --paper-top: var(--note); --paper-foot: var(--note); }
+/* a key without a rim at a row's end ends where the boxes beside it end */
+.active-h > .btn:last-child, .ob-file > .btn:last-child { margin-right: -10px; }
+/* the words of a key keep their spaces (the font's space read as one pixel at 13 px) */
+.btn, .seg button, .tabs [role="tab"], .views button { word-spacing: .06em; }
+
+/* Profile: the search and the kind of the same height; the photo's column one width; the "Other" share as Make draws it */
+.combo.fk .combo-btn, :root .combo.fk .combo-btn { min-height: var(--ctl-h); }
+@media (min-width: 641px) { .details-wrap { grid-template-columns: 136px minmax(0, 1fr); }
+  .photo-cell { width: 100%; min-width: 0; } .photo-cell img, .photo-cell .photo-none, .photo-cell > .btn { width: 100%; } }
+@media (max-width: 640px) { .facts-tools > .btn, .facts-tools .fq, .facts-tools .fk { flex: 1 1 100%; } .facts-tools > .btn { justify-content: center; } }
+/* one rhythm between the parts of a view: 12 px */
+.split, .split-side { gap: 12px; } .lib { gap: 12px; }
+
+/* the Library: its head without the folder's tab, the filters on one row of one height */
+.lib-top { margin-top: 0; } .lib-top::before { display: none; }
+.lib-sum .ins-ic, :root[data-theme] .lib-sum .ins-ic { border: 0; background: none; }
+@media (max-width: 720px) { .lib-groups { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .lib-groups .lib-trash { grid-column: auto; }
+  .lib-acts { display: grid; grid-template-columns: 1fr 1fr; width: 100%; } .lib-acts > .btn { justify-content: center; } .lib-acts > .btn:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+
+/* a choice of a few, anywhere: its words in a row, the one chosen in the ink with the line of the view in use under it
+   (a track with a box for the chosen one inside a pane was a box in a box in a box) */
+.seg, :root[data-theme] .seg { gap: 4px 18px; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.seg button, :root[data-theme] .seg button { position: relative; min-height: var(--ctl-h); padding: 0 1px; background: none; border: 0; border-radius: 0; box-shadow: none; color: var(--ink-3); }
+.seg button:hover, :root[data-theme] .seg button:hover { background: none; color: var(--ink); }
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"], :root[data-theme] :is(.seg button[aria-pressed="true"], .seg button[aria-selected="true"]) {
+  background: none; color: var(--ink); box-shadow: inset 0 -2px 0 var(--owl-eye-ink); }
+.menu .seg { margin-bottom: var(--gap-s); }
+.menu .combo-btn, :root .menu .combo-btn { min-height: 36px; }
+/* tabs: the open one in the ink with the same line, as wide as its words; the inspector's tabs on the card's own edge */
+.tabs [role="tab"][aria-selected="true"], :root[data-theme] .tabs [role="tab"][aria-selected="true"] { border-bottom-color: var(--owl-eye-ink); }
+.insp .tabs { margin: -6px 0 0; padding: 4px 0 0; gap: 18px; }
+.insp .tabs [role="tab"] { padding-inline: 0; }
+
+/* the toast's key: words in the link colour, no box in the note's box */
+#toast .toast-key, :root[data-theme] #toast .toast-key { min-height: 28px; padding: 0 4px; background: none; border-color: transparent; box-shadow: none; color: var(--blue); font-weight: 600; }
+#toast .toast-key:hover, :root[data-theme] #toast .toast-key:hover:not(:disabled) { background: var(--bar-hover); border-color: transparent; }
+/* the bar's parts show that they are open or under the pointer */
+:root[data-theme] #top .barchip:hover, :root[data-theme] #top .barchip[aria-expanded="true"] { background: var(--bar-hover); }
+:root[data-theme] #top .actions .btn.icon[aria-expanded="true"], :root[data-theme] #top .actions .btn.icon:active:not(:disabled) { background: var(--bar-held); border-color: transparent; }
+:root[data-theme] #top .jobpick .combo-btn:hover, :root[data-theme] #top .jobpick .combo-btn[aria-expanded="true"] { background: var(--bar-hover); border-color: transparent; }
+
+/* the open command bar on a laptop or wider: a sheet from the bar's foot to the window's, at the page's right edge, as the
+   settings are, never a card lying across the cards */
+@media (min-width: 721px) {
+  body:has(#askpanel) #askbar { top: var(--bar-h); bottom: 0; right: max(var(--pad-x), calc((100vw - var(--page-w)) / 2 + var(--pad-x))); }
+  #askpanel, :root[data-theme] #askpanel { height: 100%; max-height: none; width: min(460px, calc(100vw - 32px)); border-radius: 0; border-width: 0 1px; }
+  .ask-ans { padding-inline: 0; } }
+
+/* Documents: what the document is, apart from the keys that change it; the page with no frame round it, from the column's
+   start; the off switch visible in the dark */
+.dochead .docstate { margin-right: 6px; padding-right: 16px; border-right: 1px solid var(--line); }
+.layout[data-view="documents"] .pages { background: none; box-shadow: none; padding-right: 0; }
+.pages { justify-content: start; } #docbody > .shots, #docbody > div > .shots { justify-items: start; }
+:root[data-theme="dark"] .toggle .track, :root[data-theme="dark"] .switch { background: #4b4e56; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); }
+:root[data-theme="light"] .toggle .track, :root[data-theme="light"] .switch { box-shadow: inset 0 0 0 1px rgba(30, 36, 52, .22); }
+:root[data-theme] .toggle input:checked + .track, :root[data-theme] .switch[aria-checked="true"] { box-shadow: none; }
+@media (max-width: 640px) { .dochead, .dochead .viewhead, .doctools { row-gap: 10px; } }
+/* a quote of the evidence and the wording's preview: a line beside the words, as the facts' quotes are, not a box */
+.insp .note, :root[data-theme] .insp .note, .md-preview, :root[data-theme] .md-preview { padding: 2px 0 2px 10px; border-radius: 0; background: none; box-shadow: none;
+  border: 0; border-left: 2px solid var(--hl-line); }
+.insp .ev-note, :root[data-theme] .insp .ev-note, .jobdetail .ev-note, :root[data-theme] .jobdetail .ev-note { padding-left: 34px; }   /* room for the citation's number before the quote */
+:is(.insp, .jobdetail) .ev-note .evn { left: 10px; top: 3px; }
+/* the setup guide: its parts in the dialog itself, no card inside it */
+.setup-card, :root[data-theme] .setup-card { padding: 0; border: 0; background: none; box-shadow: none; }
+
+/* Applications: an application's tabs without panes inside them; the list within the window; the board's columns of one
+   height; each stage's day under its stage; the timeline's line through its dots */
+.jobdetail :is(.fit-viz, .fl-group, .empty.glass, .talk-brief, .qcol.glass), :root[data-theme] .jobdetail :is(.fit-viz, .fl-group, .empty.glass, .talk-brief, .qcol.glass) {
+  padding-inline: 0; background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.jobdetail .fl-group + .fl-group { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.jobdetail .qcol.glass + .qcol.glass { padding-left: 16px; border-left: 1px solid var(--line); }
+.jobdetail .note, :root[data-theme] .jobdetail .note { padding: 2px 0 2px 10px; border-radius: 0; background: none; box-shadow: none; border: 0; border-left: 2px solid var(--hl-line); }
+@media (min-width: 861px) { .joblist { max-height: calc(100vh - 224px); } }
+.board { align-items: stretch; }
+.pdates { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 640px) { .pdates { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tl.day::before { left: calc(12px + 96px + var(--gap-m) + 10px); }
+.tl.day i { box-shadow: none; }
+.tl.day:nth-child(odd), :root[data-theme] .tl.day:nth-child(odd) { background: none; }
+.tl-ev, :root[data-theme] .tl-ev { border-color: transparent; background: none; padding-inline: 4px; }
+.tl-ev:hover { background: var(--hover); }
+.tl time { font-family: inherit; font-variant-numeric: tabular-nums; }
+.jobrow[data-stage="result"] { grid-template-columns: 30px minmax(0, 1fr) auto; column-gap: 10px; }
+.jobrow[data-stage="result"] .mono { justify-self: center; }
+.jd-head .pillkey { align-self: flex-start; margin-top: 6px; }
+.dp .across { text-align: left; }
+
+/* Insights: the cards' marks and the numbers' marks alone, the persona's tags as words, the funnel's parts together, the
+   map's figures readable */
+.ins-ic, :root[data-theme] .ins-ic { border: 0; background: none; color: var(--ink-3); }
+.ins-kpi .ins-ic { width: auto; height: auto; }
+.pa-chips { gap: 2px 0; }
+.pa-chips li, :root[data-theme] .pa-chips li { padding: 0; background: none; border: 0; font-size: 12.5px; color: var(--ink-2); }
+.pa-chips li + li::before { content: "·"; padding: 0 7px; color: var(--ink-3); }
+.fn-ends { margin-top: 16px; }
+.ins-more { padding-inline: 0; }
+.map-key small { font-size: 12px; color: var(--ink-2); }                              /* the map's shares readable beside their names */

@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "schema": "offerowl-measure/0.1",
+  "date": "2026-11-06",
+  "machine": "Linux x86_64, 32 CPUs, Python 3.10.12"
+ },
+ "scenes": 15,
+ "items": 18,
+ "problems": 0,
+ "eval": {
+  "n": 15,
+  "top1": 15,
+  "top3": 15,
+  "size": "1920x1080"
+ },
+ "cards": [
+  {
+   "w": 2560,
+   "h": 1300,
+   "cards": 18,
+   "bad": 0
+  },
+  {
+   "w": 1440,
+   "h": 900,
+   "cards": 18,
+   "bad": 0
+  },
+  {
+   "w": 390,
+   "h": 844,
+   "cards": 18,
+   "bad": 0
+  }
+ ],
+ "plan": {
+  "questions": 66,
+  "kinds": {
+   "posting": 13,
+   "resume": 11,
+   "portfolio": 3,
+   "term": 18,
+   "behavioral": 10,
+   "company": 5,
+   "opening": 6
+  }
+ },
+ "coverage": {
+  "lines": 13,
+  "strong": 2,
+  "weak": 6,
+  "none": 5
+ },
+ "key": {
+  "found": 2,
+  "key": 3,
+  "flags": 25
+ },
+ "verdicts": {
+  "check": "checked 15 scenes (of 18 items), problems 0",
+  "eval": "top-1 15/15, top-3 15/15",
+  "cards": [
+   "2560 1300 cards 18 with problems 0",
+   "1440 900 cards 18 with problems 0",
+   "390 844 cards 18 with problems 0"
+  ],
+  "audit": "against the answer key: recall 2/3 (67%), precision 2/25 (8%)"
+ }
+}

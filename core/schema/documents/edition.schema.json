@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kanggu12/offerowl/main/core/schema/documents/edition.schema.json",
+  "title": "One typeset edition (build.json)",
+  "description": "What 'Make PDF' made for a job in one language: page counts, checks and the cover letter's state. Kept beside the PDFs in jobs/<job>/resume/<lang>/.",
+  "type": "object",
+  "required": ["lang", "theme", "pages", "slides", "issues", "at"],
+  "properties": {
+    "lang": {"enum": ["ko", "en"]},
+    "theme": {"enum": ["navy", "teal", "mono", "wine", "forest", "slate"]},
+    "form": {"enum": ["detailed", "compact", "table"]},
+    "deckStyle": {"enum": ["classic", "clean"]},
+    "pages": {"type": "integer", "minimum": 0},
+    "slides": {"type": "integer", "minimum": 0},
+    "issues": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "array", "items": {"type": "string"}},
+    "at": {"type": "string"},
+    "profile": {"type": "string"},
+    "maxPages": {"type": "integer", "minimum": 1, "maximum": 6},
+    "cover": {"anyOf": [{"type": "null"}, {"type": "object", "properties": {"state": {"enum": ["done", "failed", "needs_agent"]}}}]}
+  }
+}

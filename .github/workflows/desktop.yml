@@ -1,0 +1,98 @@
+# The desktop app (apps/desktop/): Offerowl as one file with its own Python, built with PyInstaller on Windows, macOS
+# and Linux. apps/desktop/build.py builds on the system it runs on, then starts the result with --check, which runs its
+# server with a stand-in agent, reads one file through the engine and fails the build when something was left out.
+# The files are kept with the run; a version tag attaches them to the GitHub release (release.yml).
+name: desktop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "src/**"
+      - "core/**"
+      - "examples/**"
+      - "fonts/**"
+      - "docs/assets/**"
+      - "tests/app/**"
+      - "tests/desktop/**"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    paths:
+      - "apps/**"
+      - "src/**"
+      - "core/**"
+      - "examples/**"
+      - "fonts/**"
+      - "docs/assets/**"
+      - "tests/app/**"
+      - "tests/desktop/**"
+      - ".github/workflows/desktop.yml"
+  workflow_call:       # release.yml builds the files it attaches with this
+  workflow_dispatch:
+
+# The workflow only reads the repository.
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OFFEROWL_LLM: none  # no model anywhere in the build; --check uses the stand-in agent
+  OFFEROWL_LANG: en   # messages in English, so a log reads the same everywhere
+
+jobs:
+  build:
+    name: the app on ${{ matrix.name }}
+    strategy:
+      fail-fast: false  # one system failing must not hide how the others went
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          - name: macOS (Apple silicon)
+            os: macos-latest
+          - name: macOS (Intel)
+            os: macos-15-intel
+          # Linux on an older runner than the newest: the file runs on the glibc it was built with and on newer ones, so a
+          # build on Ubuntu 22.04 (glibc 2.35) also runs on Debian 12 and Ubuntu 22.04, which a 24.04 build would refuse.
+          - name: Linux
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/desktop/requirements-build.txt
+      - name: Build tools (PyInstaller, and the tray icon's libraries)
+        run: python -m pip install -r apps/desktop/requirements-build.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22  # the release the app carries (apps/desktop/node/pins.json)
+      - name: The typesetting libraries, which the tests draw the deck and its figures with, as a checkout on a PC has them
+        run: npm ci
+      - name: The panel's tests, from the checkout
+        run: python -m unittest discover -s tests/app -v
+      - name: Build, then start the build with --check
+        run: python apps/desktop/build.py
+      - name: What was built
+        shell: bash
+        run: ls -l dist
+      # With no Docker, Node.js or Python on its PATH, the file makes the example's documents through the panel's API.
+      - name: The Linux file, end to end
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y poppler-utils
+          python tests/desktop/e2e.py --app dist/Offerowl-linux-x64 --out e2e-out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Offerowl-${{ runner.os }}-${{ runner.arch }}
+          path: dist/Offerowl-*
+          if-no-files-found: error
+          retention-days: 14

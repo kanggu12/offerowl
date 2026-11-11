@@ -1,0 +1,136 @@
+{
+ "meta": {
+  "schema": "offerowl-measure/0.1",
+  "date": "2026-11-06",
+  "machine": "Linux x86_64, 32 CPUs, Python 3.10.12"
+ },
+ "tasks": [
+  {
+   "task": "resume",
+   "unit": "sentences",
+   "drafted": 184,
+   "kept": 164,
+   "rewritten": 20,
+   "dropped": 0,
+   "stopped": 20,
+   "unsupported": 18,
+   "reasons": {
+    "number": 3,
+    "name": 15,
+    "tool": 0,
+    "claim": 0,
+    "evidence": 0,
+    "style": 2,
+    "form": 0
+   },
+   "checked": 204,
+   "calls": 6
+  },
+  {
+   "task": "cover",
+   "unit": "sentences",
+   "drafted": 18,
+   "rewritten_drafted": 0,
+   "reasons": {
+    "number": 0,
+    "name": 0,
+    "tool": 0,
+    "claim": 0,
+    "evidence": 0,
+    "style": 0,
+    "form": 0
+   },
+   "trimmed": 0,
+   "stopped": 0,
+   "unsupported": 0,
+   "printed": 18,
+   "kept": 18,
+   "checked": 18,
+   "unresolved": 0,
+   "calls": 1
+  },
+  {
+   "task": "interview",
+   "unit": "scenes",
+   "drafted": 6,
+   "kept": 3,
+   "rewritten": 3,
+   "dropped": 0,
+   "stopped": 3,
+   "unsupported": 3,
+   "reasons": {
+    "number": 0,
+    "name": 1,
+    "tool": 2,
+    "claim": 0,
+    "evidence": 0,
+    "style": 0,
+    "form": 0
+   },
+   "checked": 6,
+   "verdict": "new scenes 6, skipped 0, check problems 0. Written to <out>/drafts/drafts-1.md",
+   "calls": 16
+  }
+ ],
+ "checked": 228,
+ "stopped": 23,
+ "unsupported": 21,
+ "tapes": {
+  "resume": {
+   "backend": "claude-code",
+   "recorded": "2026-11-05",
+   "calls": 6,
+   "model_seconds": 286.4,
+   "served": 6,
+   "same_prompt": 6
+  },
+  "cover": {
+   "backend": "claude-code",
+   "recorded": "2026-11-05",
+   "calls": 1,
+   "model_seconds": 54.1,
+   "served": 1,
+   "same_prompt": 1
+  },
+  "interview": {
+   "backend": "claude-code",
+   "recorded": "2026-11-06",
+   "calls": 16,
+   "model_seconds": 419.8,
+   "served": 16,
+   "same_prompt": 16
+  },
+  "audit": {
+   "backend": "claude-code",
+   "recorded": "2026-11-06",
+   "calls": 2,
+   "model_seconds": 10.6,
+   "served": 2,
+   "same_prompt": 2
+  }
+ },
+ "audit": {
+  "found": 3,
+  "key": 3,
+  "flags": 26,
+  "verdict": "against the answer key: recall 3/3 (100%), precision 3/26 (12%)",
+  "parts": {
+   "coverage": {
+    "key": 1,
+    "found": 1
+   },
+   "resume_contradictions": {
+    "key": 0,
+    "found": 0
+   },
+   "portfolio_contradictions": {
+    "key": 1,
+    "found": 1
+   },
+   "portfolio_claims": {
+    "key": 1,
+    "found": 1
+   }
+  }
+ }
+}

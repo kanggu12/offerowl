@@ -1,0 +1,36 @@
+{{- if .Values.ingress.enabled }}
+# The panel behind an Ingress. The panel has no login: put one in front of it (values.yaml, "ingress").
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "offerowl.fullname" . }}
+  labels:
+    {{- include "offerowl.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "offerowl.fullname" $ }}
+                port:
+                  name: http
+          {{- end }}
+    {{- end }}
+{{- end }}

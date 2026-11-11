@@ -1,0 +1,40 @@
+# The panel as Safari itself draws it, on a macOS runner, by hand: the views whose page slides under the sticky top bar,
+# measured with the walk's own audit and kept as pictures, as the panel is and with each candidate rule from the start
+# (.github/look/safari.py). Started from the Actions tab, or by a push to a branch named look-safari; the pictures and
+# look.json are the run's artifact. Other engines run on this PC: tests/app/walk.py --engine firefox|webkit.
+name: look
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [look-safari]
+
+permissions:
+  contents: read
+
+jobs:
+  safari:
+    name: the panel in Safari
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: The typesetting libraries the panel's canvas draws with
+        run: npm ci
+      - name: Safari's own WebDriver, and Selenium to drive it
+        run: |
+          sudo safaridriver --enable
+          python -m pip install selenium==4.27.1
+      - name: The views that slide under the bar, as Safari draws them
+        run: python .github/look/safari.py look-safari
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: look-safari
+          path: look-safari

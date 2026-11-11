@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kanggu12/offerowl/main/core/schema/documents/interview.schema.json",
+  "title": "The interview studio's board",
+  "description": "GET /api/v1/jobs/{job}/interview answers with this: the question map by category (src/interview/plan.py) and the script cards (src/interview/corpus.py), English first with the translation below.",
+  "type": "object",
+  "required": [
+    "ready",
+    "categories",
+    "scripts",
+    "counts"
+  ],
+  "properties": {
+    "ready": {
+      "type": "boolean",
+      "description": "The job has an interview kit folder."
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "questions"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "posting",
+              "resume",
+              "portfolio",
+              "term",
+              "behavioral",
+              "company",
+              "scenario",
+              "technical",
+              "opening"
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "text",
+                "coverage"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "ask_en": {
+                  "type": "string"
+                },
+                "ask_ko": {
+                  "type": "string"
+                },
+                "coverage": {
+                  "enum": [
+                    "strong",
+                    "weak",
+                    "none"
+                  ]
+                },
+                "covered_by": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scripts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "turns"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title_en": {
+            "type": "string"
+          },
+          "title_ko": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "who",
+                "en"
+              ],
+              "properties": {
+                "who": {
+                  "enum": [
+                    "interviewer",
+                    "me"
+                  ]
+                },
+                "en": {
+                  "type": "string"
+                },
+                "ko": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "properties": {
+        "questions": {
+          "type": "integer"
+        },
+        "scripts": {
+          "type": "integer"
+        },
+        "uncovered": {
+          "type": "integer"
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "properties": {
+        "up": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "practice": {
+      "type": "object",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "cue": {
+      "type": "object",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "deck": {
+      "type": "object",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

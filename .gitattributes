@@ -1,0 +1,9 @@
+# Text files keep LF endings in every checkout, Git for Windows included: the launcher (offerowl), render/run.sh and the
+# test scripts run in bash or in a Linux container straight from a clone, and with CRLF their first line no longer works.
+* text=auto eol=lf
+
+# The pictures and the fonts are never converted.
+*.png binary
+*.jpg binary
+*.ttf binary
+*.woff2 binary

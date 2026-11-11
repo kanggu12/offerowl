@@ -1,0 +1,17 @@
+# The panel, which serves the interview kit too (/kit/<job>/). ClusterIP by default: reached with kubectl port-forward, as
+# compose publishes it on the host's 127.0.0.1 only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "offerowl.fullname" . }}
+  labels:
+    {{- include "offerowl.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "offerowl.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ int .Values.service.panelPort }}
+      targetPort: http
+      protocol: TCP

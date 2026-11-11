@@ -1,0 +1,49 @@
+{
+ "schema": "resume-profile/0.1",
+ "_comment": "A fictional person in the ledger form: Korean notes, no resume sentences yet. No real person, company or school.",
+ "person": {"name": "윤하늘 (Haneul Yoon)", "email": "haneul@example.com", "phone": "010-0000-0000"},
+ "summary": {
+  "layers": {
+   "ko": [["플랫폼", "Kubernetes, Helm", "가상은행 결제 데이터 플랫폼, 하노이 지사"]],
+   "en": [["Platform", "Kubernetes, Helm", "Gasang Bank payment data platform, Hanoi office"]]
+  }
+ },
+ "glossary": {"가상은행": "Gasang Bank"},
+ "roles": [
+  {
+   "key": "nara",
+   "heading": "나라클라우드 (Nara Cloud)",
+   "career": {
+    "key": "nara", "start": "2022.03", "end": "2024.08", "title": "Platform Engineer",
+    "ko": {"name": "나라클라우드(Nara Cloud)", "short": "나라클라우드", "place": "서울, 하노이", "dept": "플랫폼팀 / 선임", "role": "플랫폼 엔지니어"},
+    "en": {"name": "Nara Cloud", "short": "Nara Cloud", "place": "Seoul, Hanoi", "dept": "Platform / Senior", "role": "Platform Engineer"}
+   },
+   "context": [{"title": "회사 개요", "body_md": "- 금융권 고객의 데이터 플랫폼을 운영하는 클라우드 회사다\n- 본인은 가상은행 사업의 플랫폼 담당이었다"}],
+   "projects": [
+    {"id": "nara-1", "title": "결제 데이터 플랫폼 이관", "period": "22.05 ~ 23.02",
+     "body_md": "가상은행의 분석 플랫폼이 한 서버에 몰려 있었다.\n\n- 분석 플랫폼을 Kubernetes로 옮기는 설계안을 만들어 제안했다\n- 이관 작업은 팀과 함께 진행했다\n- 이관 뒤 쿼리 지연을 Prometheus 지표로 확인했다\n<!-- 메모: 처리량 수치는 쓰지 않는다 -->\n\n성과: 쿼리 지연이 절반으로 줄었다."},
+    {"id": "nara-2", "title": "온콜 체계 수립", "period": "23.03 ~ 24.08",
+     "body_md": "- 온콜 로테이션과 장애 등급별 대응 절차를 문서로 고정했다\n- 하노이 지사와 주간 회의를 영어로 운영했다\n- 장애가 난 뒤에는 원인과 조치를 기록하고 재발 방지 항목을 추적했다"},
+    {"id": "nara-3", "title": "모니터링 대시보드 구축 지원", "period": "23.06",
+     "body_md": "- 동료가 만든 Grafana 대시보드 구축을 도왔다"}
+   ]
+  },
+  {
+   "key": "dasom",
+   "heading": "다솜소프트 (Dasom Soft)",
+   "career": {
+    "key": "dasom", "start": "2019.07", "end": "2022.02", "title": "Developer",
+    "ko": {"name": "다솜소프트(Dasom Soft)", "short": "다솜소프트", "place": "성남", "dept": "개발팀", "role": "개발자"},
+    "en": {"name": "Dasom Soft", "short": "Dasom Soft", "place": "Seongnam", "dept": "Development", "role": "Developer"}
+   },
+   "projects": [
+    {"id": "dasom-1", "title": "사내 배포 파이프라인 구축", "period": "20.03 ~ 21.06",
+     "body_md": "- GitLab과 Jenkins로 배포 파이프라인을 구축했다\n- Ansible 플레이북을 가상 시험장에서 먼저 검증한 뒤 운영에 반영했다"},
+    {"id": "dasom-2", "title": "사내 위키 정리", "period": "21.07 ~ 22.02",
+     "body_md": "- 사내 위키의 운영 문서를 정리했다"}
+   ]
+  }
+ ],
+ "education": [{"key": "bs", "start": "2015.03", "end": "2019.02", "ko": {"title": "학사  가상대학교", "sub": "컴퓨터공학"}, "en": {"title": "B.S.  Gasang University", "sub": "Computer Science"}}],
+ "skills": [{"category": "Platform", "items": ["Kubernetes", "Helm", "Ansible"]}, {"category": "Observability", "items": ["Prometheus", "Grafana"]}]
+}

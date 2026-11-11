@@ -1,0 +1,142 @@
+{{- include "offerowl.validate" . -}}
+{{- $panel := int .Values.service.panelPort -}}
+{{- $health := dict "path" "/health" "port" "http" "httpHeaders" (list (dict "name" "Host" "value" (include "offerowl.hostHeader" .))) -}}
+# The app: the panel, the engine, the interview view and the renderer (deploy/docker/Dockerfile) in one pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "offerowl.fullname" . }}
+  labels:
+    {{- include "offerowl.labels" . | nindent 4 }}
+spec:
+  # One pod: the workspace is one volume, and its files are written by one panel at a time. Recreate stops the old pod
+  # before the new one mounts the volume (a ReadWriteOnce claim cannot be mounted twice).
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "offerowl.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "offerowl.labels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Nothing in the pod talks to the cluster, so it gets no API token, and no Service variables either.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: offerowl
+          image: {{ include "offerowl.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $panel }}
+              protocol: TCP
+          env:
+            # The panel's port; the entrypoint starts it on 0.0.0.0 and the Service points here.
+            - name: OFFEROWL_PANEL_PORT
+              value: {{ $panel | quote }}
+            # The data folder is the volume mounted at /data.
+            - name: OFFEROWL_DATA_DIR
+              value: /data
+            - name: TZ
+              value: {{ .Values.timezone | quote }}
+            {{- with .Values.language }}
+            - name: OFFEROWL_LANG
+              value: {{ . | quote }}
+            {{- end }}
+            # The AI backend. The entrypoint writes these three into the panel's settings at every start.
+            - name: OFFEROWL_LLM
+              value: {{ .Values.ai.backend | quote }}
+            {{- with .Values.ai.url }}
+            - name: OFFEROWL_LLM_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.ai.model }}
+            - name: OFFEROWL_LLM_MODEL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.ai.existingSecret }}
+            # The server's key comes from the Secret and goes nowhere else: not into a file, not into a log.
+            - name: OFFEROWL_LLM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ai.existingSecret | quote }}
+                  key: {{ .Values.ai.secretKey | quote }}
+            {{- end }}
+            {{- if .Values.ingress.enabled }}
+            # The host names the Ingress sends to the panel; the panel refuses any other Host header.
+            - name: OFFEROWL_ALLOWED_HOSTS
+              value: {{ include "offerowl.ingressHosts" . | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # The image's own health check, asked over the pod network with the Host header the panel accepts.
+          startupProbe:
+            httpGet:
+              {{- toYaml $health | nindent 14 }}
+            {{- toYaml .Values.probes.startup | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              {{- toYaml $health | nindent 14 }}
+            {{- toYaml .Values.probes.readiness | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              {{- toYaml $health | nindent 14 }}
+            {{- toYaml .Values.probes.liveness | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            # Browser and LibreOffice profiles, the font cache: the root filesystem is read-only.
+            - name: tmp
+              mountPath: /tmp
+            # Where the engine writes while it builds.
+            - name: output
+              mountPath: /work/output
+            # Settings, the workspace and the logs.
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.scratch.tmpSizeLimit }}
+        - name: output
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.scratch.outputSizeLimit }}
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "offerowl.claimName" . }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ .Values.persistence.size }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

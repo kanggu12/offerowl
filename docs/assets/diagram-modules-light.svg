@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 906 614" width="906" height="614" font-family="Pretendard, -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Noto Sans&#x27;, Helvetica, Arial, sans-serif" role="img" aria-label="The modules. The desktop app starts the panel&#x27;s server, which serves the page and Offerowl&#x27;s one HTTP API; the page only calls the API, and the agent&#x27;s tools (apps/mcp) call it too. The API and the offerowl command call the engine in src: ingest reads files into fact candidates; the writing modules call the one AI backend through llm.py; the renderers typeset the resume, the deck and the cover letter; the checks hold every sentence and page to its evidence and layout; the interview package builds the kit and the talk; decide answers typed questions. core/schema describes the files they share">
+<rect x="0.0" y="0.0" width="172.0" height="64.0" rx="2" fill="#eef3f9"/>
+<text x="12.0" y="26.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="12.0,160.0">apps/desktop</text>
+<text x="12.0" y="44.1" font-size="12.5" fill="#566175" data-box="12.0,160.0">the one-file app</text>
+<rect x="182.0" y="0.0" width="172.0" height="64.0" rx="2" fill="#eef3f9"/>
+<text x="194.0" y="26.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="194.0,342.0">apps/panel</text>
+<text x="194.0" y="44.1" font-size="12.5" fill="#566175" data-box="194.0,342.0">the page, its server</text>
+<rect x="364.0" y="0.0" width="172.0" height="64.0" rx="2" fill="#eef3f9"/>
+<text x="376.0" y="26.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="376.0,524.0">apps/api</text>
+<text x="376.0" y="44.1" font-size="12.5" fill="#566175" data-box="376.0,524.0">one HTTP API</text>
+<rect x="546.0" y="0.0" width="172.0" height="64.0" rx="2" fill="#eef3f9"/>
+<text x="558.0" y="26.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="558.0,706.0">apps/mcp</text>
+<text x="558.0" y="44.1" font-size="12.5" fill="#566175" data-box="558.0,706.0">the agent&#x27;s tools</text>
+<rect x="728.0" y="0.0" width="172.0" height="64.0" rx="2" fill="#eef3f9"/>
+<text x="740.0" y="26.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="740.0,888.0">offerowl</text>
+<text x="740.0" y="44.1" font-size="12.5" fill="#566175" data-box="740.0,888.0">the command line</text>
+<path d="M172.5,32.0 L173.5,32.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M181.0,32.0 L172.0,36.5 L172.0,27.5 Z" fill="#7f8ca1"/>
+<path d="M354.5,32.0 L355.5,32.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M363.0,32.0 L354.0,36.5 L354.0,27.5 Z" fill="#7f8ca1"/>
+<path d="M545.5,32.0 L544.5,32.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M537.0,32.0 L546.0,27.5 L546.0,36.5 Z" fill="#7f8ca1"/>
+<path d="M450,64.5 V96 M814,64.5 V96 M108,96 H814" fill="none" stroke="#7f8ca1" stroke-width="1.6"/>
+<path d="M108.0,96.0 L108.0,111.5" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M108.0,119.0 L103.5,110.0 L112.5,110.0 Z" fill="#7f8ca1"/>
+<path d="M336.0,96.0 L336.0,111.5" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M336.0,119.0 L331.5,110.0 L340.5,110.0 Z" fill="#7f8ca1"/>
+<path d="M564.0,96.0 L564.0,111.5" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M564.0,119.0 L559.5,110.0 L568.5,110.0 Z" fill="#7f8ca1"/>
+<path d="M792.0,96.0 L792.0,111.5" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M792.0,119.0 L787.5,110.0 L796.5,110.0 Z" fill="#7f8ca1"/>
+<text x="632.0" y="90.0" font-size="12" fill="#566175" text-anchor="middle" data-box="470.0,800.0">call the engine in src/</text>
+<path d="M0,120 H216" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="0.0" y="142.0" font-size="14" font-weight="700" fill="#1b2e4b" data-box="0.0,216.0">Reading files</text>
+<rect x="0.0" y="154.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="12.0" y="179.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="12.0,204.0">ingest.py</text>
+<text x="12.0" y="197.1" font-size="12.5" fill="#566175" data-box="12.0,204.0">files to fact candidates</text>
+<rect x="0.0" y="226.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="12.0" y="251.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="12.0,204.0">review.py</text>
+<text x="12.0" y="269.1" font-size="12.5" fill="#566175" data-box="12.0,204.0">merge the facts you keep</text>
+<rect x="0.0" y="298.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="12.0" y="323.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="12.0,204.0">probe_extract.py</text>
+<text x="12.0" y="341.1" font-size="12.5" fill="#566175" data-box="12.0,204.0">deck measurements</text>
+<rect x="0.0" y="370.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="12.0" y="395.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="12.0,204.0">ocr_selfcheck.py</text>
+<text x="12.0" y="413.1" font-size="12.5" fill="#566175" data-box="12.0,204.0">scanned pages</text>
+<path d="M228,120 H444" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="228.0" y="142.0" font-size="14" font-weight="700" fill="#1b2e4b" data-box="228.0,444.0">Writing</text>
+<rect x="228.0" y="154.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<rect x="228.0" y="154.0" width="216.0" height="24.0" rx="2" fill="#b3400a"/>
+<text x="240.0" y="170.5" font-size="12.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#ffffff" data-box="240.0,432.0">llm.py</text>
+<text x="240.0" y="199.0" font-size="12.5" fill="#566175" data-box="240.0,432.0">the one door to the AI</text>
+<rect x="228.0" y="226.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="240.0" y="251.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="240.0,432.0">write_resume.py</text>
+<text x="240.0" y="269.1" font-size="12.5" fill="#566175" data-box="240.0,432.0">resume parts</text>
+<rect x="228.0" y="298.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="240.0" y="323.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="240.0,432.0">cover.py</text>
+<text x="240.0" y="341.1" font-size="12.5" fill="#566175" data-box="240.0,432.0">cover letters</text>
+<rect x="228.0" y="370.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="240.0" y="395.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="240.0,432.0">draft.py</text>
+<text x="240.0" y="413.1" font-size="12.5" fill="#566175" data-box="240.0,432.0">fit, translation, figures</text>
+<path d="M456,120 H672" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="456.0" y="142.0" font-size="14" font-weight="700" fill="#1b2e4b" data-box="456.0,672.0">Typesetting</text>
+<rect x="456.0" y="154.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="468.0" y="179.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="468.0,660.0">layout.js</text>
+<text x="468.0" y="197.1" font-size="12.5" fill="#566175" data-box="468.0,660.0">resume and letter DOCX</text>
+<rect x="456.0" y="226.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="468.0" y="251.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="468.0,660.0">resume_form.js</text>
+<text x="468.0" y="269.1" font-size="12.5" fill="#566175" data-box="468.0,660.0">the resume&#x27;s parts</text>
+<rect x="456.0" y="298.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="468.0" y="323.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="468.0,660.0">deck_slides.js</text>
+<text x="468.0" y="341.1" font-size="12.5" fill="#566175" data-box="468.0,660.0">the 16:9 deck</text>
+<rect x="456.0" y="370.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="468.0" y="395.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="468.0,660.0">render_html/</text>
+<text x="468.0" y="413.1" font-size="12.5" fill="#566175" data-box="468.0,660.0">typeset with your browser</text>
+<path d="M684,120 H900" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="684.0" y="142.0" font-size="14" font-weight="700" fill="#1b2e4b" data-box="684.0,900.0">Checking</text>
+<rect x="684.0" y="154.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<rect x="684.0" y="154.0" width="216.0" height="24.0" rx="2" fill="#c8102e"/>
+<text x="696.0" y="170.5" font-size="12.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#ffffff" data-box="696.0,888.0">factcheck.py</text>
+<text x="696.0" y="199.0" font-size="12.5" fill="#566175" data-box="696.0,888.0">numbers, names, claims</text>
+<rect x="684.0" y="226.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="696.0" y="251.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="696.0,888.0">check_documents.py</text>
+<text x="696.0" y="269.1" font-size="12.5" fill="#566175" data-box="696.0,888.0">resume and deck checks</text>
+<rect x="684.0" y="298.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="696.0" y="323.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="696.0,888.0">check_render.py</text>
+<text x="696.0" y="341.1" font-size="12.5" fill="#566175" data-box="696.0,888.0">layout of the pages</text>
+<rect x="684.0" y="370.0" width="216.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="696.0" y="395.9" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="696.0,888.0">style/</text>
+<text x="696.0" y="413.1" font-size="12.5" fill="#566175" data-box="696.0,888.0">style packs</text>
+<path d="M0,478 H544" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="0.0" y="500.0" font-size="14" font-weight="700" fill="#1b2e4b" data-box="0.0,544.0">Interview kit, src/interview/</text>
+<rect x="0.0" y="512.0" width="100.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="12.0" y="538.2" font-size="12.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="12.0,88.0">plan.py</text>
+<text x="12.0" y="554.1" font-size="12" fill="#566175" data-box="12.0,88.0">the map</text>
+<rect x="111.0" y="512.0" width="100.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="123.0" y="538.2" font-size="12.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="123.0,199.0">draft.py</text>
+<text x="123.0" y="554.1" font-size="12" fill="#566175" data-box="123.0,199.0">scenes</text>
+<rect x="222.0" y="512.0" width="100.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="234.0" y="538.2" font-size="12.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="234.0,310.0">audit.py</text>
+<text x="234.0" y="554.1" font-size="12" fill="#566175" data-box="234.0,310.0">audits</text>
+<rect x="333.0" y="512.0" width="100.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="345.0" y="538.2" font-size="12.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="345.0,421.0">server.py</text>
+<text x="345.0" y="554.1" font-size="12" fill="#566175" data-box="345.0,421.0">the pages</text>
+<rect x="444.0" y="512.0" width="100.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="456.0" y="538.2" font-size="12.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="456.0,532.0">talk.py</text>
+<text x="456.0" y="554.1" font-size="12" fill="#566175" data-box="456.0,532.0">the talk</text>
+<path d="M568,478 H900" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="568.0" y="500.0" font-size="14" font-weight="700" fill="#1b2e4b" data-box="568.0,900.0">Decisions and shapes</text>
+<rect x="568.0" y="512.0" width="160.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="580.0" y="529.2" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="580.0,716.0">decide/</text>
+<text x="580.0" y="546.3" font-size="12.5" fill="#566175" data-box="580.0,716.0">rules, the agent, small</text>
+<text x="580.0" y="563.8" font-size="12.5" fill="#566175" data-box="580.0,716.0">models</text>
+<rect x="740.0" y="512.0" width="160.0" height="62.0" rx="2" fill="#eef3f9"/>
+<text x="752.0" y="529.2" font-size="13.5" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#1b2e4b" data-box="752.0,888.0">core/schema</text>
+<text x="752.0" y="546.3" font-size="12.5" fill="#566175" data-box="752.0,888.0">profile, job and</text>
+<text x="752.0" y="563.8" font-size="12.5" fill="#566175" data-box="752.0,888.0">documents</text>
+<rect x="575.9" y="596.0" width="22.0" height="10.0" rx="2" fill="#b3400a"/>
+<text x="605.9" y="605.0" font-size="12" fill="#566175" data-box="605.9,900.0">sent to the AI backend</text>
+<rect x="756.2" y="596.0" width="22.0" height="10.0" rx="2" fill="#c8102e"/>
+<text x="786.2" y="605.0" font-size="12" fill="#566175" data-box="786.2,900.0">stopped by a check</text>
+</svg>

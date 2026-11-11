@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kanggu12/offerowl/main/core/schema/job.schema.json",
+  "title": "Offerowl job (status.json)",
+  "description": "One job the person applies to: its card on the tracker, its dates and reminders, and where its posting came from. The posting itself is posting.md beside it; the analysis is plan.json ($defs/plan); the fit is computed on request ($defs/fit).",
+  "type": "object",
+  "required": ["id", "stage"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[0-9a-z가-힣-]{1,40}$", "description": "The folder name under jobs/."},
+    "company": {"type": "string", "maxLength": 200},
+    "role": {"type": "string", "maxLength": 200},
+    "created": {"$ref": "#/$defs/day"},
+    "seq": {"type": "integer", "minimum": 0},
+    "stage": {"enum": ["preparing", "submitted", "interview", "result"]},
+    "dates": {
+      "type": "object",
+      "description": "The day the card entered each column.",
+      "properties": {
+        "preparing": {"$ref": "#/$defs/dayOrEmpty"},
+        "submitted": {"$ref": "#/$defs/dayOrEmpty"},
+        "interview": {"$ref": "#/$defs/dayOrEmpty"},
+        "result": {"$ref": "#/$defs/dayOrEmpty"}
+      },
+      "additionalProperties": false
+    },
+    "next": {"type": "string", "maxLength": 200},
+    "result": {"type": "string", "maxLength": 200},
+    "url": {"type": "string", "maxLength": 2000, "description": "The link the posting was read from, when it came from one."},
+    "reminders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "at", "text"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^r\\d+$"},
+          "at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})?$"},
+          "text": {"type": "string", "minLength": 1, "maxLength": 200},
+          "done": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "rounds": {
+      "type": "array",
+      "description": "The interview rounds, in the order they happen: each its kind, its day (and time), the questions asked (one a line) and the person's notes on how it went.",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "at"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^i\\d+$"},
+          "kind": {"enum": ["call", "first", "second", "third", "final", "coding", "assignment", "culture", "other"]},
+          "at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})?$"},
+          "asked": {"type": "string", "maxLength": 4000},
+          "notes": {"type": "string", "maxLength": 4000}
+        },
+        "additionalProperties": false
+      }
+    },
+    "locked": {
+      "type": "object",
+      "description": "Set by 'Lock when submitted': the frozen copies and their hashes.",
+      "properties": {
+        "at": {"$ref": "#/$defs/day"},
+        "folder": {"type": "string"},
+        "lang": {"enum": ["ko", "en"]},
+        "files": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+      }
+    },
+    "removed": {"type": "boolean", "description": "Taken off the board: undo or the Removed list puts it back, until it is deleted for good."},
+    "removed_at": {"$ref": "#/$defs/day", "description": "The day it was taken off, as the Removed list shows it."}
+  },
+  "$defs": {
+    "day": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "dayOrEmpty": {"type": "string", "pattern": "^$|^\\d{4}-\\d{2}-\\d{2}$"},
+    "plan": {
+      "title": "The posting analysis (plan.json)",
+      "description": "What the documents of this job lead with. Made by the agent (src/draft.py task_jd) or, without one, from the fit by words.",
+      "type": "object",
+      "properties": {
+        "skillsFocus": {"type": "array", "items": {"type": "string"}},
+        "competencyWeak": {"type": "array", "items": {"type": "string"}},
+        "projectOrder": {"type": "array", "items": {"type": "string"}},
+        "at": {"$ref": "#/$defs/day"},
+        "profile": {"type": "string", "description": "The hash of the profile it was made from."},
+        "by": {"enum": ["agent", "words"]}
+      }
+    },
+    "fit": {
+      "title": "How well the profile fits a posting",
+      "type": "object",
+      "required": ["score", "lines", "gaps", "counts"],
+      "properties": {
+        "score": {"type": "integer", "minimum": 0, "maximum": 100, "description": "100 x (strong + half of weak) / lines."},
+        "by": {"enum": ["words", "agent"]},
+        "counts": {
+          "type": "object",
+          "required": ["strong", "weak", "none"],
+          "properties": {"strong": {"type": "integer"}, "weak": {"type": "integer"}, "none": {"type": "integer"}}
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "text", "rating", "evidence"],
+            "properties": {
+              "id": {"type": "string"},
+              "kind": {"type": "string"},
+              "section": {"type": "string"},
+              "text": {"type": "string"},
+              "rating": {"enum": ["strong", "weak", "none"]},
+              "missing": {"type": "array", "items": {"type": "string"}},
+              "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}}
+            }
+          }
+        },
+        "gaps": {"type": "array", "items": {"type": "string"}, "description": "Posting lines no evidence covers, and tools the profile never names."}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["quote"],
+      "properties": {
+        "unit": {"type": "string", "description": "The evidence unit id (src/cover.py units_of)."},
+        "quote": {"type": "string"},
+        "where": {"type": "string", "description": "The company, project or part of the profile it belongs to."},
+        "file": {"type": "string", "description": "The name of the file it was read from; never a path."}
+      }
+    }
+  }
+}

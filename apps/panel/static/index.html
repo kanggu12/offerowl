@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Offerowl</title>
+<!-- The app's icon and wordmark come from the repository's docs/assets, served by the panel -->
+<link rel="icon" href="/brand/icon.svg" type="image/svg+xml">
+<!-- The theme and the language are set before anything draws, so the page never flashes the wrong one -->
+<script src="/static/theme.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/i18n/ko.js"></script>
+<!-- The design system first (tokens, then components), then the workspace's layout -->
+<link rel="stylesheet" href="/static/tokens.css">
+<link rel="stylesheet" href="/static/components.css">
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/skin.css">
+</head>
+<body>
+<a class="sr" href="#canvas" id="skip">Skip to the document</a>
+<!-- The bar: the wordmark, the views, the agent's lamp, the run's lamp, undo and the settings menu (drawn by app.js) -->
+<header class="bar" id="top"></header>
+<!-- The page: the view, and beside a document its inspector -->
+<main class="layout" id="work">
+  <div class="dochead" id="dochead" hidden></div>
+  <section class="stage" id="canvas" tabindex="-1"></section>
+  <aside class="side" id="side" hidden><section class="card insp" id="inspector"></section></aside>
+</main>
+<div class="scrim" id="scrim"></div>
+<!-- The setup guide: four steps over the page, the first time and from the settings menu (setup.js) -->
+<div id="setup" hidden></div>
+<!-- The panel's own question before what cannot be taken back (core.js askFirst): over everything, the guide too -->
+<div id="confirm" hidden></div>
+<!-- Short notes (saved, undone, started) float at the foot of the window; one may hold a key (Undo) -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!-- The pickers behind "Choose files" and "Choose a folder"; dropping files or folders anywhere goes to the same place.
+     The last one takes a job's own materials, the kinds apps/api/materials.py keeps -->
+<input type="file" id="filepick" multiple hidden>
+<input type="file" id="folderpick" webkitdirectory multiple hidden>
+<input type="file" id="stylepick" accept=".json,application/json" hidden>
+<input type="file" id="blindpick" accept=".json,application/json" hidden>
+<input type="file" id="photopick" accept="image/jpeg,image/png" hidden>
+<input type="file" id="scenepick" accept=".md,text/markdown,text/plain" multiple hidden>
+<input type="file" id="formpick" accept="image/*,.pdf,.txt,.md,.html,.htm,.docx" hidden>
+<input type="file" id="matpick" accept=".pdf,.pptx,.docx,.md,.html,.txt,.py,.png,.jpg,.jpeg" multiple hidden>
+<script src="/static/core.js"></script>
+<script src="/static/docs.js"></script>
+<script src="/static/viz.js"></script>
+<script src="/static/views.js"></script>
+<script src="/static/insights.js"></script>
+<script src="/static/library.js"></script>
+<script src="/static/side.js"></script>
+<script src="/static/make.js"></script>
+<script src="/static/motion.js"></script>
+<script src="/static/setup.js"></script>
+<script src="/static/app.js"></script>
+<!-- The dropdowns are drawn by the panel (combo.js): a key and a list of its own instead of the system grey box -->
+<script src="/static/combo.js"></script>
+<script src="/static/ask.js"></script>
+</body>
+</html>

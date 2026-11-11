@@ -1,0 +1,524 @@
+{
+ "schema": "offerowl-cover/0.1",
+ "lang": "ko",
+ "job": {
+  "company": "델타페이",
+  "role": "백엔드 플랫폼 엔지니어"
+ },
+ "signature": "홍길동",
+ "paragraphs": [
+  {
+   "id": "p1",
+   "kind": "opening",
+   "duties": [],
+   "sentences": [
+    {
+     "text": "델타페이 백엔드 플랫폼 엔지니어 직무에 지원합니다.",
+     "ev": [],
+     "duties": [],
+     "frame": true,
+     "names": {}
+    },
+    {
+     "text": "저는 알파페이 결제플랫폼팀에서 승인 경로를 맡았고, 여러 팀이 쓰는 배포 방식을 하나로 맞추는 일까지 이어서 했습니다.",
+     "ev": [
+      "alpha-1#2",
+      "alpha-2#2"
+     ],
+     "duties": [],
+     "frame": false,
+     "names": {}
+    },
+    {
+     "text": "제가 일을 고르는 기준은 장애가 번지는 길을 구조로 끊을 수 있는가입니다.",
+     "ev": [
+      "about#1"
+     ],
+     "duties": [],
+     "frame": false,
+     "names": {}
+    }
+   ]
+  },
+  {
+   "id": "p2",
+   "kind": "motivation",
+   "duties": [],
+   "sentences": [
+    {
+     "text": "공고에서 결제가 멈추면 곧바로 손실로 이어진다고 쓴 대목을 읽고, 배포가 승인 경로를 멈추지 않게 구조를 나눴던 일이 먼저 떠올랐습니다.",
+     "ev": [
+      "alpha-1#1",
+      "alpha-1#2"
+     ],
+     "duties": [],
+     "frame": false,
+     "names": {}
+    }
+   ]
+  },
+  {
+   "id": "p3",
+   "kind": "duties",
+   "duties": [
+    "d1",
+    "d2"
+   ],
+   "sentences": [
+    {
+     "text": "승인 기능은 단일 애플리케이션에서 떼어 내 따로 배포하고 되돌릴 수 있게 했고, 요청마다 멱등 키를 두어 재시도가 중복 승인으로 이어지지 않게 했습니다.",
+     "ev": [
+      "alpha-1#1",
+      "alpha-1#3",
+      "alpha-1#4"
+     ],
+     "duties": [
+      "d1"
+     ],
+     "frame": false,
+     "names": {}
+    },
+    {
+     "text": "베타커머스에서는 주문 서비스가 정산과 알림 서비스를 직접 부르던 호출을 Kafka 이벤트로 바꾸고, 주문 번호를 파티션 키로 써서 한 주문의 상태 순서가 뒤바뀌지 않게 했습니다.",
+     "ev": [
+      "beta-1#1",
+      "beta-1#2",
+      "beta-1#3"
+     ],
+     "duties": [
+      "d2"
+     ],
+     "frame": false,
+     "names": {}
+    }
+   ]
+  },
+  {
+   "id": "p4",
+   "kind": "duties",
+   "duties": [
+    "d3",
+    "d4"
+   ],
+   "sentences": [
+    {
+     "text": "팀마다 달랐던 배포 방식은 Argo CD 하나로 모으고, 환경별 설정은 Helm values 로 저장소 한 곳에 두어 검토를 거친 변경만 반영되게 했습니다.",
+     "ev": [
+      "alpha-2#2",
+      "alpha-2#3"
+     ],
+     "duties": [
+      "d3"
+     ],
+     "frame": false,
+     "names": {}
+    },
+    {
+     "text": "변경은 저장소에서 검토와 병합을 거친 뒤 스테이징에 먼저 반영해 상태를 확인하고, 승인한 버전만 운영에 동기화하는 순서로 고정했습니다.",
+     "ev": [
+      "alpha-2#7",
+      "alpha-2#8",
+      "alpha-2#9"
+     ],
+     "duties": [
+      "d3"
+     ],
+     "frame": false,
+     "names": {}
+    },
+    {
+     "text": "배포 이력과 되돌리기를 화면 하나에서 볼 수 있게 해서, 운영에 올라간 버전을 확인하는 일이 개인의 기억에 기대지 않게 했습니다.",
+     "ev": [
+      "alpha-2#4"
+     ],
+     "duties": [
+      "d3"
+     ],
+     "frame": false,
+     "names": {}
+    },
+    {
+     "text": "이벤트 소비가 밀리는 정도를 지표로 보고, 경보를 거는 기준을 정했습니다.",
+     "ev": [
+      "beta-1#4"
+     ],
+     "duties": [
+      "d4"
+     ],
+     "frame": false,
+     "names": {}
+    }
+   ]
+  },
+  {
+   "id": "p5",
+   "kind": "duties",
+   "duties": [
+    "d5"
+   ],
+   "sentences": [
+    {
+     "text": "주문 장애는 유형별로 대응 절차를 문서로 만들어 두고, 그 문서를 당번 교육에 그대로 썼습니다.",
+     "ev": [
+      "beta-3#1"
+     ],
+     "duties": [
+      "d5"
+     ],
+     "frame": false,
+     "names": {}
+    },
+    {
+     "text": "장애 원인은 한 계층씩 좁혀 가며 찾고, 반복되는 운영은 자동화로 옮기는 쪽을 택합니다.",
+     "ev": [
+      "summary#c3"
+     ],
+     "duties": [
+      "d5"
+     ],
+     "frame": false,
+     "names": {}
+    }
+   ]
+  },
+  {
+   "id": "p6",
+   "kind": "duties",
+   "duties": [
+    "p2"
+   ],
+   "sentences": [
+    {
+     "text": "결제 서비스의 승인 경로와 주문 이벤트를 모두 다뤄 본 경험이 델타페이의 서비스에도 닿는다고 생각합니다.",
+     "ev": [
+      "alpha-1#2",
+      "beta-1#2"
+     ],
+     "duties": [
+      "p2"
+     ],
+     "frame": false,
+     "names": {}
+    },
+    {
+     "text": "주문 서비스에서 결제 서비스로 옮겨 온 것도 장애가 번지는 길을 구조로 끊는 일을 이어 가기 위해서였습니다.",
+     "ev": [
+      "about#1"
+     ],
+     "duties": [
+      "p2"
+     ],
+     "frame": false,
+     "names": {}
+    }
+   ]
+  },
+  {
+   "id": "p7",
+   "kind": "closing",
+   "duties": [],
+   "sentences": [
+    {
+     "text": "공고의 업무를 제가 해 온 일과 하나씩 맞춰 적었습니다.",
+     "ev": [],
+     "duties": [],
+     "frame": true,
+     "names": {}
+    },
+    {
+     "text": "직접 만나 더 자세히 말씀드릴 기회를 주시면 감사하겠습니다.",
+     "ev": [],
+     "duties": [],
+     "frame": true,
+     "names": {}
+    }
+   ]
+  }
+ ],
+ "dropped": [],
+ "unresolved": [],
+ "style": "examples/cover/style.json",
+ "plan": {
+  "schema": "offerowl-cover-plan/0.1",
+  "lang": "ko",
+  "posting": {
+   "company": "델타페이",
+   "role": "백엔드 플랫폼 엔지니어",
+   "location": "서울 근무",
+   "overview": "델타페이는 가맹점과 소비자를 잇는 간편결제 서비스를 운영합니다. 결제가 멈추면 곧바로 손실로 이어지기 때문에 승인 경로의 안정성과 배포 체계를 가장 중요하게 봅니다. 플랫폼팀은 결제 서비스 개발자가 쓰는 배포, 관측, 장애 대응 도구를 함께 만들고 운영합니다.",
+   "sha": "c4caf73e96a4df90"
+  },
+  "lines": [
+   {
+    "id": "d1",
+    "order": 1,
+    "kind": "duty",
+    "section": "주요 업무",
+    "text": "결제 승인과 정산 백엔드 서비스의 설계와 개발",
+    "ev": [
+     "alpha-1"
+    ],
+    "strength": "strong",
+    "missing": [],
+    "basis": "승인 기능을 따로 배포하게 나눈 일과 멱등 키 정책",
+    "source": "reviewed",
+    "use": true
+   },
+   {
+    "id": "d2",
+    "order": 2,
+    "kind": "duty",
+    "section": "주요 업무",
+    "text": "서비스 사이를 잇는 이벤트 기반 연동 설계와 운영",
+    "ev": [
+     "beta-1"
+    ],
+    "strength": "strong",
+    "missing": [],
+    "basis": "주문 상태 변경을 Kafka 이벤트로 발행하고 파티션 키로 순서를 지킴",
+    "source": "reviewed",
+    "use": true
+   },
+   {
+    "id": "d3",
+    "order": 3,
+    "kind": "duty",
+    "section": "주요 업무",
+    "text": "Kubernetes 기반 배포 파이프라인과 사내 개발자 플랫폼 운영",
+    "ev": [
+     "alpha-2"
+    ],
+    "strength": "strong",
+    "missing": [],
+    "basis": "Argo CD 와 Helm 으로 공용 배포 경로를 만듦",
+    "source": "reviewed",
+    "use": true
+   },
+   {
+    "id": "d4",
+    "order": 4,
+    "kind": "duty",
+    "section": "주요 업무",
+    "text": "서비스 지표와 알림 체계 구축",
+    "ev": [
+     "beta-1"
+    ],
+    "strength": "weak",
+    "missing": [],
+    "basis": "소비 지연 지표와 경보 기준은 있으나 서비스 지표 전반의 구축은 보이지 않음",
+    "source": "reviewed",
+    "use": true
+   },
+   {
+    "id": "d5",
+    "order": 5,
+    "kind": "duty",
+    "section": "주요 업무",
+    "text": "장애 대응 절차 수립과 당번 운영",
+    "ev": [
+     "beta-3"
+    ],
+    "strength": "strong",
+    "missing": [],
+    "basis": "장애 유형별 대응 절차 문서와 당번 교육",
+    "source": "reviewed",
+    "use": true
+   },
+   {
+    "id": "d6",
+    "order": 6,
+    "kind": "duty",
+    "section": "주요 업무",
+    "text": "Rust 로 작성하는 결제 단말 펌웨어 개발",
+    "ev": [],
+    "strength": "none",
+    "missing": [
+     "Rust"
+    ],
+    "basis": "펌웨어나 Rust 작업이 프로필에 없음",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "the profile does not show it"
+   },
+   {
+    "id": "q1",
+    "order": 7,
+    "kind": "requirement",
+    "section": "자격 요건",
+    "text": "백엔드 서비스 개발과 운영 경력 3년 이상",
+    "ev": [
+     "role:alpha",
+     "role:beta"
+    ],
+    "strength": "weak",
+    "missing": [],
+    "basis": "경력 기간은 역할 표에서 읽는 값이라 편지 문장으로 쓰지 않음",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "a tenure line is judged by the reader from the career table"
+   },
+   {
+    "id": "q2",
+    "order": 8,
+    "kind": "requirement",
+    "section": "자격 요건",
+    "text": "Go 또는 Java 로 서비스를 운영한 경험",
+    "ev": [
+     "skills#Languages"
+    ],
+    "strength": "weak",
+    "missing": [],
+    "basis": "언어 목록만 있고 그 언어로 서비스를 운영했다는 과제 근거는 없음",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "only a skills row names it; no project shows the work"
+   },
+   {
+    "id": "q3",
+    "order": 9,
+    "kind": "requirement",
+    "section": "자격 요건",
+    "text": "Kubernetes 운영 경험",
+    "ev": [
+     "summary#intro"
+    ],
+    "strength": "weak",
+    "missing": [],
+    "basis": "Kubernetes 위에 배포 플랫폼을 구축했다는 소개 문장만 있음",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "answered with d3"
+   },
+   {
+    "id": "q4",
+    "order": 10,
+    "kind": "requirement",
+    "section": "자격 요건",
+    "text": "관계형 데이터베이스 설계 경험",
+    "ev": [],
+    "strength": "none",
+    "missing": [],
+    "basis": "데이터베이스 설계 과제가 없음",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "the profile does not show it"
+   },
+   {
+    "id": "p1",
+    "order": 11,
+    "kind": "preferred",
+    "section": "우대 사항",
+    "text": "Argo CD 나 Helm 으로 배포 환경을 관리한 경험",
+    "ev": [
+     "alpha-2"
+    ],
+    "strength": "strong",
+    "missing": [],
+    "basis": "Argo CD 와 Helm 으로 환경별 설정을 관리",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "answered with d3"
+   },
+   {
+    "id": "p2",
+    "order": 12,
+    "kind": "preferred",
+    "section": "우대 사항",
+    "text": "결제 도메인 경험",
+    "ev": [
+     "alpha-1",
+     "beta-1"
+    ],
+    "strength": "strong",
+    "missing": [],
+    "basis": "결제 승인과 주문 이벤트 과제",
+    "source": "reviewed",
+    "use": true
+   },
+   {
+    "id": "p3",
+    "order": 13,
+    "kind": "preferred",
+    "section": "우대 사항",
+    "text": "Terraform 으로 인프라를 코드로 관리한 경험",
+    "ev": [
+     "skills#Platform"
+    ],
+    "strength": "weak",
+    "missing": [],
+    "basis": "Terraform 이 기술 목록에만 있고 그것으로 한 일은 없음",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "only a skills row names it; no project shows the work"
+   },
+   {
+    "id": "p4",
+    "order": 14,
+    "kind": "preferred",
+    "section": "우대 사항",
+    "text": "정보보안기사 자격",
+    "ev": [],
+    "strength": "none",
+    "missing": [],
+    "basis": "자격증은 정보처리기사뿐",
+    "source": "reviewed",
+    "use": false,
+    "skipped": "the profile does not show it"
+   }
+  ],
+  "groups": [
+   {
+    "id": "g1",
+    "lines": [
+     "d1",
+     "d2"
+    ],
+    "theme": "결제 승인과 이벤트 연동"
+   },
+   {
+    "id": "g2",
+    "lines": [
+     "d3",
+     "d4"
+    ],
+    "theme": "배포 경로와 지표"
+   },
+   {
+    "id": "g3",
+    "lines": [
+     "d5"
+    ],
+    "theme": "장애 대응"
+   },
+   {
+    "id": "g4",
+    "lines": [
+     "p2"
+    ],
+    "theme": "결제 도메인"
+   }
+  ],
+  "fit": [
+   "alpha-1",
+   "alpha-2",
+   "beta-1"
+  ],
+  "gap_terms": [
+   "Rust"
+  ],
+  "allow": [],
+  "motivation": true,
+  "matched_by": "words, then reviewed by hand",
+  "notes": [
+   "a reviewer checked every line against the profile and fixed the word matching by hand"
+  ],
+  "evidence_hash": "b2c72861949f9422",
+  "style": "examples/cover/style.json"
+ },
+ "stats": {
+  "words": 240,
+  "chars": 730,
+  "sentences": 16,
+  "calls": 0
+ }
+}

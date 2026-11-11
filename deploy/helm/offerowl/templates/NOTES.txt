@@ -1,0 +1,46 @@
+{{- $name := include "offerowl.fullname" . -}}
+{{- $ns := .Release.Namespace -}}
+{{- $panel := int .Values.service.panelPort -}}
+Offerowl is installed as release {{ .Release.Name }} in namespace {{ $ns }}.
+
+Open the panel
+  The panel has no login and holds your profile and documents, so nothing is exposed. Forward its port to the machine
+  you sit at, using the same port number on both sides (the panel answers only requests addressed to its own port):
+
+    kubectl --namespace {{ $ns }} port-forward svc/{{ $name }} {{ $panel }}:{{ $panel }}
+
+  and open http://127.0.0.1:{{ $panel }} in a browser on that machine; an application's interview kit is on the same
+  port, at /kit/<job>/. Keep the forward on 127.0.0.1, the default: --address 0.0.0.0 would open the panel to your network.
+
+Check it
+    helm test {{ .Release.Name }} --namespace {{ $ns }}
+{{- if not .Values.persistence.enabled }}
+
+Storage
+  persistence.enabled is false: the workspace lives in the pod and is lost whenever the pod is replaced.
+{{- else }}
+
+Storage
+  Your workspace is on the claim {{ include "offerowl.claimName" . }}. helm uninstall leaves it in place; delete it with
+  kubectl when you no longer want your documents.
+{{- end }}
+
+The AI backend
+{{- if eq (toString .Values.ai.backend) "openai-compat" }}
+  openai-compat at {{ .Values.ai.url }}{{ if .Values.ai.model }}, model {{ .Values.ai.model }}{{ end }}.
+{{- else }}
+  none: the AI steps stop and you fill in the facts yourself. Documents are still made. To use a local model server,
+  set ai.backend=openai-compat and ai.url.
+{{- end }}
+{{- if .Values.ingress.enabled }}
+
+Ingress
+  The panel is reachable at {{ include "offerowl.ingressHosts" . }} through the Ingress. It has no login of its own:
+  make sure the Ingress puts one in front of it, and TLS.
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+
+Isolation
+  The NetworkPolicy of this release lets no pod connect to the panel; it takes effect only if the cluster's network
+  plugin enforces NetworkPolicy.
+{{- end }}

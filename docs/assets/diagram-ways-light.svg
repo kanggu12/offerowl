@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 906 458" width="906" height="458" font-family="Pretendard, -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Noto Sans&#x27;, Helvetica, Arial, sans-serif" role="img" aria-label="Four ways to run Offerowl. The app is one file that starts the panel and its server on your PC and typesets with the browser you already have. The container runs the panel, the engine, the interview view and the typesetting tools together, with a volume for your files. The Helm chart runs the same in one pod with a volume claim, reached by a port-forward. The Python package gives the offerowl command and the panel, and typesets with Docker or with the browser already on your PC">
+<path d="M0,1 H210" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="0.0" y="24.0" font-size="16" font-weight="700" fill="#1b2e4b" data-box="0.0,210.0">The app</text>
+<text x="0.0" y="44.0" font-size="12.5" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#566175" data-box="0.0,210.0">apps/desktop</text>
+<rect x="26.0" y="62.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="26.0" y="62.0" width="184.0" height="24.0" rx="2" fill="#1b2e4b"/>
+<text x="38.0" y="78.7" font-size="13" font-weight="600" fill="#ffffff" data-box="38.0,198.0">Panel and server</text>
+<text x="38.0" y="107.0" font-size="12.5" fill="#566175" data-box="38.0,198.0">the app&#x27;s own Python</text>
+<path d="M6.0,102.0 L17.5,102.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M25.0,102.0 L16.0,106.5 L16.0,97.5 Z" fill="#7f8ca1"/>
+<rect x="26.0" y="154.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="38.0" y="188.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="38.0,198.0">Your browser</text>
+<text x="38.0" y="206.6" font-size="12.5" fill="#566175" data-box="38.0,198.0">opens the panel</text>
+<path d="M6.0,194.0 L17.5,194.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M25.0,194.0 L16.0,198.5 L16.0,189.5 Z" fill="#7f8ca1"/>
+<rect x="26.0" y="246.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="26.0" y="246.0" width="184.0" height="24.0" rx="2" fill="#b3400a"/>
+<text x="38.0" y="262.7" font-size="13" font-weight="600" fill="#ffffff" data-box="38.0,198.0">AI backend</text>
+<text x="38.0" y="291.0" font-size="12.5" fill="#566175" data-box="38.0,198.0">Claude Code or Codex on</text>
+<text x="38.0" y="308.5" font-size="12.5" fill="#566175" data-box="38.0,198.0">this PC, or a local model</text>
+<path d="M6.0,286.0 L17.5,286.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M25.0,286.0 L16.0,290.5 L16.0,281.5 Z" fill="#7f8ca1"/>
+<rect x="26.0" y="338.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="38.0" y="372.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="38.0,198.0">Typesetting</text>
+<text x="38.0" y="390.6" font-size="12.5" fill="#566175" data-box="38.0,198.0">your own Chrome or Edge</text>
+<path d="M6.0,378.0 L17.5,378.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M25.0,378.0 L16.0,382.5 L16.0,373.5 Z" fill="#7f8ca1"/>
+<path d="M6,54 V378" fill="none" stroke="#7f8ca1" stroke-width="1.6"/>
+<path d="M230,1 H440" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="230.0" y="24.0" font-size="16" font-weight="700" fill="#1b2e4b" data-box="230.0,440.0">Docker</text>
+<text x="230.0" y="44.0" font-size="12.5" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#566175" data-box="230.0,440.0">deploy/docker</text>
+<rect x="256.0" y="62.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="256.0" y="62.0" width="184.0" height="24.0" rx="2" fill="#1b2e4b"/>
+<text x="268.0" y="78.7" font-size="13" font-weight="600" fill="#ffffff" data-box="268.0,428.0">One container</text>
+<text x="268.0" y="107.0" font-size="12.5" fill="#566175" data-box="268.0,428.0">panel, engine, interview</text>
+<text x="268.0" y="124.5" font-size="12.5" fill="#566175" data-box="268.0,428.0">view</text>
+<path d="M236.0,102.0 L247.5,102.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M255.0,102.0 L246.0,106.5 L246.0,97.5 Z" fill="#7f8ca1"/>
+<rect x="256.0" y="154.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="268.0" y="180.0" font-size="14" font-weight="600" fill="#1b2e4b" data-box="268.0,428.0">Typesetting</text>
+<text x="268.0" y="197.8" font-size="12.5" fill="#566175" data-box="268.0,428.0">LibreOffice and Chromium</text>
+<text x="268.0" y="215.3" font-size="12.5" fill="#566175" data-box="268.0,428.0">inside</text>
+<path d="M236.0,194.0 L247.5,194.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M255.0,194.0 L246.0,198.5 L246.0,189.5 Z" fill="#7f8ca1"/>
+<rect x="256.0" y="246.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="256.0" y="246.0" width="184.0" height="24.0" rx="2" fill="#b3400a"/>
+<text x="268.0" y="262.7" font-size="13" font-weight="600" fill="#ffffff" data-box="268.0,428.0">AI backend</text>
+<text x="268.0" y="291.0" font-size="12.5" fill="#566175" data-box="268.0,428.0">a local model server, or</text>
+<text x="268.0" y="308.5" font-size="12.5" fill="#566175" data-box="268.0,428.0">none</text>
+<path d="M236.0,286.0 L247.5,286.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M255.0,286.0 L246.0,290.5 L246.0,281.5 Z" fill="#7f8ca1"/>
+<rect x="256.0" y="338.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="268.0" y="372.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="268.0,428.0">Your files</text>
+<text x="268.0" y="390.6" font-size="12.5" fill="#566175" data-box="268.0,428.0">a volume</text>
+<path d="M236.0,378.0 L247.5,378.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M255.0,378.0 L246.0,382.5 L246.0,373.5 Z" fill="#7f8ca1"/>
+<path d="M236,54 V378" fill="none" stroke="#7f8ca1" stroke-width="1.6"/>
+<path d="M460,1 H670" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="460.0" y="24.0" font-size="16" font-weight="700" fill="#1b2e4b" data-box="460.0,670.0">Kubernetes</text>
+<text x="460.0" y="44.0" font-size="12.5" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#566175" data-box="460.0,670.0">deploy/helm/offerowl</text>
+<rect x="486.0" y="62.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="486.0" y="62.0" width="184.0" height="24.0" rx="2" fill="#1b2e4b"/>
+<text x="498.0" y="78.7" font-size="13" font-weight="600" fill="#ffffff" data-box="498.0,658.0">One pod</text>
+<text x="498.0" y="107.0" font-size="12.5" fill="#566175" data-box="498.0,658.0">the same image as Docker</text>
+<path d="M466.0,102.0 L477.5,102.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M485.0,102.0 L476.0,106.5 L476.0,97.5 Z" fill="#7f8ca1"/>
+<rect x="486.0" y="154.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="498.0" y="188.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="498.0,658.0">Port-forward</text>
+<text x="498.0" y="206.6" font-size="12.5" fill="#566175" data-box="498.0,658.0">the panel on this PC</text>
+<path d="M466.0,194.0 L477.5,194.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M485.0,194.0 L476.0,198.5 L476.0,189.5 Z" fill="#7f8ca1"/>
+<rect x="486.0" y="246.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="486.0" y="246.0" width="184.0" height="24.0" rx="2" fill="#b3400a"/>
+<text x="498.0" y="262.7" font-size="13" font-weight="600" fill="#ffffff" data-box="498.0,658.0">AI backend</text>
+<text x="498.0" y="291.0" font-size="12.5" fill="#566175" data-box="498.0,658.0">a model server in the</text>
+<text x="498.0" y="308.5" font-size="12.5" fill="#566175" data-box="498.0,658.0">cluster, or none</text>
+<path d="M466.0,286.0 L477.5,286.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M485.0,286.0 L476.0,290.5 L476.0,281.5 Z" fill="#7f8ca1"/>
+<rect x="486.0" y="338.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="498.0" y="372.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="498.0,658.0">Your files</text>
+<text x="498.0" y="390.6" font-size="12.5" fill="#566175" data-box="498.0,658.0">a volume claim</text>
+<path d="M466.0,378.0 L477.5,378.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M485.0,378.0 L476.0,382.5 L476.0,373.5 Z" fill="#7f8ca1"/>
+<path d="M466,54 V378" fill="none" stroke="#7f8ca1" stroke-width="1.6"/>
+<path d="M690,1 H900" fill="none" stroke="#1b2e4b" stroke-width="2"/>
+<text x="690.0" y="24.0" font-size="16" font-weight="700" fill="#1b2e4b" data-box="690.0,900.0">Python package</text>
+<text x="690.0" y="44.0" font-size="12.5" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#566175" data-box="690.0,900.0">pyproject.toml</text>
+<rect x="716.0" y="62.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="716.0" y="62.0" width="184.0" height="24.0" rx="2" fill="#1b2e4b"/>
+<text x="728.0" y="78.7" font-size="13" font-weight="600" font-family="ui-monospace, SFMono-Regular, &#x27;SF Mono&#x27;, Menlo, Consolas, &#x27;Liberation Mono&#x27;, monospace" fill="#ffffff" data-box="728.0,888.0">offerowl</text>
+<text x="728.0" y="107.0" font-size="12.5" fill="#566175" data-box="728.0,888.0">every command and the</text>
+<text x="728.0" y="124.5" font-size="12.5" fill="#566175" data-box="728.0,888.0">panel</text>
+<path d="M696.0,102.0 L707.5,102.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M715.0,102.0 L706.0,106.5 L706.0,97.5 Z" fill="#7f8ca1"/>
+<rect x="716.0" y="154.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="728.0" y="180.0" font-size="14" font-weight="600" fill="#1b2e4b" data-box="728.0,888.0">Typesetting</text>
+<text x="728.0" y="197.8" font-size="12.5" fill="#566175" data-box="728.0,888.0">Docker, or the PC&#x27;s own</text>
+<text x="728.0" y="215.3" font-size="12.5" fill="#566175" data-box="728.0,888.0">browser</text>
+<path d="M696.0,194.0 L707.5,194.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M715.0,194.0 L706.0,198.5 L706.0,189.5 Z" fill="#7f8ca1"/>
+<rect x="716.0" y="246.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<rect x="716.0" y="246.0" width="184.0" height="24.0" rx="2" fill="#b3400a"/>
+<text x="728.0" y="262.7" font-size="13" font-weight="600" fill="#ffffff" data-box="728.0,888.0">AI backend</text>
+<text x="728.0" y="291.0" font-size="12.5" fill="#566175" data-box="728.0,888.0">Claude Code, Codex or a</text>
+<text x="728.0" y="308.5" font-size="12.5" fill="#566175" data-box="728.0,888.0">local model</text>
+<path d="M696.0,286.0 L707.5,286.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M715.0,286.0 L706.0,290.5 L706.0,281.5 Z" fill="#7f8ca1"/>
+<rect x="716.0" y="338.0" width="184.0" height="80.0" rx="2" fill="#eef3f9"/>
+<text x="728.0" y="372.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="728.0,888.0">Your files</text>
+<text x="728.0" y="390.6" font-size="12.5" fill="#566175" data-box="728.0,888.0">the data folder</text>
+<path d="M696.0,378.0 L707.5,378.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M715.0,378.0 L706.0,382.5 L706.0,373.5 Z" fill="#7f8ca1"/>
+<path d="M696,54 V378" fill="none" stroke="#7f8ca1" stroke-width="1.6"/>
+<rect x="533.5" y="434.0" width="22.0" height="10.0" rx="2" fill="#1b2e4b"/>
+<text x="563.5" y="443.0" font-size="12" fill="#566175" data-box="563.5,900.0">on your PC (or your server)</text>
+<rect x="739.7" y="434.0" width="22.0" height="10.0" rx="2" fill="#b3400a"/>
+<text x="769.7" y="443.0" font-size="12" fill="#566175" data-box="769.7,900.0">sent to the AI backend</text>
+</svg>

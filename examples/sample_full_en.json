@@ -1,0 +1,222 @@
+{
+ "schema": "resume-profile/0.1",
+ "_comment": "English twin of sample_full_ko.json: the same fictional person for the English edition. No real person, company or school. Figure values are made up for the example.",
+ "person": {
+  "name": "홍길동",
+  "name_en": "Gildong Hong",
+  "email": "gildong@example.com",
+  "phone": "+82 10-0000-0000",
+  "location": "Seoul, Korea",
+  "links": [["GitHub", "github.com/example-gildong", "https://github.com/example-gildong"]],
+  "tagline": "BACKEND PLATFORM ENGINEER"
+ },
+ "summary": {
+  "headline": "Payment backends and an in-house deployment platform:\ndesigned, built and run",
+  "intro": "I built the backend of a payment service and a deployment platform on Kubernetes that every team shares, and moved incident handling into runbooks and automation so ==new hires run it by the same rules==.",
+  "cards": [
+   ["TARGET ROLE", "Backend platform engineering, payment systems, internal developer platforms"],
+   ["FOCUS", "Payment authorization and settlement backends, a Kubernetes deployment platform, event-driven design"],
+   ["STRENGTHS", "Narrowing incidents down layer by layer, and turning repeated operations into automation"],
+   ["INDUSTRIES", "Payments, e-commerce, early-stage startup"]
+  ],
+  "highlights": [
+   {"title": "Order event pipeline", "where": "Beta Commerce  2020 - 2021", "rows": [["CHALLENGE", "Settlement and notifications called the order service directly, so failures spread"], ["ACTION", "Published order state changes as Kafka events to decouple consumers"], ["RESULT", "==Settlement and notifications read one stream on their own=="]]},
+   {"title": "Payment authorization redesign", "where": "Alpha Pay  2023", "rows": [["CHALLENGE", "Every deployment stopped the authorization path"], ["ACTION", "Split authorization out and set idempotency keys and a retry policy"], ["RESULT", "==Authorization deploys and rolls back on its own=="]]},
+   {"title": "In-house deployment platform", "where": "Alpha Pay  2023 - 2024", "rows": [["CHALLENGE", "Each team had its own deployment scripts"], ["ACTION", "Built one shared path with Argo CD and Helm"], ["RESULT", "==Per-environment settings live in one repository=="]]}
+  ],
+  "layers": [
+   ["Service", "Authorization, order and settlement APIs", "Alpha Pay authorization redesign, Beta Commerce order events"],
+   ["Platform", "Kubernetes, Helm, Argo CD", "Alpha Pay deployment platform"],
+   ["Data", "PostgreSQL, Redis, Kafka", "Order event pipeline, order lookup cache"],
+   ["Operations", "Prometheus, Grafana, on-call runbooks", "Incident runbooks, Gamma Labs first service"]
+  ],
+  "stats": [["Authorization split", "Deploys no longer stop payments"], ["One deploy path", "One shared path replaced team scripts"], ["Order events", "Settlement and alerts off the order service"], ["Co-founder", "Backend and operations of a first service"]],
+  "focus": [["Payment backends", "Authorization and settlement split, idempotency keys against double processing"], ["Deployment platform", "A shared Argo CD and Helm path with rollbacks"], ["Event design", "Order state changes published as events to decouple consumers"], ["Operations automation", "Runbooks per incident type, on-call training, repeated fixes scripted"]],
+  "contents": "Newest first: a payment platform, an order system, and a first service I co-founded.",
+  "glance": "I moved from building services to building the platform teams share."
+ },
+ "roles": [
+  {
+   "key": "alpha",
+   "org": "Alpha Pay",
+   "short": "Alpha Pay",
+   "logo": {"text": "AP", "color": "#2F6EBA"},
+   "title": "Backend Engineer",
+   "titleLong": "Backend Engineer",
+   "dept": "Payment Platform / Senior",
+   "place": "Seoul",
+   "start": "2022.03",
+   "end": null,
+   "desc": "A fictional payment company. Owned the authorization and settlement backends and the shared deployment platform",
+   "lead": "I split payment authorization into its own deployment unit and gathered every team's deployments into one shared path.",
+   "clients": "In-house payment service",
+   "stack": [["Languages", ["Go", "Java"]], ["Platform", ["Kubernetes", "Helm", "Argo CD"]], ["Data", ["PostgreSQL", "Redis"]]],
+   "journey": {"phase": "Platform", "line": "Payments and deployment platform", "key": "Authorization redesign"},
+   "projects": [
+    {
+     "id": "alpha-1",
+     "title": "Payment authorization service redesign",
+     "short": "Authorization redesign",
+     "period": "2023.01 - 2023.09",
+     "summary": "Split authorization out of a single application so ==the authorization path deploys on its own==, and set idempotency keys and a retry policy.",
+     "tagline": "Authorization split, idempotency keys and retries",
+     "role": "Design and development",
+     "context": "Payment authorization service",
+     "stack": "Go, PostgreSQL, Kubernetes",
+     "chips": ["Separate authorization deploys", "Idempotency keys"],
+     "cards": [["The deploys that stopped payments", "Split out the path that every deploy stopped at peak load", 1], ["Idempotency keys against double charges", "One idempotency key per request, retries with exponential backoff and a cap", 2], ["A unit that rolls back alone", "Cut deployment units so the authorization path deploys and rolls back on its own", 3]],
+     "figure": {"type": "panels", "caption": "**Authorization redesign** The split path and its deployment unit", "layout": "2v", "panels": [{"title": "The approval path deploys on its own", "mark": 1, "figure": {"type": "architecture", "zones": [{"title": "Requests", "nodes": [{"id": "merchant", "title": "Merchant request", "sub": "Approval requests"}]}, {"title": "Authorization service", "kind": "mine", "nodes": [{"id": "auth", "title": "Approval API", "sub": "Idempotency keys", "kind": "mine", "mark": 2}, {"id": "retry", "title": "Retries", "sub": "Exponential backoff, capped", "kind": "mine"}]}, {"title": "Storage", "nodes": [{"id": "db", "title": "Approval DB", "kind": "data"}]}], "links": [["merchant", "auth"], ["auth", "retry"], ["auth", "db"]]}}, {"title": "A unit that rolls back alone", "mark": 3, "figure": {"type": "beforeAfter", "change": "Split", "before": {"title": "Before the split", "items": [["Single application", "Approvals deploy with everything else"]]}, "after": {"title": "After the split", "items": [["Authorization service", "Deploys and rolls back alone", "mine"], ["Other features", "Deployed as before"]]}}}]},
+     "figures": [{"type": "metric", "unit": " min", "beforeLabel": "Before the split", "afterLabel": "After the split", "caption": "**Deployment time** Minutes per approval-path deploy (example values)", "rows": [["Deployment", 42, 9], ["Rollback", 30, 4]]}]
+    },
+    {
+     "id": "alpha-2",
+     "title": "In-house deployment platform build",
+     "short": "Deployment platform",
+     "period": "2023.10 - 2024.06",
+     "summary": "Built a shared deployment path with Argo CD and Helm and gathered per-environment settings into one repository.",
+     "tagline": "One shared Argo CD and Helm path",
+     "role": "Design and build",
+     "context": "In-house engineering teams",
+     "stack": "Argo CD, Helm, Kubernetes",
+     "chips": ["One deployment path"],
+     "cards": [["Scripts that differed by team", "Gathered each team's deployment scripts into one Argo CD application pattern", 1], ["Settings in one repository", "Per-environment values live as Helm values in one repository and change through review", 2]],
+     "figure": {"type": "pipeline", "caption": "**Deployment path** From a repository change to production", "groups": [["Review", 0, 1]], "steps": [["Repo change", "Helm values PR"], ["Review, merge", "Two approvals"], ["Staging", "Argo CD sync"], ["Production", "Approved only"]], "mark": 1},
+     "figures": [{"type": "bars", "unit": "", "caption": "**Deployment scripts** Scripts kept per team (example values)", "highlight": ["After the shared path"], "rows": [["Before the shared path", 14], ["After the shared path", 1]], "mark": 2}]
+    },
+    {
+     "id": "alpha-3",
+     "title": "Incident response automation",
+     "short": "Incident response",
+     "period": "2024.07 - 2024.12",
+     "summary": "Set the checks and steps for each frequent incident type and moved repeated fixes into scripts.",
+     "tagline": "Steps per incident type, repeated fixes scripted",
+     "role": "Operations",
+     "context": "Payment on-call",
+     "stack": "Prometheus, Grafana, Go",
+     "cards": [["Checks per incident type", "Set the metrics and order to check for each frequent incident type", 1], ["Repeated fixes as scripts", "Moved restarts and cache flushes into scripts", 2], ["On-call training", "New hires respond by the same rules"], ["One review form", "Every incident leaves its cause and next step in one form"]],
+     "figure": {"type": "matrix", "caption": "**Steps per incident type** Automated steps and the ones people take", "cols": ["Detect", "Check", "Fix", "Report"], "yes": "Automated", "partial": "Assisted", "no": "Manual", "rows": [["Slow authorization", "yes", "yes", "partial", "no"], ["Missing settlement", "yes", "partial", "no", "no"], ["Stale cache", "yes", "yes", "yes", "partial"]], "mark": 1},
+     "figures": [{"type": "timeline", "mark": 2, "caption": "**Automation order** From incident types to on-call training", "phases": [["Incident types", "2024.07", "2024.08", "Check order"], ["Scripts", "2024.08", "2024.10", "Repeated fixes", "mine"], ["On-call training", "2024.10", "2024.12", "Same rules"]], "milestones": [["First automated fix", "2024.09", "mine"]]}]
+    }
+   ]
+  },
+  {
+   "key": "beta",
+   "org": "Beta Commerce",
+   "short": "Beta Commerce",
+   "logo": {"text": "BC", "color": "#137A63"},
+   "title": "Software Engineer",
+   "titleLong": "Software Engineer",
+   "dept": "Orders",
+   "place": "Seongnam",
+   "start": "2019.07",
+   "end": "2022.02",
+   "desc": "A fictional e-commerce company. Owned the order system backend",
+   "lead": "I published order state changes as events so settlement and notifications no longer depended on the order service.",
+   "stack": [["Languages", ["Java", "SQL"]], ["Data", ["Kafka", "Redis", "PostgreSQL"]]],
+   "journey": {"phase": "Service", "line": "Order system backend", "key": "Order event pipeline"},
+   "projects": [
+    {
+     "id": "beta-1",
+     "title": "Order event pipeline development",
+     "short": "Order events",
+     "period": "2020.03 - 2021.04",
+     "summary": "Published order state changes as Kafka events so settlement and notifications read one stream.",
+     "tagline": "Order state changes as Kafka events",
+     "role": "Design and development",
+     "context": "Order service",
+     "stack": "Java, Kafka",
+     "points": ["Replaced direct calls from the order service to settlement and notifications with published events", "Keyed partitions by order number to keep each order's states in order", "Watched consumer lag as a metric and set alert thresholds"],
+     "figure": {"type": "layers", "caption": "**Order event layers** Readers on top, the writer at the bottom", "rows": [["Alerts, settlement", "Each consumes the same order events"], ["Kafka", "Order state topic, partitioned by order number"], ["Order service", "Publishes an event on every state change"]]}
+    },
+    {
+     "id": "beta-2",
+     "title": "Order lookup cache",
+     "short": "Lookup cache",
+     "period": "2021.05 - 2021.09",
+     "summary": "Put a Redis cache in front of frequent order lookups and set invalidation rules.",
+     "tagline": "A Redis cache with invalidation rules",
+     "role": "Development",
+     "context": "Order lookup API",
+     "stack": "Redis, Java",
+     "cards": [["Invalidation rule", "Every order state event clears that order's cache entry", 1], ["Separate lookup paths", "List and detail lookups use different cache keys", 2]],
+     "figure": {"type": "beforeAfter", "caption": "**Lookup path** Before and after the cache", "before": {"title": "Before", "items": [["Order lookup API", "A database query per request"], ["Order database", "Reads and writes in one place"]]}, "after": {"title": "After", "items": [["Order lookup API", "Checks the cache first"], ["Redis cache", "Cleared by order events"], ["Order database", "Read only on a cache miss"]], "mark": 1}},
+     "figures": [{"type": "columns", "mark": 2, "unit": "ms", "series": ["No cache", "With cache"], "highlight": "With cache", "caption": "**Lookup time** List and detail (example values)", "groups": [["List lookups", 210, 60], ["Detail lookups", 95, 30]]}]
+    },
+    {
+     "id": "beta-3",
+     "title": "Incident runbooks",
+     "short": "Runbooks",
+     "period": "2021.10 - 2022.02",
+     "summary": "Wrote a runbook for each order incident type and used them in on-call training.",
+     "deck": false
+    }
+   ]
+  },
+  {
+   "key": "gamma",
+   "org": "Gamma Labs",
+   "short": "Gamma Labs",
+   "logo": {"text": "GL", "color": "#A9561B"},
+   "badge": "Co-founder",
+   "title": "Backend Developer",
+   "titleLong": "Co-founder, Backend",
+   "dept": "Development / Co-founder",
+   "place": "Seoul",
+   "start": "2017.07",
+   "end": "2019.06",
+   "desc": "A fictional early-stage startup. Owned the backend and operations of its first service",
+   "lead": "At a service I co-founded during college, I owned the API server and its operation from the start.",
+   "stack": [["Server", ["Python", "Django", "PostgreSQL"]]],
+   "journey": {"phase": "Startup", "line": "Backend of a first service", "key": "Public launch"},
+   "projects": [
+    {
+     "id": "gamma-1",
+     "title": "First service backend and public launch",
+     "short": "Public launch",
+     "period": "2017.07 - 2019.06",
+     "summary": "Designed the first order and member APIs and narrowed the launch scope with the team, ==keeping the launch date==.",
+     "tagline": "API server, operations and launch phases",
+     "role": "Co-founder, backend",
+     "context": "Early-stage startup",
+     "stack": "Python, Django, PostgreSQL",
+     "cards": [["What to build first", "Agreed the launch scope with the team to fit the date", 1], ["Slow paths fixed", "As users grew, fixed slow lookups in the schema and query paths", 2]],
+     "figure": {"type": "phases", "caption": "**Launch phases** Stages of the first service", "rows": [["Design", "2017.07", "2017.10", "Data model"], ["Build", "2017.10", "2018.06", "API and clients"], ["Pilot", "2018.06", "2018.10"], ["Public launch", "2018.10", "2019.06", "Operations"]], "mark": 1},
+     "figures": [{"type": "cluster", "caption": "**Servers** Servers per role (example values)", "unit": "", "groups": [["API servers", 4, "Requests"], ["Batch", 2, "Settlement, alerts"], ["Database", 2, "Primary and replica"]], "mark": 2}]
+    }
+   ]
+  }
+ ],
+ "education": [
+  {"key": "ganada", "school": "Ganada University", "sub": "College of Engineering", "major": "Computer Science", "degree": "B.S.", "note": "Merit scholarship", "start": "2013.03", "end": "2019.02", "logo": {"text": "G", "color": "#1B2E4B"}}
+ ],
+ "skills": [
+  {"category": "Languages", "items": ["Go", "Java", "Python", "SQL"]},
+  {"category": "Platform", "items": ["Kubernetes", "Helm", "Argo CD", "Terraform"]},
+  {"category": "Data", "items": ["PostgreSQL", "Redis", "Kafka"]},
+  {"category": "Observability", "items": ["Prometheus", "Grafana", "OpenTelemetry"]},
+  {"category": "Collaboration", "items": ["Jira", "Confluence", "Slack"]}
+ ],
+ "sections": [
+  {
+   "title": "Credentials",
+   "groups": [
+    {"title": "Certifications", "lines": [["Engineer Information Processing", "", "2019.05"]]},
+    {"title": "Languages", "lines": [["Korean: native"], ["English: reads and writes work documents"], ["Japanese: basic conversation"]]},
+    {"title": "Talks", "head": ["Talk", "Event", "Date"], "align": ["l", "l", "c"], "rows": [[{"t": "Designing order events", "bold": true, "accent": true}, "A fictional developer meetup", "2021.11"], ["Adopting a deployment platform", "A fictional internal tech seminar", "2024.05"]], "note": "Event names are example values"}
+   ]
+  }
+ ],
+ "competencies": [
+  {"name": "Payment backends", "text": "Split authorization and settlement paths and stop double processing with idempotency keys and a retry policy", "evidence": ["alpha-1"]},
+  {"name": "Deployment platforms", "text": "Build a shared Argo CD and Helm deployment path and review per-environment settings in one repository", "evidence": ["alpha-2"]},
+  {"name": "Event design", "text": "Publish order state changes as Kafka events to keep consumers apart", "evidence": ["beta-1", "beta-2"]},
+  {"name": "Incident response", "text": "Leave runbooks and scripts per incident type and use them in on-call training", "evidence": ["alpha-3", "beta-3"]},
+  {"name": "Early product development", "text": "Agree the launch scope with the team and own the API server and operations from the start", "evidence": ["gamma-1"]}
+ ],
+ "about": [
+  ["From a startup to services", "At Gamma Labs, which I co-founded during college, I owned the API server and its operation. I learned that deciding what to build first is what keeps a launch."],
+  ["From orders to payments", "At Beta Commerce I published order state changes as events so settlement and notifications no longer depended on the order service. Cutting the paths failures spread along drew me to payments."],
+  ["Deployment as the platform's job", "At Alpha Pay I split authorization into its own deployments, then gathered every team's deployments into one shared path."]
+ ],
+ "motivation": "I want to build the platform that keeps services running where a stop means an immediate loss, such as payments and orders."
+}

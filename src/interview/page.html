@@ -1,0 +1,1194 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{page_title}}</title>
+<style>
+/* Fonts come from this server (no internet): Pretendard for text, JetBrains Mono for code. A saved copy of the page falls back to system fonts. */
+@font-face { font-family: "Pretendard Variable"; src: url("fonts/PretendardVariable.woff2") format("woff2-variations"), url("fonts/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono.woff2") format("woff2-variations"), url("fonts/JetBrainsMono.woff2") format("woff2"); font-weight: 100 800; font-display: swap; }
+
+/* The design language of every Offerowl screen (docs/ARCHITECTURE.md, decision 6), in both themes.
+   It is a notebook on a desk: grey paper with grain and a printed dot grid for what is read, frosted colourless glass for
+   what floats beside it, and a frame (buttons, switches, tabs) of graphite and white with nearly square corners. Colour is rationed
+   to what is written: a yellow highlighter stroke under what is stressed, the red pen for labels and the red ribbon that marks
+   where you are, the blue pen for list marks. Blue never paints the frame. */
+:root {
+  --sans: "Pretendard Variable", Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "D2Coding", Consolas, "Cascadia Mono", ui-monospace, monospace;
+  /* paper grain: Classic's own fractal noise tile */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
+  --ribbon-cut: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 5px), 0 100%);   /* the bookmark ribbon's notched foot */
+  /* the desk and its light */
+  --paper: #f8f8f8; --paper-top: #fafafa; --paper-low: #f2f2f3; --dot: #ebebeb; --lamp: rgba(255, 255, 255, .4); --pool-1: rgba(0, 0, 0, .05); --pool-2: rgba(0, 0, 0, .03); --pool-3: rgba(0, 0, 0, .04);
+  /* the pages: white at 66% over the desk, a sheen from the top left, grain and a printed dot grid */
+  --page-fill: color-mix(in srgb, #ffffff 66%, transparent); --page-dot: rgba(29, 28, 29, .13);
+  --page-sheen: linear-gradient(145deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, .25) 420px);
+  --page-shadow: inset 0 1px 0 #fff, 0 8px 20px -14px rgba(0, 0, 0, .3);
+  --sheet: #ffffff; --sheet-2: #f8f8f8; --glass-line: rgba(29, 28, 29, .13);
+  /* lines and text */
+  --rule: #dddddd; --rule-2: #bbbabb;
+  --ink: #1d1c1d; --ink-2: #3f3e3f; --graphite: #616061; --off: #868686; --icon: #8e9095;
+  /* the pens: red for labels and the margin, blue for list marks and the query's words, the yellow highlighter */
+  --margin: #e8453f; --pen-red: #d4101c; --pen-blue: #1a56c4; --mark-blue: rgb(31, 107, 200);
+  --hl-yellow: rgba(240, 186, 20, .9); --hl-top: 86%; --hl-bot: 100%;
+  --warn-tone: #e8912d; --ok: #007a5a;
+  /* the frame: keys (buttons) raised with a lit top edge, glass for what floats */
+  --key-fill: linear-gradient(#ffffff, rgba(255, 255, 255, .6)); --key-line: rgba(0, 0, 0, .14);
+  --key-shadow: 1px 2px 3px rgba(0, 0, 0, .18), inset 0 1px 0 #ffffff;
+  --key-icon-fill: linear-gradient(#ffffff, rgba(255, 255, 255, .6)); --key-icon-line: rgba(0, 0, 0, .14); --key-icon-shadow: 0 3px 8px -3px rgba(0, 0, 0, .55);
+  --seg-off: rgba(0, 0, 0, .04); --seg-on: rgba(0, 0, 0, .1); --seg-on-line: rgba(255, 255, 255, .95);
+  --glass-fill: linear-gradient(145deg, rgba(255, 255, 255, .85), rgba(255, 255, 255, .5));
+  --glass-edge: rgba(255, 255, 255, .95); --glass-edge-top: rgba(255, 255, 255, .95); --glass-edge-left: rgba(255, 255, 255, .95);
+  --glass-shadow: 0 10px 28px -14px rgba(0, 0, 0, .28);
+  --set-fill: color-mix(in srgb, #ffffff 93%, transparent); --set-shadow: 0 1px 0 rgba(29, 28, 29, .04), 0 14px 32px -20px rgba(29, 28, 29, .28);
+  --pane-hover: rgba(29, 28, 29, .05); --pane-on: rgba(29, 28, 29, .08); --well: rgba(0, 0, 0, .07);
+  --bar-fill: color-mix(in srgb, #fafafa 94%, transparent); --bar-line: rgba(0, 0, 0, .1);
+  --ask-fill: #ffffff;
+  --sw-off: #d8d9de; --sw-off-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+  --th-fill: #ebebeb; --code-fill: #f8f8f8; --code-inline: #f1f1f1;
+  /* Colour that means something, so parts can be told apart at a glance. A ring of ten hues at one
+     lightness, one per section (ids, section names, tabs), and one colour per kind of field (KO, EN, the spoken script, the key line, cautions) */
+  --k0: #714aab; --k1: #0366ab; --k2: #02736e; --k3: #017651; --k4: #5b6c02; --k5: #9f366c; --k6: #8e5302; --k7: #8e3e8f; --k8: #4858b7; --k9: #046f86;
+  --c-ko: #0366ab; --c-en: #02736e; --c-short: #017651; --c-key: #8e5302; --c-note: #cc1e54; --c-bold: #8e5302;
+  --card-fill: #ffffff; --pane-fill: linear-gradient(145deg, rgba(255, 255, 255, .96), rgba(255, 255, 255, .84)); --pane-line: rgba(29, 28, 29, .10);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #161719; --paper-top: #18191c; --paper-low: #121315; --dot: #232427; --lamp: rgba(255, 255, 255, .03); --pool-1: rgba(255, 255, 255, .05); --pool-2: rgba(255, 255, 255, .03); --pool-3: rgba(255, 255, 255, .04);
+    --page-fill: color-mix(in srgb, #121315 66%, transparent); --page-dot: rgba(255, 255, 255, .04);
+    --page-sheen: linear-gradient(145deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .012) 420px);
+    --page-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 10px 22px -14px rgba(0, 0, 0, .75);
+    --sheet: #1d1e21; --sheet-2: #25262a; --glass-line: rgba(232, 232, 232, .12);
+    --rule: #303236; --rule-2: #48494e;
+    --ink: #e3e4e5; --ink-2: #cbccce; --graphite: #b0b1b4; --off: #818385; --icon: #8e9095;
+    --margin: #d92b2b; --pen-red: #ff4545; --pen-blue: #8ab4f8; --mark-blue: rgb(57, 135, 229);
+    --hl-yellow: rgba(242, 199, 68, .78); --hl-top: 84%; --hl-bot: 100%;
+    --warn-tone: #e8912d; --ok: #2eb67d;
+    --key-fill: linear-gradient(#2a2b2f, #2a2b2f); --key-line: #48494e;
+    --key-shadow: 1px 2px 4px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .09);
+    --key-icon-fill: linear-gradient(rgba(255, 255, 255, .16), rgba(255, 255, 255, .07)); --key-icon-line: rgba(255, 255, 255, .34); --key-icon-shadow: 0 3px 8px -3px rgba(0, 0, 0, .55);
+    --seg-off: rgba(255, 255, 255, .05); --seg-on: rgba(255, 255, 255, .16); --seg-on-line: rgba(255, 255, 255, .16);
+    --glass-fill: linear-gradient(145deg, rgba(255, 255, 255, .13) 0, rgba(255, 255, 255, .06) 170px, rgba(255, 255, 255, .043) 420px);
+    --glass-edge: rgba(255, 255, 255, .13); --glass-edge-top: rgba(255, 255, 255, .3); --glass-edge-left: rgba(255, 255, 255, .22);
+    --glass-shadow: 0 14px 34px -16px rgba(0, 0, 0, .7);
+    --set-fill: color-mix(in srgb, #1d1e21 74%, transparent); --set-shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 18px 36px -22px rgba(0, 0, 0, .7);
+    --pane-hover: rgba(255, 255, 255, .07); --pane-on: rgba(255, 255, 255, .11); --well: rgba(0, 0, 0, .34);
+    --bar-fill: color-mix(in srgb, #18191c 94%, transparent); --bar-line: rgba(255, 255, 255, .16);
+    --ask-fill: #26272b;
+    --sw-off: #36373c; --sw-off-shadow: inset 0 1px 2px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(255, 255, 255, .12);
+    --th-fill: #222325; --code-fill: #161719; --code-inline: #25262a;
+    --k0: #c4a4fe; --k1: #79befe; --k2: #08d2ca; --k3: #3fd59c; --k4: #abc54b; --k5: #fe8dc1; --k6: #f9a042; --k7: #e993e9; --k8: #9fb3fe; --k9: #02cbf6;
+    --c-ko: #79befe; --c-en: #08d2ca; --c-short: #3fd59c; --c-key: #f9a042; --c-note: #eb6a92; --c-bold: #f9a042;
+    --card-fill: #141517; --pane-fill: var(--glass-fill); --pane-line: var(--glass-edge);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #161719; --paper-top: #18191c; --paper-low: #121315; --dot: #232427; --lamp: rgba(255, 255, 255, .03); --pool-1: rgba(255, 255, 255, .05); --pool-2: rgba(255, 255, 255, .03); --pool-3: rgba(255, 255, 255, .04);
+  --page-fill: color-mix(in srgb, #121315 66%, transparent); --page-dot: rgba(255, 255, 255, .04);
+  --page-sheen: linear-gradient(145deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .012) 420px);
+  --page-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 10px 22px -14px rgba(0, 0, 0, .75);
+  --sheet: #1d1e21; --sheet-2: #25262a; --glass-line: rgba(232, 232, 232, .12);
+  --rule: #303236; --rule-2: #48494e;
+  --ink: #e3e4e5; --ink-2: #cbccce; --graphite: #b0b1b4; --off: #818385; --icon: #8e9095;
+  --margin: #d92b2b; --pen-red: #ff4545; --pen-blue: #8ab4f8; --mark-blue: rgb(57, 135, 229);
+  --hl-yellow: rgba(242, 199, 68, .78); --hl-top: 84%; --hl-bot: 100%;
+  --warn-tone: #e8912d; --ok: #2eb67d;
+  --key-fill: linear-gradient(#2a2b2f, #2a2b2f); --key-line: #48494e;
+  --key-shadow: 1px 2px 4px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .09);
+  --key-icon-fill: linear-gradient(rgba(255, 255, 255, .16), rgba(255, 255, 255, .07)); --key-icon-line: rgba(255, 255, 255, .34); --key-icon-shadow: 0 3px 8px -3px rgba(0, 0, 0, .55);
+  --seg-off: rgba(255, 255, 255, .05); --seg-on: rgba(255, 255, 255, .16); --seg-on-line: rgba(255, 255, 255, .16);
+  --glass-fill: linear-gradient(145deg, rgba(255, 255, 255, .13) 0, rgba(255, 255, 255, .06) 170px, rgba(255, 255, 255, .043) 420px);
+  --glass-edge: rgba(255, 255, 255, .13); --glass-edge-top: rgba(255, 255, 255, .3); --glass-edge-left: rgba(255, 255, 255, .22);
+  --glass-shadow: 0 14px 34px -16px rgba(0, 0, 0, .7);
+  --set-fill: color-mix(in srgb, #1d1e21 74%, transparent); --set-shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 18px 36px -22px rgba(0, 0, 0, .7);
+  --pane-hover: rgba(255, 255, 255, .07); --pane-on: rgba(255, 255, 255, .11); --well: rgba(0, 0, 0, .34);
+  --bar-fill: color-mix(in srgb, #18191c 94%, transparent); --bar-line: rgba(255, 255, 255, .16);
+  --ask-fill: #26272b;
+  --sw-off: #36373c; --sw-off-shadow: inset 0 1px 2px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(255, 255, 255, .12);
+  --th-fill: #222325; --code-fill: #161719; --code-inline: #25262a;
+  --k0: #c4a4fe; --k1: #79befe; --k2: #08d2ca; --k3: #3fd59c; --k4: #abc54b; --k5: #fe8dc1; --k6: #f9a042; --k7: #e993e9; --k8: #9fb3fe; --k9: #02cbf6;
+  --c-ko: #79befe; --c-en: #08d2ca; --c-short: #3fd59c; --c-key: #f9a042; --c-note: #eb6a92; --c-bold: #f9a042;
+  --card-fill: #141517; --pane-fill: var(--glass-fill); --pane-line: var(--glass-edge);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; background: var(--paper); scrollbar-width: thin; scrollbar-color: var(--rule-2) transparent; }
+body {
+  margin: 0; height: 100vh; overflow: hidden; color: var(--ink); background: transparent;
+  font: 400 var(--fs-base, 13px)/1.6 var(--sans); letter-spacing: -0.003em; word-break: keep-all; overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; font-feature-settings: "tnum" 1;
+}
+/* The desk: one lamp's light from the upper left over the paper's top-to-bottom shade (two fixed layers, painted once) */
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(520px 420px at calc(100% - 120px) 180px, var(--pool-1), transparent 72%),
+              radial-gradient(460px 420px at calc(100% - 300px) 620px, var(--pool-2), transparent 72%),
+              radial-gradient(480px 380px at calc(100% - 60px) 960px, var(--pool-3), transparent 72%),
+              radial-gradient(1100px 620px at 12% -8%, var(--lamp), transparent 70%),
+              linear-gradient(180deg, var(--paper-top) 0, var(--paper) 42%, var(--paper-low) 100%); }
+/* The notebook's dot grid on the desk, clear at the top and fading toward the foot */
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.3px); background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, rgba(0, 0, 0, .55) 45%, transparent 92%);
+  mask-image: linear-gradient(180deg, #000 0, rgba(0, 0, 0, .55) 45%, transparent 92%); }
+/* Inside the Offerowl panel (?embed=1): the panel's own desk shows through, so the kit reads as a part of it, not a page on a page.
+   Its keys take the panel's look there: square, flat, a hairline rim (apps/panel/static/skin.css); the cards, the board and
+   the colours of the words (Korean blue, English teal, the key line amber, a caution rose) stay the kit's own */
+html.embedded { background: transparent;
+  --key-fill: #ffffff; --key-line: #ebebeb; --key-shadow: none; }
+html.embedded[data-theme="dark"] { --key-fill: #121212; --key-line: #262626; }
+@media (prefers-color-scheme: dark) { html.embedded:not([data-theme="light"]) { --key-fill: #121212; --key-line: #262626; } }
+html.embedded body::before, html.embedded body::after { display: none; }
+html.embedded :is(kbd, .seg button, .menu button, .icon-btn, .engine, .search, .key, .pr-chip) { border-radius: 2px; box-shadow: none; }
+button { font: inherit; color: inherit; letter-spacing: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }   /* Classic's focus ring is the ink, not a blue */
+kbd { display: inline-block; font: 600 11px/1 var(--mono); padding: 3px 6px; margin: 0 2px; border-radius: 5px; color: var(--ink); background: var(--key-fill); border: 1px solid var(--key-line); box-shadow: var(--key-shadow); }
+b, strong { font-weight: 700; color: var(--ink); }
+
+/* The bar: the top of the notebook, full width, thick glass with the paper's grain, a hairline and a soft shadow under it */
+.top { position: relative; z-index: 5; background-color: var(--bar-fill); background-image: var(--grain); background-size: 220px 220px;
+  border-bottom: 1px solid var(--bar-line); box-shadow: 0 8px 22px -14px rgba(0, 0, 0, .7);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.bar { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 16px 8px; }
+/* A key: Classic's raised button, white with a lit top edge (dark: graphite), corners at 5px */
+.home { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; cursor: pointer;
+  border: 1px solid var(--key-line); border-radius: 5px; background: var(--key-fill); box-shadow: var(--key-shadow); font-size: 13.5px; font-weight: 650; color: var(--ink); }
+.home svg { width: 16px; height: 16px; color: var(--ink); }
+.home:hover { border-color: var(--graphite); }
+.home:active { transform: translateY(1px); }
+body:not(.q) #home, body.practicing #practiceBtn { background: var(--seg-on); border-color: var(--seg-on-line); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18); }  /* where you are: the key held down */
+/* The question box: Classic's ask box, solid, its 1px edge the four pens' colours, a shadow under it */
+.search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 12px; border-radius: 2px;
+  border: 1px solid transparent;
+  background: linear-gradient(var(--ask-fill), var(--ask-fill)) padding-box,
+              linear-gradient(100deg, rgba(255, 77, 109, .4), rgba(242, 225, 76, .4), rgba(76, 201, 240, .4), rgba(232, 76, 240, .4)) border-box;
+  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .5); }
+.search:focus-within { background: linear-gradient(var(--ask-fill), var(--ask-fill)) padding-box,
+              linear-gradient(100deg, rgba(255, 77, 109, .85), rgba(242, 225, 76, .85), rgba(76, 201, 240, .85), rgba(232, 76, 240, .85)) border-box; }
+.search svg { flex: none; width: 16px; height: 16px; color: var(--icon); }
+.search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: 400 14.5px/1 var(--sans); letter-spacing: -0.005em; }
+.search input::placeholder { color: var(--graphite); font-size: 13.5px; }
+.search input::-webkit-search-cancel-button { display: none; }
+/* A segmented choice: Classic's settings segments, a faint key each, the chosen one pressed with a white hairline */
+.seg { display: flex; gap: 4px; }
+.seg button { cursor: pointer; height: 30px; padding: 1px 9px; border-radius: 5px; border: 1px solid transparent; background: var(--seg-off); font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.seg button:hover { background: var(--pane-hover); color: var(--ink); }
+.seg button.on { background: var(--seg-on); border-color: var(--seg-on-line); font-weight: 650; color: var(--ink); }
+/* The model's switch: a reading written straight on the bar after a hairline, its lamp and Classic's switch */
+.engine { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 0 0 14px; border: 0; border-left: 1px solid var(--rule-2); border-radius: 0; cursor: pointer; background: none; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.engine .dot { --lamp-c: var(--off); width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 38% 34%, color-mix(in srgb, var(--lamp-c) 30%, #fff) 0 22%, var(--lamp-c) 62%); }
+.engine .sw { position: relative; width: 40px; height: 24px; border-radius: 12px; background: var(--sw-off); box-shadow: var(--sw-off-shadow); transition: background-color .2s ease; }
+.engine .knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #85868c; box-shadow: 0 1px 2px rgba(0, 0, 0, .4); transition: transform .2s ease; }
+.engine.on { color: var(--ink); } .engine.on .dot { --lamp-c: #2eb67d; }
+.engine.on .sw { background: #1a8a5a linear-gradient(rgba(0, 0, 0, .16), rgba(255, 255, 255, .08)); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(120, 240, 190, .4), 0 0 8px -2px rgba(46, 182, 125, .6); }
+.engine.on .knob { transform: translateX(16px); background: #f1f1f3; box-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 1px 0 #fff; }
+.engine.loading .dot { --lamp-c: #e8912d; animation: blink 1s ease-in-out infinite; } .engine.loading .knob { transform: translateX(8px); }
+.engine.down { cursor: default; opacity: .7; } .engine.down .dot { --lamp-c: var(--pen-red); }
+.engine[hidden] { display: none; }  /* no similarity model on this server: keyword search only, so no switch */
+@keyframes blink { 50% { opacity: .25; } }
+/* Display settings: Classic's settings sheet, nearly solid glass */
+.prefs { position: absolute; z-index: 20; top: calc(100% + 8px); right: 12px; display: grid; gap: 10px; padding: 14px 16px; border-radius: 2px;
+  background: var(--set-fill); border: 1px solid var(--glass-edge); border-top-color: var(--glass-edge-top); border-left-color: var(--glass-edge-left);
+  box-shadow: var(--set-shadow); backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2); }
+.prefs[hidden] { display: none; }
+.prefs .pr { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12.5px; font-weight: 650; color: var(--ink-2); }
+/* Icon keys: Classic's bar icon button */
+.icon-btn { flex: none; display: inline-grid; place-items: center; cursor: pointer; width: 36px; height: 34px; border-radius: 5px; border: 1px solid var(--key-icon-line); background: var(--key-icon-fill); box-shadow: var(--key-icon-shadow); color: var(--ink); font-size: 15px; }
+.icon-btn svg { width: 16px; height: 16px; }
+.icon-btn:hover { border-color: var(--graphite); }
+.icon-btn:active { transform: translateY(1px); }
+/* The section tabs: the same faint keys as the segments, the open one pressed */
+.menu { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 16px 10px; }
+.menu button { cursor: pointer; height: 26px; padding: 0 8px; border-radius: 5px; border: 1px solid transparent; background: var(--seg-off); font-size: 12.5px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
+.menu button:hover { background: var(--pane-hover); color: var(--ink); }
+.menu button.on { background: var(--seg-on); border-color: var(--seg-on-line); font-weight: 650; color: var(--ink); }
+.menu button .k { font: 700 11px/1 var(--mono); margin-right: 4px; color: var(--h, var(--graphite)); }
+.menu button.on { background: color-mix(in srgb, var(--h, var(--ink)) 16%, transparent); border-color: color-mix(in srgb, var(--h, var(--ink)) 45%, transparent); }
+
+/* Each section keeps one hue from the ring: its ids, its name in the contents, its tab, the number chip on its cards */
+[data-c="O"], [data-c="J"], [data-c="N"] { --h: var(--k0); }  [data-c="A"], [data-c="K"], [data-c="S"] { --h: var(--k1); }
+[data-c="B"], [data-c="L"], [data-c="M"] { --h: var(--k2); }  [data-c="C"], [data-c="P"] { --h: var(--k3); }  [data-c="D"], [data-c="Q"] { --h: var(--k4); }
+[data-c="E"], [data-c="U"] { --h: var(--k5); }  [data-c="F"], [data-c="V"] { --h: var(--k6); }  [data-c="G"], [data-c="W"] { --h: var(--k7); }
+[data-c="H"], [data-c="Y"] { --h: var(--k8); }  [data-c="I"], [data-c="Z"] { --h: var(--k9); }
+.id { color: var(--h, var(--graphite)); }
+
+/* The board: equal columns across the screen at one type size. Short answers stack in a column and the last one reaches
+   the foot, so every column ends on one line; a long answer is one card over several columns whose inner columns sit
+   exactly on the board's columns. More answers continue to the right, a screen at a time, with a smooth slide. */
+main { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 14px; padding: 14px 16px 14px; height: calc(100vh - var(--top-h, 100px)); }
+main.browse { grid-template-columns: minmax(0, 1fr); }
+main.browse .rank { display: none; }
+/* The other candidates: a pane of Classic's right-column glass, its rows the contents' rows, the ones on screen lit with the red ribbon */
+.rank { overflow-y: auto; scrollbar-width: thin; padding: 8px 6px; border-radius: 2px; background: var(--pane-fill), var(--paper);
+  border: 1px solid var(--pane-line); border-top-color: var(--glass-edge-top); border-left-color: var(--glass-edge-left);
+  box-shadow: var(--glass-shadow); }  /* opaque like the contents boxes: no backdrop-filter under rows that change on hover */
+.row { position: relative; display: flex; align-items: baseline; gap: 8px; width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; padding: 4px 8px 4px 22px; border-radius: 2px; font-size: calc(var(--fs-base, 13px) - .5px); line-height: 1.42; color: var(--ink-2); transition: background-color .12s ease; }
+.row:hover { background: var(--pane-hover); color: var(--ink); }
+.row.on { color: var(--ink); background: var(--pane-on); }  /* on screen now */
+.row.on::before { content: ""; position: absolute; top: 0; left: 7px; width: 9px; height: 19px; background: var(--margin); clip-path: var(--ribbon-cut); }
+.row.on ~ .row.on::before { content: none; }   /* one ribbon, on the first answer on screen: a bookmark marks one page */
+.row .id { flex: none; width: 34px; font: 600 11px/1.42 var(--mono); }
+.row .t { flex: 1; min-width: 0; }
+
+.cards { position: relative; height: 100%; min-width: 0; display: flex; align-items: stretch; gap: 14px; font-size: var(--fs-base, 13px);
+  overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; scroll-snap-type: x proximity; overscroll-behavior-x: contain; scrollbar-width: none; }
+.cards::-webkit-scrollbar { display: none; }
+.slot { flex: none; display: flex; flex-direction: column; gap: 10px; scroll-snap-align: start; }
+.slot > .card:last-child { flex: 1 1 auto; }  /* the last card reaches the foot of the column */
+.block { flex: none; display: flex; scroll-snap-align: start; }
+.block > .card { flex: 1; height: 100%; overflow: hidden; column-count: var(--n, 2);
+  column-gap: calc(14px + 2em + 2px); column-rule: 1px solid var(--rule); column-fill: balance; }  /* inner columns land on the board's columns, filled evenly (a full left column beside an empty right one looks lopsided) */
+.block.whole > .card .ch, .block.whole > .card .weak { column-span: all; }  /* the title runs across a card that fits one screen */
+.block .body p, .block .fld, .block .body li { break-inside: auto; orphans: 2; widows: 2; }
+.block .fld.key, .block .fld.short, .block .body pre, .block .body table, .block .ch { break-inside: avoid; }
+.cards.tocv { display: block; overflow-x: hidden; scroll-snap-type: none; }  /* the contents: one block of balanced columns */
+.cards.measure { position: absolute; left: -30000px; top: 0; visibility: hidden; display: block; height: auto; overflow: visible; }
+.cards.measure .block { height: var(--h); }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.cards.enter .card { animation: rise .2s ease-out both; }
+/* A page gone to from the list says so with its edge (Classic's page flash) */
+@keyframes flash { from { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ink) 60%, transparent), var(--page-shadow); } to { box-shadow: inset 0 0 0 2px transparent, var(--page-shadow); } }
+.card.flash { animation: flash 1.2s ease-out; }
+
+/* An answer is a page of Classic's paper: white at 66% over the desk, a sheen from the top left, grain and the printed dot grid,
+   nearly square corners. Narrow under 820px, so no punched holes or margin rule. */
+.card { position: relative; min-height: 0; padding: .9em 1.05em .95em; border-radius: 2px; border: 1px solid var(--glass-line);
+  background-color: var(--card-fill);   /* solid: what is read stays opaque (glass is for status), no printed dots under small text */
+  background-image: var(--page-sheen), var(--grain); background-size: auto, 220px 220px;
+  box-shadow: var(--page-shadow); }
+/* The best answer carries Classic's red ribbon, the bookmark of the page you are on */
+.card.best::before { content: ""; position: absolute; top: -1px; right: 12px; width: 11px; height: 26px; background: var(--margin); clip-path: var(--ribbon-cut); z-index: 1; }
+.card.best .ch { padding-right: 18px; }
+.ch { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: .55em; padding-bottom: .5em; margin-bottom: .6em; border-bottom: 1.5px solid var(--rule-2); }
+.ch .te { grid-column: 2; }
+.ch .id { font: 750 .9em/1.5 var(--sans); padding: 0 .55em; border-radius: 2px; color: var(--h, var(--ink)); background: color-mix(in srgb, var(--h, var(--ink)) 15%, transparent); }  /* the number: Classic's kind chip, in its section's hue */
+.ch .t { font-weight: 720; font-size: 1.08em; line-height: 1.4; letter-spacing: -0.012em; color: var(--ink); }
+.ch .te { font-size: .9em; line-height: 1.45; color: var(--graphite); }
+/* No exact script: Classic's warning band, the tone at 16% */
+.weak { margin: 0 0 .6em; padding: .55em .8em; border-radius: 2px; background: color-mix(in srgb, var(--warn-tone) 16%, transparent); color: var(--ink); }
+.weak b { color: var(--warn-tone); }
+
+.body { line-height: 1.62; color: var(--ink); }
+.lang-ko .fld.en, .lang-en .fld.ko { display: none; }
+.lang-en .fld.note { opacity: .55; }  /* EN view: the Korean caution notes are cues for follow-ups, so they are only dimmed */
+.fld { margin: .55em 0; }
+.fld:first-child { margin-top: 0; }
+.fld p { margin: 0; }
+/* Labels: Classic's square kind chip, one colour per kind of field, so KO, EN, the spoken script, the key line and cautions part at a glance */
+.fld { --lc: var(--graphite); }
+.fld.ko { --lc: var(--c-ko); } .fld.en { --lc: var(--c-en); } .fld.short { --lc: var(--c-short); } .fld.key { --lc: var(--c-key); } .fld.note { --lc: var(--c-note); }
+.fld .lab { display: inline-block; margin-right: .5em; padding: .08em .45em; border-radius: 2px; font: 750 .8em/1.45 var(--sans); letter-spacing: .03em; vertical-align: .06em;
+  color: var(--lc); background: color-mix(in srgb, var(--lc) 14%, transparent); }
+/* The one line to land: Classic's answer box, tinted with its own colour */
+.fld.key { padding: .6em .8em; border-radius: 2px; background: color-mix(in srgb, var(--c-key) 9%, transparent); }
+.fld.key p { font-weight: 650; line-height: 1.52; }
+.fld.en { padding-top: .55em; border-top: 1px dashed var(--rule); }
+.fld.en p { color: var(--ink-2); letter-spacing: 0; }
+/* A short answer block at the head of an entry (no source fills it today): Classic's summary block, the ink at 4% */
+.fld.en.short { padding: .6em .8em; border-top: 0; border-radius: 2px; background: color-mix(in srgb, var(--c-short) 8%, transparent); }
+.fld.en.short p { color: var(--ink); font-weight: 500; line-height: 1.6; }  /* the same type size as the rest: one size on the whole board */
+.fld.short .lab { display: block; width: max-content; max-width: 100%; margin-bottom: .4em; }
+.fld.short .lab .st { margin-left: .45em; font-weight: 600; letter-spacing: 0; color: var(--graphite); }
+.fld.en .th, .fld.note .th { display: block; padding-left: 1.1em; text-indent: -1.1em; }  /* one thought (between ' // ' marks) per line, wrapped lines indented: it reads like a script */
+.fld .dir { color: var(--graphite); font-style: italic; font-weight: 500; white-space: nowrap; }  /* stage notes in Korean brackets, such as (웃으며): not spoken */
+.fld .br { color: var(--off); font-weight: 400; }  /* ' / ' marks a breath */
+.block .fld.short { column-span: all; }  /* a short answer runs across a card of several columns */
+.fld.note p { color: var(--ink-2); }
+.fld.ko p { color: var(--ink-2); }  /* 해석: the Korean meaning under the English script */
+/* A dialogue scene: interviewer lines and my lines take turns, each English line with its 해석 */
+.fld.iv { --lc: var(--k0); margin-top: .9em; }
+.fld.me { --lc: var(--c-short); margin-top: .5em; }
+.fld.iv:first-child, .fld.me:first-child { margin-top: 0; }
+/* The interviewer's lines only say what is being asked, so they are dimmed: my lines are the main text */
+.fld.iv p { font-weight: 400; color: var(--off); }
+.fld.iv .lab { color: var(--off); background: color-mix(in srgb, var(--off) 12%, transparent); }
+.fld.me p { color: var(--ink); font-weight: 500; }
+.fld.tr.iv p { color: var(--off); font-weight: 400; }
+.fld.tr.me p { color: var(--ink-2); font-weight: 400; }
+.fld.tr { margin: .5em 0 0; }
+.fld.tr.iv { margin-top: .9em; }
+.fld.tr p { color: var(--ink-2); line-height: 1.6; }
+/* The 해석 note: a faint box under the English scene, small grey name tags, my lines a little darker */
+.ko-note { margin-top: 1.1em; padding: .55em .8em .7em; border-radius: 2px; background: color-mix(in srgb, var(--ink) 4%, transparent); border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent); }
+.ko-note { -webkit-box-decoration-break: clone; box-decoration-break: clone; }  /* a note that crosses columns keeps its box in each column */
+.ko-note { break-inside: avoid; }  /* a note that fits a column stays whole in one column; a longer one still flows, its badge inline on the first line */
+/* On a card of several columns the 해석 box stays inside one column; it never runs across the columns */
+.ko-note .nh { display: inline-block; margin: 0 .55em 0 0; vertical-align: .06em; padding: .05em .45em; border-radius: 2px; font: 750 .8em/1.45 var(--sans); letter-spacing: .03em; color: var(--c-ko); background: color-mix(in srgb, var(--c-ko) 14%, transparent); }
+.ko-note .fld.tr, .ko-note .fld.tr.iv { margin: .3em 0 0; }
+.ko-note .fld.tr:first-child { margin-top: 0; }
+.ko-note .fld .lab { display: inline; margin-right: .45em; padding: 0; background: none; font: 600 .82em/1 var(--sans); letter-spacing: 0; color: var(--off); }
+.ko-note .fld.iv p { color: var(--off); }
+.ko-note .fld.me p { color: var(--ink-2); font-weight: 400; }
+.lang-en .ko-note { display: none; }
+.fld.en.iv, .fld.en.me { border-top: 0; padding-top: 0; }  /* no rule between lines: a scene is one piece */
+.fld .lab + .th { display: inline; padding-left: 0; text-indent: 0; }  /* the first thought starts on the name tag's line */
+.lead { font-weight: 650; }
+.body p { margin: .45em 0; }
+.body > p:first-child { margin-top: 0; }
+.body ul, .body ol { margin: .4em 0; padding-left: 1.2em; }
+.body li { margin: .2em 0; padding-left: .15em; }
+.body li::marker { color: var(--mark-blue); font-weight: 700; }   /* the blue pen's marks */
+.body table { width: 100%; border-collapse: collapse; margin: .5em 0; line-height: 1.5; overflow-wrap: normal; }
+.body th, .body td { padding: .4em .5em; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+.body th { font-weight: 650; color: var(--ink); background: var(--th-fill); border-bottom-color: var(--rule-2); }
+/* Code: Classic's code well, the off-white with a darker line, square corners, wrapped so nothing hides off to the side */
+.body pre { margin: .55em 0; padding: .75em .9em; border-radius: 2px; border: 1px solid var(--rule-2); background: var(--code-fill); color: var(--ink); font: 400 .95em/1.6 var(--mono); letter-spacing: 0; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; }
+code { font: 500 .92em/1 var(--mono); letter-spacing: 0; padding: .12em .36em; border-radius: 5px; background: var(--code-inline); color: var(--ink); white-space: break-spaces; }
+b code { font-weight: 650; }
+/* The highlighter, as Classic lays it: a stroke under the letters, not a wash over them. What is bold is what is stressed, so it wears the same yellow */
+mark.hl { color: var(--ink); font-weight: 650; padding: 0 .14em; margin: 0 -.04em; border-radius: 0;
+  background: linear-gradient(180deg, transparent var(--hl-top), var(--hl-yellow) var(--hl-top), var(--hl-yellow) var(--hl-bot), transparent var(--hl-bot));
+  -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* Stressed and key words: one warm colour, bold, no stroke (strokes under every bold word make the text hard to read) */
+.body b, .body strong { color: var(--c-bold); font-weight: 700; }
+mark.hl b, mark.hl strong { color: inherit; }
+/* The query's own words: the blue pen underlines them, so they never look like the yellow strokes */
+mark.qm { color: inherit; background: none; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--pen-blue) 70%, transparent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* The contents: each section a pane of Classic's right-column glass (its own contents card), its rows the contents' rows */
+.toc { column-gap: 14px; column-fill: balance; font-size: var(--fs-base, 13px); }
+.tg { break-inside: auto; margin: 0 0 .9em; padding: .7em .5em .7em; border-radius: 2px; background: var(--pane-fill), var(--paper);
+  border: 1px solid var(--pane-line); border-top-color: var(--glass-edge-top); border-left-color: var(--glass-edge-left);
+  box-shadow: var(--glass-shadow); }  /* opaque glass, no backdrop-filter: a contents box split across two columns draws a stray tinted rectangle over its rows in Chrome */
+.tg h3 { break-inside: avoid; break-after: avoid; margin: 0 0 .4em; padding: 0 .55em; font-size: 1.02em; font-weight: 750; letter-spacing: -0.005em; color: var(--h, var(--ink)); }  /* a pane's name in its section's hue */
+.tg button { break-inside: avoid; display: flex; gap: .6em; width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; padding: var(--row-pad, .16em) .55em; border-radius: 2px; font-size: 1em; line-height: 1.42; color: var(--ink-2); transition: background-color .12s ease; }
+.tg button:hover { background: var(--pane-hover); color: var(--ink); }
+.tg button.has-short .id::after { content: "•"; color: var(--mark-blue); margin-left: 2px; }  /* an item with a short answer: the blue pen's dot */
+.tg .id { flex: none; width: 3.1em; white-space: nowrap; font: 600 .85em/1.65 var(--mono); }  /* 'D18' and its dot on one line */
+
+/* Narrow windows (a video call beside the page): no side list; the board keeps its type size. */
+@media (max-width: 1300px) { main { grid-template-columns: minmax(0, 1fr); } .rank { display: none; } .menu { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } }
+@media (max-width: 1000px) {
+  .engine .lab { display: none; }  /* the switch alone on a narrow window */
+  .seg button { padding: 1px 7px; }
+  main { padding: 10px 12px; }
+}
+
+/* Practice mode: one column of Classic's paper in the middle of the desk. The board steps aside while it is open. */
+main.practicing { display: block; overflow-y: auto; }
+main.practicing #rank, main.practicing #cards { display: none; }
+.practice[hidden] { display: none; }
+.pr-wrap { max-width: 860px; margin: 0 auto; padding-bottom: 24px; font-size: 14px; }
+.pr-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.pr-head h2 { margin: 0; font-size: 17px; font-weight: 750; letter-spacing: -0.01em; }
+.pr-clock { font: 600 12.5px/1 var(--mono); color: var(--ink-2); }
+.pr-clock .lb { font: 600 11.5px/1 var(--sans); color: var(--graphite); }
+.pr-head .pr-clock:first-of-type { margin-left: auto; }
+.pr-note { margin: 6px 0 12px; font-size: 12.5px; color: var(--ink-2); }
+.pr-err { margin: 0 0 10px; padding: .5em .8em; border-radius: 2px; color: var(--ink); background: color-mix(in srgb, var(--pen-red) 14%, transparent); }
+.pr-card { position: relative; margin: 0 0 12px; padding: 16px 18px; border-radius: 2px; border: 1px solid var(--glass-line); background-color: var(--card-fill);
+  background-image: var(--page-sheen), var(--grain); background-size: auto, 220px 220px; box-shadow: var(--page-shadow); }
+.pr-card h3, .pr-scene h3 { margin: 0 0 8px; font-size: 14.5px; font-weight: 750; }
+.pr-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.pr-lab { flex: none; width: 92px; font-size: 12.5px; font-weight: 700; color: var(--graphite); }
+.pr-kinds { flex-wrap: wrap; }
+.pr-sw { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; }
+.pr-dim { color: var(--graphite); font-size: 12.5px; }
+.pr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+.pr-key { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; cursor: pointer; text-decoration: none; color: var(--ink);
+  border: 1px solid var(--key-line); border-radius: 5px; background: var(--key-fill); box-shadow: var(--key-shadow); font-size: 13.5px; font-weight: 650; }
+.pr-key svg { width: 16px; height: 16px; }
+.pr-key:hover { border-color: var(--graphite); }
+.pr-key:active { transform: translateY(1px); }
+.pr-key[disabled] { opacity: .5; cursor: default; transform: none; }
+.pr-key.pr-go { border-color: color-mix(in srgb, var(--ink) 45%, transparent); }
+.pr-stop .pr-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pen-red); animation: blink 1s ease-in-out infinite; }
+.pr-meter { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--well); overflow: hidden; }
+.pr-meter span { display: block; height: 100%; width: 0; background: var(--ok); transition: width .05s linear; }
+.pr-qhead { display: flex; gap: 6px; margin-bottom: 8px; }
+.pr-chip { display: inline-block; padding: .08em .5em; border-radius: 2px; font: 700 11.5px/1.5 var(--sans); color: var(--k1); background: color-mix(in srgb, var(--k1) 14%, transparent); }
+.pr-chip.pr-kind { color: var(--k0); background: color-mix(in srgb, var(--k0) 14%, transparent); }
+.pr-topic { margin: 0 0 6px; font-size: 12.5px; color: var(--graphite); }
+.pr-question { margin: 0 0 6px; font-size: 19px; line-height: 1.45; font-weight: 650; letter-spacing: -0.01em; }
+.pr-ko summary { cursor: pointer; font-size: 12.5px; color: var(--graphite); }
+.pr-ko p { margin: 4px 0 0; color: var(--ink-2); }
+.pr-ask textarea { display: block; width: 100%; margin-top: 12px; padding: 10px 12px; border-radius: 2px; border: 1px solid var(--rule-2); background: var(--ask-fill); color: var(--ink);
+  font: 400 14.5px/1.55 var(--sans); resize: vertical; }
+.pr-ask textarea:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+.pr-wait::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--warn-tone); animation: blink 1s ease-in-out infinite; }
+.pr-rows { width: 100%; border-collapse: collapse; }
+.pr-rows th { width: 150px; padding: 7px 10px 7px 0; text-align: left; vertical-align: top; font-size: 12.5px; font-weight: 700; color: var(--graphite); }
+.pr-rows td { padding: 7px 0; vertical-align: top; border-bottom: 1px solid var(--rule); }
+.pr-rows tr:last-child td { border-bottom: 0; }
+.pr-bar { position: relative; display: block; width: 100%; max-width: 360px; height: 8px; margin: 3px 0 6px; border-radius: 4px; background: var(--well); overflow: hidden; }
+.pr-bar span { display: block; height: 100%; background: var(--ok); }
+.pr-bar span.short, .pr-bar span.long { background: var(--warn-tone); }
+.pr-bar i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink-2); }
+.v-ok { color: var(--ok); } .v-short, .v-long { color: var(--warn-tone); }
+.pr-deps { margin: 0; padding-left: 1.2em; } .pr-deps li::marker { color: var(--mark-blue); }
+.pr-said { margin: 0 0 6px; color: var(--ink-2); white-space: pre-wrap; }
+.pr-fu { margin: 12px 0 0; font-size: 16px; font-weight: 600; line-height: 1.45; }
+.pr-scene .pr-cards { display: block; height: auto; overflow: visible; font-size: var(--fs-base, 13px); }
+.pr-scene .pr-cards .card { margin: 0; }
+.pr-hist { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.pr-hist td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--rule); color: var(--ink-2); vertical-align: top; }
+.pr-sum { font-size: 15px; font-weight: 600; }
+mark.hl.pr-hl { font-weight: 650; }
+
+/* A phone: the bar wraps with the question box on its own row, and the answers are one column that scrolls down
+   instead of screens that slide sideways. The type is a size larger, for reading at arm's length. */
+@media (max-width: 720px) {
+  body { height: auto; min-height: 100vh; overflow-y: auto; }
+  .top { position: sticky; top: 0; }
+  .bar { flex-wrap: wrap; gap: 6px 8px; padding: 8px 10px 6px; }
+  .search { order: 9; flex: 1 1 100%; height: 42px; }
+  .home span, #practiceBtn span { display: none; }
+  .home { padding: 0 11px; }
+  .seg button { height: 32px; padding: 1px 9px; }
+  .menu { padding: 0 10px 8px; }
+  main, main.browse, main.practicing { display: block; height: auto; padding: 10px; overflow: visible; }
+  .cards.phone { display: flex; flex-direction: column; gap: 10px; height: auto; overflow: visible; scroll-snap-type: none; font-size: 15px; }
+  .cards.phone .card { width: 100%; }
+  .cards.tocv { height: auto; overflow: visible; font-size: 15px; }
+  .cards.tocv .toc { column-count: 1 !important; }
+  .prefs { left: 8px; right: 8px; }
+  .pr-wrap, .pr-scene .pr-cards { font-size: 15px; }
+  .pr-head .pr-clock:first-of-type { margin-left: 0; }
+  .pr-question { font-size: 18px; }
+  .pr-rows th { width: 96px; }
+  .pr-card { padding: 14px; }
+  .pr-key { height: 40px; }
+}
+</style>
+</head>
+<body>
+<header class="top" id="top">
+  <div class="bar">
+    <button type="button" class="home" id="home" title="{{home_title}}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="4" width="7" height="7" rx="1.5"/><rect x="13.5" y="4" width="7" height="7" rx="1.5"/><rect x="3.5" y="14" width="7" height="7" rx="1.5"/><rect x="13.5" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>{{home}}</span>
+    </button>
+    <label class="search" for="q">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" autofocus
+        placeholder="{{placeholder}}">
+    </label>
+    <div class="seg" role="group" aria-label="{{lang_group}}">
+      <button type="button" data-lang="both" class="on" title="Alt+1">{{lang_both}}</button>
+      <button type="button" data-lang="ko" title="Alt+2">KO</button>
+      <button type="button" data-lang="en" title="Alt+3">EN</button>
+    </div>
+    <button type="button" class="home" id="practiceBtn" title="{{practice_title}}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <span>{{practice}}</span>
+    </button>
+    <button type="button" id="engine" class="engine" title="{{engine_title}}" aria-pressed="false"{{engine_hidden}}><span class="dot"></span><span class="lab">{{engine_label}}</span><span class="sw"><span class="knob"></span></span></button>
+    <button type="button" class="icon-btn" id="prefs" title="{{prefs}}" aria-label="{{prefs}}" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    </button>
+    <button type="button" class="icon-btn" id="theme" title="{{theme_title}}" aria-label="{{theme_aria}}">◐</button>
+    <div class="prefs" id="prefsPanel" hidden>
+      <div class="pr"><span>{{text_size}}</span><div class="seg" data-pref="fs"><button type="button" data-v="12">12</button><button type="button" data-v="13">13</button><button type="button" data-v="14">14</button><button type="button" data-v="15">15</button></div></div>
+      <div class="pr"><span>{{col_width}}</span><div class="seg" data-pref="colw"><button type="button" data-v="22">{{col_narrow}}</button><button type="button" data-v="25">{{col_normal}}</button><button type="button" data-v="29">{{col_wide}}</button></div></div>
+    </div>
+  </div>
+  <nav class="menu" id="menu" aria-label="{{menu_aria}}"></nav>
+</header>
+<main id="main">
+  <nav id="rank" class="rank" aria-label="{{rank_aria}}"></nav>
+  <section id="cards" class="cards" aria-live="polite"></section>
+  <section id="practicePane" class="practice" aria-live="polite" hidden></section>
+</main>
+<script id="data" type="application/json">/*__DATA__*/null</script>
+<script>
+"use strict";
+
+// ---------- data ----------
+let DATA = null;  // {items, alts, kit, syn, str, model, port} inlined by the server (or the saved copy)
+try { DATA = JSON.parse(document.getElementById("data").textContent); } catch (e) { DATA = null; }  // a raw template has no data
+const ITEMS = (DATA && DATA.items) || [];  // every question with its script
+const ALTS = (DATA && DATA.alts) || {};  // other ways each question may be asked
+const KIT = (DATA && DATA.kit) || {};  // the job's settings from kit.json: section names, fallback item, hidden notes
+const STR = (DATA && DATA.str) || {};  // the user-facing strings in the page's language (i18n.json)
+const fmt = (k, v) => String(STR[k] || k).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] !== undefined ? v[n] : m));  // a string with {name} slots filled
+const BY_ID = new Map(ITEMS.map((it, i) => [it.id, i]));  // id -> position
+const BY_ID_LC = new Map(ITEMS.map((it, i) => [it.id.toLowerCase(), i]));  // typed ids are matched without case
+// Served pages call their own origin. A saved copy (file://) asks the local server only whether it is up, then opens the live page.
+const API = location.protocol.startsWith("http") ? "" : "http://127.0.0.1:" + ((DATA && DATA.port) || 8796) + "/";  // served: the page's own folder (the panel's /kit/<job>/ too); a saved copy: the port it was served from
+
+// ---------- small helpers ----------
+const $ = (s) => document.querySelector(s);  // one element by selector
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));  // HTML-safe text
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));  // keep x within [a, b]
+const cat = (id) => (/^[A-Z]/.test(id || "") ? id[0] : "");  // the section letter an id starts with, for its hue
+const store = {  // per-viewer settings; storage can be missing or blocked, so every access is guarded
+  get(k, d) { try { const v = localStorage.getItem("offerowl-interview:" + k); return v === null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("offerowl-interview:" + k, v); } catch (e) { /* ignore */ } },
+};
+
+// ---------- tokenising (keyword half) ----------
+// Korean particles and endings stripped from the end of a word, longest first.
+const JOSA = ["에서부터", "으로부터", "이라고", "에게서", "으로서", "으로써", "에서는", "에서도", "으로는", "이라는", "까지는",
+  "습니까", "습니다", "했나요", "하나요", "인가요", "였나요", "했는지", "하는지", "입니다", "합니다", "했어요", "해요",
+  "에서", "에게", "한테", "께서", "까지", "부터", "보다", "처럼", "마다", "이나", "이랑", "하고", "으로", "라고", "라는", "이란",
+  "했다", "하다", "한다", "했던", "하는", "인데", "는데", "은데", "나요", "가요", "죠",
+  "로", "은", "는", "이", "가", "을", "를", "에", "의", "도", "만", "와", "과", "랑", "요", "란"];
+// Words that carry no topic in an interviewer's question.
+const STOP_KO = new Set(["어떻게", "무엇", "무엇을", "뭐", "뭘", "어떤", "있나", "있나요", "있습니까", "있었나", "해주세요", "해주시겠어요",
+  "말씀", "주세요", "설명", "대해", "대해서", "그리고", "그럼", "혹시", "본인", "지원자", "하셨나", "했나", "건가", "인가", "좀", "한번",
+  "그런", "이런", "저런", "어느", "얼마나", "정도", "가장", "제일", "때", "것", "수", "등"]);
+const STOP_EN = new Set(("a an the of to in on for and or is are was were be been being i you we it its this that these those with as at by " +
+  "from my your our me do does did how what why when which who whom can could would should will about into than then there their they " +
+  "them he she his her tell describe explain please us so if any some have has had time times example give talk walk through ever " +
+  "kind much many more most really just like also still even well way thing things something").split(" "));
+// Cross-language and same-meaning groups; a query word also matches the rest of its group, at lower weight.
+// The built-in groups are in synonyms.json, a job adds its own in kit.json; the server sends both.
+const SYN = (DATA && DATA.syn) || [];
+
+function stemKo(w) {  // strip one particle or ending, keeping at least two syllables
+  for (const j of JOSA) if (w.length >= j.length + 2 && w.endsWith(j)) return w.slice(0, -j.length);
+  return w;
+}
+function stemEn(w) {  // a light English stemmer: plurals and -ing, -ed
+  if (w.length > 4 && w.endsWith("ies")) return w.slice(0, -3) + "y";
+  if (w.length > 5 && w.endsWith("ing")) return w.slice(0, -3);
+  if (w.length > 4 && w.endsWith("ed")) return w.slice(0, -2);
+  if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") && !/\d/.test(w)) return w.slice(0, -1);
+  return w;
+}
+const WORD = /[a-z0-9]+(?:[./+\-][a-z0-9]+)*|[가-힣]+/g;  // Latin words (with ci/cd, load-tests) or Hangul runs
+
+function terms(s, forQuery) {  // [{t, w, whole}] for a text: whole words, Korean bigrams, word parts
+  const out = [];  // weighted terms
+  for (const m of String(s).normalize("NFKC").toLowerCase().matchAll(WORD)) {
+    const tok = m[0];  // one word
+    if (/^[가-힣]/.test(tok)) {  // Hangul
+      if (forQuery && (STOP_KO.has(tok) || JOSA.includes(tok))) continue;  // drop question filler and particles typed after a space ("Kubernetes 에서")
+      const st = stemKo(tok);  // word without its particle
+      if (forQuery && STOP_KO.has(st)) continue;  // filler after stripping too
+      out.push({ t: st, w: 1, whole: true });  // the word itself
+      if (st.length === 2) out.push({ t: "#" + st, w: 0.45 });  // lets a two-syllable query word match inside longer words
+      for (let i = 0; i + 2 <= st.length && st.length > 2; i++) out.push({ t: "#" + st.slice(i, i + 2), w: 0.45 });  // syllable bigrams
+    } else {  // Latin, digits
+      if (STOP_EN.has(tok)) continue;  // function words
+      if (tok.length < 2 && !/\d/.test(tok)) continue;  // single letters say nothing
+      out.push({ t: stemEn(tok), w: 1, whole: true });  // the word itself
+      if (/[./+\-]/.test(tok)) for (const p of tok.split(/[./+\-]/)) if (p.length >= 2 && !STOP_EN.has(p)) out.push({ t: stemEn(p), w: 0.6 });  // its parts
+    }
+  }
+  return out;
+}
+
+// Synonym lookup built once from SYN, keyed by the stemmed form of each word.
+const SYN_OF = new Map();  // stem -> list of other stems in its group
+for (const g of SYN) {
+  const stems = g.map((w) => (/^[가-힣]/.test(w) ? stemKo(w) : stemEn(w.toLowerCase())));  // normalise like the index does
+  stems.forEach((s, i) => SYN_OF.set(s, (SYN_OF.get(s) || []).concat(stems.filter((_, j) => j !== i))));
+}
+
+// ---------- BM25 over weighted fields ----------
+const K1 = 1.2, B = 0.5;  // term saturation and a mild length penalty (scripts vary a lot in length)
+const DOCS = ITEMS.map((it) => {  // one bag of weighted terms per item
+  const tf = new Map(); let len = 0;  // term -> weighted count, total weight
+  const add = (text, boost) => { for (const { t, w } of terms(text, false)) { const v = boost * w; tf.set(t, (tf.get(t) || 0) + v); len += v; } };
+  add(`${it.id} ${it.tko} ${it.ten}`, 3);  // the question counts most
+  add(it.key, 2);  // then the one-line core
+  add((ALTS[it.id] || []).join(" \n "), 1.2);  // other phrasings
+  add(it.text, 1);  // every word of the script and notes
+  return { tf, len };
+});
+const AVG = DOCS.reduce((a, d) => a + d.len, 0) / Math.max(1, DOCS.length);  // average weighted length
+const DF = new Map();  // term -> number of items containing it
+for (const d of DOCS) for (const t of d.tf.keys()) DF.set(t, (DF.get(t) || 0) + 1);
+const idf = (t) => { const df = DF.get(t) || 0; return Math.log(1 + (DOCS.length - df + 0.5) / (df + 0.5)); };  // rarer terms count more
+
+function queryTerms(q) {  // query terms with synonyms added at half weight, merged by term
+  const m = new Map();  // term -> weight
+  const base = terms(q, true);  // the words as typed
+  for (const { t, w } of base) m.set(t, Math.max(m.get(t) || 0, w));
+  for (const { t, whole } of base) if (whole) for (const s of SYN_OF.get(t) || []) if (!m.has(s)) m.set(s, 0.5);  // group members
+  return { m, words: base.filter((x) => x.whole).map((x) => x.t) };
+}
+function bm25(qm) {  // score of every item for a query term map
+  const s = new Float64Array(DOCS.length);  // one score per item
+  for (const [t, qw] of qm) {
+    if (!DF.has(t)) continue;  // no item has it
+    const w = idf(t) * qw;  // term importance
+    DOCS.forEach((d, i) => { const f = d.tf.get(t); if (f) s[i] += w * (f * (K1 + 1)) / (f + K1 * (1 - B + B * d.len / AVG)); });
+  }
+  return s;
+}
+
+// ---------- similarity half (server) ----------
+let dense = null;  // {q, map: id -> [score, label, text], med, max} for the last answered query
+let denseOk = null;  // null unknown, true reachable, false down
+let inflight = null;  // AbortController of the running request
+let engine = "unknown";  // the server's model: on, off, loading, or down when the server cannot be reached
+let tHealth = 0;  // the next poll while the model loads
+function setEngine(state, info) {  // show the switch as the server reports it; similarity is used only while on
+  engine = state; denseOk = state === "on";
+  const el = $("#engine"); el.className = "engine " + state; el.setAttribute("aria-pressed", String(state === "on"));
+  el.disabled = state === "down" || state === "loading";  // nothing to switch while loading or with no server
+  const mem = info && info.rss_mb ? fmt("engine_mem", { mb: info.rss_mb }) : "";  // how light the idle server is
+  el.title = fmt("engine_" + state, { mem }) + (info && info.error ? fmt("engine_error", { error: info.error }) : "");  // on, off, loading or down
+}
+async function health() {  // ask the server how the model is; poll while it loads
+  clearTimeout(tHealth);
+  try {
+    const r = await fetch(API + "api/health", { cache: "no-store" }); const j = await r.json();
+    setEngine(j.state || "on", j);
+    if (j.state === "loading") tHealth = setTimeout(health, 1000);
+  } catch (e) { setEngine("down"); tHealth = setTimeout(health, 15000); }  // look again now and then
+}
+async function switchEngine() {  // the switch: load the model, or drop it
+  if (engine !== "on" && engine !== "off") return;
+  const want = engine === "on" ? "off" : "on";
+  if (want === "off" && !confirm(fmt("engine_confirm"))) return;  // a stray click must not drop the model mid-interview
+  setEngine(want === "on" ? "loading" : "off");  // answer the click at once
+  try { await fetch(API + "api/model/" + want, { method: "POST", cache: "no-store" }); } catch (e) { /* health says what happened */ }
+  health();
+}
+async function fetchDense(q) {  // ask the server for every item's similarity to q
+  if (inflight) inflight.abort();  // only the newest query matters
+  const ctl = new AbortController(); inflight = ctl;
+  try {
+    const r = await fetch(API + "api/dense?q=" + encodeURIComponent(q), { signal: ctl.signal, cache: "no-store" });
+    if (!r.ok) throw new Error("similarity off");  // the model was switched off: the catch falls back to keywords
+    const j = await r.json();  // {scores: [[id, s, label, text]], ms}
+    const map = new Map(j.scores.map((x) => [x[0], x.slice(1)]));  // id -> [s, label, text]
+    const vals = j.scores.map((x) => x[1]).sort((a, b) => a - b);  // ascending scores
+    dense = { q, map, med: vals[Math.floor(vals.length / 2)] || 0, max: vals[vals.length - 1] || 0 };
+    if (engine !== "on") setEngine("on");
+    if (q === current) { clearTimeout(tKey); show(); }  // the fused ranking replaces the keyword fallback timer
+  } catch (e) {
+    if (e.name === "AbortError") return;  // a newer query took over
+    denseOk = false;  // keywords at once for this query
+    health();  // and ask the server how the model is
+    if (q === current) { clearTimeout(tKey); show(); }
+  }
+}
+
+// ---------- fusion ----------
+function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim, why}], words, weak}
+  const { m, words } = queryTerms(q);
+  const kw = bm25(m);  // keyword scores
+  let kmax = 0; for (const v of kw) kmax = Math.max(kmax, v);
+  const d = dense && dense.q === q ? dense : null;  // similarity only if it answers this exact query
+  // Similarity leads; keywords break ties and matter most for one-word queries. The weights were tuned on a 61-question
+  // eval set (top-1 60/61 blended, 59/61 for similarity alone and 52/61 for keywords alone, without phrasings).
+  let wk = words.length <= 1 ? 0.3 : words.length === 2 ? 0.2 : 0.15;
+  if (!d) wk = 1;  // keyword-only when the server cannot answer
+  if (d && kmax === 0) wk = 0;  // nothing matched literally: similarity decides alone
+  const span = d ? Math.max(1e-6, d.max - d.med) : 1;  // items at or below the median score get no similarity credit
+  const out = [];
+  // Term entries (role "terms") come first for a "What is X?" question or a single word, and step back for a scenario question,
+  // so a long list of terms does not push the scenes down (on a 30-question eval set, top-1 fell from 29/30 to 25/30 without it)
+  const defQ = words.length <= 1 || /\bwhat\s*(is|are|'s)\b|\bwhat\s+does\b.*\b(mean|stand)|\bstands?\s+for\b|\bdefin|\bexplain\s+\S+\s*\??$|뭐야|뭔가요|뭐예요|무엇인가|무슨\s*뜻|이란\b|란\s*\??$/i.test(q);
+  ITEMS.forEach((it, i) => {
+    const kn = kmax > 0 ? kw[i] / kmax : 0;  // keyword, 0..1
+    const ds = d ? d.map.get(it.id) : null;  // [s, label, text]
+    const dn = ds ? clamp((ds[0] - d.med) / span, 0, 1) : 0;  // similarity, 0..1
+    const score = (wk * kn + (1 - wk) * dn) * (it.role === "terms" ? (defQ ? 1.25 : 0.6) : 1);  // convex blend; terms lead for "what is X" and step back for scenario questions
+    if (score > 0.04) out.push({ i, score, kn, dn, sim: ds ? ds[0] : null, why: ds && dn > 0.55 ? ds : null });
+  });
+  out.sort((a, b) => b.score - a.score);  // best first
+  const weak = d ? d.max < 0.6 : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62
+  return { list: out.slice(0, 40), words, weak };
+}
+
+// ---------- markdown for the cards ----------
+const FIELD = /^(?:-\s+)?\*\*(핵심|KO|EN|국문|주의|꼬리 대비|면접관|나|해석)(?:\(([^)]*)\))?\*\*\s*[:：]?\s*(.*)$/;  // labelled field line
+const FIELD_CLASS = { "핵심": "key", KO: "ko", "국문": "ko", EN: "en", "주의": "note", "꼬리 대비": "note", "면접관": "en iv", "나": "en me", "해석": "ko tr" };  // dialogue: the interviewer's and my English lines, each with its 해석 under it
+const LABELS = STR.labels || {};  // how each field label is shown in the page's language (the files always use the Korean labels)
+const labelOf = (k) => (k ? LABELS[k] || k : "");  // a shown label; an empty speaker stays empty
+// Cross-references for the writer, such as "(see project 2)", mean nothing in the live moment. The job's kit.json lists them as
+// regular expressions ("strip"); they are removed from titles and text before showing.
+const REF = (KIT.strip || []).length ? new RegExp(KIT.strip.join("|"), "g") : null;
+const unref = (s) => (REF ? String(s).replace(REF, "") : String(s));  // text without the writer's cross-references
+ITEMS.forEach((it) => { it.tko = unref(it.tko).replace(/==|\*\*|`/g, ""); });  // titles: no cross-references, no marks
+function inline(s) {  // highlight, bold, italic, inline code on escaped text, without the writer's cross-references
+  let h = esc(unref(s));
+  h = h.replace(/`([^`]+)`/g, "<code>$1</code>");  // inline code
+  h = h.replace(/==(.+?)==/g, '<mark class="hl">$1</mark>');  // the phrase to say, in yellow
+  h = h.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");  // bold
+  h = h.replace(/(^|[\s(“"'])\*(?!\s)(.+?)(?<!\s)\*(?=$|[\s).,!?;:”"'])/g, "$1<i>$2</i>");  // italic
+  return h;
+}
+function joinLines(lines) {  // source lines are wrapped for the editor: run them on, except a quoted line, which keeps its own line
+  return lines.map((l, k) => (k && /^[*"“]/.test(l) ? "<br>" : k ? " " : "") + inline(l)).join("");
+}
+function render(md, lead) {  // a small block parser: fields, tables, lists, code, paragraphs
+  const L = md.split("\n"); const out = []; let i = 0; let led = !lead; let who = "";  // who: the speaker of the last English line, for its Korean line; lead: bold the first sentence of the first KO block
+  const isList = (s) => /^\s*(?:[-*]|\d+\.)\s+/.test(s);  // bullet or numbered line
+  while (i < L.length) {
+    const ln = L[i];
+    if (!ln.trim() || /^-{3,}\s*$/.test(ln)) { i++; continue; }  // blank lines and rules
+    if (ln.startsWith("```")) {  // fenced code
+      const buf = []; i++;
+      while (i < L.length && !L[i].startsWith("```")) buf.push(L[i++]);
+      i++; out.push(`<pre>${esc(buf.join("\n"))}</pre>`); continue;
+    }
+    const f = ln.trim().match(FIELD);
+    if (f) {  // a labelled field and its continuation lines
+      const buf = [f[3]]; i++;
+      while (i < L.length && L[i].trim() && !FIELD.test(L[i].trim()) && !(isList(L[i]) && !/^\s{2,}/.test(L[i]))) buf.push(L[i++].trim());
+      if (f[1] === "면접관" || f[1] === "나") who = f[1];
+      const cls = f[1] === "해석" ? "ko tr " + (who === "면접관" ? "iv" : "me") : FIELD_CLASS[f[1]];  // a Korean line wears its speaker's colour
+      const lab = f[1] === "해석" ? labelOf(who) : labelOf(f[1] === "국문" || f[1] === "KO" ? "해석" : f[1]) + (f[2] ? ` (${f[2]})` : "");  // the Korean text is the 해석 of the English script
+      let html = joinLines(buf);
+      if (cls === "ko" && !led) {  // the conclusion comes first; skipped when the script already marks its own phrases
+        if (!/<mark class="hl">/.test(html)) html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.length <= 80 ? `<span class="lead">${s1}</span>${s2}` : m0));
+        led = true;
+      }
+      if (cls.startsWith("en") || (cls === "note" && /\s\/\/\s/.test(html))) html = scriptHtml(html);  // English answers and follow-up answers read as a script, line by line
+      out.push(`<div class="fld ${cls}"><p>${lab ? `<span class="lab">${esc(lab)}</span>` : ""}${html}</p></div>`);
+      continue;
+    }
+    if (ln.trim().startsWith("|")) {  // a table
+      const rows = [];
+      while (i < L.length && L[i].trim().startsWith("|")) rows.push(L[i++].trim());
+      const cells = (r) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      const body = rows.filter((r) => !/^\|?[\s:|-]+\|?$/.test(r));  // drop the separator row
+      const head = body.shift() || "";
+      out.push(`<table><thead><tr>${cells(head).map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>` +
+        body.map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("") + "</tbody></table>");
+      continue;
+    }
+    if (isList(ln)) {  // a list, nested by indentation
+      const lines = [];
+      while (i < L.length && (isList(L[i]) || (/^\s{2,}\S/.test(L[i]) && lines.length))) lines.push(L[i++]);
+      out.push(list(lines)); continue;
+    }
+    const buf = [];  // a paragraph runs until a blank line or another block
+    while (i < L.length && L[i].trim() && !isList(L[i]) && !L[i].trim().startsWith("|") && !FIELD.test(L[i].trim()) && !L[i].startsWith("```")) buf.push(L[i++].trim());
+    out.push(`<p>${joinLines(buf)}</p>`);
+  }
+  // English is the main text in an English interview: the English scene, then its 해석, the key line, then the rest in file order.
+  // The whole English scene comes first and the same scene in Korean comes under it as one block, not line by line.
+  const rankOf = (h) => (h.startsWith('<div class="fld en') ? 0 : h.startsWith('<div class="fld ko') ? 1 : h.startsWith('<div class="fld key') ? 2 : 3);
+  const sorted = out.map((h, k) => [rankOf(h), k, h]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+  // The Korean scene is not main text either: it is the 해석 note under the scene, drawn differently.
+  const tr = sorted.filter((h) => h.startsWith('<div class="fld ko tr'));
+  if (!tr.length) return sorted.join("\n");
+  const k0 = sorted.findIndex((h) => h.startsWith('<div class="fld ko tr'));
+  const rest = sorted.filter((h) => !h.startsWith('<div class="fld ko tr'));
+  const head = tr[0].replace("<p>", '<p><span class="nh">' + esc(labelOf("해석")) + "</span>");  // the badge rides on the first Korean line, so it can never sit alone at a column foot
+  rest.splice(k0, 0, `<div class="ko-note">${[head, ...tr.slice(1)].join("")}</div>`);
+  return rest.join("\n");
+}
+// Bullets whose bold label is one of the kit's hidden labels (evidence notes for the writer) are left out of the cards.
+const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");  // a literal inside a regular expression
+const HIDDEN = (KIT.hidden_labels || []).length ? new RegExp("^\\*\\*(" + KIT.hidden_labels.map(escRe).join("|") + ")\\*\\*") : null;
+function list(lines) {  // nested <ul>/<ol> from indented list lines; the writer's source notes are left out
+  const root = { kids: [] }; const stack = [{ ind: -1, node: root }];
+  let skip = -1;  // indentation of a skipped bullet, so its children are skipped too
+  for (const ln of lines) {
+    const m = ln.match(/^(\s*)(?:([-*])|(\d+)\.)\s+(.*)$/);
+    if (!m) { if (skip < 0) { const top = stack[stack.length - 1].node; if (top.text !== undefined) top.text += (/^[*"“]/.test(ln.trim()) ? "<br>" : " ") + inline(ln.trim()); } continue; }  // continuation line
+    const ind = m[1].length;
+    if (skip >= 0 && ind > skip) continue;  // still inside a skipped bullet
+    skip = HIDDEN && HIDDEN.test(m[4]) ? ind : -1;  // where a fact came from is not something to say aloud
+    if (skip >= 0) continue;
+    const node = { text: inline(m[4]), kids: [], ordered: !!m[3] };
+    while (stack.length > 1 && stack[stack.length - 1].ind >= ind) stack.pop();  // climb to the parent level
+    stack[stack.length - 1].node.kids.push(node); stack.push({ ind, node });
+  }
+  const html = (n) => n.kids.length ? `<${n.kids[0].ordered ? "ol" : "ul"}>${n.kids.map((k) => `<li>${k.text}${html(k)}</li>`).join("")}</${n.kids[0].ordered ? "ol" : "ul"}>` : "";
+  return html(root);
+}
+
+// ---------- the query's words ----------
+function markQuery(el, ws0) {  // underline the query's words inside an element's text (yellow stays for the marked phrases)
+  const ws = [...new Set(ws0.filter((w) => w.length >= 2 || /\d/.test(w)))].sort((a, b) => b.length - a.length);
+  if (!ws.length) return;
+  const re = new RegExp("(" + ws.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");  // longest first
+  const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);  // text nodes only
+  const nodes = []; while (walk.nextNode()) nodes.push(walk.currentNode);
+  for (const n of nodes) {
+    if (n.parentElement && n.parentElement.closest(".lab, pre, .id, .short")) continue;  // never inside a label, an id or a code block
+    if (!re.test(n.nodeValue)) { re.lastIndex = 0; continue; } re.lastIndex = 0;
+    const span = document.createElement("span");
+    // Find the query's words in the raw text and escape each piece on its own. Searching the escaped text split entities
+    // apart ('3 a.m.' matched the 3 inside &#39; and the quote showed as text). With a capturing group, odd pieces are the words
+    span.innerHTML = n.nodeValue.split(re).map((p, k) => (k % 2 ? `<mark class="qm">${esc(p)}</mark>` : esc(p))).join("");
+    n.replaceWith(...span.childNodes);
+  }
+}
+
+// ---------- groups and the section menu ----------
+// Each reference file (notes, stories) is one group, and items with no section of their own form the "remember first" group.
+const FIRST = fmt("first_group");  // that group's name
+const groupOf = (it) => (it.role === "reference" ? it.src : it.cat === it.src ? FIRST : it.cat);
+// Short menu names for the lettered sections, from the job's kit.json (short enough for one row of tabs at 1400 px).
+const SHORT = KIT.sections || {};
+const GROUPS = []; const GROUP_OF = new Map();  // groups in file order, and group name -> group
+ITEMS.forEach((it, i) => { const g = groupOf(it); if (!GROUP_OF.has(g)) { GROUP_OF.set(g, { name: g, items: [], role: it.role }); GROUPS.push(GROUP_OF.get(g)); } GROUP_OF.get(g).items.push(i); });
+const isRow = (g) => g.role === "deep" || g.role === "terms";  // long groups (resume deep dives, terms): one row in the contents
+const isRef = (g) => g.role === "reference";  // reference material: one row as well
+function letterOf(g) {  // the letter most of a group's ids start with, for its hue and its row in the contents
+  const n = new Map(); for (const i of g.items) { const c = cat(ITEMS[i].id); if (c) n.set(c, (n.get(c) || 0) + 1); }
+  let best = "", most = 0; for (const [c, k] of n) if (k > most) { best = c; most = k; }  // ties keep the first letter seen
+  return best;
+}
+function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
+  const m = name.match(/^([A-Z])\.\s/);
+  return m ? `<span class="k">${m[1]}</span>${esc(SHORT[m[1]] || name.slice(3))}` : esc(name);
+}
+
+// ---------- view ----------
+let mode = "toc";  // toc, search, group or practice
+let current = "";  // query being shown
+let groupName = null;  // the group being shown in group mode
+let results = [];  // ranked [{i, score, kn, dn, sim, why}]
+let offset = 0;  // where the shown batch starts in results
+const backStack = [];  // earlier offsets, for going back a batch
+let shownSet = new Set();  // item positions on screen right now
+let nextOffset = 0;  // where the next batch starts
+let lang = store.get("lang", "both");  // which scripts the cards show
+let words = [];  // query words for underlining
+let weak = false;  // nothing close to the query
+const GAP = 14, VGAP = 10, BOARD_MAX = 24;  // gaps in px, answers on a board
+let FSB = clamp(Number(store.get("fs", 13)) || 13, 12, 15);  // the one type size, from the settings (12 to 15 px)
+let COLW = [22, 25, 29].includes(Number(store.get("colw", 25))) ? Number(store.get("colw", 25)) : 25;  // column width in ems
+
+function tip(r) {  // tooltip text with the two halves of the score
+  const parts = [fmt("tip_keywords", { n: Math.round(r.kn * 100) })];
+  if (r.sim !== null && r.sim !== undefined) parts.push(fmt("tip_similarity", { s: r.sim.toFixed(2) }));
+  return mode === "search" && r.score ? parts.join(", ") : "";
+}
+const HINT = KIT.weak_hint ? (typeof KIT.weak_hint === "string" ? KIT.weak_hint : KIT.weak_hint[STR.lang] || "") : "";  // the job's advice for questions without a script
+const WEAK_LINE = `<div class="weak"><b>${esc(fmt("weak"))}</b>${HINT ? " " + esc(HINT) : ""}</div>`;  // said under the best card when nothing is close
+function scriptHtml(html) {  // script lines: ' // ' ends a thought (a new line), ' / ' is a short breath (a faint slash), Korean brackets are unspoken stage notes
+  const dir = (t) => t.replace(/\(([^()<>]*[\uac00-\ud7a3][^()<>]*)\)/g, '<span class="dir">($1)</span>');
+  if (!/\s\/\/?\s/.test(html)) return dir(html);  // prose without marks stays prose
+  return html.split(/\s+\/\/\s+/).map((t) => `<span class="th">${dir(t).replace(/ \/ /g, ' <span class="br">/</span> ')}</span>`).join("");
+}
+function cardHtml(r, n) {  // one item in full: header, then its script
+  const it = ITEMS[r.i]; const best = n === 0 && mode === "search";
+  return `<article class="card${best ? " best" : ""}" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}">` +
+    `<div class="ch" title="${esc(tip(r))}"><span class="id">${esc(it.id)}</span><span class="t">${esc(it.tko)}</span>` +
+    `${it.ten ? `<span class="te">${esc(it.ten)}</span>` : ""}</div>` +
+    `${best && weak ? WEAK_LINE : ""}<div class="body">${render(it.md, !it.key)}</div></article>`;  // the scene only: no separate short answers
+}
+const fits = (el) => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1;  // nothing spills out
+let measureBox = null;  // an off-screen copy of the board for measuring cards before placing them
+function measurer() {  // the off-screen box, with the board's type and language
+  if (!measureBox) { measureBox = document.createElement("div"); measureBox.setAttribute("aria-hidden", "true"); document.body.appendChild(measureBox); }
+  measureBox.className = "cards measure lang-" + lang;
+  return measureBox;
+}
+function heightIn(html, width) {  // a card's height in one column of this width
+  const box = measurer(); box.innerHTML = `<div class="slot" style="width:${width}px">${html}</div>`;
+  return box.querySelector(".card").offsetHeight;
+}
+function fitsBlock(html, width, n, height, whole) {  // does a card fit in n inner columns of this width and height?
+  const box = measurer(); box.innerHTML = `<div class="block${whole ? " whole" : ""}" style="width:${width}px;--h:${height}px;--n:${n}">${html}</div>`;  // same title rule as on the board
+  const c = box.querySelector(".card"); return c.scrollWidth <= c.clientWidth + 1 && c.scrollHeight <= c.clientHeight + 1;  // the 해석 note spans all columns, so it can also run off the foot
+}
+let board = [];  // the answers on the board, best first
+let boardOrder = [];  // board positions in the order they were placed (reading order)
+let geo = { cw: 0, C: 1 };  // column width and columns per screen of the last layout
+function plan(el, cForce, cache) {  // place every board answer: short ones stack in a column, long ones take a block of columns
+  const W = el.clientWidth, H = el.clientHeight;
+  const C = cForce || Math.max(1, Math.floor((W + GAP) / (COLW * FSB + GAP)));  // columns on one screen
+  const cw = Math.floor((W - (C - 1) * GAP) / C);  // a screen holds whole columns
+  const keyOf = (k) => board[k].i + "|" + cw + "|" + (k === 0);  // measured once per item, width and lead position
+  const heightOf = (k) => { const key = keyOf(k); if (!cache.has(key)) cache.set(key, heightIn(cardHtml(board[k], k), cw)); return cache.get(key); };
+  const slots = []; const order = []; let cur = null; let used = 0;  // columns taken so far
+  const queue = board.map((_, k) => k);  // board positions not placed yet
+  const fillColumn = () => {  // the room left at the foot of this column takes one of the next few short answers
+    for (let more = true; more && cur;) {
+      more = false;
+      for (let t = 0; t < Math.min(4, queue.length); t++) {
+        const j = queue[t], hj = heightOf(j);
+        if (hj <= H && cur.used + VGAP + hj <= H) { cur.items.push(j); cur.used += VGAP + hj; order.push(j); queue.splice(t, 1); more = true; break; }
+      }
+    }
+  };
+  while (queue.length) {
+    const k = queue.shift(); const h = heightOf(k);
+    if (h <= H && cur && cur.used + VGAP + h <= H) { cur.items.push(k); cur.used += VGAP + h; order.push(k); continue; }
+    fillColumn();
+    if (h <= H) { cur = { kind: "col", items: [k], used: h }; slots.push(cur); used += 1; order.push(k); continue; }
+    const nkey = "n|" + keyOf(k); let n = cache.get(nkey);  // a long answer: the fewest inner columns that hold it at full height
+    if (n === undefined) { n = Math.max(2, Math.ceil(h / H)); const html = cardHtml(board[k], k); while (n < 60 && !fitsBlock(html, n * cw + (n - 1) * GAP, n, H, n <= C)) n++; cache.set(nkey, n); }
+    const left = (C - (used % C)) % C;  // columns left on this screen
+    if (left > 0 && left < n) {  // the card would run off this screen: give the rest of the screen to short answers, so it starts a screen
+      for (let c = 0; c < left; c++) {
+        const t = queue.findIndex((j, idx) => idx < 8 && heightOf(j) <= H); if (t < 0) break;
+        const j = queue.splice(t, 1)[0]; cur = { kind: "col", items: [j], used: heightOf(j) }; slots.push(cur); used += 1; order.push(j);
+        fillColumn();
+      }
+    }
+    slots.push({ kind: "block", items: [k], n }); used += n; order.push(k); cur = null;
+  }
+  return { slots, order, cw, C };
+}
+const PHONE = window.matchMedia("(max-width: 720px)");  // a phone: one column that scrolls down (the same width as the CSS rule)
+function layoutPhone(el) {  // the board on a phone: every answer in one column, in rank order
+  el.className = "cards phone lang-" + lang;  // the phone's column (CSS)
+  el.innerHTML = board.map((r, k) => cardHtml(r, k)).join("");  // no measuring: the column grows with the cards
+  if (words.length) el.querySelectorAll(".card").forEach((c) => markQuery(c, words));  // the query's words underlined
+  boardOrder = board.map((_, k) => k); shownSet = new Set(board.map((r) => r.i)); nextOffset = 0;  // the same bookkeeping as the board
+  window.scrollTo(0, 0);  // the best answer first
+}
+function layout() {  // the board for the current results, scrolled to its start
+  const el = $("#cards"); el.className = "cards lang-" + lang; el.style.overflowY = "";
+  if (!results.length) {  // nothing matched: the script for questions without a script
+    const k = KIT.fallback ? BY_ID.get(KIT.fallback) : undefined; board = k === undefined ? [] : [{ i: k, score: 0, kn: 0, dn: 0, sim: null, why: null }];  // the kit's "what to say when you do not know" item
+  } else if (mode === "search" && !BY_ID_LC.has(current.toLowerCase())) board = results.slice(0, BOARD_MAX);  // a question: the best answers first, more screens to the right
+  else {  // a section or an item number: the whole section, then the items that follow it in the files
+    const last = Math.max(...results.map((r) => r.i));
+    board = results.concat(ITEMS.slice(last + 1, last + 21).map((_, j) => ({ i: last + 1 + j, score: 0, kn: 0, dn: 0, sim: null, why: null }))).slice(0, 60);
+  }
+  if (PHONE.matches) { layoutPhone(el); return; }  // a phone scrolls down instead of sliding sideways
+  const cache = new Map(); const cols = (q) => q.slots.reduce((a, x) => a + (x.kind === "block" ? x.n : 1), 0);  // columns a plan takes
+  let p = plan(el, 0, cache);
+  const c0 = p.C;  // nothing more to show: fewer, wider columns until the answers fill them (never wider than about 1.7 columns)
+  for (let t = 0; t < 5 && cols(p) < p.C; t++) { const c2 = Math.max(cols(p), Math.ceil(c0 * 0.6)); if (c2 === p.C) break; p = plan(el, c2, cache); }
+  geo = { cw: p.cw, C: p.C }; boardOrder = p.order;
+  el.innerHTML = p.slots.map((s) => s.kind === "block"
+    ? `<div class="block${s.n <= p.C ? " whole" : ""}" style="width:${s.n * p.cw + (s.n - 1) * GAP}px;--n:${s.n}">${cardHtml(board[s.items[0]], s.items[0])}</div>`
+    : `<div class="slot" style="width:${p.cw}px">${s.items.map((k) => cardHtml(board[k], k)).join("")}</div>`).join("");
+  if (measureBox) measureBox.innerHTML = "";  // nothing left off-screen
+  if (words.length) el.querySelectorAll(".card").forEach((c) => markQuery(c, words));  // underlines only; sizes do not change
+  el.style.scrollBehavior = "auto"; el.scrollLeft = 0; el.style.scrollBehavior = "";
+  const topNow = board.length ? board[0].i : -1;  // the rise plays only when the top answer changes
+  if (topNow !== lastTop) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); lastTop = topNow; }  // a short rise for the new answers
+  shownSet = new Set(board.map((r) => r.i)); nextOffset = 0;
+  drawRank(); markVisible();
+}
+function drawRank() {  // the left column: every answer on the board in reading order; the ones on screen are marked
+  const el = $("#rank");
+  el.innerHTML = boardOrder.map((k) => {
+    const it = ITEMS[board[k].i];
+    return `<button type="button" class="row" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}" title="${esc(tip(board[k]))}">` +
+      `<span class="id">${esc(it.id)}</span><span class="t">${esc(it.tko)}</span></button>`;
+  }).join("");
+  const rows = el.querySelectorAll(".row");  // drop whole rows from the end until the list fits; never a cut-off line
+  for (let k = rows.length - 1; k >= 0 && el.scrollHeight > el.clientHeight + 1; k--) rows[k].remove();
+}
+function markVisible() {  // mark the side rows whose cards are on screen
+  const el = $("#cards"); const a = el.scrollLeft, b = a + el.clientWidth;
+  const on = new Set();
+  el.querySelectorAll(".card").forEach((c) => { const x = c.offsetLeft + (c.offsetParent === el ? 0 : c.parentElement.offsetLeft); if (x + c.offsetWidth > a + 4 && x < b - 4) on.add(c.dataset.id); });
+  document.querySelectorAll("#rank .row").forEach((r) => r.classList.toggle("on", on.has(r.dataset.id)));
+}
+function drawToc() {  // the contents: every item with its full title; in a small window the largest groups fold into one row each until it all fits
+  const el = $("#cards"); el.className = "cards tocv"; el.style.overflow = "";
+  if (PHONE.matches) { tocHtml(el, new Set()); return; }  // a phone: one column of every group, scrolled down (CSS)
+  const folded = new Set();  // script groups shown as one row instead of their items
+  const openGroups = () => GROUPS.filter((g) => !isRow(g) && !isRef(g) && !folded.has(g.name)).sort((a, b) => b.items.length - a.items.length);
+  tocHtml(el, folded);
+  while (!tocFits(el) && openGroups().length > 1) { folded.add(openGroups()[0].name); tocHtml(el, folded); }  // fold the largest open group
+  fitToc();
+}
+function tocHtml(el, folded) {  // the contents boxes: open groups with their items, then the folded groups as rows
+  const title = (it, g) => it.tko.startsWith(g + ":") ? it.tko.slice(g.length + 1).trim() : it.tko;  // no heading repeated in its own rows
+  const row = (g) => {  // one row that opens a whole group
+    const k = isRef(g) ? letterOf(g) : g.name[0];  // the letter its items start with
+    const short = SHORT[g.name[0]] || g.name;  // the section's short name
+    const label = g.role === "terms" ? fmt("toc_terms") : isRow(g) ? fmt("toc_deep", { name: short }) : isRef(g) ? g.name : short;
+    return `<button type="button" data-g="${esc(g.name)}" data-c="${cat(k)}"><span class="id">${esc(k)}</span><span>${esc(fmt("toc_count", { name: label, n: g.items.length }))}</span></button>`;
+  };
+  el.innerHTML = `<div class="toc">${tocBoxes(folded).map((b) => `<div class="tg"${b.items ? ` data-c="${cat(ITEMS[b.items[0]].id)}"` : ""}><h3>${esc(b.name)}</h3>` +
+      (b.rows ? b.rows.map(row).join("")
+        : b.items.map((i) => { const it = ITEMS[i]; return `<button type="button" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}"><span class="id">${esc(it.id)}</span><span>${esc(title(it, b.name))}</span></button>`; }).join("")) +
+      `</div>`).join("")}</div>`;
+}
+function tocBoxes(folded) {  // one box per open script group; folded groups, deep dives and reference material become rows that open their tab
+  const out = [], fold = [], rows = [];
+  for (const g of GROUPS) (isRow(g) || isRef(g) ? rows : folded.has(g.name) ? fold : out).push(g);
+  if (fold.length) out.push({ name: fmt("toc_folded"), rows: fold });
+  if (rows.length) out.push({ name: fmt("toc_rows"), rows });
+  return out;
+}
+const TOC_COLS = [30, 26, 22, 19, 17, 15, 13];  // wider first, so a 2560 px screen is not eight sparse columns  // column widths in ems to try, widest first: fewer wrapped titles when it still fits
+function tocSizer(el) {  // a setter for the contents' column count that also says whether it then fits the area
+  const toc = el.querySelector(".toc"); const room = el.clientHeight - 4; const width = toc.clientWidth;
+  return (colEm) => {
+    toc.style.columnCount = String(Math.max(1, Math.floor((width + 14) / (colEm * FSB + 14))));  // as many columns as the width holds
+    return toc.offsetHeight <= room;
+  };
+}
+function tocFits(el) { const set = tocSizer(el); return TOC_COLS.some((c) => set(c)); }  // fits at some column width?
+function fitToc() {  // the widest columns at which the whole contents fit; otherwise a vertical scroll, never cut text
+  const el = $("#cards"); if (!el.querySelector(".toc")) return;
+  const set = tocSizer(el);
+  const toc = el.querySelector(".toc"); const room = el.clientHeight - 4;
+  for (const colEm of TOC_COLS) if (set(colEm)) {  // it fits: spread the rows over the height instead of leaving the foot empty
+    let lo = 0.16, hi = 0.5;  // row padding in ems, capped: rows spread a little, never into a sparse list
+    for (let k = 0; k < 7; k++) { const mid = (lo + hi) / 2; toc.style.setProperty("--row-pad", mid + "em"); if (toc.offsetHeight <= room) lo = mid; else hi = mid; }
+    toc.style.setProperty("--row-pad", lo + "em");
+    if (toc.offsetHeight > room) { toc.style.setProperty("--row-pad", ".16em"); set(colEm); }  // safety: back to the tight rows
+    return;
+  }
+  set(15); el.style.overflowY = "auto";
+}
+function drawMenu() {  // the section tabs, with the open section marked
+  $("#menu").innerHTML = GROUPS.map((g) => g.name === FIRST ? `<button type="button" data-g="${esc(g.name)}" class="${mode === "group" && groupName === g.name ? "on" : ""}" title="${esc(g.name)}">${esc(fmt("first_group_short"))}</button>` : `<button type="button" data-g="${esc(g.name)}" data-c="${isRef(g) ? letterOf(g) : cat(g.name)}" class="${mode === "group" && groupName === g.name ? "on" : ""}" title="${esc(g.name)}">${menuLabel(g.name)}</button>`).join("");
+}
+function measureTop() {  // the main area takes exactly the height left under the bar and tabs
+  document.documentElement.style.setProperty("--top-h", Math.ceil($("#top").getBoundingClientRect().bottom) + "px");  // the bar's bottom edge, shadow and all excluded
+}
+function show() {  // rank (or pick the group), then draw everything on one screen
+  $("#main").classList.toggle("browse", mode === "toc");
+  document.body.classList.toggle("q", mode !== "toc");
+  const practicing = mode === "practice";  // practice mode hides the board and shows its own pane (practice.js)
+  $("#main").classList.toggle("practicing", practicing); document.body.classList.toggle("practicing", practicing); $("#practicePane").hidden = !practicing;
+  drawMenu(); measureTop();
+  if (practicing) { if (!(history.state && history.state.view)) history.pushState({ view: 1 }, ""); drawPractice(); return; }  // Back leaves practice; the session stays in memory
+  offset = 0; backStack.length = 0;
+  if (mode === "toc") { results = []; words = []; drawToc(); return; }
+  if (!(history.state && history.state.view)) history.pushState({ view: 1 }, "");  // one step the back button can undo
+  if (mode === "group") {  // a section from the tabs: its items in file order
+    results = GROUP_OF.get(groupName).items.map((i) => ({ i, score: 0, kn: 0, dn: 0, sim: null, why: null })); words = []; weak = false;
+    layout(); return;
+  }
+  const r = rank(current); words = r.words; weak = r.weak;
+  let list = r.list;
+  const hit = BY_ID_LC.get(current.toLowerCase());  // a typed or clicked item number
+  if (hit !== undefined) {  // that item first, then the rest of its group
+    const g = groupOf(ITEMS[hit]);
+    list = [hit, ...GROUP_OF.get(g).items.filter((i) => i !== hit)].map((i) => ({ i, score: 0, kn: 0, dn: 0, sim: null, why: null }));
+    weak = false; words = [];
+  }
+  results = list;
+  layout();
+}
+function page(d) {  // slide the board one screen to the right or left
+  if (mode === "toc") return;
+  const el = $("#cards"); el.scrollBy({ left: d * (el.clientWidth + GAP), behavior: "smooth" });
+}
+function pick(id) {  // bring a card on the board into view and flash it
+  const el = $("#cards"); const c = [...el.querySelectorAll(".card")].find((x) => x.dataset.id === id); if (!c) return;
+  const holder = c.parentElement; const x = holder.offsetLeft + (holder.classList.contains("slot") || holder.classList.contains("block") ? 0 : c.offsetLeft);
+  const a = el.scrollLeft, b = a + el.clientWidth;
+  if (x < a || x + c.offsetWidth > b) el.scrollTo({ left: Math.floor(x / (geo.cw + GAP)) * (geo.cw + GAP), behavior: "smooth" });
+  c.classList.remove("flash"); void c.offsetWidth; c.classList.add("flash");
+  const box = $("#q"); box.focus({ preventScroll: true }); box.select();  // the next question replaces the old one
+}
+function goHome() {  // back to the contents
+  if (history.state && history.state.view) { history.back(); return; }  // the popstate handler draws the contents
+  const box = $("#q"); box.value = ""; current = ""; mode = "toc"; groupName = null;
+  if (inflight) inflight.abort();
+  show(); box.focus();
+}
+function openGroup(name) {  // a section from the tabs
+  const box = $("#q"); box.value = ""; current = ""; mode = "group"; groupName = name;
+  show(); box.focus();
+}
+function setLang(v) {  // KO, EN or both; the type is refitted since the text length changes
+  lang = v; store.set("lang", v);
+  document.querySelectorAll(".seg button[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === v));
+  if (mode === "practice") drawPractice(); else if (mode !== "toc") layout();  // practice redraws its script card
+}
+function search(q) {  // put a query in the box and run it
+  const box = $("#q"); box.value = q; box.dispatchEvent(new Event("input")); box.focus();
+}
+
+// ---------- events ----------
+let tKey = 0, tDense = 0;  // the keyword fallback timer and the similarity request timer
+let lastTop = -1;  // the top answer last drawn, so the rise does not replay for the same answer
+$("#q").addEventListener("input", (e) => {
+  // A syllable still being composed shows as a lone jamo at the end ("느려ㅈ"); it is not part of the question yet.
+  const q = e.target.value.replace(/[ㄱ-ㆎ]+$/, "").trim();
+  clearTimeout(tKey); clearTimeout(tDense);
+  if (q === current && e.target.value.trim()) return;  // only the half-typed syllable changed
+  current = q;
+  if (!q) { if (mode === "search") goHome(); return; }  // an emptied box goes back to the contents
+  mode = "search"; groupName = null;
+  if (BY_ID_LC.has(q.toLowerCase())) { show(); return; }  // an item number needs no ranking
+  if (engine !== "on") { tKey = setTimeout(() => { if (current === q) show(); }, 80); return; }  // the model is off: keywords only
+  // Draw once, with both halves, when the server answers; keywords alone only if it is slow. One draw, no swap.
+  // At human typing speed (about 140 ms a key) nothing is drawn while typing: with 120/400 ms a question redrew 11 times and its top answer changed
+  tDense = setTimeout(() => fetchDense(q), 350);
+  tKey = setTimeout(() => { if (current === q) show(); }, 600);
+});
+$("#home").addEventListener("click", goHome);
+$("#menu").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) openGroup(b.dataset.g); });
+$("#rank").addEventListener("click", (e) => { const b = e.target.closest(".row"); if (b) pick(b.dataset.id); });
+$("#cards").addEventListener("click", (e) => {
+  const t = e.target.closest(".tg button"); if (!t) return;  // table of contents entry
+  if (t.dataset.g) openGroup(t.dataset.g); else search(t.dataset.id);
+});
+document.querySelectorAll(".seg button[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
+$("#engine").addEventListener("click", switchEngine);
+function applyPrefs() {  // the one type size and the column width, everywhere at once
+  document.documentElement.style.setProperty("--fs-base", FSB + "px");
+  document.querySelectorAll('.seg[data-pref="fs"] button').forEach((b) => b.classList.toggle("on", Number(b.dataset.v) === FSB));
+  document.querySelectorAll('.seg[data-pref="colw"] button').forEach((b) => b.classList.toggle("on", Number(b.dataset.v) === COLW));
+}
+function setPref(name, v) {  // remember a setting and redraw with it
+  if (name === "fs") { FSB = v; store.set("fs", v); } else { COLW = v; store.set("colw", v); }
+  applyPrefs(); measureTop(); if (mode === "toc") drawToc(); else if (mode === "practice") drawPractice(); else layout();
+}
+document.querySelectorAll(".seg[data-pref] button").forEach((b) => b.addEventListener("click", () => setPref(b.parentElement.dataset.pref, Number(b.dataset.v))));
+function togglePrefs(open) {  // the settings sheet under the bar
+  const panel = $("#prefsPanel"); const show = open === undefined ? panel.hidden : open;
+  panel.hidden = !show; $("#prefs").setAttribute("aria-expanded", String(show));
+}
+$("#prefs").addEventListener("click", (e) => { e.stopPropagation(); togglePrefs(); });
+document.addEventListener("click", (e) => { if (!$("#prefsPanel").hidden && !e.target.closest("#prefsPanel")) togglePrefs(false); });  // a click elsewhere closes it
+window.addEventListener("popstate", () => {  // back: from answers to the contents
+  if (mode === "toc") return;
+  const box = $("#q"); box.value = ""; current = ""; mode = "toc"; groupName = null;
+  if (inflight) inflight.abort();
+  show(); box.focus();
+});
+let lastWheel = 0;  // time of the last screen turned by the wheel
+$("#cards").addEventListener("wheel", (e) => {  // a vertical wheel turns the board a screen at a time
+  if (mode === "toc" || mode === "practice" || PHONE.matches || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;  // practice and the phone scroll down
+  e.preventDefault();
+  const now = Date.now(); if (now - lastWheel < 420) return; lastWheel = now;
+  page(e.deltaY > 0 ? 1 : -1);
+}, { passive: false });
+let tScroll = 0;  // one mark update per frame while sliding
+$("#cards").addEventListener("scroll", () => { cancelAnimationFrame(tScroll); tScroll = requestAnimationFrame(markVisible); });
+let lastEsc = 0;  // time of the previous Escape
+document.addEventListener("keydown", (e) => {
+  const q = $("#q");
+  if (mode === "practice" && document.activeElement !== q) {  // practice keeps its keys: typing goes into the answer box, not the search box
+    if (e.key === "Escape" && !$("#prefsPanel").hidden) { togglePrefs(false); e.preventDefault(); }  // Escape still closes the settings
+    return;
+  }
+  if (e.altKey && !e.ctrlKey) {  // language shortcuts; Alt+letters open browser menus on Windows, so digits
+    const v = { "1": "both", "2": "ko", "3": "en" }[e.code.replace("Digit", "")] || null;
+    if (v) { setLang(v); e.preventDefault(); } return;
+  }
+  if (e.key === "Enter" && document.activeElement === q && current) {  // Enter: search now (after pasting a question)
+    clearTimeout(tKey); clearTimeout(tDense); if (engine === "on") fetchDense(current); else show(); e.preventDefault(); return;
+  }
+  if (["ArrowDown", "PageDown", "ArrowUp", "PageUp"].includes(e.key) && mode !== "toc" && !PHONE.matches) { page(/Down/.test(e.key) ? 1 : -1); e.preventDefault(); return; }  // a phone scrolls by itself
+  if (e.key === "Escape" && !$("#prefsPanel").hidden) { togglePrefs(false); e.preventDefault(); return; }  // Escape closes the settings first
+  if (e.key === "Escape") {  // once: keep the answers and select the question so the next one replaces it; twice: back to the contents
+    const now = Date.now();
+    if (now - lastEsc < 600 || (!q.value && mode !== "group")) { goHome(); lastEsc = 0; } else { q.focus(); q.select(); lastEsc = now; }
+    e.preventDefault(); return;
+  }
+  if ((e.key === "/" && document.activeElement !== q) || (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey))) { q.focus(); q.select(); e.preventDefault(); return; }
+  if (document.activeElement !== q && e.key.length === 1 && !e.ctrlKey && !e.metaKey) { q.focus({ preventScroll: true }); q.select(); }  // a new question replaces the old one
+});
+$("#theme").addEventListener("click", () => {  // light, dark, then back to the OS setting
+  const order = ["", "light", "dark"]; const cur = document.documentElement.dataset.theme || "";
+  const nxt = order[(order.indexOf(cur) + 1) % order.length];
+  if (nxt) document.documentElement.dataset.theme = nxt; else delete document.documentElement.dataset.theme;
+  store.set("theme", nxt);
+});
+let tResize = 0;  // refit after the window changes size
+window.addEventListener("resize", () => { clearTimeout(tResize); tResize = setTimeout(() => { measureTop(); if (mode === "toc") drawToc(); else if (mode !== "practice") layout(); }, 120); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measureTop(); if (mode === "toc") drawToc(); else if (mode !== "practice") layout(); });  // refit once the fonts are in
+
+// ---------- start ----------
+(function start() {
+  const q = new URLSearchParams(location.search);                                   // ?embed=1&theme=dark: shown inside the panel
+  if (q.get("embed") === "1") document.documentElement.classList.add("embedded");   // the panel's desk behind it
+  const th = ["light", "dark"].includes(q.get("theme")) ? q.get("theme") : store.get("theme", "");   // the panel's theme, else the one remembered
+  if (th) document.documentElement.dataset.theme = th;
+  if (history.state && history.state.view) history.replaceState(null, "");  // a reload starts at the contents
+  document.querySelectorAll(".seg button[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === lang));  // remembered language
+  applyPrefs();  // remembered type size and column width
+  show();  // table of contents
+  if (DATA && DATA.model) health();  // check the similarity server, only when it has a model (keyword search needs no server)
+  if (!location.protocol.startsWith("http")) {  // a saved copy: move to the live page when the server is up
+    fetch(API + "api/health", { cache: "no-store" }).then((r) => { if (r.ok) location.replace(API); }).catch(() => {});
+  }
+})();
+</script>
+<script>/*__PRACTICE__*/</script>
+</body>
+</html>

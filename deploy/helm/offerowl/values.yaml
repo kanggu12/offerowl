@@ -1,0 +1,163 @@
+# Values for the offerowl chart.
+#
+# The chart runs the app image (deploy/docker/Dockerfile) as one pod: the panel, the engine, the interview view and the
+# renderer. It follows deploy/docker/compose.yaml with the same hardening. The panel has no login, so nothing is exposed
+# by default: you reach it with kubectl port-forward (NOTES.txt says how). Put your own settings in a file and pass it
+# with -f; everything you leave out keeps the value below.
+
+# Replace the chart name in object names (nameOverride), or the whole prefix (fullnameOverride). By default objects are
+# named after the release: "offerowl" for a release called "offerowl".
+nameOverride: ""
+fullnameOverride: ""
+
+# Secrets for pulling the image from a private registry, in the form Kubernetes uses:
+#   imagePullSecrets:
+#     - name: my-registry
+imagePullSecrets: []
+
+# The time zone of dates on the board and of the logs, given to the container as TZ.
+timezone: UTC
+
+# The language of the engine's messages in the logs and the command line: ko or en. Empty: from the locale, else English.
+# The panel's own language is chosen in the panel.
+language: ""
+
+image:
+  # Built from deploy/docker/Dockerfile and pushed where the cluster can pull it. The release workflow publishes it to
+  # ghcr.io and the packaged chart names that address.
+  repository: offerowl-app
+  # Empty: the chart's appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# The AI backend, one at a time (docs/ARCHITECTURE.md, decision 1). The image carries no agent CLI: Claude Code and Codex stay
+# on the PC where you are signed in. In a cluster the choices are:
+#   none           no model. The AI steps stop and you fill in the facts yourself. Documents are still made.
+#   openai-compat  a local OpenAI-compatible server (Ollama, vLLM, LM Studio) that the pod can reach.
+# The chart is the source of truth: the choice is written into the panel's settings at every start, so a change made in
+# the panel's menu lasts until the pod restarts. Use helm upgrade to change it.
+ai:
+  backend: none
+  # The server's address, for example http://ollama.models.svc:11434 (the scheme and a trailing /v1 are optional).
+  url: ""
+  # The model's name, as the server lists it.
+  model: ""
+  # The name of an existing Secret in the release's namespace that holds the server's key, only for a server that asks
+  # for one. The key is never written into a values file or a ConfigMap; the pod reads it from the Secret.
+  existingSecret: ""
+  # The key inside that Secret.
+  secretKey: key
+
+service:
+  # ClusterIP, reached through kubectl port-forward. The panel has no login, so keep it off NodePort and LoadBalancer.
+  type: ClusterIP
+  # The panel's port, on the pod and on the Service. One number for both: the panel answers only requests whose Host
+  # header names its own port, so a forward must use the same number on your PC (NOTES.txt).
+  panelPort: 8797
+
+# An Ingress for the panel. Off by default: the panel holds your profile and documents and has no login of its own, so
+# an Ingress needs a login in front of it (an authenticating proxy, or your Ingress controller's basic-auth or
+# OAuth annotations) and TLS. The chart tells the panel which host names to answer (OFFEROWL_ALLOWED_HOSTS).
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  #   nginx.ingress.kubernetes.io/auth-type: basic
+  #   nginx.ingress.kubernetes.io/auth-secret: offerowl-basic-auth
+  hosts:
+    - host: offerowl.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #   - secretName: offerowl-tls
+  #     hosts:
+  #       - offerowl.example.com
+
+# One volume for the workspace: the settings, your profile, jobs and documents, and the logs (the data folder, /data).
+# enabled: false uses an emptyDir instead, and everything starts over whenever the pod is replaced.
+# helm uninstall leaves the claim in place, because it holds your documents; delete it with kubectl when you no longer
+# want them.
+persistence:
+  enabled: true
+  # An existing claim to use instead of creating one.
+  existingClaim: ""
+  # Empty: the cluster's default StorageClass. "-": no class (a volume you provisioned yourself).
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+
+# The engine's scratch folder (/work/output) and the browser's and LibreOffice's profiles (/tmp) are memory-backed
+# folders that start empty with every pod. They count against the memory limit, as tmpfs does in compose.
+scratch:
+  outputSizeLimit: 2Gi
+  tmpSizeLimit: 1Gi
+
+# Typesetting is the heavy part: a build runs LibreOffice and Chromium. These are the caps of render/run.sh and deploy/docker/compose.yaml
+# (OFFEROWL_CPUS, OFFEROWL_MEM).
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "4"
+    memory: 4Gi
+
+# Probe timing. Each probe asks the panel's /health with the Host header the panel accepts (127.0.0.1 and its own port):
+# a probe over the pod network would otherwise be refused as a foreign host.
+probes:
+  startup:
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 36
+  readiness:
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  liveness:
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+terminationGracePeriodSeconds: 30
+
+# Settings of the pod, as deploy/docker/compose.yaml has them. The "restricted" Pod Security level accepts these: a fixed non-root
+# user (10001, the image's own), no privilege gain, no capability, the runtime's seccomp profile, and a read-only root
+# filesystem.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+# A NetworkPolicy that lets no pod connect to the panel (kubectl port-forward and the probes are not affected). It takes
+# effect where the cluster's network plugin enforces NetworkPolicy. With an Ingress, list who may connect: the Ingress
+# controller's pods, for example
+#   allowFrom:
+#     - namespaceSelector:
+#         matchLabels:
+#           kubernetes.io/metadata.name: ingress-nginx
+networkPolicy:
+  enabled: true
+  allowFrom: []
+
+# More environment variables for the container, in Kubernetes' own form. The settings in docs/USAGE.md work here, for
+# example OFFEROWL_LLM_REASONING. Refused: the ones the chart or the image sets (the port, the data folder, the AI backend
+# and its key, the language, the time zone, the allowed hosts, HOME, and OFFEROWL_DESKTOP, which the image points at
+# /data/export).
+extraEnv: []
+#   - name: OFFEROWL_LLM_REASONING
+#     value: "none"
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

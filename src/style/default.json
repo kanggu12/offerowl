@@ -1,0 +1,12 @@
+{
+ "_comment": "The default style pack: rules for everyone, kept small. Make your own pack (docs/WRITING.md) in <workspace>/style/<name>.json and name it with --style or in job.json; a pack overrides only the keys it sets.",
+ "banned_chars": "",
+ "banned_patterns": [],
+ "resume": {
+  "numbers": "evidence",
+  "banned_words": {
+   "en": ["world-class", "cutting-edge", "best-in-class", "game-changing", "revolutionized", "revolutionary", "seamlessly", "synergy", "rockstar", "ninja", "guru"],
+   "ko": ["혁신적", "획기적", "압도적", "탁월한", "완벽하게", "최고의"]
+  }
+ }
+}

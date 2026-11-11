@@ -1,0 +1,32 @@
+{
+ "schema": "offerowl-measure/0.1",
+ "task": "audit",
+ "backend": "claude-code",
+ "recorded": "2026-11-06",
+ "seconds": 10.6,
+ "answers": [
+  {
+   "task": "interview-consistency",
+   "prompt": "6b392a9faf2c5b3c",
+   "answer": {
+    "flags": [
+     {
+      "id": "R1",
+      "scene_quote": "a rollback from 30 minutes to about 5",
+      "doc": "portfolio",
+      "doc_quote": "rollback from 30 to 4 minutes",
+      "kind": "number",
+      "why": "The answer gives about 5 minutes for rollback, but the portfolio gives 4 minutes."
+     }
+    ]
+   }
+  },
+  {
+   "task": "interview-consistency",
+   "prompt": "d5a84d8aa33b115d",
+   "answer": {
+    "flags": []
+   }
+  }
+ ]
+}

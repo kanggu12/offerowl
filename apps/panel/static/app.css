@@ -1,0 +1,659 @@
+/* The page's layout: a bar whose glass appears once the page slides under it, the sheets on the
+   left and a rail of control cards on the right (372 px; two columns of cards from 2400 px, one column of everything
+   under 1000 px), then each view. Beside a document the rail also holds its inspector, which becomes a drawer under
+   1000 px. */
+
+/* ---------------------------------------------------------------- the bar */
+.bar { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid transparent; transition: border-color .2s var(--ease), box-shadow .2s var(--ease); }
+.bar.under { border-bottom-color: var(--pane-rule); box-shadow: 0 8px 22px -14px rgba(0, 0, 0, .7);   /* the page slides under it: frosted, */
+  background: color-mix(in srgb, var(--desk) 94%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); }   /* and nearly opaque, so no text reads through it */
+.bar-in { max-width: var(--page-w); min-height: 55px; margin: 0 auto; padding: var(--gap-s) var(--pad-x); display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); }   /* one row, or two where the window is narrow */
+.brand { display: flex; align-items: center; flex: none; margin-right: var(--gap-s); text-decoration: none; color: var(--ink); }
+.brand img { height: 28px; width: auto; display: block; }
+.barchip-i { display: none; }                                                        /* the agent's icon, on a phone only */
+.barchip-i svg { width: 16px; height: 16px; }                                         /* drawn at a key's icon size */
+.brand .logo-dark { display: none; } :root[data-theme="dark"] .brand .logo-light { display: none; } :root[data-theme="dark"] .brand .logo-dark { display: block; }
+.views { display: flex; flex: none; align-items: center; gap: var(--gap-xs); min-width: 0; }   /* never squeezed: the job list gives way instead */               /* the views, as one choice of keys */
+.views button { display: inline-flex; align-items: center; gap: var(--gap-s); min-height: var(--ctl-h); padding: 0 var(--pad-s); border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.views button:hover { background: var(--pane-hover); color: var(--ink); }
+.views button[aria-current="page"] { background: var(--seg-on); border-color: var(--seg-on-line); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+.jobpick { display: flex; align-items: center; min-width: 200px; max-width: 300px; flex: 1 1 200px; }   /* 200 px at least, 300 where there is room; with less it goes to the next row */
+.jobpick select { width: 100%; min-width: 0; max-width: 300px; min-height: var(--ctl-h); padding: 0 28px 0 var(--pad-s); border-radius: var(--r-sm); border: 1px solid var(--pane-rule);
+  background: var(--field); font-weight: 600; font-size: var(--fs-sm); }
+.grow { flex: 1; }
+.saved { font-size: var(--fs-xs); font-weight: 650; color: var(--ink-3); opacity: 0; transition: opacity var(--t-mid) var(--ease); }
+.saved.show { opacity: 1; }
+.actions { position: relative; display: flex; align-items: center; gap: var(--gap-s); flex: none; }
+
+/* ---------------------------------------------------------------- the page */
+.layout { max-width: var(--page-w); margin: 0 auto; padding: var(--gap-xl) var(--pad-x) 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-xl); align-items: start; }
+.layout[data-view="documents"] { grid-template-columns: minmax(0, 1fr) var(--insp-w); }   /* a document and its inspector */
+.dochead { grid-column: 1 / -1; display: grid; gap: var(--gap-m); min-width: 0; }    /* the title, the actions and the choices, over both */
+.stage { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-l); align-content: start; }   /* one track, never wider than the page */
+.stage:focus { outline: none; }                                                      /* focus moves here on a view change; no ring around the page */
+.split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-l); align-items: start; }   /* the profile: details and files, then the facts */
+.split-side { display: grid; gap: var(--gap-l); min-width: 0; }
+@media (min-width: 1280px) {                                                         /* side by side from a laptop's width: the facts in sight beside your details */
+  .split { grid-template-columns: minmax(0, 560px) minmax(0, 1fr); }
+  .split-side { position: sticky; top: calc(var(--bar-h) + var(--gap-l)); }                  /* your details stay in view beside a long list of facts */
+}
+.side { position: sticky; top: calc(var(--bar-h) + var(--gap-xl)); min-width: 0; max-height: calc(100vh - var(--bar-h) - 48px); overflow: auto; scrollbar-width: thin; }
+.viewhead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); min-height: var(--ctl-h); }
+.viewhead h1 { font-size: var(--fs-xl); }
+.viewhead .sub { font-size: var(--fs-sm); color: var(--ink-3); }
+.insp { display: grid; gap: var(--gap-l); align-content: start; padding-top: 6px; }           /* the inspector, a card beside the document */
+.insp .tabs { position: sticky; top: -6px; z-index: 2; margin: -6px -16px 0; padding: 4px 10px 0; background: transparent; }
+.insp-close, .insp-toggle { display: none; }
+.scrim { display: none; }
+.meter { height: 6px; margin-top: 10px; border-radius: 3px; background: var(--pane-well); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .25); overflow: hidden; }   /* a run's progress */
+.meter i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #1a8a5a, #2eb67d); transition: width .4s var(--ease); }
+@media (min-width: 2200px) { :root { --page-w: 1880px; } }                          /* a wide screen gets room, not tiny text */
+@media (max-width: 1100px) {                                                         /* the inspector becomes a drawer */
+  .layout[data-view="documents"] { grid-template-columns: minmax(0, 1fr); }
+  .side { position: static; max-height: none; overflow: visible; }
+  .insp { position: fixed; top: var(--bar-h); right: 0; bottom: 0; z-index: 35; width: min(var(--insp-w), 92vw); overflow: auto; background: var(--paper);
+    -webkit-backdrop-filter: none; backdrop-filter: none; transform: translateX(105%); visibility: hidden; transition: transform var(--t-mid) var(--ease); }
+  .insp.open { transform: none; visibility: visible; }
+  .insp-close, .insp-toggle { display: inline-flex; }
+  .scrim.open { display: block; position: fixed; inset: var(--bar-h) 0 0 0; z-index: 34; background: rgba(0, 0, 0, .18); animation: scrim-in var(--t-mid) var(--ease); }
+}
+@media (max-width: 860px) {                                                          /* a phone: the views on a row of their own */
+  :root { --bar-h: 112px; --pad-x: 12px; --ctl-h: 44px; --ctl-h-sm: 44px; }   /* a finger's target: 44 px */
+  .bar { position: static; }                                                         /* the bar stays at the top of the page and scrolls away with it */
+  .barchip { border-radius: var(--r-sm); } .barchip-i { display: inline-flex; }     /* square as the keys beside it, with its icon */
+  .bar-in { padding-top: var(--gap-s); padding-bottom: var(--gap-s); }
+  .views { order: 5; width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: 2px; }   /* every view in sight: the four two by two */
+  .views button { justify-content: center; }
+  .views button { padding: 0 var(--ctl-px-sm); }
+  .saved, .barchip-w { display: none; }
+  .jobpick { order: 6; flex: 1 1 100%; max-width: none; } .jobpick select { max-width: none; }   /* the job in view, on a row of its own, across */
+  .barpop .barchip .lit { display: none; }                                           /* the agent's lamp lights its icon: one mark, not two */
+  .barpop .barchip:has(.lit.ok) .barchip-i { color: var(--green); } .barpop .barchip:has(.lit.warn) .barchip-i { color: var(--amber); }
+  .barpop .barchip:has(.lit.off) .barchip-i { color: var(--ink-3); } .barpop .barchip:has(.lit.busy) .barchip-i { color: var(--ink-2); animation: lamp 1.2s var(--ease) infinite; }
+  .barchip { padding: 0 var(--ctl-px-sm); min-width: var(--ctl-h); justify-content: center; }   /* the lamp alone, still a finger's target */
+  .pop, .menu { position: fixed; top: var(--bar-h); left: var(--pad-x); right: var(--pad-x); width: auto; }   /* under the whole bar, not over the views' row */
+  .layout { padding: var(--pad-s) var(--pad-s) 40px; gap: var(--gap-l); }
+  .insp { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 78vh; max-height: 78vh; transform: translateY(105%); }   /* one height for every tab: the sheet's top never jumps between them */
+  .scrim.open { inset: 0; }
+}
+
+@keyframes scrim-in { from { opacity: 0; } }                                        /* the shade behind a drawer fades in */
+
+/* ---------------------------------------------------------------- making: add your files, the progress, the finished documents */
+/* Three columns: the heads share the first row, so every column's first card starts on one line; under its head each column
+   stacks its cards at their own height. Cards no longer grow to the tallest card beside them: that left blank feet under
+   short cards, which read as boxes pulled out of shape; the heads' shared row keeps the columns in line instead */
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr); column-gap: var(--gap-xl); row-gap: var(--gap-l); }
+.flow-col { position: relative; display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: var(--gap-l); min-width: 0; }   /* the head's row and the cards' row; never a container: containment would end the subgrid */
+.flow-cards { display: flex; flex-direction: column; gap: var(--gap-l); align-self: start; min-width: 0; }   /* the column's cards, each its own height */
+.flow-cards > .card { display: flex; flex-direction: column; container: flowcard / inline-size; }   /* a card lays out by its own width */
+.flow-cards > .card > .src { display: flex; flex-direction: column; }               /* a card of controls, too */
+.flow-cards > .card.conn { padding-block: var(--pad-m); }                            /* the same room as its neighbours */
+.flow-cards > .agentcard .usage { flex: 0 0 auto; display: flex; flex-direction: column; }   /* the day's figures and note together under the agent */
+.flow-col + .flow-col::before { content: ""; position: absolute; left: -18px; top: 12px; width: 12px; height: 12px;   /* the flow's arrow between two columns */
+  border-top: 2px solid var(--rule-2); border-right: 2px solid var(--rule-2); transform: rotate(45deg); }
+.colhead { display: flex; align-items: center; gap: var(--gap-m); min-height: var(--ctl-h); }
+/* the chain over the columns: sources, facts, sentences, documents, as one line with a node for each step, the way the
+   portfolio's cover draws a career, in a panel pressed into the desk. Each node wears its step's meaning colour (your files
+   stay on this PC, blue; the facts are the evidence, yellow; the sentences are the agent's, orange; the documents are done,
+   green), a ring while the step holds nothing and filled once it does; the line between two filled steps runs from one
+   colour into the next, and stays gray where the run has not reached. The number and the name sit under each node. */
+.chain { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 var(--gap-l); }
+.card.chain { padding: 22px var(--pad-l) 18px; border-color: transparent; border-radius: 16px; background: var(--sink-bg); box-shadow: var(--sink); }   /* a panel pressed into the desk, the line in it */
+.chain-step[data-kind="sources"] { --step: var(--blue); --bar: var(--blue-bar); --next: var(--amber-bar); }
+.chain-step[data-kind="facts"] { --step: var(--amber); --bar: var(--amber-bar); --next: var(--violet-bar); }
+.chain-step[data-kind="sentences"] { --step: var(--violet); --bar: var(--violet-bar); --next: var(--aqua-bar); }
+.chain-step[data-kind="documents"] { --step: var(--green); --bar: var(--aqua-bar); }   /* blue, yellow, violet, aqua: an order whose neighbours stay apart in both looks and to colour-blind eyes (yellow beside orange did not) */   /* the words in the colour that reads, the node in the bright one */
+.chain-step { position: relative; display: grid; justify-items: center; align-content: start; gap: 4px; padding: 30px var(--gap-s) 0; border: 0;
+  background: none; color: inherit; text-align: center; font: inherit; cursor: pointer; }   /* a key that reads as a figure: drawn, not a box */
+.chain-step::before { content: ""; position: absolute; left: 50%; right: -50%; top: 8px; height: 4px; border-radius: 2px;   /* the line to the next node: a shallow groove */
+  background: color-mix(in srgb, var(--ink) 10%, transparent); box-shadow: inset 1px 1px 2px rgba(0, 0, 0, .25); }
+.chain-step:last-child::before { display: none; }                                    /* the documents end it */
+.chain-step.has:has(+ .has)::before { background: linear-gradient(90deg, var(--bar), var(--next)); box-shadow: inset 0 1px 1px rgba(0, 0, 0, .2); }   /* both ends reached: one colour into the next */
+.chain-step::after { content: ""; position: absolute; left: 50%; top: 1px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%;
+  background: var(--sink-bg); box-shadow: inset 0 0 0 3px var(--bar), 1px 1px 2px rgba(0, 0, 0, .15); }   /* the node: a ring while the step holds nothing */
+.chain-step.has::after { background: radial-gradient(circle at 38% 34%, color-mix(in srgb, var(--bar) 70%, #fff), var(--bar) 72%);   /* lit, as the panel's lamps, once it does */
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--bar) 20%, transparent), 1px 2px 4px rgba(0, 0, 0, .28); }
+.chain-fig { display: inline-flex; align-items: baseline; gap: var(--gap-s); }        /* the number, then the name */
+.chain-n { font-size: var(--fs-2xl); font-weight: 750; line-height: 1; color: var(--step, var(--ink)); font-variant-numeric: tabular-nums; }   /* in its step's colour */
+.chain-label { font-size: var(--fs-sm); font-weight: 700; line-height: 1.2; color: var(--ink); }
+.chain-line { font-size: var(--fs-xs); color: var(--ink-3); }                         /* under the number and the name */
+.chain-line.bad { color: var(--red); }
+.chain-step:hover .chain-label, .chain-step:focus-visible .chain-label { text-decoration: underline; }
+.matlist.made li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; column-gap: var(--gap-m); align-items: baseline; }
+.linkish { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.linkish:hover, .linkish:focus-visible { text-decoration: underline; }
+.colhead h2 { font-size: var(--fs-md); font-weight: 750; }
+.colhead p { font-size: var(--fs-xs); color: var(--ink-3); }
+.make-in { display: grid; gap: var(--gap-s); }
+.make-in .drop { min-height: 190px; }
+.mk-label { margin-top: var(--gap-xs); font-size: var(--fs-xs); font-weight: 650; color: var(--ink-2); }
+.mk-pathkey { justify-self: start; }                                                  /* the path box's key, at the start of its line */
+.drop-keys { display: flex; flex-wrap: wrap; gap: var(--gap-s); justify-content: center; margin-top: var(--gap-xs); }
+.sentrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); }
+.jobline { margin: 0 0 var(--gap-s); font-size: var(--fs-md); font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }   /* the edition's name, whole */
+.nextkeys { display: flex; flex-wrap: wrap; gap: var(--gap-s); margin-top: var(--gap-m); }
+.fixform { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--gap-s); align-items: end; margin-bottom: var(--gap-m); }   /* the missing fields */
+.fixform .btn { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 1279px) { .flow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .flow-col:nth-child(3) { grid-column: 1 / -1; } .flow-col:nth-child(3)::before { display: none; } }
+@media (max-width: 860px) { .flow { grid-template-columns: minmax(0, 1fr); } .flow-col::before { display: none; } .fixform { grid-template-columns: minmax(0, 1fr); }
+  .chain-fig { flex-direction: column; align-items: center; gap: 2px; } .chain-n { font-size: var(--fs-xl); } .chain-step { padding-inline: 2px; } }   /* a phone keeps the line, the name under the number */
+
+/* ---------------------------------------------------------------- the canvas: documents on the desk */
+.doctools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); }
+.doctools .grow { flex: 1; }
+.docacts { display: flex; flex-wrap: wrap; gap: var(--gap-s); justify-content: flex-end; }  /* Make PDFs, Export and Lock stay together when the row wraps */
+.evsum { font-size: var(--fs-sm); color: var(--ink-2); }
+.pages { display: grid; gap: 24px; justify-content: center; grid-template-columns: repeat(var(--cols, 1), auto); }
+.pagewrap { display: grid; grid-template-columns: 92px auto; align-items: start; }   /* the margin column, then the page */
+.marginal { position: relative; height: 100%; border-right: 1px solid var(--paper-line); margin-right: 12px; }   /* the page's sections, beside it */
+.mlabel { position: absolute; right: 10px; font-size: var(--fs-xs); font-weight: 700; color: var(--ink-2); text-align: right; max-width: 80px; line-height: 1.3; }
+.mlabel.bad { color: var(--red); }
+.mdot { position: absolute; right: -7px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink-3); }
+.mdot.bad { border-color: var(--red); background: var(--red); } .mdot.lock { border-color: var(--ink); background: var(--ink); }
+.sheet { width: var(--a4-w); min-height: var(--a4-h); background: #fff; color: #1f1f1f; box-shadow: var(--sheet-shadow); border-radius: 2px;
+  padding: 52px 56px 48px; font-size: 12.5px; line-height: 1.5; position: relative; zoom: var(--zoom, 1); }
+
+/* the printed resume, mirrored from src/resume_form.js and src/layout.js with the PDF's own measures (measured on the PDFs
+   LibreOffice makes in the render container): a point is 4/3 px and a twip 1/15 px, so every size below is the printed one
+   (9 pt body = 12 px, a 230-twip line = 15.33 px). LibreOffice sets a line given in twips at exactly that height and a
+   single-spaced line at the font's own height (Pretendard's ascent and descent, 2444/2048 em: line-height 1.19336, exact
+   where CSS's normal rounds), the space between two paragraphs at the larger of the one's after and the other's before (CSS
+   margins collapse the same way), and no space before at the top of a page (.top0). A table's line sits on the boundary
+   between two columns, and a cell's words run from half a line's width and the cell's margin after its left edge to half a
+   line's width less the cell's margin after its right edge. In a line of a fixed height LibreOffice puts the baseline at
+   1950/2444 of it and in a single-spaced one at the font's ascent; Chrome puts it at half the spare height after the ascent,
+   both rounded to whole pixels. Each kind of line below is moved down by the difference, measured in Chrome for that size and
+   height (position: relative; top), which moves no other line. Its colours come from the theme: --c-* set per sheet */
+.sheet.rs { width: 793.73px; min-height: 0; height: 1122.53px; padding: 22.67px 50px 72px; border-radius: 0;   /* A4, 11906 x 16838 twips; margins 340, 750, 1080 twips */
+  font-size: 12px; line-height: 1.19336; color: #1f1f1f; font-feature-settings: normal; font-kerning: none; text-rendering: geometricPrecision; }   /* 9 pt;
+  figures as the font draws them (the panel's tabular ones are wider), no pair kerning, and every glyph at the font's own width
+  (a hinting Linux browser rounds them wider at these sizes), as LibreOffice set them: each line then holds the PDF's words */
+.rs .top0 { margin-top: 0; }                                                          /* the first paragraph of a page: no space before, as LibreOffice drops it */
+/* the name band (layout.js fheader): photo 1215 twips, name 4700 twips less the photo, contacts the rest, at least 81 pt high */
+.r-head { display: grid; grid-template-columns: 313.33px 380.4px; background: var(--c-band); }   /* the name's 4700 twips, the contacts' 5706 */
+.r-head.photo { grid-template-columns: 81px 232.33px 380.4px; min-height: 108px; }   /* the photo's 1215 twips taken from the name's */
+.r-ph { background: var(--c-name); display: flex; align-items: center; padding-left: .67px; }   /* the photo, flush, 0.5 pt in from the card's edge */
+.r-photo { display: block; width: 80.33px; height: 106.67px; object-fit: cover; }   /* its cell less the inset, 80 pt high */
+.r-name { background: var(--c-name); color: var(--c-name-ink); padding: 10.67px 13.33px 10.67px 18.67px; display: flex; flex-direction: column; justify-content: center; }   /* 160, 200 and 280 twips, centred */
+.r-head.photo .r-name { padding: 0 6.67px 0 9.33px; }                                 /* beside a photo: no margin above and below, the name nearer the photo */
+.r-head.photo .r-name.two { padding-left: 22px; }                                     /* a tagline of two written lines sits further in */
+.r-name .n { margin-bottom: 2px; white-space: nowrap; }                               /* the name, then its English beside it, 30 twips above the tagline */
+.r-name .n b { font-size: 29.33px; font-weight: 700; letter-spacing: 1.33px; }        /* 22 pt, 1 pt apart */
+.r-name .n span { font-size: 13.33px; white-space: pre; }                             /* 10 pt, after two spaces */
+.r-name .tag { font-size: 9.33px; font-weight: 700; letter-spacing: 1.07px; white-space: pre-line; }   /* 7 pt, 0.8 pt apart; a line break in it is kept */
+.r-contacts { padding: 0 13.33px 0 17.33px; display: flex; flex-direction: column; justify-content: center; }   /* 260 and 200 twips at the sides, centred */
+.r-head:not(.photo) .r-contacts { padding: 10.67px 13.33px 10.67px 17.33px; }        /* 100 twips asked, but LibreOffice gives every cell of a row the row's largest margin: the name's 160 */
+.r-contacts p { display: grid; grid-template-columns: 83.33px minmax(0, 1fr); line-height: 16px; margin-bottom: 1.33px; position: relative; top: 1.77px; }   /* a tab at 1250 twips; 240-twip lines, 20 apart */
+.r-contacts b { font-size: 10px; font-weight: 700; color: var(--c-acc); position: relative; top: -1px; }   /* 7.5 pt, whose baseline sits a pixel higher than the 8 pt value's */
+.r-contacts span { font-size: 10.67px; color: #1f1f1f; overflow-wrap: anywhere; }     /* 8 pt; a long address wraps, never cut */
+/* paragraphs */
+.r-headline { font-size: 16px; font-weight: 700; color: #1f1f1f; margin: 10.67px 0 4px; white-space: pre-line; position: relative; top: .23px; }   /* 12 pt, 160 twips before, 60 after */
+.r-prose { font-size: 12px; color: #333; line-height: 17.6px; text-align: justify; margin-bottom: 4px; position: relative; top: 2.35px; }   /* 264-twip lines, 60 after */
+.r-prose.rail { margin: 0 0 0 -2px; padding: 0 0 4px 15.33px; }                     /* about me: the words at 200 twips; the rail runs on between a stage's paragraphs */
+.r-prose.rail.last { padding-bottom: 0; margin-bottom: 4px; }                        /* and stops at the stage's last line */
+.r-prose.rail::before { content: ""; position: absolute; left: 0; top: -2.35px; bottom: 2.35px; width: 2px; background: var(--c-rule); }   /* a 1.5 pt rule 10 pt before the words, where the paragraph is, not where its letters moved */
+.r-sec { display: flex; align-items: baseline; margin: 16.67px 0 6px -4.67px; padding: 0 12px 4px 8px; border-left: 6px solid var(--c-acc2);   /* 250 twips before, 90 after; a 4.5 pt bar 6 pt before the words */
+  border-bottom: 1px solid var(--c-rule); font-size: 14.67px; }                       /* and a 0.75 pt rule 3 pt under them */
+.r-sec h2 { margin: 0; font-size: 14.67px; font-weight: 700; line-height: inherit; color: var(--c-sec); }   /* 11 pt, single-spaced (not the panel's heading line) */
+.r-sec h2, .r-sec small { position: relative; top: .97px; }                          /* the words moved, not the bar and the rule; */
+.r-sec small { top: .05px; }                                                          /* the faint label: the row's baseline alignment seats it a pixel lower already */
+.r-sec h2 span { font-size: 12px; font-weight: 400; color: #6b6b6b; white-space: pre; }   /* the total beside it, 9 pt grey after two spaces */
+.r-sec small { margin-left: auto; font-size: 9.33px; color: #8a94a3; letter-spacing: 2.67px; }   /* 7 pt, 2 pt apart, ending at 10226 twips */
+.r-fig { display: block; width: 694px; max-width: none; height: auto; margin: 2.67px 0 1.33px; }   /* a figure at 694 px, 40 twips before, 20 after */
+.r-fig.f-stack { margin-bottom: 5.33px; }                                               /* the hierarchy figure: 80 after */
+.r-cap { font-size: 12.67px; font-weight: 700; color: var(--c-acc); margin: 9.33px 0 3.33px; position: relative; top: .19px; }   /* 9.5 pt, 140 twips before, 50 after */
+.r-bul { font-size: 12px; color: #333; line-height: 16.67px; text-align: justify; padding-left: 20px; text-indent: -13.33px; margin-bottom: 3.33px;   /* 250-twip lines, 50 after; */
+  position: relative; top: 1.3px; }                                                   /* the text at 300 twips, the bullet 200 before it */
+.r-bul.cont { text-indent: 0; }                                                       /* a paragraph's lines carried to the next page */
+.r-bul.after90 { margin-bottom: 6px; } .r-bul.after40 { margin-bottom: 2.67px; }      /* a project's 90 twips after; a list item's 40 */
+.r-bul > .b, .r-line > .b { display: inline-block; text-indent: 0; color: var(--c-acc2); }
+.r-bul > .b { width: 13.33px; }                                                       /* the bullet, then a tab to 300 twips */
+.r-bul > b { font-weight: 700; color: var(--c-acc); }                                 /* a project's or a strength's name */
+.cut { text-align-last: justify; }                                                    /* a paragraph's last line before a page break is still a full line */
+.r-line { display: flow-root; font-size: 12px; color: #333; line-height: 16px; padding-left: 20px; text-indent: -13.33px; margin-bottom: 2px; position: relative; top: .94px; }   /* a dated line: 240-twip lines, 30 after;
+  the bullet at 100 twips, a second line at 300 (indent 300, hanging 200); flow-root holds a date that went under the words
+  (a right tab's words that did not fit) */
+.r-line > .b { font-size: 11.33px; white-space: pre; line-height: 1; }                 /* the bullet and two spaces, 8.5 pt; line-height 1 keeps a smaller face's line box inside the 240-twip line */
+.r-line .org { font-size: 10.67px; color: #6b6b6b; white-space: pre-wrap; line-height: 1; }   /* the organization, 8 pt grey after three spaces */
+.r-line .date { float: right; margin-right: 2.67px; font-size: 10.67px; color: #6b6b6b; position: relative; top: .9px; text-indent: 0; }   /* the date at the right tab, 10366 twips, on the line's baseline
+  (a float is a block of its own: it would take the line's hanging indent) */
+.r-note { font-size: 10.67px; color: #6b6b6b; margin: 3.33px 0 2.67px; position: relative; top: 1.16px; }   /* 8 pt grey, 50 twips before, 40 after */
+/* the overview cards and the key projects: tables with 4.5 pt white lines; a cell's fill starts after its line, its words half
+   a line and the cell's margin after the column's edge */
+.r-cards { display: grid; grid-template-columns: 340.87px 340.87px; gap: 6px; padding: 6px 0 6px 6px; }   /* two columns of 5203 twips less their lines */
+.r-card { background: var(--c-band); padding: 4px 7.67px 4px 7.67px; }              /* 60-twip margins above and below, 160 at the sides */
+.r-card b { display: block; font-size: 10.67px; font-weight: 700; color: var(--c-acc2); margin-bottom: 2.67px; position: relative; top: 1.16px; }   /* 8 pt, 40 twips after */
+.r-card p { font-size: 11.33px; color: #1f1f1f; line-height: 16.67px; position: relative; top: 1.3px; }   /* 8.5 pt on 250-twip lines */
+.r-hls { display: grid; column-gap: 6px; padding: 6px 0 6px 6px; }                  /* columns set per table (docs.js), no line between head and body */
+.r-hlh { background: var(--c-head); color: var(--c-head-ink); padding: 5.33px 5px 5.33px 6.33px; }   /* 80-twip margins above and below, 140 and 120 at the sides */
+.r-hlh b { display: block; font-size: 11.33px; font-weight: 700; margin-bottom: .67px; position: relative; top: .79px; }   /* 8.5 pt, 10 twips after */
+.r-hlh small { display: block; font-size: 9.33px; white-space: pre-wrap; }          /* 7 pt; its two spaces between company and years kept, as printed */
+.r-hlb { background: var(--c-band); padding: 5.33px 5px 6px 6.33px; }               /* 80 twips above, 90 below */
+.r-hlb b { display: block; font-size: 9.33px; font-weight: 700; color: var(--c-acc); margin-top: 2px; }   /* 7 pt, 30 twips before */
+.r-hlb p { font-size: 10.67px; color: #1f1f1f; line-height: 16px; margin-bottom: 1.33px; position: relative; top: 1.97px; }   /* 8 pt on 240-twip lines, 20 after */
+/* tables (layout.js ftable): 0.5 pt grey lines drawn inside each cell's right and bottom edge and the table's top and left,
+   so a column is its twips wide; 100-twip margins at the sides, 40 above and below, 230-twip lines */
+.r-table { box-sizing: border-box; width: 694.4px; table-layout: fixed; border-collapse: separate; border-spacing: 0; padding: .67px 0 0 .67px;
+  box-shadow: inset .67px .67px 0 #c8c8c8; font-size: 11.33px; color: #333; }
+.r-table th, .r-table td { padding: 4.14px 7px 1.87px 6.33px; line-height: 15.33px; vertical-align: middle; text-align: left; font-weight: 400;
+  box-shadow: inset -.67px -.67px 0 #c8c8c8; overflow-wrap: anywhere; }
+.r-table th { background: var(--c-head); color: var(--c-head-ink); font-weight: 700; text-align: center; }   /* the head row */
+.r-table td.k { background: var(--c-key); color: var(--c-acc); font-weight: 700; }   /* the category column */
+.r-table .c { text-align: center; } .r-table .r { text-align: right; }              /* a column's alignment (resume_form.js align) */
+.r-table .g { color: #6b6b6b; }                                                       /* a cell's second line, grey */
+.r-table .bold { font-weight: 700; } .r-table .acc { color: var(--c-acc2); }           /* a list table's marked cell: bold, or in the accent (a first author) */
+.r-table td.lg { padding-top: 4.23px; padding-bottom: 1.77px; }                         /* a name beside its logo: 30-twip margins and a 1 pt line after the inner table */
+.r-org { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; }   /* the logo's 420-twip column, then the name */
+.r-org .g { font-size: 10.67px; }                                                     /* the place or the school's second line, 8 pt */
+.r-logo { display: block; width: 22px; height: 22px; object-fit: contain; }         /* a table's logo tile, 22 px high */
+.r-org .r-logo { position: relative; top: -2.23px; }                                   /* centred on the name's lines, not on their letters moved down */
+/* the experience: a band per company with its logo, badge, place and dates, the line under it, a grey line, then bullets */
+.r-gap { height: 13.33px; }                                                           /* the band's 200 twips above it, a paragraph of its own */
+.r-band { position: relative; display: flex; align-items: baseline; height: 32px; padding: 7px 2.67px 7px 37.33px; line-height: 18px;   /* 24 pt: 5 pt and a 0.25 pt line above and below an 18 px line */
+  background: var(--c-band); margin-bottom: 3.33px; white-space: nowrap; }           /* the name at a tab of 560 twips, the dates at 10366 */
+.r-band .r-logo { position: absolute; left: 5.33px; top: 4px; width: 24px; height: 24px; }   /* 18 pt, 4 pt in, 3 pt down */
+.r-band b { font-size: 14.67px; font-weight: 700; color: var(--c-band-ink); position: relative; top: .36px; }   /* 11 pt */
+.r-band .badge { align-self: center; height: 12px; line-height: 12px; margin-left: 6.67px; padding: 0 2.7px; background: var(--c-acc2); color: #fff; font-size: 10px; font-weight: 700; }   /* src/badge.py: 9 pt high, 7.5 pt bold, 5 pt after the name */
+.r-band .place { margin-left: auto; font-size: 10.67px; color: #6b6b6b; position: relative; top: -1.2px; white-space: pre; }   /* 8 pt, raised (2 pt asked, 1.2 printed), three spaces before the dates */
+.r-band .when { font-size: 12px; font-weight: 700; color: #1f1f1f; position: relative; top: -.4px; }   /* 9 pt, raised (1 pt asked, 0.6 printed) */
+.r-band.plain { height: 20px; padding: 0 2.67px 0 0; line-height: 20px; margin: 13.33px 0 3.33px; }   /* a company without a logo: a shaded 300-twip line, 200 twips before */
+.r-band.plain b { font-size: 13.33px; }                                               /* 10 pt */
+.r-band.plain .place, .r-band.plain .when, .r-band.plain b { top: .96px; }             /* on the line, not raised; seated as in a 300-twip line; */
+.r-band.plain .place, .r-band.plain .when { top: 1.96px; }                              /* the row's baseline alignment seats the smaller faces a pixel above the name's */
+.r-sub { font-size: 12px; font-weight: 700; color: var(--c-acc); text-decoration: underline; margin: 3.33px 0 4.67px; position: relative; top: .43px; }   /* 50 twips before, 70 after */
+.r-sub.ink { color: #2b2b2b; }                                                        /* a theme whose accent is the ink */
+.r-desc { font-size: 10.67px; color: #6b6b6b; margin-bottom: 4px; position: relative; top: 1.16px; }   /* 8 pt grey, 60 after */
+/* about me: a shaded stage title with a 4.5 pt bar, then its paragraphs with a thin rail */
+.r-stage { margin: 6.67px 0 3.33px -4.67px; padding-left: 10.67px; border-left: 6px solid var(--c-acc); background: var(--c-band); line-height: 20px;   /* 100 twips before, 50 after, 300-twip line */
+  font-size: 13.33px; font-weight: 700; color: var(--c-band-ink); }
+.r-stage span { position: relative; top: .49px; }                                    /* seated in its 300-twip line, then raised as printed */
+.r-foot { position: absolute; left: 50px; right: 50px; bottom: 47.2px; padding-top: 8.67px; display: flex; align-items: baseline;   /* 708 twips from the foot; a 0.5 pt rule 6 pt above */
+  box-shadow: inset 0 .67px 0 var(--c-rule); font-size: 10px; color: #9a9a9a; white-space: pre; }
+.r-foot b { font-weight: 700; color: var(--c-acc); }                                  /* the name and the page, 7.5 pt */
+.r-foot > * { position: relative; top: .52px; }                                       /* the words moved, not the rule */
+.r-foot .en, .r-foot .of { font-size: 8.67px; }                                       /* 6.5 pt */
+.r-foot .pg { margin-left: auto; margin-right: 2.67px; }                              /* at the right tab */
+.sheet mark.dochl { background: #fff0a0; color: inherit; font-weight: inherit; }       /* the highlighter as printed: a pale yellow field behind the words */
+/* the one-column form (resume_form.js plainHead, plainWork, plainSkills, plainEducation, plainOthers): the name, what the
+   person is and one line of contacts on the paper, then a line per company and per school with its dates at the right tab,
+   the skills as bullets, a list table's rows as dated lines */
+.r-pname { font-size: 26.67px; color: #1f1f1f; margin-bottom: 1.33px; white-space: pre-wrap; position: relative; top: .52px; }   /* 20 pt in the print ink, 20 twips after */
+.r-pname b { font-weight: 700; }
+.r-pname span { font-size: 13.33px; color: #6b6b6b; }                                 /* the other spelling, 10 pt grey after two spaces */
+.r-ptag { font-size: 11.33px; font-weight: 700; color: var(--c-acc2); margin-bottom: 1.33px; position: relative; top: .88px; }   /* 8.5 pt bold in the accent, 20 after */
+.r-pcon { font-size: 11.33px; color: #6b6b6b; margin-bottom: 2.67px; white-space: pre-wrap; overflow-wrap: anywhere; position: relative; top: .83px; }   /* 8.5 pt grey, three spaces each side of a bar, 40 after;
+  at 8.5 pt single-spaced lines Chrome sets the baseline a pixel high (it floors the negative half-leading): the words moved down */
+.r-row { display: flow-root; font-size: 13.33px; font-weight: 700; color: #1f1f1f; line-height: 16px; margin: 7.33px 0 1.33px; position: relative; top: -.17px; }   /* 10 pt bold on a 240-twip line, 110 before, 20 after */
+.r-row .sub { font-size: 11.33px; font-weight: 400; color: #333; white-space: pre-wrap; line-height: 1; position: relative; top: 1px; }   /* 8.5 pt after three spaces; line-height 1 keeps it inside the line,
+  where Chrome seats it a pixel above the name's baseline: LibreOffice sets every run of a line on one baseline */
+.r-row .date { float: right; margin-right: 2.67px; font-size: 10.67px; font-weight: 400; color: #6b6b6b; position: relative; top: 2px; }   /* 8 pt grey at the right tab, 10366 twips: its own line box seats it 2 px high */
+.r-desc.a40 { margin-bottom: 2.67px; }                                                 /* the one-column form's company line: 40 twips after */
+.r-bul.after70 { margin-bottom: 4.67px; } .r-bul.after30 { margin-bottom: 2px; }      /* a project's 70 twips after in the one-column form; a skill line's 30 */
+/* the table form (tableHead, service): the document's name centred over a key table of who and how to reach them */
+.r-title { font-size: 24px; font-weight: 700; color: #1f1f1f; text-align: center; margin-bottom: 8px; position: relative; top: 1px; }   /* 18 pt, 120 twips after; seated as printed */
+.r-table .pre { white-space: pre-wrap; }                                              /* the name row: two spaces between the spellings */
+.c-letter { display: grid; gap: 12px; font-size: 13px; line-height: 1.75; } .c-letter .sig { margin-top: 18px; font-weight: 700; text-align: right; }
+.c-letter h2 { font-size: 20px; color: var(--c-sec); }
+
+/* sentences: each one can be clicked for its evidence */
+.s { cursor: pointer; border-radius: 2px; transition: background-color var(--t-fast) var(--ease); }
+.s:hover { background: rgba(242, 199, 68, .22); }
+.s.sel { background: rgba(242, 199, 68, .5); box-shadow: 0 0 0 2px rgba(242, 199, 68, .5); }   /* the one in the inspector */
+.s.sel .cite { background: #f2c744; }                                               /* its numbers, the ones the inspector lists */
+.s.unsupported { text-decoration: underline wavy #c8102e; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }   /* stopped: no evidence */
+.s .cite { margin-left: 2px; padding: 1px 3px; border-radius: 3px; background: #fbe8a4; font-size: .6em; font-weight: 700; line-height: 0; color: #1f1f1f; user-select: none; }   /* the numbers of a sentence's sources: the evidence's amber, on paper in both themes; the PDF has none */
+/* on the laid-out pages the numbers take no room in the line, which breaks where the PDF breaks it: each sits after its
+   sentence where that line ends with it and has room, else in the page's right margin beside that line (docs.js placeCites) */
+.rs .s > .cite { display: none; }                                                    /* (a phone shows the same pages, scaled: docs.js fitPhone) */
+.rs .cite.over { position: absolute; z-index: 1; margin: 0; padding: 1px 3px; border-radius: 3px; background: #fbe8a4; font-size: 7.5px; font-weight: 700; line-height: 1;
+  color: #1f1f1f; white-space: nowrap; user-select: none; cursor: pointer; }
+.rs .cite.over.sel { background: #f2c744; }                                           /* the selected sentence's numbers, the ones the inspector lists */
+.srclist { margin: 0; padding: 0; list-style: none; display: grid; row-gap: 4px; }
+.srclist li { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) auto; column-gap: var(--gap-s); align-items: baseline; font-size: var(--fs-sm); }
+.srclist .srcn { font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }   /* the number after the canvas's sentences */
+.srclist .nm { overflow-wrap: anywhere; }   /* a long file name wraps, never cut */
+/* the evidence in sight: under each fact its source's words and file; in the evidence tab each passage under the
+   number the canvas puts after the sentence */
+.fact-ev { display: grid; gap: 3px; margin-top: 4px; }
+.fact-ev q { display: block; padding-left: var(--gap-s); border-left: 2px solid var(--hl-line); font-size: var(--fs-xs); line-height: 1.6; color: var(--ink-2); font-weight: 400; quotes: none; }   /* closed, the first words only (views.js), so the list stays light and nothing is cut */
+.fact-src { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 400; color: var(--ink-3); }   /* quiet: the words above it are the evidence */
+.ev-note { position: relative; padding-left: calc(var(--gap-s) + 22px); }
+.ev-note .evn { position: absolute; left: var(--gap-s); top: var(--gap-s); min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--cite-bg); color: var(--cite-ink);
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }   /* the same number as after the sentence */
+.s.edited { text-decoration: underline dotted #1a56c4; text-underline-offset: 3px; }   /* changed by you, still inside the evidence */
+.s:focus-visible { outline: 2px solid #1a56c4; outline-offset: 1px; }
+.s.typing { cursor: text; background: #fff; color: #111; outline: 2px solid #1a56c4; outline-offset: 2px; text-decoration: none; }   /* typed over where it stands */
+
+/* the typeset pages */
+.shots { display: grid; gap: 18px; justify-content: center; }
+.shots img { width: min(var(--a4-w), 100%); height: auto; background: #fff; box-shadow: var(--sheet-shadow); display: block; }
+.shots.deck img { width: min(960px, 100%); }
+.deckframe { position: relative; overflow: hidden; margin: 12px auto 0 auto; max-width: 960px; }  /* holds the scaled frame */
+.deckframe iframe { display: block; width: 1280px; border: 0; background: transparent; transform-origin: 0 0; }  /* a slide's own width, as it prints */
+
+/* ---------------------------------------------------------------- the inspector's parts */
+.ev-sentence { font-size: var(--fs-md); font-weight: 600; line-height: 1.6; }
+.ev-actions { display: flex; flex-wrap: wrap; gap: var(--gap-s); }
+.ev-state { display: flex; flex-wrap: wrap; gap: var(--gap-s) var(--gap-m); align-items: center; }
+.ev-list { display: grid; gap: var(--gap-m); }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--gap-s) var(--gap-l); font-size: var(--fs-sm); }
+.kv dt { color: var(--ink-3); font-weight: 600; } .kv dd { margin: 0; }
+.swatches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap-s); }
+.swatch { display: grid; gap: var(--gap-s); padding: var(--gap-s); border-radius: var(--r-md); border: 1px solid var(--paper-line); background: var(--paper); cursor: pointer;
+  font-weight: 650; font-size: var(--fs-sm); text-align: left; box-shadow: var(--raise); }
+.swatch i { display: block; height: 24px; border-radius: var(--r-sm); }
+.swatch[aria-pressed="true"] { box-shadow: var(--press); outline: 2px solid var(--ink); outline-offset: -2px; }
+.hist { display: grid; gap: var(--gap-xs); }
+.hist button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--gap-m); padding: var(--gap-s) var(--ctl-px-sm); border: 0; border-radius: var(--r-sm);
+  background: transparent; cursor: pointer; text-align: left; font-size: var(--fs-sm); }
+.hist button:hover { background: var(--pane-hover); } .hist time { color: var(--ink-3); font-size: var(--fs-xs); }
+.ins-sec { display: grid; gap: var(--gap-m); } .ins-sec h3 { font-size: var(--fs-sm); color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- the profile: details, files, and the facts as rows, one page at a time.
+   Grids of one column say minmax(0, 1fr): a row of choices that swipes on a phone must not widen the column past its sheet */
+.viewsheet { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); padding: var(--pad-l); min-width: 0; }   /* a view's sheet: details, files, a form (.sheet is the printed page) */
+.facts-sheet { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); padding: var(--pad-l); scroll-margin-top: calc(var(--bar-h) + var(--gap-m)); }   /* a page change reads from the top */
+.facts-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); }
+.facts-tools .fq { flex: 1 1 240px; width: auto; }                                    /* the search takes the room */
+.facts-tools .fk { flex: 0 1 200px; width: auto; }                                    /* the kinds, beside it */
+.factlist { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--pane-rule); }
+.factlist .fact { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--gap-m); min-width: 0; overflow: visible;
+  white-space: normal; padding: var(--gap-s) 0; border-bottom: 1px solid var(--pane-rule); }   /* a row: its words on the left, its keys on the right */
+.fact-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--gap-m); min-width: 0; padding: var(--gap-xs) 0;
+  border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.fact-row:hover .fact-t { text-decoration: underline; text-underline-offset: 3px; }     /* a row opens */
+.fact-row:disabled { cursor: default; }
+.fact-row .kind { font-size: var(--fs-xs); font-weight: 650; color: var(--ink-3); }
+.fact-main { display: grid; gap: 2px; min-width: 0; }
+.fact-t { font-size: var(--fs-sm); font-weight: 650; }
+.factlist .fact .meta { font-size: var(--fs-xs); color: var(--ink-3); }
+.factlist .fact .acts { display: flex; flex-wrap: wrap; gap: var(--gap-xs); justify-content: flex-end; }
+.fact-body { grid-column: 1 / -1; display: grid; gap: var(--gap-s); padding: var(--gap-s) 0 var(--gap-xs) calc(96px + var(--gap-m)); }   /* under the row, from the column of its words */
+.fact-body .acts { justify-content: flex-start !important; }
+.factlist .fact.dropped .fact-main { opacity: .55; }
+.factlist .empty { padding: var(--pad-l) 0; }
+.pager { display: flex; align-items: center; justify-content: center; gap: var(--gap-m); }
+.details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-m) var(--gap-l); }
+.details-wrap { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: var(--gap-l); align-items: start; }   /* the photo beside the fields */
+/* your details read as they print: the name large, the contacts with their signs, the headline and introduction drawn
+   with their highlights; the fields open only on Edit, each highlight field with how it reads under it */
+.details-read { display: grid; gap: var(--gap-s); align-content: start; min-width: 0; }
+.dr-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--gap-xs) var(--gap-s); }
+.dr-name b { font-size: var(--fs-xl); font-weight: 750; color: var(--ink); }          /* the name */
+.dr-name span { font-size: var(--fs-sm); color: var(--ink-3); }                      /* its English */
+.dr-contact { display: flex; flex-wrap: wrap; gap: var(--gap-xs) var(--gap-m); font-size: var(--fs-sm); color: var(--ink-2); }
+.dr-contact > span { display: inline-flex; align-items: center; gap: 6px; }          /* a sign and its value on one line */
+.dr-headline { margin: var(--gap-xs) 0 0; font-size: var(--fs-md); font-weight: 650; line-height: 1.55; color: var(--ink); }
+.dr-intro { margin: 0; font-size: var(--fs-sm); line-height: 1.7; color: var(--ink-2); }
+.rich-head { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-s); font-weight: 600; color: var(--ink-2); font-size: var(--fs-xs); }
+.md-label { font-size: var(--fs-xs); color: var(--ink-3); }                          /* "how it reads" */
+.dcite { margin-left: 2px; padding: 1px 3px; border-radius: 3px; background: var(--cite-bg); font-size: .6em; font-weight: 700; line-height: 0; color: var(--cite-ink); cursor: help; }   /* a field's source number, as the canvas numbers evidence */
+.dr-src { display: flex; flex-wrap: wrap; gap: var(--gap-xs) var(--gap-m); margin-top: var(--gap-xs); padding-top: var(--gap-s); border-top: 1px solid var(--paper-line); font-size: var(--fs-xs); color: var(--ink-3); }
+.dr-src > span { display: inline-flex; align-items: center; gap: 5px; }
+.dr-src .evn { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--cite-bg); color: var(--cite-ink); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+.md-preview { margin: 0; min-height: 1.6em; padding: var(--gap-s) var(--pad-s); border-radius: var(--r-lg); background: var(--well-in); font-size: var(--fs-sm); line-height: 1.65; color: var(--ink-2); }
+.photo-cell { display: grid; gap: var(--gap-s); justify-items: stretch; width: 120px; }
+.photo-cell img, .photo-none { display: grid; place-items: center; width: 120px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--r-lg);   /* a 3:4 portrait, as the resume prints it */
+  background: var(--well-in); box-shadow: var(--well-ring); color: var(--ink-3); }
+.photo-cell .toggle { font-size: var(--fs-xs); white-space: normal; line-height: 1.3; }
+.ob-file { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--gap-s) var(--gap-m); padding: var(--gap-s) 0; }   /* a file read, and its key */
+.add-fact { display: grid; gap: var(--gap-m); padding: var(--pad-m); border-radius: var(--r-lg); background: var(--paper-2); border: 1px solid var(--paper-line); }
+.details .wide { grid-column: 1 / -1; }
+
+/* ---------------------------------------------------------------- jobs: the list of jobs beside the one open, its parts in tabs */
+.jobsplit { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: var(--gap-l); align-items: start; }   /* the list and the one open, each its own height (not stretched to each other) */
+.joblist { align-self: start; align-content: start; position: sticky; top: calc(var(--bar-h) + var(--gap-xl)); display: grid; padding: var(--gap-xs); max-height: calc(100vh - var(--bar-h) - 48px); overflow: auto; scrollbar-width: thin; }
+.jobrow { display: grid; align-content: start; gap: var(--gap-xs); padding: var(--pad-s); border: 1px solid transparent; border-radius: var(--r-sm); background: transparent; color: inherit;
+  text-align: left; cursor: pointer; transition: background-color var(--t-fast) var(--ease); }
+.jobrow + .jobrow { margin-top: 2px; }
+.jobrow:hover { background: var(--pane-hover); }
+.jobrow[aria-current="true"] { background: var(--seg-on); border-color: var(--seg-on-line); box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }   /* the open job, as the open view */
+.jobrow .co { font-weight: 700; font-size: var(--fs-sm); } .jobrow .ro { font-size: var(--fs-xs); color: var(--ink-2); }
+.fitcount { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s); }
+.jobdetail { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-l); padding: var(--pad-l); min-width: 0; align-content: start; }   /* its own height, its parts from the top */
+.jd-back { display: flex; }                                                           /* on a phone: the way back to the list, on its own line */
+.jd-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-m) var(--gap-xl); }
+.jd-title { display: grid; gap: 2px; min-width: 0; } .jd-title h2 { font-size: var(--fs-xl); } .jd-title .ro { font-size: var(--fs-sm); color: var(--ink-2); }
+.jd-score { display: flex; align-items: baseline; gap: var(--gap-xs); font-variant-numeric: tabular-nums; }
+.jd-score b { font-size: var(--fs-xl); font-weight: 800; line-height: 1; letter-spacing: -.02em; }   /* the score in ink */
+.jd-score small { font-size: var(--fs-sm); font-weight: 700; color: var(--ink-2); }
+.jd-score .hint { margin-right: var(--gap-xs); }
+.jd-acts { display: flex; flex-wrap: wrap; gap: var(--gap-s); }
+.jd-foot { display: flex; justify-content: flex-end; padding-top: var(--gap-m); border-top: 1px solid var(--pane-rule); }   /* what takes the job away, apart from what makes it */
+.jd-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-l); min-width: 0; align-content: start; }
+.fitpart { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); }   /* one column: a wide row of choices never widens it */
+.fit-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-l); }
+.fit-tools .seg button .lit { display: inline-flex; }
+.fit-tools .hint { flex: 1 1 280px; }
+.fl-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-xs); }
+.fl-sec { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-3); letter-spacing: .02em; padding-top: var(--gap-s); }   /* the posting's own section */
+.fl-rows { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--pane-rule); }
+.fl { border-bottom: 1px solid var(--pane-rule); }
+.fl-row { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--gap-m); width: 100%; padding: var(--gap-s) var(--gap-xs);
+  border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; font-size: var(--fs-sm); }
+.fl-row:hover { background: var(--pane-hover); }
+.fl-row .pill { justify-self: start; }
+.fl-txt { font-weight: 400; }                                                       /* the posting's words as they read; the rating carries the weight */ .fl-n { font-size: var(--fs-xs); color: var(--ink-3); white-space: nowrap; }
+.fl-ev { display: grid; gap: var(--gap-s); padding: 0 var(--gap-xs) var(--gap-m) calc(84px + var(--gap-m) + var(--gap-xs)); }   /* under the line, from the column of its words */
+.docpart { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); }   /* the application's documents */
+.docparts { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--pane-rule); }
+.dp { display: grid; grid-template-columns: minmax(140px, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 72px; align-items: center; column-gap: var(--gap-m);   /* every row on the same columns: name, Korean, English, key */
+  min-height: calc(var(--ctl-h-sm) + 2 * var(--gap-s)); padding: var(--gap-xs) var(--gap-xs); border-bottom: 1px solid var(--pane-rule); font-size: var(--fs-sm); }
+.dp b { font-weight: 650; } .dp > .btn { justify-self: end; }                     /* the key in a column of one width on every row, so the columns line up with their names */
+.dp.head { min-height: 0; padding-block: var(--gap-s); font-size: var(--fs-xs); font-weight: 650; color: var(--ink-3); }   /* the columns' names */
+.dp .across { grid-column: 2 / 4; }                                                   /* a count for both languages */
+.dp-v.none { color: var(--ink-3); }                                                   /* nothing made yet: quiet */
+.qcard { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); }                                          /* the application's own questions */
+.qa { padding: var(--pad-s) var(--pad-m); display: grid; gap: var(--gap-s); background: var(--paper); border: 1px solid var(--paper-line); border-radius: var(--r-lg); }
+.qa-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); } .qa-head b { flex: 1 1 240px; line-height: 1.5; }   /* the question, then its count, limit and key, which wrap under it on a phone */
+.sel.sm { min-height: var(--ctl-h-sm); height: var(--ctl-h-sm); padding: 0 var(--gap-s); border-radius: var(--r-sm); border: 1px solid var(--pane-rule); background: var(--field); font-size: var(--fs-xs); }   /* a limit picked from a list: the height of a small key */
+.qa textarea { width: 100%; min-height: 120px; padding: var(--gap-s) var(--pad-s); border: 1px solid var(--paper-line); border-radius: var(--r-lg); background: var(--paper); color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; resize: vertical; }
+.qa-keys { display: flex; flex-wrap: wrap; gap: var(--gap-s); }
+.qa-add { display: grid; gap: var(--gap-s); }   /* the form's questions pasted across, its two keys on one line under them */
+
+/* ---------------------------------------------------------------- interview: the board, then the scripts listed beside the one read */
+.qboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--gap-m); align-items: start; }   /* each card its own height */
+.qcol { padding: var(--pad-m); display: flex; flex-direction: column; gap: var(--gap-s); }
+.qcol > .hint { margin-top: auto; }                                                  /* "and N more" on the column's foot */
+.qcol ol { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--gap-s); }
+.qcol li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--gap-s); font-size: var(--fs-sm); align-items: baseline; }
+.scripts { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--gap-l); align-items: start; }
+.scripts-h { grid-column: 1 / -1; font-size: var(--fs-lg); }
+.scriptlist { align-self: start; align-content: start; position: sticky; top: calc(var(--bar-h) + var(--gap-xl)); display: grid; padding: var(--gap-xs); max-height: calc(100vh - var(--bar-h) - 48px); overflow: auto; scrollbar-width: thin; }
+.scriptrow { display: grid; align-content: start; gap: 2px; justify-items: start; padding: var(--gap-s) var(--pad-s); border: 1px solid transparent; border-radius: var(--r-sm); background: transparent; color: inherit;
+  text-align: left; cursor: pointer; font-size: var(--fs-sm); }
+.scriptrow + .scriptrow { margin-top: 2px; }
+.scriptrow:hover { background: var(--pane-hover); }
+.scriptrow[aria-current="true"] { background: var(--seg-on); border-color: var(--seg-on-line); box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+.scriptrow .ro { font-size: var(--fs-xs); color: var(--ink-3); }
+.script { align-self: start; padding: var(--pad-l); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); align-content: start; min-width: 0; }
+.script .t-en { font-weight: 750; font-size: var(--fs-lg); } .script .t-ko { font-size: var(--fs-sm); color: var(--ink-3); }
+.script .key { font-size: var(--fs-sm); } .script .key b { color: var(--ink-2); }
+.turn { display: grid; gap: 2px; } .turn .en { font-size: var(--fs-md); }
+.script .notes { display: grid; gap: 6px; padding: var(--gap-m) var(--pad-s); border-left: 3px solid var(--rule-2); border-radius: var(--r-sm); background: var(--well-in);
+  font-size: var(--fs-sm); color: var(--ink-2); }   /* the translation, under the dialogue: a note, not a second script */
+.script .notes b { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-3); } .script .notes .interviewer { color: var(--ink-3); }
+.turn.interviewer .en { color: var(--ink-3); } .turn .who { font-size: var(--fs-xs); font-weight: 700; color: var(--ink-3); }
+.turn .br { color: var(--ink-3); font-weight: 400; }                                  /* ' / ' a short breath, a faint slash as on the interview view */
+.turn .th { display: block; }                                                         /* ' // ' ends a thought: each one on its own line */
+mark.hl strong { font-weight: 800; }                                                  /* stress inside the key phrase */
+
+/* ---------------------------------------------------------------- an application's interview and progress, inside its tabs */
+.part-keys { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s); }    /* a part's keys on one line, the main key last */
+.ivpart, .progress { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-l); min-width: 0; }
+.stages button { flex: 1 1 0; }                                                       /* the four stages share the row */
+.stages .when { font-size: var(--fs-xs); font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }   /* the day it reached that stage */
+.pillkey { display: inline-flex; align-items: center; min-height: var(--ctl-h-sm); padding: 0; border: 0; background: transparent; cursor: pointer; }   /* the stage in the head opens the progress */
+.tco { display: inline-flex; align-items: center; min-height: var(--ctl-h-sm); padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 700; text-align: left; cursor: pointer; }   /* a name that opens its application */
+.tco:hover { text-decoration: underline; text-underline-offset: 3px; }
+.prow { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: var(--gap-m); align-items: end; }   /* the day, then the next step */
+.prow.with-result { grid-template-columns: 180px auto minmax(0, 1fr); }               /* the result between them once it is there */
+.results button .lit { display: inline-flex; }
+.remind.one { padding: 0; }                                                           /* inside the application's tab: no sheet of its own */
+.remind.one form { grid-template-columns: minmax(0, 1.6fr) 168px 136px auto; }        /* what, day, time, the key: the job is the one open */
+
+/* ---------------------------------------------------------------- an application's own materials: a row each, opened on its preview */
+.mats { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); min-width: 0; }   /* under the interview's board and scripts */
+.mat-drop { padding: var(--pad-m) var(--pad-l); gap: var(--gap-s); }                  /* a place to drop files, lower than Make's */
+.mat-rows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--pane-rule); }
+.mt { min-width: 0; border-bottom: 1px solid var(--pane-rule); }
+.mt-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px 80px 96px; align-items: baseline; align-content: center; column-gap: var(--gap-m); width: 100%;   /* every row on the same columns: name, kind, size, day; its line in the row's middle (it sat 4.5 px high) */
+  min-height: calc(var(--ctl-h-sm) + 2 * var(--gap-s)); padding: var(--gap-s) var(--gap-xs); border: 0; background: transparent; color: inherit;
+  text-align: left; font-size: var(--fs-sm); }
+button.mt-row { cursor: pointer; }                                                    /* a row opens its preview */
+button.mt-row:hover { background: var(--pane-hover); }
+button.mt-row:hover .mt-name { text-decoration: underline; text-underline-offset: 3px; }
+.mt.head .mt-row { min-height: 0; font-size: var(--fs-xs); font-weight: 650; color: var(--ink-3); }   /* the columns' names */
+.mt-name { min-width: 0; font-weight: 650; overflow-wrap: anywhere; }                 /* a long name wraps, never cut */
+.mt-kind, .mt-size, .mt-day { font-size: var(--fs-xs); color: var(--ink-3); }
+.mt-size, .mt-day { font-variant-numeric: tabular-nums; }                             /* figures in one width, so the column reads down */
+.mt-view { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); padding: var(--gap-xs) var(--gap-xs) var(--pad-m); min-width: 0; }   /* the preview under its row */
+.mat-pic { display: block; max-width: 100%; height: auto; justify-self: start; border: 1px solid var(--paper-line); }   /* a picture at its own size, never wider than the pane */
+.mt-view .shots img { border: 1px solid var(--paper-line); }                          /* a white page on the white sheet still shows its edge */
+.mat-raw { width: 100%; min-height: 96px; max-height: 70vh; padding: var(--gap-s) var(--pad-s); border: 1px solid var(--paper-line); border-radius: var(--r-lg);
+  background: var(--well-in); color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; resize: vertical;   /* the words as written, wrapped, in a box that scrolls */
+  font-variant-ligatures: none; }                                                     /* every character as it is in the file: == stays two signs */
+.mat-raw.code { font-family: var(--mono); font-size: var(--fs-xs); }                  /* code in its own letters */
+.mat-raw:focus { outline: 2px solid var(--focus); outline-offset: 0; }
+.mat-doc { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-s); max-width: 760px; font-size: var(--fs-sm); line-height: 1.7; }   /* a note read as text: a line no wider than reads well */
+.mat-doc h3 { margin-top: var(--gap-s); font-size: var(--fs-md); } .mat-doc h4 { font-size: var(--fs-sm); }
+.mat-doc .mli { display: grid; grid-template-columns: 22px minmax(0, 1fr); padding-left: calc(var(--d, 0) * 22px); }   /* a list item, stepped in by its depth */
+.mat-doc .mk { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mat-doc blockquote { margin: 0; padding-left: var(--pad-s); border-left: 2px solid var(--rule-2); color: var(--ink-2); }
+.mat-doc .mtab { overflow-x: auto; }                                                  /* a wide table scrolls in its own box, never the page */
+.mat-doc table { border-collapse: collapse; font-size: var(--fs-xs); }
+.mat-doc th, .mat-doc td { padding: var(--gap-xs) var(--gap-s); border: 1px solid var(--pane-rule); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.mat-doc th { background: var(--pane-on); font-weight: 650; }
+.mat-doc hr { width: 100%; margin: var(--gap-xs) 0; border: 0; border-top: 1px solid var(--pane-rule); }
+.mat-frame { width: 100%; height: 70vh; border: 1px solid var(--paper-line); border-radius: var(--r-lg); background: #fff; }   /* a saved page is drawn on white, as a printed sheet is */
+
+/* ---------------------------------------------------------------- every application by stage, or by date */
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap-m); align-items: start; }   /* the four stages, each its own height */
+.col { padding: var(--pad-m); display: grid; gap: var(--gap-s); min-height: 120px; align-content: start; }
+.col.over { outline: 2px dashed var(--blue); outline-offset: -4px; }
+.tcard { padding: var(--pad-s); display: grid; gap: var(--gap-xs); cursor: grab; transition: transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease); }
+.tcard:hover { transform: translateY(-2px); box-shadow: var(--float); }               /* picked up, almost */
+.tcard .co { font-weight: 700; } .tcard .ro { font-size: var(--fs-xs); color: var(--ink-2); } .tcard .when { font-size: var(--fs-xs); color: var(--ink-3); }
+.tnext { width: calc(100% + var(--gap-s)); min-width: 0; min-height: var(--ctl-h-sm); margin: 2px 0 2px calc(-1 * var(--gap-s)); padding: 0 var(--gap-s); border: 1px solid transparent; border-radius: var(--r-lg);   /* the next step, written in place */
+  background: transparent; color: var(--ink); font-size: var(--fs-xs); }
+.tnext::placeholder { color: var(--ink-3); }
+.tnext:placeholder-shown { border-bottom: 1px dashed var(--rule-2); border-radius: 0; }   /* an empty next step reads as a place to write */
+.tnext:hover { border-color: var(--pane-rule); } .tnext:focus { outline: 2px solid var(--focus); outline-offset: 0; background: var(--field); }
+.tfoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--gap-s); }
+.col-empty { padding: var(--gap-s) 0; }
+.timeline { display: grid; gap: 0; padding: var(--gap-xs) var(--pad-l); }
+.tl { display: grid; grid-template-columns: 110px 16px minmax(0, 1fr); gap: var(--gap-m); padding: var(--gap-m) 0; align-items: baseline; }
+.tl time { font-size: var(--fs-sm); color: var(--ink-3); font-family: var(--mono); }
+.tl i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ink-2); align-self: center; }
+.tl.reminder i { border-color: var(--blue); } .tl.due i { background: var(--blue); border-color: var(--blue); }
+.remind { padding: var(--pad-m); display: grid; gap: var(--gap-m); }
+.remind form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 168px 136px auto; gap: var(--gap-s); align-items: end; }  /* one row: what, job, day, time, the key */
+.remrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); padding: var(--gap-s) 0; font-size: var(--fs-sm); }
+.remrow > span:first-child { flex: 1 1 220px; } .remrow .when { white-space: nowrap; color: var(--ink-3); font-size: var(--fs-xs); }
+
+@media (max-width: 859px) {
+  .board { grid-template-columns: 1fr; } .col { min-height: 0; }
+  .dp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 72px; row-gap: var(--gap-xs); } .dp > b { grid-column: 1 / -1; }   /* the name over its counts */
+  .dp.head > :first-child { display: none; } .dp .across { grid-column: 1 / 3; }
+  .prow, .prow.with-result { grid-template-columns: minmax(0, 1fr); }
+  .remind form { grid-template-columns: 1fr 1fr; } .remind form .field:first-child, .remind form .field:nth-child(2), .remind form button { grid-column: 1 / -1; }
+  .remind.one form { grid-template-columns: 1fr 1fr; }                               /* the one-job form's own four columns give way too (it is the more specific rule) */
+  .remind.one form .field:nth-child(2) { grid-column: auto; }                         /* the day and the time side by side when the job is the one open */
+  .stages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }       /* two by two on a phone */
+  .details { grid-template-columns: 1fr; } .details-wrap { grid-template-columns: 1fr; } .photo-cell { width: auto; grid-template-columns: 84px auto; align-items: center; justify-items: start; justify-content: start; } .photo-cell img, .photo-none { width: 84px; grid-row: span 3; }
+  .facts-sheet, .jobdetail, .script { padding: var(--pad-m); }
+  .factlist .fact { grid-template-columns: minmax(0, 1fr); row-gap: var(--gap-s); }    /* the keys under the words */
+  .factlist .fact .acts { justify-content: flex-start; }
+  .fact-row { grid-template-columns: minmax(0, 1fr) auto; } .fact-row .kind { grid-column: 1 / -1; }
+  .fact-body { padding-left: 0; }
+  .jobsplit, .scripts { grid-template-columns: minmax(0, 1fr); }
+  .joblist { position: static; max-height: none; overflow: visible; }                 /* the applications as full rows; one opens on its own */
+  .scriptlist { position: static; max-height: none; display: flex; overflow-x: auto; scroll-snap-type: x proximity; gap: var(--gap-s); }   /* the scripts' titles, a row to swipe */
+  .scriptrow { flex: 0 0 220px; scroll-snap-align: start; } .scriptrow + .scriptrow { margin-top: 0; }
+  .fl-row { grid-template-columns: minmax(0, 1fr) auto; } .fl-row .pill { grid-column: 1 / -1; } .fl-ev { padding-left: var(--gap-xs); }
+  .mt-row { grid-template-columns: auto auto minmax(0, 1fr); row-gap: var(--gap-xs); } .mt-row .mt-name { grid-column: 1 / -1; }   /* a material's name across, its kind, size and day under it */
+  .mt.head { display: none; }                                                         /* the columns' names have no columns to name */
+  /* tabs and choices as grids, every one in sight: a long word wraps inside its key rather than off the screen */
+  .seg button, .tabs [role="tab"] { white-space: normal; text-align: center; padding-inline: var(--gap-s); }   /* their line: with every key's words, at the end of skin.css */
+  .jtabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); } .jtabs > * { grid-column: span 2; justify-content: center; } .jtabs > :nth-child(n + 4) { grid-column: span 3; }   /* three, then two */
+  .jtabs > * { flex-wrap: wrap; row-gap: 2px; align-content: center; }                                           /* a count goes under its word when a third of the row is too narrow for both (Windows' wider glyphs) */
+  .fit-tools .seg, .facts-tools .seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }   /* two by two */
+  .doctools .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; }   /* the documents, then the views, each across */
+  .viewhead .seg.modes { flex: 1 1 100%; }                                            /* list, board, timeline across */
+  .facts-tools .grow { display: none; }                                               /* the add key under the choices, not alone at the right */
+  .factlist .fact:not(.open) > .acts { display: none; }                               /* a row's keys once it is opened: rows stay one line or two */
+  .docacts { justify-content: flex-start; } .viewhead .docacts { flex: 1 1 100%; }   /* the actions from the left and across the row, as the rest of the page */
+  .viewhead > .btn, .viewhead .docacts > .btn, .drop-keys > .btn { flex: 1 1 40%; }   /* keys of a row share it evenly */
+  .tl { grid-template-columns: 92px 14px minmax(0, 1fr); }
+  /* a letter reflows to the phone's width; the resume's pages keep their A4 layout (.sheet.rs), scaled down whole by
+     docs.js fitPhone, so its lines break where the PDF breaks them and a pinch enlarges them */
+  .pagewrap { grid-template-columns: minmax(0, 1fr); } .marginal { display: none; }
+  .sheet { width: auto; min-height: 0; padding: 20px 16px 44px; zoom: 1; }   /* room at the foot for the page's number */
+  .sheet.rs { transform-origin: 0 0; }                                                /* scaled from its top left corner, into the room its margins leave */
+}
+
+/* ---------------------------------------------------------------- the setup guide (setup.js)
+   A sheet over the page on opaque paper: the owl's mark and the title, four steps, the step's pane, and Back and Next at the
+   foot. A step's number sits in a grey ring while nothing is known or it is a choice, on the warning's amber when something
+   comes first, and turns into a tick on green once it works; the step in view has the focus colour under it. The sheet
+   hangs from a fixed line, not the window's middle, and on a wide window keeps one height for the usual steps: centred, a
+   shorter step moved the steps' row and the foot's keys out from under the pointer. On a phone the sheet takes the
+   window's width and the steps stack their number over their name */
+#setup { position: fixed; inset: 0; z-index: 60; display: grid; place-items: start center; padding: min(12vh, 112px) var(--gap-l) var(--gap-l); overflow-y: auto; }   /* the scrim is fixed: a long step scrolled on a phone would leave the page bare under it */
+#setup[hidden] { display: none; }
+.setup-scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--desk) 60%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.setup { position: relative; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; width: min(640px, 100%); min-height: min(400px, calc(100dvh - min(12vh, 112px) - var(--gap-l)));
+  max-height: min(720px, calc(100dvh - min(12vh, 112px) - var(--gap-l))); border: 1px solid var(--paper-line); border-radius: 10px; background: var(--paper);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .55); overflow: hidden; }   /* opaque: it is read */
+.setup-head { display: flex; align-items: center; gap: var(--gap-m); padding: var(--pad-m) var(--pad-l) var(--gap-m); }
+.setup-mark { flex: none; width: 28px; height: 28px; }
+.setup-head h2 { flex: 1; min-width: 0; font-size: var(--fs-lg); font-weight: 750; }
+.setup-head h2:focus { outline: none; }                                                  /* where the keyboard starts in the guide, a title and not a key */
+.setup-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap-xs); padding: 0 var(--pad-l) var(--gap-s); border-bottom: 1px solid var(--paper-line); }
+.setup-step { display: flex; align-items: center; gap: var(--gap-s); min-width: 0; min-height: var(--ctl-h); padding: 0 var(--gap-s); border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-3); font: inherit; font-size: var(--fs-sm); font-weight: 650; text-align: left; cursor: pointer; }
+.setup-step:hover { background: var(--pane-hover); color: var(--ink); }
+.setup-step[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--focus); border-radius: var(--r-sm) var(--r-sm) 0 0; }   /* the step in view */
+.setup-step .n { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; font-size: var(--fs-xs); font-weight: 750;
+  color: var(--ink-2); box-shadow: inset 0 0 0 1.5px var(--rule-2); }                     /* a choice, or not known yet */
+.setup-step[data-state="warn"] .n { color: var(--amber); background: var(--amber-soft); box-shadow: inset 0 0 0 1.5px var(--amber); }   /* something comes first */
+.setup-step[data-state="ok"] .n { color: #fff; background: var(--green); box-shadow: none; }   /* it works */
+.setup-step .name { min-width: 0; overflow-wrap: anywhere; }
+.setup-body { display: grid; gap: var(--gap-m); align-content: start; min-height: 0; padding: var(--pad-l); overflow-y: auto; }
+.setup-lede { margin: 0; font-size: var(--fs-md); line-height: 1.6; color: var(--ink-2); }
+.setup-card { display: grid; gap: var(--gap-s); padding: var(--pad-m); border: 1px solid var(--paper-line); border-radius: var(--r-md); background: var(--paper-2); }
+.setup-card-top { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-m); }
+.setup-card-top b { min-width: 0; font-size: var(--fs-md); }
+.setup-note { margin: 0; font-size: var(--fs-sm); line-height: 1.6; color: var(--ink-3); }
+.setup-who { display: flex; align-items: center; gap: var(--gap-s); margin: 0; font-size: var(--fs-sm); color: var(--ink-2); }
+.setup-who svg { color: var(--ink-3); }
+.setup-act, .setup-start { display: flex; flex-wrap: wrap; gap: var(--gap-s); }
+.setup-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-m); }
+.setup-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--gap-s) var(--gap-m); }
+.setup-row-name { display: inline-flex; align-items: center; gap: var(--gap-s); font-size: var(--fs-sm); font-weight: 650; color: var(--ink-2); }
+.setup-row .seg { flex: 0 1 300px; }
+.setup-row .seg button { flex: 1 1 0; }                                                 /* the three choices share the row */
+.setup-foot { display: flex; justify-content: space-between; gap: var(--gap-s); padding: var(--gap-m) var(--pad-l); border-top: 1px solid var(--paper-line); background: var(--paper-2); }
+@media (min-width: 860px) and (max-height: 520px) {                                     /* a short wide window: the whole sheet scrolls, at its own height */
+  #setup { padding-top: var(--gap-l); }                                                  /* held to the window, the pane between the steps and the foot went to nothing */
+  .setup { min-height: 0; max-height: none; }
+}
+@media (max-width: 859px) {
+  #setup { padding: var(--gap-l) var(--gap-s) var(--gap-s); }
+  .setup { min-height: 0; max-height: none; }                                             /* the page scrolls a long step instead */
+  .setup-head { padding: var(--pad-s) var(--pad-m) var(--gap-s); }
+  .setup-steps { padding: 0 var(--pad-m) var(--gap-s); }
+  .setup-step { flex-direction: column; justify-content: center; gap: 2px; padding: var(--gap-xs) 2px; font-size: var(--fs-xs); text-align: center; }   /* the number over the name */
+  .setup-body { padding: var(--pad-m); }
+  .setup-pair { grid-template-columns: 1fr; }
+  .setup-foot { padding: var(--gap-s) var(--pad-m); }
+}
+
+/* the highlighter in the dark: the band through the lower half of the letters drew light words over the owl's amber, a stroke
+   that read as crossed out. In the dark it is a bright stroke under the letters' body, as a marker underlines on dark paper */
+:root[data-theme="dark"] :is(.note mark, mark.hl) {
+  background: linear-gradient(transparent 76%, rgba(242, 199, 68, .85) 76%, rgba(242, 199, 68, .85) 97%, transparent 97%); }
+

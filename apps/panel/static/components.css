@@ -1,0 +1,315 @@
+/* Offerowl's components, on the tokens of tokens.css: keys and square icon keys, status pills with a lit lamp, switches,
+   choices of a few, the settings menu, cards of paper (a title ruled under, then name and value pairs, then figures),
+   chips, fields, the evidence note, the drop zone and the toast.
+   No decoration without a meaning: no patterns, no coloured stripes on card edges, no icons before titles, no cards in
+   cards, the highlighter on evidence only. */
+
+*, *::before, *::after { box-sizing: border-box; }                                   /* sizes include padding */
+html { font-family: var(--font); font-size: var(--fs-md); line-height: var(--lh); color: var(--ink); background: var(--desk);
+  -webkit-text-size-adjust: 100%; text-rendering: optimizeLegibility; }
+body { margin: 0; min-height: 100vh; overflow-wrap: break-word; word-break: keep-all; background: transparent;   /* Korean breaks between words, as print does */
+  font-size: var(--fs-sm); line-height: 1.6; font-feature-settings: "tnum" 1; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;   /* the desk: lighter at the top, no pattern */
+  background: linear-gradient(180deg, var(--desk-top) 0, var(--desk) 340px, var(--desk-low) 100%); }
+button, input, select, textarea { font: inherit; color: inherit; }                    /* controls speak the page's type */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }             /* every control shows where the keyboard is */
+.sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }  /* for screen readers only */
+a.sr:focus { position: fixed !important; z-index: 80; left: 12px; top: 10px; width: auto; height: auto; clip-path: none; padding: 8px 12px;
+  background: var(--paper); color: var(--ink); border-radius: var(--r-sm); box-shadow: var(--float); }   /* the skip link shows when the keyboard reaches it */
+[hidden] { display: none !important; }                                               /* hidden means hidden */
+h1, h2, h3, h4 { margin: 0; line-height: var(--lh-tight); font-weight: 700; }        /* headings set their own space */
+p { margin: 0; }                                                                      /* paragraphs set their own space */
+a { color: var(--blue); text-underline-offset: 3px; }                                  /* links are blue and underlined */
+svg { flex: none; }                                                                   /* icons never squeeze */
+
+/* ---------------------------------------------------------------- keys */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--gap-s); min-height: var(--ctl-h); padding: 0 var(--ctl-px);
+  border: 1px solid var(--rule-2); border-radius: var(--r-sm); background: var(--btn-bg); box-shadow: var(--btn-shadow);
+  font-weight: 650; font-size: var(--fs-sm); cursor: pointer; text-align: center; line-height: 1.3; white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), filter var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
+:root[data-theme="light"] .btn { border-color: var(--key-line); }                    /* light keys have a thin grey edge */
+:root[data-theme="light"] .btn:is(.quiet, .ghost) { border-color: transparent; }   /* a text key: no edge in either theme */
+.btn svg { width: 16px; height: 16px; }                                              /* the icon of a key */
+.btn:hover:not(:disabled) { filter: brightness(1.12); }                              /* a quiet hover */
+:root[data-theme="light"] .btn:hover:not(:disabled) { filter: brightness(.97); }
+.btn:active:not(:disabled) { box-shadow: var(--press); transform: translateY(.5px); }   /* pressed in, as a key */
+.btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }                 /* visible but not a target */
+.btn.icon, .iconbtn { width: var(--ctl-h); min-width: var(--ctl-h); padding: 0; background: var(--key-bg); border-color: var(--key-line);   /* a square key with only an icon (it has an aria-label) */
+  border-top-color: var(--key-top); box-shadow: var(--key-shadow); }
+.btn.go { color: var(--green); border-color: var(--green); background: color-mix(in srgb, var(--green) 14%, var(--paper)); }   /* a key whose work is on */
+.btn.primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); box-shadow: var(--btn-shadow); }   /* the one main action */
+.btn.quiet, .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-2); }   /* a text key */
+.btn.quiet:hover:not(:disabled), .btn.ghost:hover:not(:disabled) { background: var(--pane-hover); color: var(--ink); filter: none; }
+.btn.danger { color: var(--red); }                                                    /* takes something away */
+.btn.small, .btn.sm { min-height: var(--ctl-h-sm); padding: 0 var(--ctl-px-sm); gap: var(--gap-xs); font-size: var(--fs-xs); font-weight: 650;   /* inside cards and lists */
+  background: var(--key-bg); border-color: var(--key-line); border-top-color: var(--key-top); box-shadow: var(--key-shadow);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.btn.small svg, .btn.sm svg { width: 14px; height: 14px; }
+.btn.small:is(.quiet, .ghost), .btn.sm:is(.quiet, .ghost) { background: transparent; border-color: transparent; box-shadow: none;   /* a small text key: no face, edge or shadow */
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.btn.icon.sm, .btn.icon.small { width: var(--ctl-h-sm); min-width: var(--ctl-h-sm); }   /* a square key inside a row */
+.btn.small.go, .btn.sm.go { color: color-mix(in srgb, var(--green) 80%, #fff); background: linear-gradient(rgba(46, 182, 125, .24), rgba(46, 182, 125, .1));   /* a card's action that turns something on */
+  border-color: color-mix(in srgb, var(--green) 60%, transparent); }
+:root[data-theme="light"] .btn.small.go, :root[data-theme="light"] .btn.sm.go { color: var(--green); background: linear-gradient(#fff, rgba(46, 182, 125, .12)); }
+.btn.small.primary, .btn.sm.primary { background: var(--primary); color: var(--primary-ink); border-color: var(--primary); }
+.btn.big { min-height: var(--ctl-h-lg); padding: 0 var(--pad-l); font-size: var(--fs-md); }             /* the one large key of a view */
+a.btn { text-decoration: none; color: inherit; }                                     /* a link that looks like a key is a key */
+a.btn.primary { color: var(--primary-ink); }
+.btn[aria-pressed="true"] { box-shadow: var(--press), inset 0 0 0 1px var(--rule-2); background: var(--seg-on); }   /* a held toggle: pressed in, and a ring the dark theme shows too */
+
+/* ---------------------------------------------------------------- status pills: a lit lamp and a word on a faint wash */
+.pill { display: inline-flex; align-items: center; gap: 6px; width: fit-content; max-width: 100%; padding: 2px 10px 2px 8px;
+  border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600; letter-spacing: -.01em; line-height: 1.5; white-space: nowrap;
+  color: var(--ink-2); background: color-mix(in srgb, currentColor 13%, transparent); }
+.pill::before { --lamp: var(--off); content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none;   /* the lamp: unlit is a ring */
+  background: transparent; box-shadow: inset 0 0 0 1.5px var(--lamp); }
+.pill:is(.ok, .warn, .bad, .pc, .ai, .busy, .on)::before { background: radial-gradient(circle at 40% 36%, color-mix(in srgb, var(--lamp) 80%, #fff), var(--lamp) 70%);   /* lit */
+  box-shadow: 0 0 5px color-mix(in srgb, var(--lamp) 35%, transparent); }
+.pill.ok { color: color-mix(in srgb, var(--green) 70%, var(--ink)); } .pill.ok::before { --lamp: var(--green); }       /* ready, done */
+.pill.warn { color: color-mix(in srgb, var(--amber) 75%, var(--ink)); } .pill.warn::before { --lamp: var(--amber); }   /* thin, waiting on you */
+.pill.bad { color: color-mix(in srgb, var(--red) 75%, var(--ink)); } .pill.bad::before { --lamp: var(--red); }         /* stopped */
+.pill.pc { color: color-mix(in srgb, var(--blue) 75%, var(--ink)); } .pill.pc::before { --lamp: var(--blue); }        /* stays here */
+.pill.ai { color: color-mix(in srgb, var(--orange) 75%, var(--ink)); } .pill.ai::before { --lamp: var(--orange); }    /* sent away */
+.pill.busy { color: var(--ink-2); } .pill.busy::before { --lamp: var(--ink-2); animation: lamp 1.2s var(--ease) infinite; animation-delay: var(--ph, 0ms); }   /* working; the phase goes on through a redraw (motion.js) */
+.pill.on { color: var(--ink); } .pill.on::before { --lamp: var(--ink-2); }   /* on its way: lit, with no colour of its own */
+.pill.off { color: var(--ink-2); }                                                    /* off: an unlit ring, its word still readable on the wash */
+@keyframes lamp { 50% { opacity: .25; } }
+
+/* ---------------------------------------------------------------- chips: small facts beside a title */
+.chip { display: inline-flex; align-items: center; gap: var(--gap-xs); padding: 0 var(--gap-s); border-radius: var(--r-chip); font-size: var(--fs-xs);
+  font-weight: 650; background: var(--pane-on); color: var(--ink-2); line-height: 1.7; white-space: nowrap; }
+.chip.count { min-width: 22px; justify-content: center; border-radius: var(--r-pill); }   /* a number beside a view's name */
+.chip.bad { background: var(--red-soft); color: var(--red); } .chip.ok { background: var(--green-soft); color: var(--green); }
+.chip.warn { background: var(--amber-soft); color: var(--amber); } .chip.pc { background: var(--blue-soft); color: var(--blue); }
+.chip.ai { background: var(--orange-soft); color: var(--orange); }
+
+/* ---------------------------------------------------------------- switches: a button that says on or off (role=switch) */
+.switch { position: relative; width: 40px; height: 24px; border-radius: 12px; border: 0; padding: 0; cursor: pointer; flex: none;
+  background: var(--switch-off); box-shadow: var(--switch-off-ring); transition: background-color .2s var(--ease), box-shadow .2s var(--ease); }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;   /* the knob */
+  background: var(--knob); box-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 1px 0 #fff; transition: transform .26s cubic-bezier(.34, 1.56, .64, 1); }
+.switch[aria-checked="true"] { background: var(--switch-on); box-shadow: var(--switch-on-ring); }   /* on is green */
+.switch[aria-checked="true"]::after { transform: translateX(16px); }
+.switch:hover:not(:disabled) { filter: brightness(1.14); }
+.switch:disabled { opacity: .45; cursor: default; box-shadow: none; }
+/* the older checkbox toggle keeps working with the switch's look */
+.toggle { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: var(--fs-sm); }
+.toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }            /* the real checkbox, for keyboards and readers */
+.toggle .track { position: relative; width: 40px; height: 24px; border-radius: 12px; flex: none; background: var(--switch-off); box-shadow: var(--switch-off-ring); }
+.toggle .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--knob);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 1px 0 #fff; transition: transform .26s cubic-bezier(.34, 1.56, .64, 1); }
+.toggle input:checked + .track { background: var(--switch-on); box-shadow: var(--switch-on-ring); }
+.toggle input:checked + .track::after { transform: translateX(16px); }
+.toggle input:focus-visible + .track { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- choices of a few, and tabs */
+.seg { display: flex; flex-wrap: wrap; gap: var(--gap-xs); }                                   /* each choice a key of its own */
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: var(--gap-s); flex: 1 1 auto; min-width: 0; min-height: var(--ctl-h); padding: 0 var(--pad-s); border: 1px solid transparent; border-radius: var(--r-sm);
+  background: var(--seg-bg); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; white-space: nowrap;   /* one weight, pressed or not: a choice never changes width */
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.seg button:hover { color: var(--ink); background: var(--pane-hover); }
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"] { background: var(--seg-on); border-color: var(--seg-on-line); color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .2); }
+.tabs { display: flex; flex-wrap: wrap; gap: var(--gap-xs); border-bottom: 1px solid var(--pane-rule); }
+.tabs [role="tab"] { display: inline-flex; align-items: center; gap: var(--gap-s); min-height: var(--ctl-h); border: 0; background: transparent; padding: 0 var(--ctl-px-sm); font-size: var(--fs-sm); font-weight: 650; color: var(--ink-3);
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs [role="tab"][aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }                 /* the open tab */
+.tabs [role="tab"]:hover { color: var(--ink); }
+
+/* ---------------------------------------------------------------- the settings menu: frosted, nearly opaque */
+.menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: 260px; padding: var(--pad-s); display: grid; gap: var(--gap-xs);
+  background: var(--menu-bg); border: 1px solid var(--menu-line); border-radius: var(--r-lg); box-shadow: 0 16px 40px -16px rgba(0, 0, 0, .6);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); }
+.menu h3 { display: flex; align-items: center; gap: var(--gap-s); margin: var(--gap-xs) 0 var(--gap-xs) var(--gap-s); font-size: var(--fs-xs); font-weight: 650; color: var(--ink-2); }
+.menu h3 svg { width: 15px; height: 15px; }
+.menu .seg { padding: 0 0 var(--gap-s); }
+.menu .seg button { flex: 1 1 0; }                                                     /* the menu's choices share its width */
+.menu hr { width: 100%; border: 0; border-top: 1px solid var(--menu-line); margin: var(--gap-xs) 0; }
+.menu .item { display: flex; align-items: center; gap: var(--gap-s); width: 100%; min-height: var(--ctl-h); padding: 0 var(--gap-s); border: 0; border-radius: var(--r-lg); background: transparent;
+  font-size: var(--fs-sm); text-align: left; cursor: pointer; color: var(--ink); text-decoration: none; }
+.menu .item svg { width: 16px; height: 16px; color: var(--ink-2); }
+.menu .item:hover { background: var(--pane-hover); }
+.menu select { width: 100%; min-height: var(--ctl-h); padding: 0 var(--ctl-px-sm); border-radius: var(--r-sm); border: 1px solid var(--pane-rule); background: var(--field); }
+.menu .field { padding: 0 0 var(--gap-s); }
+
+/* ---------------------------------------------------------------- control cards on the rail */
+.card { position: relative; min-width: 0; padding: var(--pad-m); border: 1px solid; border-color: var(--card-line); border-radius: var(--r-lg);
+  background: var(--card-bg); box-shadow: var(--card-shadow); }
+.card.conn { padding-block: var(--pad-s); }                                                   /* a card of controls: a little tighter */
+.src + .src { margin-top: var(--pad-s); padding-top: var(--pad-s); border-top: 1px solid var(--pane-rule); }   /* two sources in one card */
+.src-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--gap-s); align-items: center; min-height: var(--ctl-h-sm); }   /* icon and name, pill, switch */
+.src-name { display: flex; align-items: center; gap: var(--gap-s); min-width: 0; overflow-wrap: anywhere;
+  font-size: var(--fs-md); font-weight: 700; letter-spacing: -.005em; }
+.src-name svg { width: 15px; height: 15px; color: var(--ink-3); stroke-width: 1.8; transition: color .2s var(--ease); }
+.src[data-state="ok"] .src-name svg { color: var(--green); }                          /* the icon lights with its source */
+.src[data-state="busy"] .src-name svg { color: var(--ink); }
+.src[data-state="bad"] .src-name svg { color: var(--red); }
+.src-top .pill { grid-column: 2; justify-self: start; overflow: clip; overflow-clip-margin: 8px; }
+.src-top > :is(.switch, .btn) { grid-column: 3; justify-self: end; margin: 0; }
+.facts { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 9fr); gap: var(--gap-s) var(--gap-m); margin: var(--gap-s) 0 0; font-size: var(--fs-xs); line-height: 1.5; }   /* name and value pairs, two to a row */
+.facts.one { grid-template-columns: minmax(0, 1fr); }                                 /* long values: one to a row */
+.fact { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.fact dt { flex: none; min-width: 58px; font-size: var(--fs-xs); font-weight: 500; color: var(--ink-3); }
+.fact dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-weight: 650; color: var(--ink); }   /* a long value wraps, never cut */
+.fact dd .sub { font-weight: 500; color: var(--ink-3); }
+.fact dd.lit { display: inline-flex; align-items: center; gap: 6px; }                 /* a value with its own lamp */
+.lit::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none; align-self: center; background: transparent; box-shadow: inset 0 0 0 1.5px var(--off); }
+span.lit { display: inline-flex; align-items: center; }                             /* a lamp alone, with a box for its dot */
+.lit.ok::before { background: var(--green); box-shadow: 0 0 5px color-mix(in srgb, var(--green) 45%, transparent); }
+.lit.warn::before { background: var(--amber); box-shadow: 0 0 5px color-mix(in srgb, var(--amber) 45%, transparent); }   /* part of it, as the pills */
+.lit.ai::before { background: var(--orange); box-shadow: 0 0 5px color-mix(in srgb, var(--orange) 45%, transparent); }
+.lit.pc::before { background: var(--blue); box-shadow: 0 0 5px color-mix(in srgb, var(--blue) 45%, transparent); }
+.lit.busy::before { background: var(--ink-2); animation: lamp 1.2s var(--ease) infinite; animation-delay: var(--ph, 0ms); box-shadow: none; }
+.lit.bad::before { background: var(--red); box-shadow: none; }
+.lit.on::before { background: var(--ink-2); box-shadow: none; }
+.lit.skip::before { box-shadow: inset 0 0 0 1.5px var(--rule-2); }
+.usage { margin: var(--gap-m) 0 0; padding-top: var(--gap-m); border-top: 1px solid var(--pane-rule); font-variant-numeric: tabular-nums; }   /* the card's figures */
+.usage-top { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0 var(--gap-m); white-space: nowrap; }
+.usage .stat { position: relative; display: grid; align-content: start; }
+.usage .stat + .stat::before { content: ""; position: absolute; left: -6px; top: 2px; bottom: 2px; width: 1px; background: var(--pane-rule); }   /* a thin rule between figures */
+.usage .stat b { font-size: var(--fs-lg); font-weight: 700; line-height: 1.3; }
+.usage .stat .k { white-space: normal; font-size: var(--fs-xs); font-weight: 500; color: var(--ink-3); line-height: 1.4; }   /* a label too long for its column wraps, never into the next */
+.usage-sub { display: flex; justify-content: space-between; align-items: baseline; gap: var(--gap-m); margin: var(--gap-m) 0 0; padding-top: var(--gap-s);
+  border-top: 1px solid var(--pane-rule); font-size: var(--fs-xs); font-weight: 500; color: var(--ink-3); }
+.usage-sub { flex-wrap: wrap; }                                                       /* a long line and its key wrap rather than being cut */
+.usage-sub > span { min-width: 0; }
+.usage-sub b { font-size: var(--fs-xs); font-weight: 560; color: var(--ink); }
+.usage-none { margin: 0; font-size: var(--fs-xs); font-weight: 500; color: var(--ink-3); }
+.who-box { display: grid; grid-template-columns: 36px minmax(0, 1fr); grid-template-rows: auto auto; gap: 2px 12px; align-items: center;   /* the signed-in account */
+  margin: var(--gap-s) 0 var(--gap-xs); }   /* the account on the card itself, no box of its own */
+.who-box .ava { grid-row: 1 / 3; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; font-weight: 700; font-size: var(--fs-md);
+  color: var(--ink); background: var(--pane-on); box-shadow: inset 0 0 0 1.5px var(--rule-2); }   /* the initial on a gray ring: blue means something else here */
+.who-box .mail { font-size: var(--fs-sm); font-weight: 700; overflow-wrap: anywhere; }
+.who-box .how { font-size: var(--fs-xs); color: var(--ink-3); overflow-wrap: anywhere; }
+.card > h2 { display: flex; align-items: center; gap: var(--gap-s); min-height: var(--ctl-h-sm); margin: 0 0 var(--gap-m); padding-bottom: var(--gap-xs);
+  border-bottom: 1px solid var(--pane-rule); font-size: var(--fs-md); font-weight: 700; letter-spacing: -.005em; }   /* a plain card's title, ruled under as the resume's section titles */
+.card > h2 .n { margin-left: auto; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }   /* its count at the row's end */
+
+/* ---------------------------------------------------------------- the agent's panel: what it takes on, and its last calls */
+
+/* ---------------------------------------------------------------- the bar's lamps and their panel */
+.barpop { position: relative; }
+.barchip { display: inline-flex; align-items: center; gap: var(--gap-s); min-height: var(--ctl-h); padding: 0 var(--pad-s); border: 1px solid var(--pane-rule); border-radius: var(--r-pill);
+  background: var(--seg-bg); color: var(--ink-2); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; white-space: nowrap; }
+.barchip:hover { color: var(--ink); background: var(--pane-hover); }
+.barchip[aria-expanded="true"] { background: var(--seg-on); color: var(--ink); }
+.barchip .lit { display: inline-flex; }                                              /* the lamp's dot needs a box to have a size */
+.pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; width: 372px; }   /* the agent's control panel, under its lamp */
+.pop > .card { background: var(--menu-bg); box-shadow: 0 16px 40px -16px rgba(0, 0, 0, .6); }   /* nearly opaque: it lies over the page */
+
+/* ---------------------------------------------------------------- a text box with its start key */
+.sendbox { display: flex; align-items: flex-end; gap: var(--gap-s); padding: var(--gap-xs); border-radius: var(--r-sm); background: var(--field); border: 1px solid var(--pane-rule); }
+:root[data-theme="light"] .sendbox { background: var(--paper); border-color: var(--paper-line); }
+.sendbox:focus-within { outline: 2px solid var(--focus); outline-offset: 0; }
+.sendbox textarea { flex: 1; min-width: 0; min-height: var(--ctl-h); max-height: 220px; padding: var(--gap-s) var(--ctl-px-sm); border: 0; background: transparent; resize: none; font-size: var(--fs-sm); line-height: 20px; }
+.sendbox textarea:focus { outline: none; }
+.sendbox.tall textarea { min-height: 64px; }
+
+/* ---------------------------------------------------------------- a run's steps, one under another */
+.stepper { list-style: none; margin: var(--gap-m) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 2px var(--gap-m); }   /* two columns where they fit: eleven steps side by side */
+.stepper li { display: grid; grid-template-columns: 12px minmax(0, 1fr) fit-content(50%); gap: var(--gap-s); align-items: center; padding: var(--gap-xs) var(--gap-s); border-radius: var(--r-lg); font-size: var(--fs-xs); }
+.stepper li::before { justify-self: center; }                                         /* the step's lamp */
+.stepper li b { font-weight: 600; min-width: 0; line-height: 1.35; }                 /* a long step name wraps rather than being cut */
+.stepper li span { font-size: var(--fs-xs); color: var(--ink-3); text-align: right; line-height: 1.35; }   /* half the row at most: a long reason wraps, the step's name keeps its words */
+.stepper li[aria-current="step"] { background: var(--pane-on); }                     /* the step at work */
+.stepper li.skip b, .stepper li:not(.ok):not(.busy):not(.bad) b { color: var(--ink-3); font-weight: 500; }   /* waiting and skipped steps are quiet */
+
+/* ---------------------------------------------------------------- documents as tiles with their first page */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: var(--gap-m); margin: var(--gap-xs) 0 0; }
+.tile { display: grid; gap: 2px; align-content: start; padding: var(--gap-s); border-radius: var(--r-lg); border: 1px solid var(--pane-rule); background: var(--well-in);
+  text-decoration: none; color: var(--ink); text-align: left; cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), transform var(--t-mid) var(--ease), box-shadow var(--t-mid) var(--ease); }
+.tile:hover { background: var(--pane-hover); }   /* a quiet hover, no lift */
+.tile .thumb { display: grid; place-items: center; aspect-ratio: 210 / 148; overflow: hidden; border-radius: var(--r-lg); margin-bottom: var(--gap-s);   /* a page's top, or a slide */
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); color: var(--ink-3); }
+.tile .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.tile b { font-size: var(--fs-sm); font-weight: 650; } .tile .sub { font-size: var(--fs-xs); color: var(--ink-3); }
+.tile-iv .thumb { background: color-mix(in srgb, var(--blue) 14%, var(--well-in)); color: var(--blue); }
+/* the run's documents: a row per language, a column per document, so each lines up with its pair; the scripts on a row across */
+.tiles.matrix { grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
+.tiles.matrix .tile.gap { visibility: hidden; }
+.tiles.matrix .tile-iv { grid-column: 1 / -1; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: var(--gap-m); }
+.tiles.matrix .tile-iv .thumb { aspect-ratio: 1; margin: 0; width: 44px; }
+.tiles.matrix .tile-iv .iv-words { display: grid; gap: 1px; min-width: 0; }
+.tiles.matrix .tile-iv > svg { color: var(--ink-3); }
+/* what will come out, before the first run: four in a row, two by two where the column is narrow */
+.tiles.ghost { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container flowcard (max-width: 400px) { .tiles.ghost { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tiles.ghost .tile { cursor: default; } .tiles.ghost .tile:hover { transform: none; box-shadow: none; background: var(--well-in); }   /* what will come out: quiet, but readable */
+.tiles.ghost .thumb { background: var(--pane-on); box-shadow: none; }
+.tiles.ghost b { color: var(--ink-2); font-weight: 600; }
+
+/* ---------------------------------------------------------------- short lists inside a card */
+.matlist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); }   /* one column the width of its card: a long name ends in an ellipsis, never past the window */
+.matlist li { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--gap-m); padding: var(--gap-s) 0; font-size: var(--fs-sm); border-bottom: 1px solid var(--pane-rule); }
+.matlist li:last-child { border-bottom: 0; }
+.matlist .nm { min-width: 0; overflow-wrap: anywhere; }                              /* a long file name wraps, never cut */
+.problist { list-style: none; margin: var(--gap-s) 0 0; padding: 0; display: grid; gap: var(--gap-xs); font-size: var(--fs-xs); color: var(--ink-2); }
+.problist li { display: flex; align-items: center; gap: var(--gap-s); }
+
+/* ---------------------------------------------------------------- fields */
+.field { display: grid; gap: var(--gap-xs); font-size: var(--fs-sm); }
+.field > span { font-weight: 600; color: var(--ink-2); font-size: var(--fs-xs); }      /* the label */
+.input, .field input, .field textarea, .field select { width: 100%; min-width: 0; min-height: var(--ctl-h); padding: var(--gap-s) var(--pad-s); border-radius: var(--r-lg);
+  border: 1px solid transparent; background: var(--field); color: var(--ink); line-height: 18px; font-size: var(--fs-sm); }
+:root[data-theme="light"] :is(.input, .field input, .field textarea, .field select) { border-color: var(--paper-line); background: var(--paper); }
+:is(.input, .field input, .field select):not(textarea) { height: var(--ctl-h); }   /* a one-line field is a key's height, whatever it draws inside */
+.field textarea { resize: vertical; min-height: 88px; }
+.field textarea.short { min-height: 0; }                                            /* a line or two, as many rows as it asks */
+.input:focus, .field :is(input, textarea, select):focus { outline: 2px solid var(--focus); outline-offset: 0; }
+.hint { font-size: var(--fs-xs); color: var(--ink-3); }                                /* a line under a field */
+
+/* ---------------------------------------------------------------- surfaces */
+.glass { background: var(--card-bg); border: 1px solid; border-color: var(--card-line); border-radius: var(--r-lg); box-shadow: var(--card-shadow); }   /* status cards inside a view: paper, as the cards */
+.paper { background: var(--paper); border: 1px solid var(--pane-edge); border-radius: var(--r-lg); box-shadow: var(--card-shadow); }  /* reading surfaces: opaque, one sheet */
+.well { background: var(--well-in); border-radius: var(--r-lg); box-shadow: var(--well-ring); }   /* a sunken area inside a card */
+.card-h { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gap-s) var(--gap-m); min-height: var(--ctl-h-sm); }        /* a card's title row */
+.card-h h3 { font-size: var(--fs-md); }
+
+/* the note box: a quote of the evidence, with the file it came from */
+.note { position: relative; padding: var(--pad-s); border-radius: var(--r-lg); background: var(--well-in); box-shadow: var(--well-ring);
+  border: 1px solid var(--pane-rule); font-size: var(--fs-sm); color: var(--ink); }
+.note q { quotes: "\201C" "\201D"; }                                                  /* curly quotes around the source's words */
+.note .from { display: block; margin-top: var(--gap-xs); font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); }
+.note mark, mark.hl { background: linear-gradient(transparent 52%, var(--hl-strong) 52%, var(--hl-strong) 94%, transparent 94%); color: inherit; padding: 0 1px; }  /* the highlighter */
+
+/* the ribbon: a bookmark in the brand's amber on what is open now */
+.ribbon { position: absolute; top: -1px; right: 18px; width: 11px; height: 26px; background: #f2c744;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 5px), 0 100%); }
+
+/* a figure */
+.num { display: inline-block; font-size: var(--fs-num); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }   /* a figure in ink: the highlighter marks evidence only */
+.num small { font-size: .45em; font-weight: 700; }
+
+/* the drop zone */
+.drop { display: grid; place-items: center; gap: var(--gap-m); padding: var(--gap-xl) var(--pad-l); border: 1.5px dashed var(--rule-2); border-radius: var(--r-lg);
+  background: var(--well-in); text-align: center; transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
+.drop.over { border-color: var(--blue); background: var(--blue-soft); }               /* a file is held over it */
+.drop > svg { transition: transform var(--t-mid) var(--ease), color var(--t-mid) var(--ease); }
+.drop.over > svg { transform: translateY(-4px); color: var(--blue); }                /* the arrow reaches up for it */
+.drop strong { font-size: var(--fs-md); }
+.drop svg.big { width: 32px; height: 32px; color: var(--ink-3); }
+
+/* the toast */
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 12px); z-index: 60; max-width: min(560px, calc(100vw - 32px));
+  padding: var(--pad-s) var(--pad-m); border-radius: var(--r-lg); background: var(--menu-bg); border: 1px solid var(--menu-line); color: var(--ink); font-size: var(--fs-sm);
+  font-weight: 600; box-shadow: 0 16px 40px -16px rgba(0, 0, 0, .6); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+  opacity: 0; pointer-events: none; transition: opacity var(--t-mid) var(--ease), transform var(--t-mid) var(--ease); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* a band that says what went wrong, with its one fix */
+.band { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-s) var(--gap-m); padding: var(--pad-s); border-radius: var(--r-lg);
+  background: var(--red-soft); color: var(--ink); font-size: var(--fs-sm); border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); }
+.band.info { background: var(--blue-soft); border-color: color-mix(in srgb, var(--blue) 30%, transparent); }
+.band.ai { background: var(--orange-soft); border-color: color-mix(in srgb, var(--orange) 30%, transparent); }
+.band.ok { background: var(--green-soft); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+.band.offer { background: var(--pane-well); border-color: var(--pane-rule); }   /* what the agent could do: an offer, not a warning; its chip says what is sent */
+.band p { flex: 1 1 220px; }
+
+/* the room a taller card in the same row leaves, so a card's foot line sits on its foot (make.js) */
+.fill { flex: 1 1 auto; min-height: 0; }
+
+/* lists that read as a notebook: a line between items */
+.rows > * + * { border-top: 1px solid var(--pane-rule); }
+.empty { display: grid; gap: var(--gap-m); justify-items: start; padding: var(--pad-l); color: var(--ink-2); }
+.empty h3 { color: var(--ink); font-size: var(--fs-md); }

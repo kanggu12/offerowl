@@ -1,0 +1,82 @@
+# The Python package: `pip install .` in a checkout (or `pip install` of a release's wheel) puts an `offerowl` command on PATH.
+#
+# The repository is not a Python library. Its engine is a folder of flat modules (src/), the panel (apps/), data (core/,
+# examples/, fonts/), the render container (render/) and the launcher `offerowl`, which find each other by their place in the folder. So the wheel does
+# not reshuffle them into import packages: it installs the whole folder as package data under offerowl/engine/, and the
+# console script (deploy/python/offerowl/cli.py) runs the launcher from there. That keeps one copy of the code, the one
+# the checkout, the container and the one-file app also run. docs/INSTALL.md describes the install.
+#
+# What goes into the engine folder is listed in [tool.setuptools.package-data] below; deploy/docker/Dockerfile.dockerignore
+# lists the same folders for the container image, and tests/packaging fails when a folder exists in the repository that
+# neither list names.
+
+[build-system]
+requires = ["setuptools>=70"]  # 70.1 builds wheels without the separate wheel package
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "offerowl"
+dynamic = ["version"]  # read from deploy/python/offerowl/__init__.py, so the version is written once
+description = "From one evidence-backed profile to a resume, a portfolio deck, a cover letter and an interview kit."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []  # the engine and the panel use only the standard library
+keywords = ["resume", "cover letter", "interview", "portfolio", "job application", "local-first"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+]
+
+[project.optional-dependencies]
+# The icon in the notification area for `offerowl-app` (the pins of apps/desktop/requirements-build.txt)
+tray = ["pystray==0.19.5", "pillow==13.0.0; python_version >= '3.11'", "pillow==12.3.0; python_version < '3.11'"]
+# Reading PDFs on a PC with no poppler: your old PDFs, the page previews and the checks (src/pdftools.py). PDFium draws a
+# page as a picture through Pillow, so the previews need both
+pdf = ["pypdfium2==5.14.0", "pillow==13.0.0; python_version >= '3.11'", "pillow==12.3.0; python_version < '3.11'"]
+# The interview page checks (`offerowl interview cards`, `eval`) drive a browser
+checks = ["playwright>=1.40"]
+
+[project.scripts]
+offerowl = "offerowl.cli:main"  # the command line: every command of ./offerowl, plus doctor
+
+[project.gui-scripts]
+offerowl-app = "offerowl.cli:app_main"  # the panel with an icon in the notification area; no console window on Windows
+
+[tool.setuptools]
+packages = ["offerowl", "offerowl.engine"]  # the second one has no Python modules: it carries the engine folder as data
+include-package-data = false  # only what package-data names, never what a MANIFEST or a version-control plugin adds
+
+[tool.setuptools.package-dir]
+offerowl = "deploy/python/offerowl"  # the starter and the version
+"offerowl.engine" = "."  # the repository itself, filtered by package-data
+
+[tool.setuptools.dynamic]
+version = { attr = "offerowl.__version__" }
+
+[tool.setuptools.package-data]
+# Patterns are relative to the repository root. `**` is recursive.
+"offerowl.engine" = [
+    "offerowl",  # the launcher
+    "LICENSE", "docs/THIRD_PARTY_NOTICES.md",  # the license, and the licenses of what Offerowl uses
+    "package.json", "package-lock.json",  # the typesetting libraries (OFFEROWL_NET=1 render/run.sh npm ci installs them)
+    "render/**",  # the render container: its recipe and the script that starts it
+    "src/**",  # the engine: modules, scripts, prompts, styles, themes, the interview view and its fonts
+    "apps/**",  # the panel and its page, the desktop app
+    "core/**",  # the schemas of the profile, the job and the documents
+    "examples/**",  # the fictional example profile and the cover letter and interview samples
+    "fonts/*.ttf", "fonts/*.txt",  # Pretendard and its licence
+    "docs/assets/icon.svg", "docs/assets/logo-light.svg", "docs/assets/logo-dark.svg",  # the icon and the wordmark the panel shows
+]
+
+[tool.setuptools.exclude-package-data]
+# Generated files that may sit in a working folder
+"offerowl.engine" = ["**/__pycache__/**", "**/*.pyc", "examples/interview/out/**"]

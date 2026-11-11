@@ -1,0 +1,34 @@
+/* Base rules of a page made by src/render_html/docx2html.py. The document's own look (sizes, colours, spacing,
+   borders) is written inline on each element from the DOCX; these rules only set up the box model that LibreOffice uses. */
+html, body { margin: 0; padding: 0; background: #fff; }
+/* Background colours are part of the design (bands, cards, the highlighter), so the printer must keep them. */
+body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-kerning: none; text-rendering: geometricPrecision; }
+/* A column of blocks. Normal block flow: LibreOffice keeps the larger of a paragraph's spacing after and the next one's
+   spacing before (measured: a section title 12.5pt below a paragraph with 3pt after), which is how CSS margins collapse.
+   flow-root keeps the first and last margins inside the column, as on a page. */
+.body { display: flow-root; }
+/* One DOCX paragraph. The font size of the block is 0 so its strut adds no height: only the runs set the line height,
+   as in LibreOffice. Spaces are kept as typed; Korean breaks between words, as LibreOffice breaks it. */
+.p { display: block; position: relative; white-space: pre-wrap; word-break: keep-all; overflow-wrap: break-word;
+     font-size: 0; line-height: normal; margin: 0; font-weight: normal; }
+/* The contents of a table cell: a column again, with the same rules. */
+.cc { display: flow-root; }
+/* Tables keep the column widths of the DOCX grid. */
+table.t { border-collapse: collapse; table-layout: fixed; border-spacing: 0; }
+table.t td { overflow: visible; }
+/* A tab gets its width from page.js. */
+.tab { display: inline-block; width: 0; height: 0; }
+/* The gap LibreOffice puts between Hangul and a Latin letter or a digit (a fifth of the font size). */
+.as { margin-right: 0.2em; }
+.asl { display: inline-block; width: 0.2em; height: 0; }
+/* A word with a non-breaking hyphen stays on one line. */
+.nb { white-space: nowrap; }
+img.inl { vertical-align: baseline; }
+img.flt { position: absolute; }
+a { color: inherit; text-decoration: none; }
+/* A printed page. page.js builds them; each prints as one PDF page. */
+.page { position: relative; overflow: hidden; break-after: page; page-break-after: always; }
+.page:last-child { break-after: auto; page-break-after: auto; }
+.sheet { position: relative; transform-origin: 0 0; }
+.sheet > .body, .sheet > .ftr { position: absolute; }
+template { display: none; }

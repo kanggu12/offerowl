@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kanggu12/offerowl/main/core/schema/documents/cover.schema.json",
+  "title": "The cover letter (offerowl-cover/0.1)",
+  "description": "src/cover.py draft writes this as cover.json; the canvas draws it and every sentence names the evidence units it rests on (ev). A sentence with no evidence and no frame flag is unsupported.",
+  "type": "object",
+  "required": ["schema", "lang", "paragraphs"],
+  "properties": {
+    "schema": {"const": "offerowl-cover/0.1"},
+    "lang": {"enum": ["ko", "en"]},
+    "job": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}}},
+    "signature": {"type": "string"},
+    "paragraphs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "sentences"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string"},
+          "duties": {"type": "array", "items": {"type": "string"}},
+          "sentences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text"],
+              "properties": {
+                "text": {"type": "string"},
+                "ev": {"type": "array", "items": {"type": "string"}, "description": "Evidence unit ids (src/cover.py units_of)."},
+                "duties": {"type": "array", "items": {"type": "string"}},
+                "frame": {"type": "boolean", "description": "A framing sentence (greeting, sign-off) that claims nothing."}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

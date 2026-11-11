@@ -1,0 +1,119 @@
+/* Offerowl's design tokens, shared by the components (components.css), the layout (app.css) and the skin (skin.css).
+   The desk, the sheets, the cards and the words are neutral grays in both themes, so colour is seen where it means
+   something, the same in the app and in the pictures (CONTRIBUTING.md):
+     blue    stays on this PC          orange  sent to the AI agent
+     yellow  evidence (the highlighter) red     stopped by a check
+     green   ready or done              gray    everything else
+   skin.css sets the final values over these (an even near-white page, hairline rims, near-black main keys, square
+   corners, glass for what holds controls); the meanings of the colours stay these.
+   Every pair of text and surface below was measured at 4.5:1 or more in both themes (tests/app/audit.js checks it). */
+
+@font-face { font-family: "Pretendard"; font-weight: 100 900; font-display: swap;            /* one variable file covers every weight */
+  src: url("/fonts/PretendardVariable.woff2") format("woff2"), url("/fonts/Pretendard-Regular.ttf") format("truetype"); }
+@font-face { font-family: "Pretendard TTF"; font-weight: 400; src: url("/fonts/Pretendard-Regular.ttf") format("truetype"); }   /* fallback when the kit's fonts are absent */
+@font-face { font-family: "Pretendard TTF"; font-weight: 600; src: url("/fonts/Pretendard-SemiBold.ttf") format("truetype"); }
+@font-face { font-family: "Pretendard TTF"; font-weight: 700; src: url("/fonts/Pretendard-Bold.ttf") format("truetype"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap; src: url("/fonts/JetBrainsMono.woff2") format("woff2"); }  /* dates and paths */
+
+:root {
+  /* type: the panel's body is 15 px, its controls 12 to 14 */
+  --font: "Pretendard", "Pretendard TTF", system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px; --fs-2xl: 26px; --fs-num: 44px;   /* the scale */
+  --lh: 1.6; --lh-tight: 1.3;                                                        /* body and headings */
+  /* space and shape: sheets and cards have square corners, keys a small round, lamps a full one */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+  --r-sm: 5px; --r-md: 5px; --r-lg: 2px; --r-xl: 2px; --r-pill: 999px; --r-chip: 3px;
+  /* the sizes every part takes, so a row's keys, fields and choices stand at one height and every card has the same room:
+     three control heights, three paddings and five gaps, all on the 4 px grid */
+  --ctl-h: 36px; --ctl-h-sm: 28px; --ctl-h-lg: 44px;                                  /* a key, field or choice; a key inside a row; the one large key */
+  --ctl-px: 16px; --ctl-px-sm: 12px;                                                  /* the room beside a key's words, on the same grid */
+  --pad-l: 20px; --pad-m: 16px; --pad-s: 12px;                                        /* a section's sheet, a card, a row or a note */
+  --gap-xs: 4px; --gap-s: 8px; --gap-m: 12px; --gap-l: 16px; --gap-xl: 24px;          /* inside a key, between keys, between cards, between sections, between regions */
+  /* motion: calm and short; the menu's Motion turns it off (theme.js, motion.js) */
+  --ease: cubic-bezier(.22, .61, .36, 1); --t-fast: 120ms; --t-mid: 200ms; --t-slow: 320ms;
+  /* layout: the page's width, the bar, the rail of cards and the sheet's margin column */
+  --page-w: 1560px; --pad-x: 40px; --bar-h: 55px; --mg-w: 112px; --insp-w: 380px;
+  /* the document's own size: an A4 page at 96 dpi */
+  --a4-w: 794px; --a4-h: 1123px;
+  /* the lamp of a status pill and the switch's knob are the same in both themes */
+  --knob: linear-gradient(rgba(255, 255, 255, .6), rgba(0, 0, 0, .06)), #f1f1f3;
+  --switch-on: linear-gradient(rgba(0, 0, 0, .16), rgba(255, 255, 255, .08)), #1a8a5a;
+  --switch-on-ring: inset 0 1px 2px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(120, 240, 190, .4), 0 0 8px -2px rgba(46, 182, 125, .6);
+}
+/* Motion off, by the menu's choice (theme.js sets data-motion before the first paint). On by default: a system set to less
+   motion would otherwise hide every motion of the panel; the menu's Auto follows it. None at all when off, not a short one */
+html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after {
+  animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+
+/* ---------------------------------------------------------------- light */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --desk: #f4f4f5; --desk-top: #fbfbfc; --desk-low: #eeeef0;                         /* the desk: a neutral gray, a little lighter at the top */
+  --ink: #1b1b1f; --ink-2: #404148; --ink-3: #5f616a;                                /* text: main, secondary, quiet */
+  --paper: #ffffff; --paper-2: #f7f7f8; --paper-line: #e2e2e6; --rule-2: #b7b8bf;    /* opaque reading surfaces and their lines */
+  --page-dot: rgba(29, 28, 29, .13);                                                 /* the sheet's own dots */
+  --pane: rgba(255, 255, 255, .72); --pane-line: rgba(255, 255, 255, .95); --pane-edge: rgba(24, 24, 28, .12);  /* glass */
+  --pane-rule: rgba(24, 24, 28, .12); --pane-well: rgba(24, 24, 28, .05); --pane-hover: rgba(24, 24, 28, .05); --pane-on: rgba(24, 24, 28, .08);
+  --card-bg: var(--paper);                                                           /* a card in a page: opaque paper */
+  --card-line: var(--paper-line);                                                    /* and its one-pixel edge */
+  --card-shadow: 0 1px 2px rgba(24, 24, 28, .05), 0 8px 20px -14px rgba(24, 24, 28, .18);   /* paper a little off the desk */
+  --key-bg: linear-gradient(#ffffff, rgba(255, 255, 255, .6)); --key-line: rgba(0, 0, 0, .14); --key-top: rgba(0, 0, 0, .14);   /* a key */
+  --key-shadow: 0 3px 8px -3px rgba(0, 0, 0, .55);
+  --btn-bg: #ffffff; --btn-shadow: 1px 2px 3px rgba(0, 0, 0, .18), inset 0 1px 0 #ffffff;   /* a text button in the bar */
+  --field: rgba(0, 0, 0, .07); --well-in: rgba(29, 28, 29, .05); --well-ring: inset 0 1px 2px rgba(0, 0, 0, .16);   /* fields and sunken boxes */
+  --switch-off: linear-gradient(rgba(0, 0, 0, .14), rgba(255, 255, 255, .06)), #c9cacd;
+  --switch-off-ring: inset 0 1px 2px rgba(0, 0, 0, .25), inset 0 0 0 1px rgba(0, 0, 0, .1);
+  --seg-bg: rgba(0, 0, 0, .04); --seg-on: rgba(0, 0, 0, .1); --seg-on-line: rgba(255, 255, 255, .95);   /* a choice of a few */
+  --menu-bg: rgba(255, 255, 255, .92); --menu-line: rgba(255, 255, 255, .95);                             /* a dropdown over text: nearly opaque */
+  --raise: 1px 2px 3px rgba(0, 0, 0, .18), inset 0 1px 0 #ffffff;                                       /* a raised key */
+  --press: inset 3px 3px 6px rgba(29, 28, 29, .12), inset -2px -2px 5px rgba(255, 255, 255, .75);      /* pressed in */
+  --sink-bg: #ebebed; --sink: inset 3px 3px 8px rgba(24, 24, 28, .11), inset -3px -3px 8px rgba(255, 255, 255, .95);   /* a panel moulded into the desk */
+  --float: 0 10px 28px -14px rgba(0, 0, 0, .28);                                                        /* glass over the desk */
+  --sheet-shadow: 0 1px 2px rgba(0, 0, 0, .1), 0 10px 26px -16px rgba(0, 0, 0, .22);  /* one printed page on the desk */
+  --blue: #1a56c4; --blue-soft: #e8effb; --orange: #a13d0a; --orange-soft: #fbece3;  /* meaning colours, with their pale fills */
+  --red: #cc1e54; --red-soft: #fce8ee; --green: #007a5a; --green-soft: #e3f3ec; --amber: #8f6400; --amber-soft: #fcf4da;   /* amber a gold, not an olive, at the same 4.8:1 */
+  --blue-bar: #2d6fdc; --amber-bar: #ecb22e; --orange-bar: #e2702a; --green-bar: #13966b;   /* the same colours bright, for a bar with no words on it (Make's chain) */
+  --off: #868686;                                                                    /* an unlit lamp */
+  --hl: rgba(242, 199, 68, .4); --hl-strong: rgba(242, 199, 68, .62); --hl-line: #ecb22e;   /* the highlighter */
+  --focus: #1b2e4b;                                                                  /* the focus ring: the owl's navy */
+  --primary: #1b2e4b; --primary-ink: #ffffff;                                        /* the one main button per view: the owl's navy */
+  --on-hue: #ffffff;                                                                 /* words on a solid meaning colour (a step's number) */
+  --cite-bg: #fbe8a4; --cite-ink: #1b1b1f; --cite-on: #f2c744;                      /* an evidence number, and the selected sentence's */
+}
+
+/* ---------------------------------------------------------------- dark: neutral near black, lighter as a surface rises, with bright text and colours */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --desk: #131315; --desk-top: #19191c; --desk-low: #101012;
+  --ink: #ececef; --ink-2: #d4d4d9; --ink-3: #b2b2bb;                                /* bright enough on a chosen row under a chip: 4.5:1 or more */
+  --paper: #1b1b1e; --paper-2: #222225; --paper-line: #303035; --rule-2: #4a4a52;
+  --page-dot: rgba(255, 255, 255, .04);
+  --pane: rgba(255, 255, 255, .1); --pane-line: rgba(255, 255, 255, .2); --pane-edge: rgba(232, 232, 232, .12);
+  --pane-rule: rgba(255, 255, 255, .16); --pane-well: rgba(0, 0, 0, .24); --pane-hover: rgba(255, 255, 255, .07); --pane-on: rgba(255, 255, 255, .11);
+  --card-bg: var(--paper);
+  --card-line: var(--paper-line);
+  --card-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 10px 26px -18px rgba(0, 0, 0, .65);
+  --key-bg: linear-gradient(rgba(255, 255, 255, .16), rgba(255, 255, 255, .07)); --key-line: rgba(255, 255, 255, .18); --key-top: rgba(255, 255, 255, .34);
+  --key-shadow: 0 3px 8px -3px rgba(0, 0, 0, .55);
+  --btn-bg: #242428; --btn-shadow: 1px 2px 4px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .09);
+  --field: rgba(0, 0, 0, .34); --well-in: rgba(0, 0, 0, .2); --well-ring: inset 0 0 0 1px rgba(255, 255, 255, .06);
+  --switch-off: linear-gradient(rgba(0, 0, 0, .14), rgba(255, 255, 255, .06)), #34353a;
+  --switch-off-ring: inset 0 1px 2px rgba(0, 0, 0, .35), inset 0 0 0 1px rgba(255, 255, 255, .16);
+  --seg-bg: rgba(255, 255, 255, .05); --seg-on: rgba(255, 255, 255, .16); --seg-on-line: rgba(255, 255, 255, .16);
+  --menu-bg: rgba(30, 30, 34, .97); --menu-line: rgba(255, 255, 255, .16);
+  --raise: 1px 2px 4px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .09);
+  --press: inset 3px 3px 7px rgba(0, 0, 0, .55), inset -2px -2px 6px rgba(255, 255, 255, .035);
+  --sink-bg: #0e0e10; --sink: inset 3px 3px 9px rgba(0, 0, 0, .65), inset -2px -2px 7px rgba(255, 255, 255, .045);
+  --float: 0 14px 34px -16px rgba(0, 0, 0, .7);
+  --sheet-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 12px 32px -18px rgba(0, 0, 0, .7);
+  --blue: #a3c5fb; --blue-soft: rgba(138, 180, 248, .14); --orange: #f5a262; --orange-soft: rgba(245, 162, 98, .14);
+  --red: #eb6a92; --red-soft: rgba(235, 106, 146, .14); --green: #5ad9a2; --green-soft: rgba(90, 217, 162, .13); --amber: #ecb22e; --amber-soft: rgba(236, 178, 46, .13);
+  --blue-bar: #a3c5fb; --amber-bar: #ecb22e; --orange-bar: #f5a262; --green-bar: #5ad9a2;   /* bright already in the dark */
+  --off: #818385;
+  --hl: rgba(232, 145, 45, .4); --hl-strong: rgba(236, 178, 46, .62); --hl-line: #f2c744;
+  --focus: #f2c744;                                                                  /* the owl's eyes in the dark */
+  --primary: #ececef; --primary-ink: #18181b;                                        /* a light key with dark words */
+  --on-hue: #18181b;                                                                 /* dark words on the bright meaning colours */
+  --cite-bg: #f6df8e; --cite-ink: #18181b; --cite-on: #f2c744;
+}

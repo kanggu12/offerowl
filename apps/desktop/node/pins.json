@@ -1,0 +1,29 @@
+{
+  "about": "The Node.js release the one-file app carries. Each archive is downloaded from nodejs.org at build time and must match the SHA-256 below, which comes from the release's SHASUMS256.txt (signed by the Node.js release team). To move to another release run: python apps/desktop/node/pins.py --update <version>",
+  "node": {
+    "version": "22.23.4",
+    "url": "https://nodejs.org/dist/v{version}/{archive}",
+    "platforms": {
+      "linux-x64": {
+        "archive": "node-v{version}-linux-x64.tar.xz",
+        "binary": "bin/node",
+        "sha256": "1805bcd35e6815559bd2eb97db438d3fdb0eb3a5e6a977b7c1badca76337e9ce"
+      },
+      "darwin-arm64": {
+        "archive": "node-v{version}-darwin-arm64.tar.gz",
+        "binary": "bin/node",
+        "sha256": "c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428"
+      },
+      "darwin-x64": {
+        "archive": "node-v{version}-darwin-x64.tar.gz",
+        "binary": "bin/node",
+        "sha256": "efcc2b0db6f94bf53eddb038fe2b370277a042bd29e4f19b8f8e23598795b819"
+      },
+      "win-x64": {
+        "archive": "node-v{version}-win-x64.zip",
+        "binary": "node.exe",
+        "sha256": "cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20"
+      }
+    }
+  }
+}

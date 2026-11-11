@@ -1,0 +1,25 @@
+{
+ "_comment": "Example style pack for cover letters. banned_chars and banned_patterns work as in every style pack; the cover object holds the options only letters use (docs/DOCUMENTS.md).",
+ "banned_chars": "—",
+ "banned_patterns": [],
+ "cover": {
+  "numbers": "forbid",
+  "banned_words": [
+   "passionate",
+   "synergy",
+   "cutting-edge",
+   "열정",
+   "시너지"
+  ],
+  "tone": {
+   "en": "plain and specific, first person, no hype and no flattery",
+   "ko": "담백하고 구체적인 1인칭, 합니다체, 과장과 아부 없이"
+  },
+  "max_words": {
+   "en": 470
+  },
+  "max_chars": {
+   "ko": 1700
+  }
+ }
+}

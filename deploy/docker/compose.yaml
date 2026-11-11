@@ -1,0 +1,88 @@
+# Offerowl as one container: the panel, the engine, the interview view and the renderer (docs/INSTALL.md).
+#
+#   docker compose -f deploy/docker/compose.yaml up -d --build      build the image and start it
+#   open http://127.0.0.1:8797                                       the panel
+#   docker compose -f deploy/docker/compose.yaml down                stop it (your files stay in the volumes)
+#
+# The project is called offerowl-app: its containers, network and volumes are named after it.
+#
+# The panel's port is opened on this PC's loopback only (127.0.0.1): the panel has no login and holds your documents, so
+# nobody else on the network can reach it. Nothing restarts by itself, like the other Offerowl containers.
+
+# The project name decides the names of containers, networks and volumes: offerowl-app-app-1 and so on.
+name: offerowl-app
+
+services:
+  app:
+    # Built from the repository root (two folders up) with the Dockerfile in this folder, and named offerowl-app:local.
+    # To run a published image instead, name it: OFFEROWL_APP_IMAGE=ghcr.io/<owner>/offerowl-app OFFEROWL_APP_TAG=<version>
+    # (docs/INSTALL.md). Compose pulls an image it does not have, and builds only when there is none to pull.
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: ${OFFEROWL_APP_IMAGE:-offerowl-app}:${OFFEROWL_APP_TAG:-local}
+
+    # The image's own user (10001) by default. With a folder for the data (OFFEROWL_DATA below) run as the owner of that
+    # folder: OFFEROWL_UID=$(id -u) OFFEROWL_GID=$(id -g) docker compose ...
+    user: "${OFFEROWL_UID:-10001}:${OFFEROWL_GID:-10001}"
+
+    environment:
+      # The panel's port inside the container. It must equal the published port below, because the panel answers only
+      # requests whose Host header names its own port.
+      - OFFEROWL_PANEL_PORT=${OFFEROWL_PANEL_PORT:-8797}
+      # The time zone of dates on the board and of the logs.
+      - TZ=${TZ:-UTC}
+      # The AI backend and the language. A name with no value is passed on only when it is set in your shell or in a
+      # .env file beside this one (docs/USAGE.md has the settings). With nothing set the AI steps are off and you fill
+      # in the facts yourself.
+      #   OFFEROWL_LLM=openai-compat              none (the default here) or openai-compat
+      #   OFFEROWL_LLM_URL=http://host.docker.internal:11434    a local model server (Ollama, vLLM, LM Studio)
+      #   OFFEROWL_LLM_MODEL=<model name>
+      #   OFFEROWL_LLM_KEY=<key>                  only for servers that ask for one
+      #   OFFEROWL_LANG=en                        ko or en
+      - OFFEROWL_LLM
+      - OFFEROWL_LLM_URL
+      - OFFEROWL_LLM_MODEL
+      - OFFEROWL_LLM_KEY
+      - OFFEROWL_LLM_REASONING
+      - OFFEROWL_LANG
+
+    ports:
+      # Host side and container side use one number (the Host header rule above). 127.0.0.1 keeps the panel private.
+      - "127.0.0.1:${OFFEROWL_PANEL_PORT:-8797}:${OFFEROWL_PANEL_PORT:-8797}"
+
+    volumes:
+      # Settings, the workspace (your profile, jobs and documents) and the logs. A named volume by default; give the
+      # absolute path of a folder (OFFEROWL_DATA=/home/me/offerowl-data) to keep the files where you can open them.
+      - ${OFFEROWL_DATA:-offerowl-data}:/data
+      # Where the engine writes while it builds, and its call log.
+      - offerowl-output:/work/output
+
+    # A model server that runs on this PC (Ollama and so on) is reached at host.docker.internal; Docker Desktop defines
+    # the name, and this line defines it on Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # The same hardening as the Helm chart: nothing in the root filesystem can change, no extra privileges, and a
+    # memory-backed /tmp for the browser's and LibreOffice's profiles.
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+
+    # Typesetting is the heavy part: the caps of render/run.sh (OFFEROWL_CPUS, OFFEROWL_MEM). Docker refuses a CPU cap above
+    # the CPUs it has, and compose cannot count them, so the default is the four most PCs and runners have.
+    mem_limit: ${OFFEROWL_MEM:-4g}
+    cpus: ${OFFEROWL_CPUS:-4}
+
+    restart: "no"
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+volumes:
+  offerowl-data:
+  offerowl-output:

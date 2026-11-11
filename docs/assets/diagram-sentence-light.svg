@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 906 384" width="906" height="384" font-family="Pretendard, -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Noto Sans&#x27;, Helvetica, Arial, sans-serif" role="img" aria-label="How one sentence is made. A fact you confirmed carries the source&#x27;s own words. The AI backend drafts the sentence from that evidence and cites its ids. The fact check holds every number, name, tool and claim against the evidence: a sentence that fails is stopped, rewritten once from the same evidence, and dropped if it still fails. The style pack checks the wording. The page is typeset, the layout is checked, and then it can be exported">
+<rect x="0.0" y="18.0" width="180.0" height="104.0" rx="2" fill="#eef3f9"/>
+<rect x="0.0" y="18.0" width="180.0" height="26.0" rx="2" fill="#f2c744"/>
+<text x="12.0" y="36.0" font-size="14" font-weight="600" fill="#1b2e4b" data-box="12.0,168.0">Evidence</text>
+<text x="12.0" y="65.0" font-size="12.5" fill="#566175" data-box="12.0,168.0">a fact you confirmed,</text>
+<text x="12.0" y="82.5" font-size="12.5" fill="#566175" data-box="12.0,168.0">with the source&#x27;s own</text>
+<text x="12.0" y="100.0" font-size="12.5" fill="#566175" data-box="12.0,168.0">words</text>
+<rect x="240.0" y="18.0" width="180.0" height="104.0" rx="2" fill="#eef3f9"/>
+<rect x="240.0" y="18.0" width="180.0" height="26.0" rx="2" fill="#b3400a"/>
+<text x="252.0" y="36.0" font-size="14" font-weight="600" fill="#ffffff" data-box="252.0,408.0">Draft</text>
+<text x="252.0" y="65.0" font-size="12.5" fill="#566175" data-box="252.0,408.0">the AI backend writes</text>
+<text x="252.0" y="82.5" font-size="12.5" fill="#566175" data-box="252.0,408.0">from the evidence and</text>
+<text x="252.0" y="100.0" font-size="12.5" fill="#566175" data-box="252.0,408.0">cites its ids</text>
+<rect x="480.0" y="18.0" width="180.0" height="104.0" rx="2" fill="#eef3f9"/>
+<text x="492.0" y="55.8" font-size="15" font-weight="600" fill="#1b2e4b" data-box="492.0,648.0">Fact check</text>
+<text x="492.0" y="74.8" font-size="12.5" fill="#566175" data-box="492.0,648.0">numbers, names, tools</text>
+<text x="492.0" y="92.3" font-size="12.5" fill="#566175" data-box="492.0,648.0">and claim strength</text>
+<rect x="720.0" y="18.0" width="180.0" height="104.0" rx="2" fill="#eef3f9"/>
+<text x="732.0" y="47.0" font-size="15" font-weight="600" fill="#1b2e4b" data-box="732.0,888.0">Style pack</text>
+<text x="732.0" y="66.0" font-size="12.5" fill="#566175" data-box="732.0,888.0">banned words and</text>
+<text x="732.0" y="83.5" font-size="12.5" fill="#566175" data-box="732.0,888.0">patterns, lengths,</text>
+<text x="732.0" y="101.0" font-size="12.5" fill="#566175" data-box="732.0,888.0">highlights</text>
+<rect x="480.0" y="162.0" width="180.0" height="64.0" rx="2" fill="#eef3f9"/>
+<rect x="480.0" y="162.0" width="180.0" height="24.0" rx="2" fill="#c8102e"/>
+<text x="492.0" y="178.7" font-size="13" font-weight="600" fill="#ffffff" data-box="492.0,648.0">Stopped</text>
+<text x="492.0" y="206.6" font-size="12" fill="#566175" data-box="492.0,648.0">one rewrite, else dropped</text>
+<rect x="720.0" y="270.0" width="180.0" height="92.0" rx="2" fill="#eef3f9"/>
+<text x="732.0" y="301.8" font-size="15" font-weight="600" fill="#1b2e4b" data-box="732.0,888.0">Render</text>
+<text x="732.0" y="320.8" font-size="12.5" fill="#566175" data-box="732.0,888.0">DOCX and PDF from one</text>
+<text x="732.0" y="338.3" font-size="12.5" fill="#566175" data-box="732.0,888.0">layout</text>
+<rect x="480.0" y="270.0" width="180.0" height="92.0" rx="2" fill="#eef3f9"/>
+<text x="492.0" y="301.8" font-size="15" font-weight="600" fill="#1b2e4b" data-box="492.0,648.0">Layout checks</text>
+<text x="492.0" y="320.8" font-size="12.5" fill="#566175" data-box="492.0,648.0">page fill, line ends,</text>
+<text x="492.0" y="338.3" font-size="12.5" fill="#566175" data-box="492.0,648.0">overflow</text>
+<path d="M240.0,270.0 H408.0 L420.0,282.0 V362.0 H240.0 Z" fill="#ffffff" stroke="#c9d4e3" stroke-width="1"/>
+<path d="M408.0,270.0 V282.0 H420.0 Z" fill="#dde5ef" stroke="#c9d4e3" stroke-width="1" stroke-linejoin="round"/>
+<text x="252.0" y="301.8" font-size="15" font-weight="600" fill="#1b2e4b" data-box="252.0,406.0">Export</text>
+<text x="252.0" y="320.8" font-size="12.5" fill="#566175" data-box="252.0,406.0">the PDF and DOCX you</text>
+<text x="252.0" y="338.3" font-size="12.5" fill="#566175" data-box="252.0,406.0">send</text>
+<path d="M180.5,70.0 L231.5,70.0" fill="none" stroke="#d9622b" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M239.0,70.0 L230.0,74.5 L230.0,65.5 Z" fill="#d9622b"/>
+<text x="210.0" y="62.0" font-size="12" fill="#566175" text-anchor="middle" data-box="183.0,237.0">sent</text>
+<path d="M420.5,70.0 L471.5,70.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M479.0,70.0 L470.0,74.5 L470.0,65.5 Z" fill="#7f8ca1"/>
+<text x="450.0" y="62.0" font-size="12" fill="#566175" text-anchor="middle" data-box="423.0,477.0">draft</text>
+<path d="M660.5,70.0 L711.5,70.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M719.0,70.0 L710.0,74.5 L710.0,65.5 Z" fill="#7f8ca1"/>
+<text x="690.0" y="62.0" font-size="12" fill="#566175" text-anchor="middle" data-box="663.0,717.0">passes</text>
+<path d="M810.0,122.5 L810.0,261.5" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M810.0,269.0 L805.5,260.0 L814.5,260.0 Z" fill="#7f8ca1"/>
+<text x="818.0" y="200.0" font-size="12" fill="#566175" data-box="818.0,900.0">passes</text>
+<path d="M719.5,316.0 L668.5,316.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M661.0,316.0 L670.0,311.5 L670.0,320.5 Z" fill="#7f8ca1"/>
+<path d="M479.5,316.0 L428.5,316.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M421.0,316.0 L430.0,311.5 L430.0,320.5 Z" fill="#7f8ca1"/>
+<text x="450.0" y="308.0" font-size="12" fill="#566175" text-anchor="middle" data-box="423.0,477.0">passes</text>
+<path d="M570.0,122.5 L570.0,153.5" fill="none" stroke="#c8102e" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M570.0,161.0 L565.5,152.0 L574.5,152.0 Z" fill="#c8102e"/>
+<text x="578.0" y="146.0" font-size="12" fill="#566175" data-box="578.0,660.0">fails</text>
+<path d="M479.5,194.0 L330.0,194.0 L330.0,130.5" fill="none" stroke="#c8102e" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M330.0,123.0 L334.5,132.0 L325.5,132.0 Z" fill="#c8102e"/>
+<text x="338.0" y="186.0" font-size="12" fill="#566175" data-box="338.0,476.0">rewrite</text>
+<rect x="0.0" y="282.0" width="22.0" height="10.0" rx="2" fill="#f2c744"/>
+<text x="30.0" y="291.0" font-size="12" fill="#566175" data-box="30.0,200.0">the evidence</text>
+<rect x="0.0" y="304.0" width="22.0" height="10.0" rx="2" fill="#b3400a"/>
+<text x="30.0" y="313.0" font-size="12" fill="#566175" data-box="30.0,200.0">sent to the AI backend</text>
+<rect x="0.0" y="326.0" width="22.0" height="10.0" rx="2" fill="#c8102e"/>
+<text x="30.0" y="335.0" font-size="12" fill="#566175" data-box="30.0,200.0">stopped by a check</text>
+</svg>

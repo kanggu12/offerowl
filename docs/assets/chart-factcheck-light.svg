@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 404" width="860" height="404" font-family="Pretendard, -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Noto Sans&#x27;, Helvetica, Arial, sans-serif" role="img" aria-label="Texts drafted for the fictional example, by task. Resume: 184 texts, 164 passed as written, 20 stopped and rewritten from the same evidence, 0 dropped. Cover letter: 18 sentences, 0 stopped. Interview scenes: 6, 3 stopped. Why: 16 for a name the cited evidence lacks, 3 for a number the cited evidence lacks, 2 for a tool the profile does not show, 0 for a claim stronger than the evidence, 2 for wording the style pack bans">
+<rect x="0" y="0" width="860" height="404" rx="6" fill="#ffffff"/>
+<rect x="24.0" y="23.7" width="4.0" height="20.1" rx="0" fill="#2f6eba"/>
+<text x="38.0" y="40.0" font-size="19" font-weight="700" fill="#1b2e4b" data-box="38.0,836.0">The fact check stops what the evidence does not hold</text>
+<path d="M24,52.5 H836" fill="none" stroke="#c9d4e3" stroke-width="1"/>
+<text x="24.0" y="74.0" font-size="13.5" fill="#566175" data-box="24.0,836.0">Drafts for the fictional example, written by the AI backend on 2026-11-05 and 2026-11-06 and replayed by</text>
+<text x="24.0" y="93.0" font-size="13.5" fill="#566175" data-box="24.0,836.0">tools/measure.py. A text is a sentence, a title or a card line; a scene counts once.</text>
+<text x="24.0" y="132.0" font-size="13" font-weight="600" fill="#1b2e4b" data-box="24.0,424.0">What happened to each drafted text</text>
+<text x="24.0" y="164.0" font-size="12.5" font-weight="600" fill="#1b2e4b" data-box="24.0,424.0">Resume, 184 texts</text>
+<path d="M28.0,173.0 H374.5 Q378.5,173.0 378.5,177.0 V185.0 Q378.5,189.0 374.5,189.0 H28.0 Q24.0,189.0 24.0,185.0 V177.0 Q24.0,173.0 28.0,173.0 Z" fill="#1b2e4b"/>
+<path d="M384.5,173.0 H420.0 Q424.0,173.0 424.0,177.0 V185.0 Q424.0,189.0 420.0,189.0 H384.5 Q380.5,189.0 380.5,185.0 V177.0 Q380.5,173.0 384.5,173.0 Z" fill="#c8102e"/>
+<text x="24.0" y="206.0" font-size="12" fill="#566175" data-box="24.0,424.0">164 passed as written, 20 stopped and rewritten, 0 dropped</text>
+<text x="24.0" y="236.0" font-size="12.5" font-weight="600" fill="#1b2e4b" data-box="24.0,424.0">Cover letter, 18 sentences</text>
+<path d="M28.0,245.0 H420.0 Q424.0,245.0 424.0,249.0 V257.0 Q424.0,261.0 420.0,261.0 H28.0 Q24.0,261.0 24.0,257.0 V249.0 Q24.0,245.0 28.0,245.0 Z" fill="#1b2e4b"/>
+<text x="24.0" y="278.0" font-size="12" fill="#566175" data-box="24.0,424.0">18 passed as written, none stopped</text>
+<text x="24.0" y="308.0" font-size="12.5" font-weight="600" fill="#1b2e4b" data-box="24.0,424.0">Interview, 6 scenes</text>
+<path d="M28.0,317.0 H218.0 Q222.0,317.0 222.0,321.0 V329.0 Q222.0,333.0 218.0,333.0 H28.0 Q24.0,333.0 24.0,329.0 V321.0 Q24.0,317.0 28.0,317.0 Z" fill="#1b2e4b"/>
+<path d="M228.0,317.0 H420.0 Q424.0,317.0 424.0,321.0 V329.0 Q424.0,333.0 420.0,333.0 H228.0 Q224.0,333.0 224.0,329.0 V321.0 Q224.0,317.0 228.0,317.0 Z" fill="#c8102e"/>
+<text x="24.0" y="350.0" font-size="12" fill="#566175" data-box="24.0,424.0">3 passed as written, 3 stopped and rewritten, 0 dropped</text>
+<text x="488.0" y="132.0" font-size="13" font-weight="600" fill="#1b2e4b" data-box="488.0,836.0">Why the 23 were stopped</text>
+<text x="488.0" y="164.0" font-size="12.5" fill="#1b2e4b" data-box="488.0,796.0">a name the cited evidence lacks</text>
+<text x="836.0" y="164.0" font-size="12.5" font-weight="600" fill="#1b2e4b" text-anchor="end" data-box="796.0,836.0">16</text>
+<path d="M492.0,172.0 H832.0 Q836.0,172.0 836.0,176.0 V178.0 Q836.0,182.0 832.0,182.0 H492.0 Q488.0,182.0 488.0,178.0 V176.0 Q488.0,172.0 492.0,172.0 Z" fill="#c8102e"/>
+<text x="488.0" y="208.0" font-size="12.5" fill="#1b2e4b" data-box="488.0,796.0">a number the cited evidence lacks</text>
+<text x="836.0" y="208.0" font-size="12.5" font-weight="600" fill="#1b2e4b" text-anchor="end" data-box="796.0,836.0">3</text>
+<path d="M492.0,216.0 H549.2 Q553.2,216.0 553.2,220.0 V222.0 Q553.2,226.0 549.2,226.0 H492.0 Q488.0,226.0 488.0,222.0 V220.0 Q488.0,216.0 492.0,216.0 Z" fill="#c8102e"/>
+<text x="488.0" y="252.0" font-size="12.5" fill="#1b2e4b" data-box="488.0,796.0">a tool the profile does not show</text>
+<text x="836.0" y="252.0" font-size="12.5" font-weight="600" fill="#1b2e4b" text-anchor="end" data-box="796.0,836.0">2</text>
+<path d="M492.0,260.0 H527.5 Q531.5,260.0 531.5,264.0 V266.0 Q531.5,270.0 527.5,270.0 H492.0 Q488.0,270.0 488.0,266.0 V264.0 Q488.0,260.0 492.0,260.0 Z" fill="#c8102e"/>
+<text x="488.0" y="296.0" font-size="12.5" fill="#1b2e4b" data-box="488.0,796.0">a claim stronger than the evidence</text>
+<text x="836.0" y="296.0" font-size="12.5" font-weight="600" fill="#1b2e4b" text-anchor="end" data-box="796.0,836.0">0</text>
+<text x="488.0" y="340.0" font-size="12.5" fill="#1b2e4b" data-box="488.0,796.0">wording the style pack bans</text>
+<text x="836.0" y="340.0" font-size="12.5" font-weight="600" fill="#1b2e4b" text-anchor="end" data-box="796.0,836.0">2</text>
+<path d="M492.0,348.0 H527.5 Q531.5,348.0 531.5,352.0 V354.0 Q531.5,358.0 527.5,358.0 H492.0 Q488.0,358.0 488.0,354.0 V352.0 Q488.0,348.0 492.0,348.0 Z" fill="#c8102e"/>
+<path d="M24,382.5 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" fill="#1b2e4b"/>
+<text x="40.0" y="387.0" font-size="12" fill="#566175" data-box="40.0,836.0">passed as written</text>
+<path d="M162.53671875,382.5 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" fill="#c8102e"/>
+<text x="178.5" y="387.0" font-size="12" fill="#566175" data-box="178.5,836.0">stopped, then rewritten from the same evidence</text>
+<path d="M477.43828125000005,382.5 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" fill="#f0a7b3"/>
+<text x="493.4" y="387.0" font-size="12" fill="#566175" data-box="493.4,836.0">stopped and dropped</text>
+</svg>

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 906 400" width="906" height="400" font-family="Pretendard, -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Noto Sans&#x27;, Helvetica, Arial, sans-serif" role="img" aria-label="The interview kit. The posting, the resume and the portfolio you sent, and your confirmed facts, give the question map: questions for each posting line, resume line, portfolio page and term, plus behavioral, company and opening questions. Each question gets a scene, a short dialogue in English with the Korean translation under each line and speech marks, drafted by the AI backend from your evidence and checked. Audits rate how well the scenes cover the posting and compare them with what you sent. The search view finds a scene by keyword on your PC, practice mode asks the questions and gives feedback, and cue cards print the scenes">
+<rect x="0.0" y="8.0" width="170.0" height="72.0" rx="2" fill="#18212f"/>
+<text x="12.0" y="38.8" font-size="14" font-weight="600" fill="#e8edf5" data-box="12.0,158.0">Posting</text>
+<text x="12.0" y="56.6" font-size="12" fill="#a3afc2" data-box="12.0,158.0">each line a question</text>
+<rect x="0.0" y="96.0" width="170.0" height="72.0" rx="2" fill="#18212f"/>
+<text x="12.0" y="126.8" font-size="14" font-weight="600" fill="#e8edf5" data-box="12.0,158.0">Resume you sent</text>
+<text x="12.0" y="144.6" font-size="12" fill="#a3afc2" data-box="12.0,158.0">each line a question</text>
+<rect x="0.0" y="184.0" width="170.0" height="72.0" rx="2" fill="#18212f"/>
+<text x="12.0" y="214.8" font-size="14" font-weight="600" fill="#e8edf5" data-box="12.0,158.0">Portfolio you sent</text>
+<text x="12.0" y="232.6" font-size="12" fill="#a3afc2" data-box="12.0,158.0">each page a question</text>
+<rect x="0.0" y="272.0" width="170.0" height="72.0" rx="2" fill="#18212f"/>
+<rect x="0.0" y="272.0" width="170.0" height="24.0" rx="2" fill="#f2c744"/>
+<text x="12.0" y="288.7" font-size="13" font-weight="600" fill="#1b2e4b" data-box="12.0,158.0">Your facts</text>
+<text x="12.0" y="316.6" font-size="12" fill="#a3afc2" data-box="12.0,158.0">the only evidence</text>
+<rect x="230.0" y="8.0" width="190.0" height="336.0" rx="2" fill="#18212f"/>
+<rect x="230.0" y="8.0" width="190.0" height="26.0" rx="2" fill="#2a4a78"/>
+<text x="242.0" y="26.0" font-size="14" font-weight="600" fill="#ffffff" data-box="242.0,408.0">Question map</text>
+<text x="242.0" y="55.0" font-size="12.5" fill="#a3afc2" data-box="242.0,408.0">posting lines</text>
+<text x="242.0" y="72.5" font-size="12.5" fill="#a3afc2" data-box="242.0,408.0">resume lines</text>
+<text x="242.0" y="90.0" font-size="12.5" fill="#a3afc2" data-box="242.0,408.0">portfolio pages</text>
+<text x="242.0" y="107.5" font-size="12.5" fill="#a3afc2" data-box="242.0,408.0">terms you used</text>
+<text x="242.0" y="125.0" font-size="12.5" fill="#a3afc2" data-box="242.0,408.0">behavioral</text>
+<text x="242.0" y="142.5" font-size="12.5" fill="#a3afc2" data-box="242.0,408.0">company</text>
+<text x="242.0" y="160.0" font-size="12.5" fill="#a3afc2" data-box="242.0,408.0">opening logistics</text>
+<rect x="480.0" y="8.0" width="196.0" height="160.0" rx="2" fill="#18212f"/>
+<rect x="480.0" y="8.0" width="196.0" height="26.0" rx="2" fill="#b3400a"/>
+<text x="492.0" y="26.0" font-size="14" font-weight="600" fill="#ffffff" data-box="492.0,664.0">Scenes</text>
+<text x="492.0" y="55.0" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">English lines with the</text>
+<text x="492.0" y="72.5" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">Korean translation under</text>
+<text x="492.0" y="90.0" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">each, speech marks, one</text>
+<text x="492.0" y="107.5" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">key phrase</text>
+<rect x="480.0" y="204.0" width="196.0" height="140.0" rx="2" fill="#18212f"/>
+<text x="492.0" y="242.2" font-size="15" font-weight="600" fill="#e8edf5" data-box="492.0,664.0">Audits</text>
+<text x="492.0" y="261.3" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">posting coverage: strong,</text>
+<text x="492.0" y="278.8" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">weak or none</text>
+<text x="492.0" y="296.3" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">consistency with what you</text>
+<text x="492.0" y="313.8" font-size="12.5" fill="#a3afc2" data-box="492.0,664.0">sent</text>
+<rect x="736.0" y="8.0" width="164.0" height="100.0" rx="2" fill="#18212f"/>
+<rect x="736.0" y="8.0" width="164.0" height="24.0" rx="2" fill="#2a4a78"/>
+<text x="748.0" y="24.7" font-size="13" font-weight="600" fill="#ffffff" data-box="748.0,888.0">Search view</text>
+<text x="748.0" y="52.6" font-size="12" fill="#a3afc2" data-box="748.0,888.0">a scene by keyword, on</text>
+<text x="748.0" y="69.4" font-size="12" fill="#a3afc2" data-box="748.0,888.0">your PC</text>
+<rect x="736.0" y="126.0" width="164.0" height="100.0" rx="2" fill="#18212f"/>
+<text x="748.0" y="162.4" font-size="14" font-weight="600" fill="#e8edf5" data-box="748.0,888.0">Practice</text>
+<text x="748.0" y="180.2" font-size="12" fill="#a3afc2" data-box="748.0,888.0">timer, your voice,</text>
+<text x="748.0" y="197.0" font-size="12" fill="#a3afc2" data-box="748.0,888.0">feedback on your facts</text>
+<path d="M736.0,244.0 H888.0 L900.0,256.0 V344.0 H736.0 Z" fill="#18212f" stroke="#34435c" stroke-width="1"/>
+<path d="M888.0,244.0 V256.0 H900.0 Z" fill="#2a3547" stroke="#34435c" stroke-width="1" stroke-linejoin="round"/>
+<text x="748.0" y="280.4" font-size="14" font-weight="600" fill="#e8edf5" data-box="748.0,886.0">Cue cards</text>
+<text x="748.0" y="298.2" font-size="12" fill="#a3afc2" data-box="748.0,886.0">one scene per card, to</text>
+<text x="748.0" y="315.0" font-size="12" fill="#a3afc2" data-box="748.0,886.0">print</text>
+<path d="M170.5,44.0 L221.5,44.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M229.0,44.0 L220.0,48.5 L220.0,39.5 Z" fill="#6f7d95"/>
+<path d="M170.5,132.0 L221.5,132.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M229.0,132.0 L220.0,136.5 L220.0,127.5 Z" fill="#6f7d95"/>
+<path d="M170.5,220.0 L221.5,220.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M229.0,220.0 L220.0,224.5 L220.0,215.5 Z" fill="#6f7d95"/>
+<path d="M170.5,308.0 L221.5,308.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M229.0,308.0 L220.0,312.5 L220.0,303.5 Z" fill="#6f7d95"/>
+<path d="M420.5,88.0 L471.5,88.0" fill="none" stroke="#e8834f" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M479.0,88.0 L470.0,92.5 L470.0,83.5 Z" fill="#e8834f"/>
+<text x="450.0" y="80.0" font-size="12" fill="#a3afc2" text-anchor="middle" data-box="424.0,476.0">draft</text>
+<path d="M578.0,168.5 L578.0,195.5" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M578.0,203.0 L573.5,194.0 L582.5,194.0 Z" fill="#6f7d95"/>
+<text x="586.0" y="190.0" font-size="12" fill="#a3afc2" data-box="586.0,676.0">checked</text>
+<path d="M420.5,274.0 L471.5,274.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M479.0,274.0 L470.0,278.5 L470.0,269.5 Z" fill="#6f7d95"/>
+<text x="450.0" y="266.0" font-size="12" fill="#a3afc2" text-anchor="middle" data-box="424.0,476.0">gaps</text>
+<path d="M676.5,58.0 L727.5,58.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M735.0,58.0 L726.0,62.5 L726.0,53.5 Z" fill="#6f7d95"/>
+<path d="M676.5,124.0 L706.0,124.0 L706.0,176.0 L727.5,176.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M735.0,176.0 L726.0,180.5 L726.0,171.5 Z" fill="#6f7d95"/>
+<path d="M676.5,150.0 L690.0,150.0 L690.0,294.0 L727.5,294.0" fill="none" stroke="#6f7d95" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M735.0,294.0 L726.0,298.5 L726.0,289.5 Z" fill="#6f7d95"/>
+<rect x="467.1" y="372.0" width="22.0" height="10.0" rx="2" fill="#2a4a78"/>
+<text x="497.1" y="381.0" font-size="12" fill="#a3afc2" data-box="497.1,900.0">stays on your PC</text>
+<rect x="614.7" y="372.0" width="22.0" height="10.0" rx="2" fill="#b3400a"/>
+<text x="644.7" y="381.0" font-size="12" fill="#a3afc2" data-box="644.7,900.0">sent to the AI backend</text>
+<rect x="795.1" y="372.0" width="22.0" height="10.0" rx="2" fill="#f2c744"/>
+<text x="825.1" y="381.0" font-size="12" fill="#a3afc2" data-box="825.1,900.0">the evidence</text>
+</svg>

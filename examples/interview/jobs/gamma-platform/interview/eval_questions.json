@@ -1,0 +1,95 @@
+{
+ "_comment": "Search eval set for the fictional example: questions as an interviewer would ask them, and the ids that answer each one.",
+ "questions": [
+  [
+   "Tell me about yourself",
+   [
+    "A1"
+   ]
+  ],
+  [
+   "Why do you want to join Gamma Cloud?",
+   [
+    "A2"
+   ]
+  ],
+  [
+   "What is your biggest weakness?",
+   [
+    "A3"
+   ]
+  ],
+  [
+   "Tell me about a mistake you made",
+   [
+    "D1"
+   ]
+  ],
+  [
+   "Have you ever disagreed with a colleague?",
+   [
+    "D2"
+   ]
+  ],
+  [
+   "Payment approvals got slow tonight. What do you do?",
+   [
+    "E1"
+   ]
+  ],
+  [
+   "How did you split the approval service?",
+   [
+    "R1"
+   ]
+  ],
+  [
+   "Walk me through your deploy platform",
+   [
+    "R2"
+   ]
+  ],
+  [
+   "How did you use Kafka at Beta Commerce?",
+   [
+    "U1"
+   ]
+  ],
+  [
+   "What is an idempotency key?",
+   [
+    "Q1"
+   ]
+  ],
+  [
+   "What is GitOps?",
+   [
+    "Q2"
+   ]
+  ],
+  [
+   "Sorry, can you hear me okay?",
+   [
+    "O2"
+   ]
+  ],
+  [
+   "Do you have any questions for us?",
+   [
+    "K2"
+   ]
+  ],
+  [
+   "자기소개 해 주세요",
+   [
+    "A1"
+   ]
+  ],
+  [
+   "멱등 키가 뭐예요",
+   [
+    "Q1"
+   ]
+  ]
+ ]
+}

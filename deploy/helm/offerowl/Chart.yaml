@@ -1,0 +1,17 @@
+apiVersion: v2
+name: offerowl
+description: >-
+  Offerowl in a cluster: one pod with the panel, the engine, the interview view and the renderer, and a volume for
+  the workspace. It makes a resume, a portfolio deck, a cover letter and an interview kit from one evidence-backed
+  profile. The panel has no login, so it is reached with kubectl port-forward by default.
+type: application
+# The chart's own version and the app's version are written by hand and kept equal to deploy/python/offerowl/__init__.py
+# by tests/packaging. The release workflow packages the chart under the release's version.
+version: 0.6.0
+appVersion: "0.6.0"
+kubeVersion: ">=1.25.0-0"
+keywords:
+  - resume
+  - cover-letter
+  - interview
+  - portfolio

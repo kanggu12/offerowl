@@ -1,0 +1,83 @@
+{
+ "_comment": [
+  "Color sets of the resume (layout.js reads them). Each set uses a single accent color, and the body text stays in greys whichever set is chosen. OFFEROWL_THEME picks a set, and OFFEROWL_THEME_FILE adds sets or overrides sets of the same name.",
+  "navy: the structure is a dark navy, the small accent is one bright blue, and the background tints are two very pale steps of the same blue family. Its colors must match src/portfolio/theme.css.",
+  "Fields: nameFill name cell background, nameText name text, sec section title, rule rule lines, band band background, bandText band text, head table header background, headText table header text, key first table column, acc accent, acc2 small accent (acc when absent)"
+ ],
+ "mono": {
+  "nameFill": "E4E4E4",
+  "nameText": "1F1F1F",
+  "sec": "1F1F1F",
+  "rule": "B8B8B8",
+  "band": "EDEDED",
+  "bandText": "1F1F1F",
+  "head": "DCDCDC",
+  "headText": "1F1F1F",
+  "key": "F2F2F2",
+  "acc": "1F1F1F"
+ },
+ "navy": {
+  "nameFill": "1B2E4B",
+  "nameText": "FFFFFF",
+  "sec": "1B2E4B",
+  "rule": "C9D4E3",
+  "band": "EEF3F9",
+  "bandText": "1B2E4B",
+  "head": "1B2E4B",
+  "headText": "FFFFFF",
+  "key": "F5F8FC",
+  "acc": "1B2E4B",
+  "acc2": "2F6EBA"
+ },
+ "teal": {
+  "nameFill": "1D5C63",
+  "nameText": "FFFFFF",
+  "sec": "1D5C63",
+  "rule": "1D5C63",
+  "band": "E6F0F0",
+  "bandText": "1D5C63",
+  "head": "1D5C63",
+  "headText": "FFFFFF",
+  "key": "EEF5F5",
+  "acc": "1D5C63"
+ },
+ "wine": {
+  "nameFill": "5E2233",
+  "nameText": "FFFFFF",
+  "sec": "5E2233",
+  "rule": "E3CDD3",
+  "band": "F6EDEF",
+  "bandText": "5E2233",
+  "head": "5E2233",
+  "headText": "FFFFFF",
+  "key": "FAF4F5",
+  "acc": "5E2233",
+  "acc2": "9B3A54"
+ },
+ "forest": {
+  "nameFill": "1F4D3A",
+  "nameText": "FFFFFF",
+  "sec": "1F4D3A",
+  "rule": "C7DBD0",
+  "band": "EAF3EE",
+  "bandText": "1F4D3A",
+  "head": "1F4D3A",
+  "headText": "FFFFFF",
+  "key": "F3F8F5",
+  "acc": "1F4D3A",
+  "acc2": "2E7D5B"
+ },
+ "slate": {
+  "nameFill": "2F3B47",
+  "nameText": "FFFFFF",
+  "sec": "2F3B47",
+  "rule": "CFD6DD",
+  "band": "EEF1F4",
+  "bandText": "2F3B47",
+  "head": "2F3B47",
+  "headText": "FFFFFF",
+  "key": "F6F7F9",
+  "acc": "2F3B47",
+  "acc2": "4F6D8A"
+ }
+}

@@ -1,0 +1,23 @@
+{
+ "meta": {
+  "schema": "offerowl-measure/0.1",
+  "date": "2026-11-06",
+  "machine": "Linux x86_64, 32 CPUs, Python 3.10.12",
+  "backend": "none"
+ },
+ "runs": [
+  10.34,
+  10.29,
+  9.31
+ ],
+ "median": 10.3,
+ "actions": 1,
+ "files": 5,
+ "state": "done",
+ "facts": {
+  "found": 31,
+  "kept": 31,
+  "dropped": 0,
+  "to_confirm": 0
+ }
+}

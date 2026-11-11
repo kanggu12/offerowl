@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kanggu12/offerowl/main/core/schema/profile.schema.json",
+  "title": "Offerowl profile (resume-profile/0.1)",
+  "description": "One person's confirmed facts, as src/resume_form.js, src/deck_slides.js, src/cover.py and the panel read them. The schema checks the shape; whether a resume can be made (a name, an email, one role) is the API's 'problems' list. Keys it does not name are allowed, so richer profiles (logos, figures, deck settings) pass.",
+  "type": "object",
+  "required": ["schema", "person"],
+  "properties": {
+    "schema": {"const": "resume-profile/0.1", "description": "The format name and version."},
+    "person": {
+      "type": "object",
+      "description": "Who the documents are about.",
+      "properties": {
+        "name": {"type": "string", "maxLength": 200},
+        "name_en": {"type": "string", "maxLength": 200},
+        "email": {"type": "string", "maxLength": 320},
+        "phone": {"type": "string", "maxLength": 80},
+        "tagline": {"type": "string", "maxLength": 200},
+        "location": {"$ref": "#/$defs/text"},
+        "links": {
+          "type": "array",
+          "description": "[name, shown text, address] per link.",
+          "items": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 3}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "headline": {"$ref": "#/$defs/text"},
+        "intro": {"$ref": "#/$defs/text"},
+        "cards": {"$ref": "#/$defs/perLang", "description": "[[title, text], ...]: the overview's two-column cards."},
+        "highlights": {"$ref": "#/$defs/perLang", "description": "[{title, where, rows: [[label, text], ...]}, ...]: key project cards."},
+        "layers": {"$ref": "#/$defs/perLang", "description": "[[layer, tools, where], ...]: the stack figure."}
+      }
+    },
+    "roles": {
+      "type": "array",
+      "description": "One entry per employer.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {"type": "string"},
+          "org": {"type": "string"},
+          "title": {"type": "string"},
+          "dept": {"type": "string"},
+          "place": {"type": "string"},
+          "start": {"$ref": "#/$defs/date"},
+          "end": {"anyOf": [{"$ref": "#/$defs/date"}, {"type": "null"}], "description": "null while still there."},
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "title": {"$ref": "#/$defs/text"},
+                "period": {"type": "string"},
+                "summary": {"$ref": "#/$defs/text", "description": "One or two sentences; ==phrase== is the highlighter."},
+                "points": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+                "figure": {"type": "object"},
+                "cand": {"type": "string", "description": "The fact (candidate id) this project came from, when it was read from a file."}
+              }
+            }
+          },
+          "cand": {"type": "string"},
+          "filled": {"type": "object"}
+        }
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "school": {"$ref": "#/$defs/text"},
+          "major": {"$ref": "#/$defs/text"},
+          "degree": {"$ref": "#/$defs/text"},
+          "start": {"$ref": "#/$defs/date"},
+          "end": {"anyOf": [{"$ref": "#/$defs/date"}, {"type": "null"}]}
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category"],
+        "properties": {
+          "category": {"type": "string"},
+          "items": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "description": "Certificates, awards and other lists.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "title_en": {"type": "string"},
+          "items": {"type": "array", "items": {"anyOf": [{"type": "string"}, {"type": "array"}, {"type": "object"}]}}
+        }
+      }
+    },
+    "competencies": {"$ref": "#/$defs/perLang", "description": "[[head, text], ...] or [{name, text, evidence}, ...]."},
+    "about": {"$ref": "#/$defs/perLang", "description": "[[title, paragraph or paragraphs], ...]."},
+    "motivation": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "array", "items": {"type": "string"}}]},
+    "service": {"type": "object"}
+  },
+  "$defs": {
+    "text": {
+      "description": "Plain text, or the same text per language.",
+      "anyOf": [
+        {"type": "string"},
+        {"type": "object", "properties": {"ko": {"type": ["string", "array"]}, "en": {"type": ["string", "array"]}}, "additionalProperties": false}
+      ]
+    },
+    "perLang": {
+      "description": "A list, or the same list per language ({ko: [...], en: [...]}).",
+      "anyOf": [
+        {"type": "array"},
+        {"type": "object", "properties": {"ko": {"type": "array"}, "en": {"type": "array"}}, "additionalProperties": false}
+      ]
+    },
+    "date": {
+      "description": "A year and month as people write them: 2022.03, 2022-03, 2022/3, 2022, or empty when unknown.",
+      "type": "string",
+      "pattern": "^$|^\\d{4}([./-]\\d{1,2})?$|^\\d{4}년( \\d{1,2}월)?$"
+    }
+  }
+}

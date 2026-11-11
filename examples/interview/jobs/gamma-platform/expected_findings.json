@@ -1,0 +1,19 @@
+{
+ "_comment": "A fictional answer key for the example job: what a careful person found by hand in these scenes. audit --key scores the audit against it (docs/INTERVIEW.md, \"Answer keys\").",
+ "coverage_gaps": [
+  {
+   "posting_line": "Terraform and infrastructure as code",
+   "expect": "none: no scene talks about Terraform"
+  }
+ ],
+ "resume_contradictions": [],
+ "portfolio_contradictions": [
+  {
+   "id": "R1",
+   "what": "the scene says the rollback took about 5 minutes; the portfolio says 4"
+  }
+ ],
+ "portfolio_claims_without_answer": [
+  "shown at the engineering day"
+ ]
+}

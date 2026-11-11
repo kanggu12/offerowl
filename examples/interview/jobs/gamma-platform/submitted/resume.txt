@@ -1,0 +1,27 @@
+Hong Gildong
+BACKEND PLATFORM ENGINEER
+gildong@example.com
+
+Summary
+I build payment backends and the deploy platform that teams share on Kubernetes. I turn incident response into
+written procedures and automation, so new engineers run the service by the same rules.
+
+Alpha Pay, Backend Engineer, Payments Platform team, Seoul (2022.03 - present)
+- Split payment approval out of the single application into its own deploy unit, so approvals deploy and roll back on their own
+- Set an idempotency key on every approval request and limited retries with exponential backoff and a cap
+- Built the shared deploy path on Argo CD and Helm, with the values for each environment kept in one repository under review
+- Made two approvals a rule before merge, with staging synced first and production synced only for an approved version
+
+Beta Commerce, Software Engineer, Order team, Seongnam (2019.07 - 2022.02)
+- Published order status changes as Kafka events, so settlement and notifications read the same stream on their own
+- Added a Redis cache for frequent order lookups, with rules for when an entry is invalidated
+- Wrote incident procedures for each type of order failure and used them to train the on-duty rotation
+
+Skills
+Languages: Go, Java, Python, SQL
+Platform: Kubernetes, Helm, Argo CD, Terraform
+Data: PostgreSQL, Redis, Kafka
+Observability: Prometheus, Grafana, OpenTelemetry
+
+Education
+Gana University, B.S. Computer Science (2013.03 - 2019.02)

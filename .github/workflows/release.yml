@@ -1,0 +1,192 @@
+# A version tag (v1.2.3) publishes a release:
+# - the app image to the GitHub Container Registry, for linux/amd64 and linux/arm64;
+# - the Helm chart as an OCI artifact in the same registry, and as a .tgz;
+# - the Python package (a wheel and a source archive);
+# - the desktop app for Windows, macOS and Linux (desktop.yml);
+# all attached to the GitHub release with a SHA256SUMS file and GitHub's signed record of where each file was built.
+#
+# Before anything is published, the checks of the tagged commit run, the chart is installed on a throwaway cluster
+# (chart-e2e.yml), and the desktop app is built and started with --check on each system (desktop.yml).
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+# Jobs ask for more where they need it.
+permissions:
+  contents: read
+
+jobs:
+  # The cheap checks again, on the commit the tag points at. (ci.yml has no workflow_call trigger, so its jobs cannot be
+  # called from here; a `workflow_call:` line under its `on:` would allow it.)
+  verify:
+    name: the checks of the tagged commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OFFEROWL_LLM: none
+      OFFEROWL_LANG: en
+      OFFEROWL_REQUIRE_HOOKS: "1"  # a release does not go out with a promise of docs/INSTALL.md that the code does not keep
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22  # the render image's major version
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.16.4
+      - name: Test tools
+        run: python3 -m pip install flake8 pyyaml setuptools
+      - name: The tag names the version the package, the chart and the image carry
+        run: |
+          version="${TAG#v}"
+          have="$(python3 -c "import pathlib, re; print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', pathlib.Path('deploy/python/offerowl/__init__.py').read_text()).group(1))")"
+          if [ "$version" != "$have" ]; then echo "the tag says $version, the package says $have"; exit 1; fi
+      - name: The release has its notes in CHANGELOG.md (a version with no section stops here, before anything is built)
+        run: python3 .github/release_notes.py "$TAG" > /dev/null
+      - name: Syntax and lint
+        run: python3 tests/cli/lint.py --require-tools
+      - name: CLI tests
+        run: python3 -m unittest discover -s tests/cli -v
+      - name: Packaging tests (the package, the image's recipe, the chart, the workflows, the install guide)
+        run: python3 -m unittest discover -s tests/packaging -v
+
+  # What only a running cluster shows
+  chart:
+    uses: ./.github/workflows/chart-e2e.yml
+    permissions:
+      contents: read
+
+  # The desktop app, built and started with --check on each system; its files come back as this run's artifacts
+  desktop:
+    uses: ./.github/workflows/desktop.yml
+    permissions:
+      contents: read
+
+  release:
+    needs: [verify, chart, desktop]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150  # the arm64 image is built under emulation
+    permissions:
+      contents: write       # the GitHub release and its files
+      packages: write       # the image and the chart in ghcr.io
+      id-token: write       # the build records below are signed through GitHub's OIDC token
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Version and names
+        id: v
+        run: |
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          case "${GITHUB_REF_NAME}" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT";; *) echo "prerelease=false" >> "$GITHUB_OUTPUT";; esac
+
+      # --- the app image
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tags of the image (latest only for a release that is not a pre-release)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ steps.v.outputs.owner }}/offerowl-app
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ steps.v.outputs.prerelease == 'false' }}
+      - name: App image
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false   # GitHub's signed record is attached below; this keeps the registry's manifest list clean
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+      - name: Where the image was built, signed by GitHub
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/${{ steps.v.outputs.owner }}/offerowl-app
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      # --- the Python package
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Wheel and source archive
+        run: |
+          python -m pip install build
+          python -m build --outdir dist
+          ls -l dist
+
+      # --- the Helm chart
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.16.4
+      - name: Helm chart, versioned with the release and pointing at its image
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          OWNER: ${{ steps.v.outputs.owner }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          # the packaged chart pulls this release's image from ghcr.io instead of the local name it ships with
+          sed -i "s#^  repository: offerowl-app\$#  repository: ghcr.io/${OWNER}/offerowl-app#" deploy/helm/offerowl/values.yaml
+          test "$(grep -c '^  repository: ghcr.io/' deploy/helm/offerowl/values.yaml)" = 1
+          helm lint deploy/helm/offerowl
+          helm package deploy/helm/offerowl --version "${VERSION}" --app-version "${VERSION}" --destination dist
+          echo "${TOKEN}" | helm registry login ghcr.io -u "${ACTOR}" --password-stdin
+          helm push "dist/offerowl-${VERSION}.tgz" "oci://ghcr.io/${OWNER}/charts"
+
+      # --- the desktop app, built by the desktop job
+      - name: The desktop app's files
+        uses: actions/download-artifact@v7
+        with:
+          pattern: Offerowl-*
+          path: dist/app
+          merge-multiple: true
+
+      # The app is not code-signed yet: a checksum file and GitHub's own record of where each file was built are what a
+      # download can be checked against (sha256sum -c SHA256SUMS; gh attestation verify FILE --repo OWNER/offerowl)
+      - name: Checksums of the files the release carries
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          cd dist
+          { sha256sum "offerowl-${VERSION}.tgz" "offerowl-${VERSION}-py3-none-any.whl" "offerowl-${VERSION}.tar.gz"
+            (cd app && sha256sum Offerowl-*); } > SHA256SUMS
+          cat SHA256SUMS
+      - name: Where each file was built, signed by GitHub
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/offerowl-${{ steps.v.outputs.version }}.tgz
+            dist/offerowl-${{ steps.v.outputs.version }}-py3-none-any.whl
+            dist/offerowl-${{ steps.v.outputs.version }}.tar.gz
+            dist/app/Offerowl-*
+      - name: The release notes, from this version's section of CHANGELOG.md
+        run: python3 .github/release_notes.py "${GITHUB_REF_NAME}" > release-notes.md
+      - name: GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          body_path: release-notes.md
+          prerelease: ${{ steps.v.outputs.prerelease == 'true' }}
+          files: |
+            dist/offerowl-${{ steps.v.outputs.version }}.tgz
+            dist/offerowl-${{ steps.v.outputs.version }}-py3-none-any.whl
+            dist/offerowl-${{ steps.v.outputs.version }}.tar.gz
+            dist/app/Offerowl-*
+            dist/SHA256SUMS

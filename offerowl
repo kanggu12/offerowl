@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""offerowl: the one command for everything Offerowl does on the command line.
+
+  ./offerowl --help              every command in plain words
+  ./offerowl <command> --help    one command
+
+init, ingest, draft, build, selftest and llm live in src/resume.py and are called as functions from here.
+cover, interview, panel, api, mcp and doctor are separate programs: this launcher runs one when its file exists and says
+"not installed" when it does not. open is here: it finds the panel that runs on this PC and shows it in the browser.
+On Windows start it with `python offerowl`.
+"""
+import difflib  # "did you mean" for a mistyped command
+import os  # the encoding the scripts it starts print in
+import pathlib  # paths
+import runpy  # run a separate program inside this process, as if it had been started directly
+import sys  # arguments and the module search path
+
+ROOT = pathlib.Path(__file__).resolve().parent  # repository root; resolve() follows a symlink, so a link on PATH works
+sys.path.insert(0, str(ROOT / "src"))  # the modules below live in src/
+import llm  # noqa: E402  settings and message lookup (needs the line above)
+import resume  # noqa: E402  the commands that already exist
+
+# Commands that are separate programs: command -> file relative to the repository root.
+COMPONENTS = {
+    "cover": "src/cover.py",
+    "interview": "src/interview/cli.py",
+    "panel": "apps/panel/server.py",
+    "api": "apps/api/__main__.py",  # the HTTP API alone, or one call from the shell (docs/ARCHITECTURE.md)
+    "mcp": "apps/mcp/__main__.py",  # tools for AI agents over MCP, driving the running panel (docs/MCP.md)
+    "doctor": "src/doctor.py",  # checks what Offerowl needs on this PC (docs/INSTALL.md)
+}
+DATA_COMMANDS = ("import", "export")  # JSON Resume in and out, served by src/write_jsonresume.py
+ORDER = ["init", "ingest", "draft", "build", "cover", "interview", "panel", "open", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # the order of a first application
+NOT_INSTALLED_EXIT = 3  # a distinct exit code, so that scripts can tell "not there" from "failed"
+
+# Messages of the launcher itself, in both languages (tests/cli checks that the keys and placeholders match).
+MSG = {
+    "en": {
+        "tagline": "offerowl: from one evidence-backed profile to a resume, a portfolio deck, a cover letter and an interview kit.",
+        "usage_head": "Usage: offerowl <command> [options]",
+        "usage_one": "offerowl <command> --help    help for one command",
+        "cmd_cover": "Build a cover letter from a profile and a job posting",
+        "cmd_interview": "Prepare the interview kit: question map, scenes, audits, search view",
+        "cmd_panel": "Open the local web panel",
+        "cmd_open": "Show the panel that runs on this PC in your browser, and print its address",
+        "open_port": "the panel's port (default 8797, or OFFEROWL_PANEL_PORT)",
+        "open_at": "Offerowl's panel: {url}",
+        "open_none": "offerowl open: no Offerowl panel answers on port {port}. Start the app, run `offerowl panel --open`, or start the container.",
+        "cmd_api": "Call Offerowl's API: serve it alone, or one endpoint from the shell",
+        "cmd_mcp": "Serve Offerowl's tools to an AI agent over MCP (stdio), driving the running panel",
+        "cmd_doctor": "Check what Offerowl needs on this PC and what to do about what is missing",
+        "cmd_import": "Read a JSON Resume file into a new profile",
+        "cmd_export": "Write a profile as a JSON Resume file",
+        "not_installed_tag": "(not installed)",
+        "not_installed": "offerowl {name}: not installed. {path} is missing from this copy of Offerowl.",
+        "unknown": "offerowl: unknown command `{name}`.",
+        "did_you_mean": "Did you mean `{guess}`?",
+        "see_help": "Run `offerowl --help` for the list.",
+        "settings_head": "Settings are environment variables:",
+        "setting_llm": "OFFEROWL_LLM   AI backend: claude-code, codex, openai-compat or none",
+        "setting_llm_default": "               not set: signed-in Claude Code, else Codex, else none",
+        "setting_lang": "OFFEROWL_LANG  language of messages, ko or en (default: from the locale)",
+        "more": "All settings and the usual order of work: docs/USAGE.md",
+    },
+    "ko": {
+        "tagline": "offerowl: 근거가 붙은 프로필 하나로 이력서, 포트폴리오 덱, 자기소개서, 면접 자료를 만든다.",
+        "usage_head": "쓰는 법: offerowl <명령> [옵션]",
+        "usage_one": "offerowl <명령> --help    명령 하나의 도움말",
+        "cmd_cover": "프로필과 채용 공고로 자기소개서를 만든다",
+        "cmd_interview": "면접 자료를 준비한다: 질문 지도, 장면, 점검, 검색 화면",
+        "cmd_panel": "로컬 웹 패널을 연다",
+        "cmd_open": "이 PC에서 돌고 있는 패널을 브라우저로 열고 주소를 찍는다",
+        "open_port": "패널 포트(기본 8797, 또는 OFFEROWL_PANEL_PORT)",
+        "open_at": "Offerowl 패널: {url}",
+        "open_none": "offerowl open: {port} 포트에서 답하는 Offerowl 패널이 없다. 앱을 켜거나 `offerowl panel --open`을 실행하거나 컨테이너를 띄운다.",
+        "cmd_api": "Offerowl API를 따로 띄우거나 명령줄에서 한 번 부른다",
+        "cmd_mcp": "AI 에이전트에게 Offerowl 도구를 MCP(stdio)로 내준다. 돌고 있는 패널을 움직인다",
+        "cmd_doctor": "이 PC에서 Offerowl에 필요한 것을 점검하고, 빠진 것은 어떻게 할지 알려 준다",
+        "cmd_import": "JSON Resume 파일을 새 프로필로 읽는다",
+        "cmd_export": "프로필을 JSON Resume 파일로 쓴다",
+        "not_installed_tag": "(아직 설치되지 않음)",
+        "not_installed": "offerowl {name}: 설치되지 않았다. 이 Offerowl에 {path}가 없다.",
+        "unknown": "offerowl: 모르는 명령 `{name}`.",
+        "did_you_mean": "혹시 `{guess}`?",
+        "see_help": "`offerowl --help`로 목록을 본다.",
+        "settings_head": "설정은 환경 변수다:",
+        "setting_llm": "OFFEROWL_LLM   AI 백엔드: claude-code, codex, openai-compat, none",
+        "setting_llm_default": "               정하지 않으면: 로그인한 Claude Code, 없으면 Codex, 둘 다 없으면 none",
+        "setting_lang": "OFFEROWL_LANG  메시지 언어 ko 또는 en(정하지 않으면 로케일을 따른다)",
+        "more": "모든 설정과 보통의 작업 순서: docs/USAGE.md",
+    },
+}
+
+
+def t(key: str, **kw) -> str:
+    """A message of the launcher in the current language"""
+    return llm.message(MSG, key, **kw)
+
+
+def installed(name: str) -> bool:
+    """True when the file of a separate program is there"""
+    return (ROOT / COMPONENTS[name]).is_file()
+
+
+def help_text() -> str:
+    """The whole command list in plain words, with a marker on commands whose program is not there yet"""
+    lines = [t("tagline"), "", t("usage_head"), "       " + t("usage_one"), "", resume.t("commands")]
+    for name in ORDER:
+        summary = resume.t("cmd_" + name) if name in resume.COMMANDS else t("cmd_" + name)  # three commands are described here, six in resume.py
+        tag = "  " + t("not_installed_tag") if name in COMPONENTS and not installed(name) else ""
+        lines.append(f"  {name:10} {summary}{tag}")
+    lines += ["", t("settings_head"), "  " + t("setting_llm"), "  " + t("setting_llm_default"), "  " + t("setting_lang"), "", t("more")]
+    return "\n".join(lines)
+
+
+def run_component(name: str, rest: list) -> int:
+    """Run the program behind a COMPONENTS command, or say it is not installed. It runs inside this process, with
+    sys.argv and the module path set as if it had been started directly: a separate process started with -m would put the
+    user's current folder first on the module path, and a folder of theirs named src or apps would shadow ours.
+    The program's own exit code (sys.exit) passes straight through"""
+    rel_path = COMPONENTS[name]
+    path = ROOT / rel_path
+    if not path.is_file():
+        print(t("not_installed", name=name, path=rel_path), file=sys.stderr)  # stderr: stdout stays clean for scripts
+        return NOT_INSTALLED_EXIT
+    sys.argv = [str(path)] + rest  # what the program sees, exactly as typed
+    try:
+        if (path.parent / "__init__.py").is_file():  # a package module: run it as one, or its relative imports fail
+            sys.path[0:0] = [str(ROOT / "src"), str(ROOT)]  # engine modules by bare name, packages under the root by dotted name
+            runpy.run_module(".".join(path.relative_to(ROOT).with_suffix("").parts), run_name="__main__", alter_sys=True)
+        else:  # a plain script: its own folder comes first, as when python starts a script
+            sys.path[0:0] = [str(path.parent), str(ROOT / "src"), str(ROOT)]
+            runpy.run_path(str(path), run_name="__main__")
+    except KeyboardInterrupt:  # Ctrl-C: end quietly with the usual code
+        return 130
+    return 0  # it returned instead of calling sys.exit
+
+
+def open_panel(rest: list) -> int:
+    """`offerowl open [--port N]`: the panel that runs on this PC, however it was started (the app, a container, a
+    port-forward or `offerowl panel`), shown in the browser. Its address is printed first, so a computer without a screen
+    still has the way in. Exit 1 when no Offerowl panel answers on that port"""
+    import argparse  # this command's one option
+    import json  # the panel's health answer
+    import os  # the port setting
+    import urllib.request  # asks the panel
+    import open_page  # src/open_page.py: never a terminal browser, never a wait
+    ap = argparse.ArgumentParser(prog="offerowl open", description=t("cmd_open"))  # `offerowl open --help`
+    ap.add_argument("--port", type=int, default=int(os.environ.get("OFFEROWL_PANEL_PORT") or 8797), help=t("open_port"))  # where it listens
+    a = ap.parse_args(rest)  # exits with a usage line on a bad option
+    url = f"http://127.0.0.1:{a.port}/"  # the panel answers on this PC only
+    direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # a proxy setting must not carry a local address away
+    try:  # is it Offerowl that answers there
+        with direct.open(url + "health", timeout=3) as r:  # the panel's own health answer
+            body = json.load(r)  # {"ok": true, "app": "offerowl", ...}
+        ours = isinstance(body, dict) and body.get("app") == "offerowl"  # another program on that port is not ours
+    except (OSError, ValueError):  # nothing listens, or it is not a JSON answer
+        ours = False  # the message below says how to start one
+    if not ours:  # nothing to show
+        print(t("open_none", port=a.port), file=sys.stderr)  # stderr: stdout stays the address only
+        return 1
+    print(t("open_at", url=url), flush=True)  # the way in, also with no screen
+    open_page.open_page(url)  # the browser, when there is one
+    return 0
+
+
+def main(argv: list | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):  # Korean messages and paths print through any console or redirection, in UTF-8
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")  # and the scripts it starts print the same way
+    args = list(sys.argv[1:] if argv is None else argv)  # tests pass their own list
+    if args[:1] == ["help"] and len(args) > 1:  # `offerowl help init` means `offerowl init --help`
+        args = [args[1], "--help"]
+    if not args or args[0] in ("-h", "--help", "help"):
+        print(help_text())
+        return 0
+    name, rest = args[0], args[1:]
+    if name in DATA_COMMANDS:  # JSON Resume in and out (src/write_jsonresume.py)
+        import write_jsonresume  # noqa: E402  # loaded only when asked, so other commands stay fast
+        return write_jsonresume.main([name] + rest)  # the module parses its own arguments
+    if name in resume.COMMANDS:  # the six commands that exist as functions
+        return resume.main([name] + rest)
+    if name == "open":  # a few lines here, no separate program
+        return open_panel(rest)
+    if name in COMPONENTS:  # the three that arrive later
+        return run_component(name, rest)
+    guess = difflib.get_close_matches(name, ORDER, n=1)  # a typo is the usual reason for an unknown command
+    print(t("unknown", name=name) + (" " + t("did_you_mean", guess=guess[0]) if guess else "") + " " + t("see_help"), file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

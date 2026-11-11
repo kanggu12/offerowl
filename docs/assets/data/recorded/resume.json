@@ -1,0 +1,1126 @@
+{
+ "schema": "offerowl-measure/0.1",
+ "task": "resume",
+ "backend": "claude-code",
+ "recorded": "2026-11-05",
+ "seconds": 286.4,
+ "answers": [
+  {
+   "task": "write-items",
+   "prompt": "6f6c155f1293957c",
+   "answer": {
+    "roles": [
+     {
+      "key": "alpha",
+      "desc": {
+       "ko": "알파페이 결제플랫폼팀 소속 백엔드 엔지니어.",
+       "en": "Worked as a backend engineer on AlphaPay's payment platform team in Seoul.",
+       "ev": [
+        "role:alpha"
+       ],
+       "names": {
+        "AlphaPay": "알파페이",
+        "Seoul": "서울"
+       }
+      },
+      "items": [
+       {
+        "project": "alpha-1",
+        "title": {
+         "ko": "알파페이 결제 승인 서비스 재설계",
+         "en": "AlphaPay payment approval service redesign"
+        },
+        "short": {
+         "ko": "결제 승인 재설계",
+         "en": "Payment approval redesign"
+        },
+        "sentences": [
+         {
+          "part": "scope",
+          "ko": "알파페이 결제 승인 서비스 재설계에서 승인 요청이 몰릴 때 배포가 승인 경로를 멈추던 단일 애플리케이션 구조를 나눠 승인 기능 분리",
+          "en": "Redesigned the AlphaPay payment approval service, splitting approval out of a single application whose deployments stopped the approval path when requests surged.",
+          "ev": [
+           "alpha-1#1",
+           "alpha-1#2"
+          ],
+          "names": {
+           "AlphaPay": "알파페이"
+          }
+         },
+         {
+          "part": "decision",
+          "ko": "요청마다 멱등 키를 두고 재시도는 지수 간격과 상한으로 제한하는 정책 결정",
+          "en": "Set an idempotency key on every request and limited retries with exponential backoff and a cap.",
+          "ev": [
+           "alpha-1#1",
+           "alpha-1#3"
+          ],
+          "names": {}
+         },
+         {
+          "part": "result",
+          "ko": "승인 경로를 독립 배포 단위로 나눠 ==승인 경로만 따로 배포하고 되돌리는 구조== 마련",
+          "en": "Split the approval path into its own deployment unit, making it possible to ==deploy and roll back that path alone==.",
+          "ev": [
+           "alpha-1#1",
+           "alpha-1#4"
+          ],
+          "names": {}
+         }
+        ]
+       },
+       {
+        "project": "alpha-2",
+        "title": {
+         "ko": "알파페이 사내 배포 플랫폼 구축",
+         "en": "AlphaPay internal deployment platform build"
+        },
+        "short": {
+         "ko": "사내 배포 플랫폼",
+         "en": "Internal deployment platform"
+        },
+        "sentences": [
+         {
+          "part": "scope",
+          "ko": "Kubernetes, Helm, Argo CD로 알파페이 사내 배포 플랫폼을 구축하고, 팀마다 다르던 배포 스크립트를 Argo CD 애플리케이션 하나의 꼴로 통합",
+          "en": "Built AlphaPay's internal deployment platform with Kubernetes, Helm and Argo CD, consolidating each team's different deployment scripts into a single Argo CD application form.",
+          "ev": [
+           "alpha-2#1",
+           "alpha-2#2",
+           "summary#l2"
+          ],
+          "names": {
+           "AlphaPay": "알파페이"
+          }
+         },
+         {
+          "part": "decision",
+          "ko": "환경별 Helm values를 저장소 한 곳에 모으고, Pull Request 두 사람 승인, 스테이징 동기화와 상태 확인, 승인한 버전만 운영 동기화로 이어지는 배포 경로 구성",
+          "en": "Kept per-environment Helm values in one repository and set a path of two-person Pull Request approval, staging sync with status checks, then production sync of approved versions only.",
+          "ev": [
+           "alpha-2#3",
+           "alpha-2#6",
+           "alpha-2#7",
+           "alpha-2#8",
+           "alpha-2#9"
+          ],
+          "names": {}
+         },
+         {
+          "part": "result",
+          "ko": "==배포 이력과 되돌리기를 화면 하나로 통합==",
+          "en": "Put ==deployment history and rollback on one screen==.",
+          "ev": [
+           "alpha-2#4"
+          ],
+          "names": {}
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "key": "beta",
+      "desc": {
+       "ko": "베타커머스 주문팀 소속 소프트웨어 엔지니어.",
+       "en": "Worked as a software engineer on Beta Commerce's order team in Seongnam.",
+       "ev": [
+        "role:beta"
+       ],
+       "names": {
+        "Beta Commerce": "베타커머스",
+        "Seongnam": "성남"
+       }
+      },
+      "items": [
+       {
+        "project": "beta-1",
+        "title": {
+         "ko": "베타커머스 주문 이벤트 파이프라인 개발",
+         "en": "Beta Commerce order event pipeline development"
+        },
+        "short": {
+         "ko": "주문 이벤트 파이프라인",
+         "en": "Order event pipeline"
+        },
+        "sentences": [
+         {
+          "part": "scope",
+          "ko": "주문 서비스가 정산, 알림 서비스를 직접 부르던 호출을 주문 상태 변경 시 Kafka 이벤트 발행으로 전환",
+          "en": "Replaced the order service's direct calls to settlement and notification services with Kafka event publishing on order status changes.",
+          "ev": [
+           "beta-1#1",
+           "beta-1#2",
+           "beta-1#8"
+          ],
+          "names": {}
+         },
+         {
+          "part": "decision",
+          "ko": "주문 번호를 파티션 키로 두어 한 주문의 상태 순서를 유지하고, 소비 지연을 지표로 보며 경보 기준 설정",
+          "en": "Used the order number as the partition key to keep each order's status sequence, and set alert thresholds on consumer lag metrics.",
+          "ev": [
+           "beta-1#3",
+           "beta-1#4"
+          ],
+          "names": {}
+         },
+         {
+          "part": "result",
+          "ko": "==정산과 알림이 같은 이벤트 흐름을 소비==하는 구조 마련",
+          "en": "Enabled settlement and notifications to ==consume the same order event stream==.",
+          "ev": [
+           "beta-1#1",
+           "beta-1#6"
+          ],
+          "names": {}
+         }
+        ]
+       },
+       {
+        "project": "beta-3",
+        "title": {
+         "ko": "베타커머스 주문 장애 대응 절차 문서화",
+         "en": "Beta Commerce incident response procedure documentation"
+        },
+        "short": {
+         "ko": "장애 대응 절차",
+         "en": "Incident response procedures"
+        },
+        "sentences": [
+         {
+          "part": "scope",
+          "ko": "==주문 장애 유형별 대응 절차를 문서화==",
+          "en": "Documented ==response procedures for each order incident type==.",
+          "ev": [
+           "beta-3#1"
+          ],
+          "names": {}
+         },
+         {
+          "part": "decision",
+          "ko": "작성한 문서를 당번 교육에 활용",
+          "en": "Used the documents to train on-call staff.",
+          "ev": [
+           "beta-3#1"
+          ],
+          "names": {}
+         }
+        ]
+       },
+       {
+        "project": "beta-2",
+        "title": {
+         "ko": "베타커머스 주문 조회 Redis 캐시 도입",
+         "en": "Beta Commerce order lookup Redis cache build"
+        },
+        "short": {
+         "ko": "주문 조회 캐시",
+         "en": "Order lookup cache"
+        },
+        "sentences": [
+         {
+          "part": "scope",
+          "ko": "자주 읽는 주문 조회에 Redis 캐시 적용",
+          "en": "Added a Redis cache for frequently read order lookups.",
+          "ev": [
+           "beta-2#1"
+          ],
+          "names": {}
+         },
+         {
+          "part": "decision",
+          "ko": "==주문 조회 캐시의 무효화 규칙 결정==",
+          "en": "Set ==the rules for invalidating cached order lookups==.",
+          "ev": [
+           "beta-2#1"
+          ],
+          "names": {}
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "task": "write-summary",
+   "prompt": "b97b07cc3e8b71ac",
+   "answer": {
+    "headline": {
+     "ko": "결제 승인 서비스와 사내 배포 플랫폼을 만드는 백엔드 엔지니어",
+     "en": "Backend engineer building payment approval services and an internal deployment platform",
+     "ev": [
+      "role:alpha",
+      "alpha-1#1",
+      "alpha-2#1",
+      "summary#l2"
+     ],
+     "names": {}
+    },
+    "intro": {
+     "ko": "서울 알파페이 결제플랫폼팀 백엔드 엔지니어로 ==결제 승인 서비스 재설계와 사내 배포 플랫폼 구축==을 했고, 그전에는 성남 베타커머스 주문팀 소프트웨어 엔지니어로 주문 이벤트 파이프라인을 개발했습니다.",
+     "en": "As a backend engineer on AlphaPay's payment platform team in Seoul, ==redesigned the payment approval service and built the internal deployment platform==; earlier, as a software engineer on Beta Commerce's order team in Seongnam, developed the order event pipeline.",
+     "ev": [
+      "role:alpha",
+      "role:beta",
+      "summary#l1",
+      "summary#l2",
+      "summary#l3",
+      "beta-1#1"
+     ],
+     "names": {
+      "AlphaPay": "알파페이",
+      "Seoul": "서울",
+      "Beta Commerce": "베타커머스",
+      "Seongnam": "성남"
+     }
+    },
+    "cards": [
+     {
+      "key": "target",
+      "ko": "백엔드 플랫폼 엔지니어, 결제 승인 서비스, 사내 배포 플랫폼",
+      "en": "Backend platform engineering, payment approval services, internal deployment platforms",
+      "ev": [
+       "role:alpha",
+       "alpha-1#1",
+       "alpha-2#1",
+       "summary#l2"
+      ],
+      "names": {}
+     },
+     {
+      "key": "focus",
+      "ko": "Go, Java, Kubernetes, Helm, Argo CD, Terraform, Kafka, PostgreSQL",
+      "en": "Go, Java, Kubernetes, Helm, Argo CD, Terraform, Kafka, PostgreSQL",
+      "ev": [
+       "skills#Languages",
+       "skills#Platform",
+       "skills#Data"
+      ],
+      "names": {}
+     },
+     {
+      "key": "strengths",
+      "ko": "서비스 구조 분리, 배포와 되돌리기 경로 구성, 멱등 키·경보 기준·캐시 무효화 규칙 결정",
+      "en": "Separating service structures, setting deployment and rollback paths, setting idempotency, alert and cache invalidation rules",
+      "ev": [
+       "alpha-1#1",
+       "alpha-1#3",
+       "alpha-1#4",
+       "beta-1#2",
+       "beta-1#4",
+       "alpha-2#4",
+       "alpha-2#9",
+       "beta-2#1"
+      ],
+      "names": {}
+     },
+     {
+      "key": "industries",
+      "ko": "결제(알파페이 결제플랫폼팀), 커머스 주문(베타커머스 주문팀)",
+      "en": "Payments (AlphaPay payment platform team), commerce orders (Beta Commerce order team)",
+      "ev": [
+       "role:alpha",
+       "role:beta"
+      ],
+      "names": {
+       "AlphaPay": "알파페이",
+       "Beta Commerce": "베타커머스"
+      }
+     }
+    ],
+    "highlights": [
+     {
+      "project": "alpha-1",
+      "title": {
+       "ko": "알파페이 결제 승인 서비스",
+       "en": "AlphaPay payment approval service"
+      },
+      "rows": [
+       {
+        "key": "challenge",
+        "ko": "승인 요청이 몰릴 때 배포가 승인 경로를 멈추던 단일 애플리케이션 구조",
+        "en": "Deployments stopped the approval path when approval requests surged, in a single application.",
+        "ev": [
+         "alpha-1#1",
+         "alpha-1#2"
+        ],
+        "names": {}
+       },
+       {
+        "key": "action",
+        "ko": "승인 기능을 분리하고 요청별 멱등 키와 지수 간격, 상한을 둔 재시도 정책 결정",
+        "en": "Split out approval; set per-request idempotency keys and retries limited by exponential backoff and a cap.",
+        "ev": [
+         "alpha-1#1",
+         "alpha-1#3"
+        ],
+        "names": {}
+       },
+       {
+        "key": "result",
+        "ko": "==승인 경로만 따로 배포하고 되돌리는 구조== 마련",
+        "en": "Made it possible to ==deploy and roll back the approval path alone==.",
+        "ev": [
+         "alpha-1#4"
+        ],
+        "names": {}
+       }
+      ]
+     },
+     {
+      "project": "alpha-2",
+      "title": {
+       "ko": "알파페이 사내 배포 플랫폼",
+       "en": "AlphaPay internal deployment platform"
+      },
+      "rows": [
+       {
+        "key": "challenge",
+        "ko": "팀마다 배포 스크립트가 다르던 상황",
+        "en": "Each team had different deployment scripts.",
+        "ev": [
+         "alpha-2#2"
+        ],
+        "names": {}
+       },
+       {
+        "key": "action",
+        "ko": "Argo CD와 Helm으로 팀 공용 배포 경로를 만들고 환경별 설정을 저장소 한 곳으로 통합",
+        "en": "Built a shared team deployment path with Argo CD and Helm; gathered per-environment settings in one repository.",
+        "ev": [
+         "alpha-2#1"
+        ],
+        "names": {}
+       },
+       {
+        "key": "result",
+        "ko": "==배포 이력과 되돌리기를 화면 하나로 통합==",
+        "en": "Brought ==deployment history and rollback onto one screen==.",
+        "ev": [
+         "alpha-2#4"
+        ],
+        "names": {}
+       }
+      ]
+     },
+     {
+      "project": "beta-1",
+      "title": {
+       "ko": "베타커머스 주문 이벤트 파이프라인",
+       "en": "Beta Commerce order event pipeline"
+      },
+      "rows": [
+       {
+        "key": "challenge",
+        "ko": "주문 서비스가 정산, 알림 서비스를 직접 호출하던 구조",
+        "en": "The order service called settlement and notification services directly.",
+        "ev": [
+         "beta-1#2"
+        ],
+        "names": {}
+       },
+       {
+        "key": "action",
+        "ko": "상태 변경을 Kafka 이벤트로 발행하고 주문 번호 파티션 키와 소비 지연 경보 기준 설정",
+        "en": "Published status changes as Kafka events, used order number as partition key, set consumer lag alert thresholds.",
+        "ev": [
+         "beta-1#1",
+         "beta-1#3",
+         "beta-1#4"
+        ],
+        "names": {}
+       },
+       {
+        "key": "result",
+        "ko": "==정산과 알림이 같은 이벤트 흐름을 소비==하는 구조 마련",
+        "en": "Enabled settlement and notifications to ==consume the same order event stream==.",
+        "ev": [
+         "beta-1#1",
+         "beta-1#6"
+        ],
+        "names": {}
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "task": "write-competencies",
+   "prompt": "23477d36015734d1",
+   "answer": {
+    "competencies": [
+     {
+      "name": {
+       "ko": "백엔드 서비스 설계",
+       "en": "Backend Service Design"
+      },
+      "ko": "알파페이 결제 승인 서비스에서 단일 애플리케이션의 승인 기능을 독립 배포 단위로 분리하고, 멱등 키와 지수 간격, 상한 기반 재시도 정책 결정. 베타커머스의 자주 읽는 주문 조회에 Redis 캐시를 두고 무효화 규칙 결정.",
+      "en": "Split approval out of a single application into its own deployment unit for the AlphaPay payment approval service, and set idempotency keys and retries limited by exponential backoff and a cap. Added a Redis cache with invalidation rules for frequently read Beta Commerce order lookups.",
+      "ev": [
+       "alpha-1#1",
+       "alpha-1#2",
+       "alpha-1#3",
+       "alpha-1#4",
+       "beta-2#1"
+      ],
+      "names": {
+       "AlphaPay": "알파페이",
+       "Beta Commerce": "베타커머스"
+      }
+     },
+     {
+      "name": {
+       "ko": "이벤트 기반 연동",
+       "en": "Event-Driven Integration"
+      },
+      "ko": "베타커머스 주문 서비스가 정산, 알림 서비스를 직접 부르던 호출을 주문 상태 변경 시 Kafka 이벤트 발행으로 전환해 정산과 알림이 같은 이벤트 흐름을 소비하도록 구성. 주문 번호를 파티션 키로 두어 한 주문의 상태 순서 유지.",
+      "en": "Replaced the Beta Commerce order service's direct calls to settlement and notification services with Kafka events published on order status changes, which both services consume from the same stream. Used the order number as the partition key to keep each order's status sequence.",
+      "ev": [
+       "beta-1#1",
+       "beta-1#2",
+       "beta-1#8",
+       "beta-1#3",
+       "beta-1#6"
+      ],
+      "names": {
+       "Beta Commerce": "베타커머스"
+      }
+     },
+     {
+      "name": {
+       "ko": "Kubernetes 배포 플랫폼",
+       "en": "Kubernetes Deployment Platform"
+      },
+      "ko": "Kubernetes, Helm, Argo CD로 알파페이 사내 배포 플랫폼을 구축하고 팀마다 다르던 배포 스크립트를 Argo CD 애플리케이션 하나의 꼴로 통합. 환경별 Helm values를 저장소 한 곳에 모으고 두 사람 승인, 스테이징 상태 확인, 승인한 버전의 운영 동기화로 이어지는 배포 경로 구성.",
+      "en": "Built AlphaPay's internal deployment platform with Kubernetes, Helm and Argo CD, consolidating each team's deployment scripts into a single Argo CD application form. Kept per-environment Helm values in one repository, with two-person approval, staging status checks and production sync of approved versions only.",
+      "ev": [
+       "summary#l2",
+       "alpha-2#1",
+       "alpha-2#2",
+       "alpha-2#3",
+       "alpha-2#7",
+       "alpha-2#8",
+       "alpha-2#9"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     },
+     {
+      "name": {
+       "ko": "경보와 장애 대응",
+       "en": "Alerting and Incident Response"
+      },
+      "ko": "베타커머스 주문 이벤트 파이프라인의 소비 지연을 지표로 보며 경보 기준 설정. 주문 장애 유형별 대응 절차를 문서화하고 당번 교육에 활용.",
+      "en": "Set alert thresholds using consumer lag metrics on the Beta Commerce order event pipeline. Documented response procedures for each order incident type and used them to train on-call staff.",
+      "ev": [
+       "beta-1#4",
+       "beta-3#1"
+      ],
+      "names": {
+       "Beta Commerce": "베타커머스"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "task": "write-about",
+   "prompt": "00fe9d10ff458abe",
+   "answer": {
+    "about": [
+     {
+      "title": {
+       "ko": "직접 호출을 이벤트로 바꾼 주문팀 시절",
+       "en": "Turning direct calls into events on the order team"
+      },
+      "sentences": [
+       {
+        "ko": "베타커머스 주문팀에서 주문 서비스가 정산, 알림 서비스를 직접 부르던 호출을 상태가 바뀔 때마다 Kafka 이벤트를 발행하는 방식으로 바꿨습니다.",
+        "en": "On the order team at Beta Commerce, I replaced the order service's direct calls to the settlement and notification services with Kafka events published on each status change.",
+        "ev": [
+         "beta-1#1",
+         "beta-1#2",
+         "beta-1#8"
+        ],
+        "names": {
+         "Beta Commerce": "베타커머스"
+        }
+       },
+       {
+        "ko": "주문 번호를 파티션 키로 두어 한 주문의 상태 순서를 지켰고, 소비 지연을 지표로 보며 경보 기준을 정했습니다.",
+        "en": "I used the order number as the partition key to keep each order's status sequence, and I tracked consumer lag as a metric and set alert thresholds on it.",
+        "ev": [
+         "beta-1#3",
+         "beta-1#4"
+        ],
+        "names": {}
+       },
+       {
+        "ko": "그 결과 정산과 알림은 같은 주문 이벤트를 각자 소비하게 되었습니다.",
+        "en": "As a result, settlement and notifications each consumed the same order events.",
+        "ev": [
+         "beta-1#1",
+         "beta-1#6"
+        ],
+        "names": {}
+       },
+       {
+        "ko": "이후 자주 읽는 주문 조회에 Redis 캐시를 두고 무효화 규칙을 정했습니다.",
+        "en": "I later added a Redis cache for frequently read order lookups and set its invalidation rules.",
+        "ev": [
+         "beta-2#1"
+        ],
+        "names": {}
+       }
+      ]
+     },
+     {
+      "title": {
+       "ko": "장애 대응 절차에서 승인 경로 분리로",
+       "en": "From incident procedures to splitting the approval path"
+      },
+      "sentences": [
+       {
+        "ko": "베타커머스에서는 주문 장애 유형별 대응 절차를 문서로 만들어 당번 교육에 썼습니다.",
+        "en": "At Beta Commerce, I documented response procedures for each type of order incident and used them to train on-call staff.",
+        "ev": [
+         "beta-3#1"
+        ],
+        "names": {
+         "Beta Commerce": "베타커머스"
+        }
+       },
+       {
+        "ko": "알파페이 결제플랫폼팀으로 옮긴 뒤에는 승인 요청이 몰릴 때 배포가 승인 경로를 멈추던 구조를 고치기 위해 단일 애플리케이션에서 승인 기능을 분리했습니다.",
+        "en": "After moving to the payment platform team at AlphaPay, I split approval out of a single application, because deployments there stopped the approval path when requests surged.",
+        "ev": [
+         "alpha-1#1",
+         "alpha-1#2"
+        ],
+        "names": {
+         "AlphaPay": "알파페이"
+        }
+       },
+       {
+        "ko": "요청마다 멱등 키를 두고 재시도는 지수 간격과 상한으로 제한했습니다.",
+        "en": "I set an idempotency key on every request and limited retries with exponential backoff and a cap.",
+        "ev": [
+         "alpha-1#1",
+         "alpha-1#3"
+        ],
+        "names": {}
+       },
+       {
+        "ko": "배포 단위를 나눠 승인 경로만 따로 배포하고 되돌릴 수 있게 했습니다.",
+        "en": "I also separated the deployment unit so that the approval path could be deployed and rolled back on its own.",
+        "ev": [
+         "alpha-1#1",
+         "alpha-1#4"
+        ],
+        "names": {}
+       }
+      ]
+     },
+     {
+      "title": {
+       "ko": "팀마다 다르던 배포를 하나의 경로로",
+       "en": "Bringing each team's deployments onto one path"
+      },
+      "sentences": [
+       {
+        "ko": "알파페이에서 Kubernetes, Helm, Argo CD로 사내 배포 플랫폼을 구축하며 팀마다 다르던 배포 스크립트를 Argo CD 애플리케이션 하나의 꼴로 모았습니다.",
+        "en": "At AlphaPay, I built the internal deployment platform with Kubernetes, Helm and Argo CD, and consolidated each team's different deployment scripts into a single Argo CD application form.",
+        "ev": [
+         "alpha-2#1",
+         "alpha-2#2",
+         "summary#l2"
+        ],
+        "names": {
+         "AlphaPay": "알파페이"
+        }
+       },
+       {
+        "ko": "환경별 Helm values는 저장소 한 곳에 두고, Pull Request를 두 사람이 승인한 뒤 병합하면 스테이징에 먼저 반영해 상태를 확인하고 승인한 버전만 운영에 동기화하도록 했습니다.",
+        "en": "I kept per-environment Helm values in one repository and set a path where a Pull Request is merged after two people approve it, changes reach staging first for a status check, and only approved versions sync to production.",
+        "ev": [
+         "alpha-2#3",
+         "alpha-2#6",
+         "alpha-2#7",
+         "alpha-2#8",
+         "alpha-2#9"
+        ],
+        "names": {}
+       },
+       {
+        "ko": "배포 이력 확인과 되돌리기도 화면 하나에서 하게 했습니다.",
+        "en": "I also put deployment history and rollback on one screen.",
+        "ev": [
+         "alpha-2#4"
+        ],
+        "names": {}
+       }
+      ]
+     }
+    ],
+    "motivation": [
+     {
+      "ko": "Orion Payments는 가맹점과 구매자를 잇는 결제 서비스를 운영하며, 승인 경로의 안정성과 변경을 배포하는 방식을 가장 중요하게 여깁니다.",
+      "en": "Orion Payments runs a payment service that connects merchants and shoppers, and it cares most about the stability of the approval path and how changes ship.",
+      "names": {},
+      "frame": true
+     },
+     {
+      "ko": "저는 알파페이에서 승인 경로를 독립 배포 단위로 나누고 팀 공용 배포 경로를 만들며 같은 문제를 다뤄 왔습니다.",
+      "en": "I have worked on the same concerns at AlphaPay, where I made the approval path its own deployment unit and built a shared deployment path for the team.",
+      "ev": [
+       "alpha-1#1",
+       "alpha-2#1"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      },
+      "frame": false
+     },
+     {
+      "ko": "배포 경로와 소비 지연 경보 기준, 장애 대응 절차를 다뤄 온 경험을 이어, 플랫폼 팀에서 결제 개발자들이 쓰는 도구를 계속 만들고 운영하고 싶습니다.",
+      "en": "Building on my work with deployment paths, consumer lag alert thresholds and incident procedures, I want to keep building and running the tools payment developers use on the platform team.",
+      "ev": [
+       "alpha-2#1",
+       "beta-1#4",
+       "beta-3#1"
+      ],
+      "names": {},
+      "frame": false
+     }
+    ]
+   }
+  },
+  {
+   "task": "write-deck",
+   "prompt": "f744d7dc8e8d0258",
+   "answer": {
+    "stats": [
+     {
+      "value": {
+       "ko": "승인 기능 분리",
+       "en": "Approval split"
+      },
+      "ko": "승인 경로만 따로 배포하고 되돌리는 구조",
+      "en": "Approval path deploys and rolls back on its own",
+      "ev": [
+       "alpha-1#1",
+       "alpha-1#4"
+      ],
+      "names": {}
+     },
+     {
+      "value": {
+       "ko": "공용 배포 경로",
+       "en": "Team deploy path"
+      },
+      "ko": "팀별 배포 스크립트를 Argo CD 꼴로 통합",
+      "en": "Team deployment scripts consolidated into one Argo CD form",
+      "ev": [
+       "alpha-2#1",
+       "alpha-2#2"
+      ],
+      "names": {}
+     },
+     {
+      "value": {
+       "ko": "이벤트 발행 전환",
+       "en": "Event publishing"
+      },
+      "ko": "주문 서비스의 직접 호출을 Kafka 이벤트로 전환",
+      "en": "Order service direct calls replaced with Kafka events",
+      "ev": [
+       "beta-1#1",
+       "beta-1#2"
+      ],
+      "names": {}
+     },
+     {
+      "value": {
+       "ko": "장애 절차 문서화",
+       "en": "Incident docs"
+      },
+      "ko": "주문 장애 유형별 절차를 문서화해 당번 교육에 활용",
+      "en": "Order incident procedures documented and used in on-call training",
+      "ev": [
+       "beta-3#1"
+      ],
+      "names": {}
+     }
+    ],
+    "focus": [
+     {
+      "title": {
+       "ko": "결제 백엔드",
+       "en": "Payment Backend"
+      },
+      "ko": "알파페이 결제 승인 서비스 재설계, 멱등 키와 재시도 정책 결정",
+      "en": "AlphaPay payment approval service redesign, idempotency keys and retry policy",
+      "ev": [
+       "alpha-1#1",
+       "alpha-1#3"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     },
+     {
+      "title": {
+       "ko": "이벤트 연동",
+       "en": "Event-Driven Links"
+      },
+      "ko": "Kafka 주문 이벤트 파이프라인, 파티션 키로 상태 순서 유지",
+      "en": "Kafka order event pipeline, partition keys preserving each order's status sequence",
+      "ev": [
+       "beta-1#1",
+       "beta-1#3"
+      ],
+      "names": {}
+     },
+     {
+      "title": {
+       "ko": "배포 플랫폼",
+       "en": "Deployment Platform"
+      },
+      "ko": "Kubernetes, Helm, Argo CD로 구축한 사내 배포 플랫폼",
+      "en": "Internal deployment platform with Kubernetes, Helm and Argo CD",
+      "ev": [
+       "alpha-2#1",
+       "summary#l2"
+      ],
+      "names": {}
+     },
+     {
+      "title": {
+       "ko": "지표와 장애 대응",
+       "en": "Alerting and Incidents"
+      },
+      "ko": "소비 지연 지표의 경보 기준 설정, 주문 장애 유형별 대응 절차 문서화",
+      "en": "Consumer lag alert thresholds, documented response procedures per order incident type",
+      "ev": [
+       "beta-1#4",
+       "beta-3#1"
+      ],
+      "names": {}
+     }
+    ],
+    "journey": [
+     {
+      "role": "beta",
+      "phase": {
+       "ko": "주문 서비스",
+       "en": "Order services"
+      },
+      "ko": "주문 이벤트, 조회 캐시, 장애 대응 절차 작업",
+      "en": "Order events, lookup cache and incident procedures",
+      "key": {
+       "ko": "베타커머스 Kafka 주문 이벤트",
+       "en": "Beta Commerce Kafka order events"
+      },
+      "ev": [
+       "role:beta",
+       "beta-1#1",
+       "beta-2#1",
+       "beta-3#1"
+      ],
+      "names": {
+       "Beta Commerce": "베타커머스"
+      }
+     },
+     {
+      "role": "alpha",
+      "phase": {
+       "ko": "결제 플랫폼",
+       "en": "Payment platform"
+      },
+      "ko": "결제 승인 재설계와 사내 배포 플랫폼 구축",
+      "en": "Payment approval redesign and internal deployment platform build",
+      "key": {
+       "ko": "알파페이 결제 승인, 배포 플랫폼",
+       "en": "AlphaPay approval, deploy platform"
+      },
+      "ev": [
+       "role:alpha",
+       "alpha-1#1",
+       "alpha-2#1",
+       "summary#l2"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     }
+    ],
+    "contents": {
+     "ko": "최근 소속부터 알파페이, 베타커머스 순으로 구성",
+     "en": "Chapters run most recent employer first: AlphaPay, then Beta Commerce.",
+     "ev": [
+      "role:alpha",
+      "role:beta"
+     ],
+     "names": {
+      "AlphaPay": "알파페이",
+      "Beta Commerce": "베타커머스"
+     }
+    },
+    "glance": {
+     "ko": "베타커머스 주문팀 소프트웨어 엔지니어에서 알파페이 결제플랫폼팀 백엔드 엔지니어로 이동",
+     "en": "Moved from software engineer on Beta Commerce's order team to backend engineer on AlphaPay's payment platform team.",
+     "ev": [
+      "role:beta",
+      "role:alpha"
+     ],
+     "names": {
+      "AlphaPay": "알파페이",
+      "Beta Commerce": "베타커머스"
+     }
+    }
+   }
+  },
+  {
+   "task": "write-repair",
+   "prompt": "3c4c975216a4f0d9",
+   "answer": {
+    "parts": [
+     {
+      "id": "r0f7f93a9",
+      "text": "AlphaPay payment approval service redesign",
+      "ev": [
+       "alpha-1",
+       "summary#l1"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     },
+     {
+      "id": "rb86e1c0b",
+      "text": "AlphaPay internal deployment platform build",
+      "ev": [
+       "alpha-2",
+       "summary#l2"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     },
+     {
+      "id": "rbafed70f",
+      "text": "Kept per-environment Helm values in one repository and set a path of Pull Request approval before merge, staging sync with status checks, then production sync of approved versions only.",
+      "ev": [
+       "alpha-2#3",
+       "alpha-2#6",
+       "alpha-2#7",
+       "alpha-2#8",
+       "alpha-2#9"
+      ],
+      "names": {}
+     },
+     {
+      "id": "r84b10f3d",
+      "text": "Beta Commerce order event pipeline development",
+      "ev": [
+       "beta-1",
+       "summary#l1"
+      ],
+      "names": {
+       "Beta Commerce": "베타커머스"
+      }
+     },
+     {
+      "id": "rab864545",
+      "text": "Beta Commerce incident response procedure documentation",
+      "ev": [
+       "beta-3"
+      ],
+      "names": {
+       "Beta Commerce": "베타커머스"
+      }
+     },
+     {
+      "id": "r14c8ad0a",
+      "text": "Beta Commerce order lookup Redis cache adoption",
+      "ev": [
+       "beta-2",
+       "summary#l3"
+      ],
+      "names": {
+       "Beta Commerce": "베타커머스"
+      }
+     },
+     {
+      "id": "r1f1625da",
+      "text": "서울 알파페이 결제플랫폼팀 백엔드 엔지니어로 ==결제 승인 서비스 재설계==와 사내 배포 플랫폼 구축을 했고, 그전에는 성남 베타커머스 주문팀 소프트웨어 엔지니어로 주문 이벤트 파이프라인을 개발했습니다.",
+      "ev": [
+       "role:alpha",
+       "role:beta",
+       "summary#l1",
+       "summary#l2",
+       "summary#l3"
+      ],
+      "names": {}
+     },
+     {
+      "id": "r8968a1e1",
+      "text": "As a backend engineer on AlphaPay's payment platform team in Seoul, ==redesigned the payment approval service== and built the internal deployment platform; earlier, as a software engineer on Beta Commerce's order team in Seongnam, developed the order event pipeline.",
+      "ev": [
+       "role:alpha",
+       "role:beta",
+       "summary#l1",
+       "summary#l2",
+       "summary#l3"
+      ],
+      "names": {
+       "AlphaPay": "알파페이",
+       "Beta Commerce": "베타커머스",
+       "Seoul": "서울",
+       "Seongnam": "성남"
+      }
+     },
+     {
+      "id": "r2eaee486",
+      "text": "AlphaPay payment approval service",
+      "ev": [
+       "alpha-1",
+       "summary#l1"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     },
+     {
+      "id": "r60273972",
+      "text": "AlphaPay internal deployment platform",
+      "ev": [
+       "alpha-2",
+       "summary#l2"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     },
+     {
+      "id": "r402c783e",
+      "text": "Backend service design",
+      "ev": [
+       "alpha-1#1",
+       "alpha-1#2",
+       "alpha-1#3",
+       "alpha-1#4",
+       "beta-2#1"
+      ],
+      "names": {}
+     },
+     {
+      "id": "r294c2e56",
+      "text": "Event-driven integration",
+      "ev": [
+       "beta-1#1",
+       "beta-1#2",
+       "beta-1#8",
+       "beta-1#3",
+       "beta-1#6"
+      ],
+      "names": {}
+     },
+     {
+      "id": "r681fc461",
+      "text": "Built AlphaPay's internal deployment platform with Kubernetes, Helm and Argo CD, consolidating each team's deployment scripts into a single Argo CD application form. Kept per-environment Helm values in one repository, with approval before merge, staging status checks and production sync of approved versions only.",
+      "ev": [
+       "summary#l2",
+       "alpha-2#1",
+       "alpha-2#2",
+       "alpha-2#3",
+       "alpha-2#7",
+       "alpha-2#8",
+       "alpha-2#9"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     },
+     {
+      "id": "rb7633a1f",
+      "text": "I kept per-environment Helm values in one repository and set a path where a Pull Request is merged after approval, changes reach staging first for a status check, and only approved versions sync to production.",
+      "ev": [
+       "alpha-2#3",
+       "alpha-2#6",
+       "alpha-2#7",
+       "alpha-2#8",
+       "alpha-2#9"
+      ],
+      "names": {}
+     },
+     {
+      "id": "r8d57c3c0",
+      "text": "Approval path separation",
+      "ev": [
+       "alpha-1#1",
+       "alpha-1#3"
+      ],
+      "names": {}
+     },
+     {
+      "id": "r843f5cdb",
+      "text": "Kafka order events",
+      "ev": [
+       "beta-1#1",
+       "beta-1#3"
+      ],
+      "names": {}
+     },
+     {
+      "id": "r4937dff0",
+      "text": "Deployment platform",
+      "ev": [
+       "alpha-2#1",
+       "summary#l2"
+      ],
+      "names": {}
+     },
+     {
+      "id": "rfc8438fc",
+      "text": "Alerting and incidents",
+      "ev": [
+       "beta-1#4",
+       "beta-3#1"
+      ],
+      "names": {}
+     },
+     {
+      "id": "rf8410447",
+      "text": "Beta Commerce Kafka order events",
+      "ev": [
+       "role:beta",
+       "beta-1#1"
+      ],
+      "names": {
+       "Beta Commerce": "베타커머스"
+      }
+     },
+     {
+      "id": "raf65fedd",
+      "text": "AlphaPay approval, deploy platform",
+      "ev": [
+       "role:alpha",
+       "alpha-1#1",
+       "alpha-2#1",
+       "summary#l2"
+      ],
+      "names": {
+       "AlphaPay": "알파페이"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,252 @@
+{
+ "schema": "offerowl-measure/0.1",
+ "task": "cover",
+ "backend": "claude-code",
+ "recorded": "2026-11-05",
+ "seconds": 54.1,
+ "answers": [
+  {
+   "task": "cover-draft",
+   "prompt": "dcc0e3049b5bdc8b",
+   "answer": {
+    "paragraphs": [
+     {
+      "id": "p1",
+      "sentences": [
+       {
+        "text": "I am applying for the Backend Platform Engineer role at Orion Payments.",
+        "ev": [],
+        "duties": [],
+        "frame": true
+       },
+       {
+        "text": "My work moved from the order event pipeline on the Order team at BetaCommerce in Seongnam to the payment approval service and Kubernetes deployment platform on the Payment Platform team at AlphaPay in Seoul, and I want to keep building platforms for services where a stoppage costs money at once.",
+        "ev": [
+         "beta-1",
+         "alpha-1",
+         "alpha-2",
+         "summary#intro",
+         "motivation#1"
+        ],
+        "duties": [],
+        "frame": false,
+        "names": {
+         "Order team": "주문팀",
+         "BetaCommerce": "베타커머스",
+         "Payment Platform team": "결제플랫폼팀",
+         "AlphaPay": "알파페이"
+        }
+       }
+      ]
+     },
+     {
+      "id": "p2",
+      "sentences": [
+       {
+        "text": "I am drawn to your attention to how changes ship, because releases at AlphaPay used to halt the approval path.",
+        "ev": [
+         "alpha-1"
+        ],
+        "duties": [],
+        "frame": false,
+        "names": {
+         "AlphaPay": "알파페이"
+        }
+       },
+       {
+        "text": "I split approval out of the single application there so that it deploys separately.",
+        "ev": [
+         "alpha-1"
+        ],
+        "duties": [],
+        "frame": false
+       },
+       {
+        "text": "My move into payments came from an interest in closing off, through structure, the routes failures spread along.",
+        "ev": [
+         "about#1"
+        ],
+        "duties": [],
+        "frame": false
+       }
+      ]
+     },
+     {
+      "id": "p3",
+      "sentences": [
+       {
+        "text": "On payment approval, my main work was the AlphaPay service redesign, where every request carries an idempotency key and retries run at exponential intervals up to a cap.",
+        "ev": [
+         "alpha-1"
+        ],
+        "duties": [
+         "d1"
+        ],
+        "frame": false,
+        "names": {
+         "AlphaPay": "알파페이"
+        }
+       },
+       {
+        "text": "I also divided the release units so the approval path can be rolled back by itself.",
+        "ev": [
+         "alpha-1"
+        ],
+        "duties": [
+         "d1"
+        ],
+        "frame": false
+       },
+       {
+        "text": "For event-driven links, I replaced the direct calls from the BetaCommerce order service to its settlement and notification services with events published on Kafka.",
+        "ev": [
+         "beta-1"
+        ],
+        "duties": [
+         "d2"
+        ],
+        "frame": false,
+        "names": {
+         "BetaCommerce": "베타커머스"
+        }
+       },
+       {
+        "text": "Using the order number as the partition key kept the status changes of each order in sequence.",
+        "ev": [
+         "beta-1"
+        ],
+        "duties": [
+         "d2"
+        ],
+        "frame": false
+       }
+      ]
+     },
+     {
+      "id": "p4",
+      "sentences": [
+       {
+        "text": "On the deployment pipeline and internal platform, I brought the differing team scripts at AlphaPay into a common Argo CD application form.",
+        "ev": [
+         "alpha-2"
+        ],
+        "duties": [
+         "d3"
+        ],
+        "frame": false,
+        "names": {
+         "AlphaPay": "알파페이"
+        }
+       },
+       {
+        "text": "Settings for each environment sit as Helm values in a single repository, and a Pull Request merges only after reviewers approve it.",
+        "ev": [
+         "alpha-2"
+        ],
+        "duties": [
+         "d3"
+        ],
+        "frame": false
+       },
+       {
+        "text": "Argo CD syncs to staging ahead of production for a status check, and only approved versions go live.",
+        "ev": [
+         "alpha-2"
+        ],
+        "duties": [
+         "d3"
+        ],
+        "frame": false
+       },
+       {
+        "text": "For metrics and alerting, I watched consumer lag on the order events at BetaCommerce and set the alert thresholds.",
+        "ev": [
+         "beta-1"
+        ],
+        "duties": [
+         "d4"
+        ],
+        "frame": false,
+        "names": {
+         "BetaCommerce": "베타커머스"
+        }
+       }
+      ]
+     },
+     {
+      "id": "p5",
+      "sentences": [
+       {
+        "text": "On incident response, my experience comes from the Order team at BetaCommerce, where I documented how to handle each type of order failure.",
+        "ev": [
+         "beta-3"
+        ],
+        "duties": [
+         "d5"
+        ],
+        "frame": false,
+        "names": {
+         "Order team": "주문팀",
+         "BetaCommerce": "베타커머스"
+        }
+       },
+       {
+        "text": "Those documents then served as training material for the people on call.",
+        "ev": [
+         "beta-3"
+        ],
+        "duties": [
+         "d5"
+        ],
+        "frame": false
+       }
+      ]
+     },
+     {
+      "id": "p6",
+      "sentences": [
+       {
+        "text": "My payments domain experience comes from working as a backend engineer on the Payment Platform team at AlphaPay, where the approval service was my focus.",
+        "ev": [
+         "alpha-1"
+        ],
+        "duties": [
+         "p2"
+        ],
+        "frame": false,
+        "names": {
+         "Payment Platform team": "결제플랫폼팀",
+         "AlphaPay": "알파페이"
+        }
+       },
+       {
+        "text": "Before that, my order event work at BetaCommerce let the settlement service consume the same order events as notifications, each on its own.",
+        "ev": [
+         "beta-1"
+        ],
+        "duties": [
+         "p2"
+        ],
+        "frame": false,
+        "names": {
+         "BetaCommerce": "베타커머스"
+        }
+       }
+      ]
+     },
+     {
+      "id": "p7",
+      "sentences": [
+       {
+        "text": "Thank you for reading, and I would welcome a chance to talk.",
+        "ev": [],
+        "duties": [],
+        "frame": true
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

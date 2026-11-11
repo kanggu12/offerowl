@@ -1,0 +1,48 @@
+{
+ "schema": "resume-profile/0.1",
+ "_comment": "A fictional profile in the ledger form (roles[].career with ko and en halves, education and service with language halves, ledger markdown sections). No real person, company or school.",
+ "person": {
+  "name": "홍 길 동 (Gil-Dong Hong)",
+  "email": "gildong@example.com",
+  "phone": "010-0000-0000",
+  "linkedin": "https://www.linkedin.com/in/example-gildong"
+ },
+ "summary": {
+  "intro": {"ko": "가상의 사람이 ==클러스터 운영 자동화==를 맡아 온 예제다.", "en": "A fictional person who ==automated cluster operations==."},
+  "layers": {"ko": [["플랫폼", "Kubernetes, Helm", "가상전자 배포 플랫폼"]], "en": [["Platform", "Kubernetes, Helm", "Example Electronics deployment platform"]]}
+ },
+ "roles": [
+  {
+   "key": "gasang",
+   "heading": "가상전자 (Example Electronics)",
+   "career": {
+    "key": "gasang", "start": "2021.03", "end": "2023.04", "title": "Platform Engineer",
+    "ko": {"name": "가상전자(Example Electronics)", "short": "가상전자", "place": "서울", "dept": "플랫폼팀 / 선임", "role": "플랫폼 엔지니어", "chart": "Platform"},
+    "en": {"name": "Example Electronics", "short": "Example Electronics", "place": "Seoul", "dept": "Platform / Senior", "role": "Platform Engineer", "chart": "Platform"}
+   },
+   "projects": [
+    {"id": "gasang-1", "title": "배포 자동화", "period": "21.03 ~ 22.01", "body_md": "배포를 자동화했다."},
+    {"id": "gasang-2", "title": "점검 절차 정비", "period": "22.05.09 ~ 06.10", "body_md": "점검 절차를 정비했다."}
+   ]
+  },
+  {
+   "key": "first",
+   "heading": "첫회사 (First Co)",
+   "career": {
+    "key": "first", "start": "2019.07", "end": "2021.02", "title": "Developer",
+    "ko": {"name": "첫회사(First Co)", "short": "첫회사", "place": "성남", "dept": "개발팀", "role": "개발자", "chart": "Dev", "badge": "공동창업"},
+    "en": {"name": "First Co", "short": "First Co", "place": "Seongnam", "dept": "Development", "role": "Developer", "chart": "Dev", "badge": "Co-founder"}
+   },
+   "projects": [{"id": "first-1", "title": "첫 서비스 개발", "period": "19.07 ~ 21.02", "body_md": "첫 서비스를 만들었다."}]
+  }
+ ],
+ "education": [
+  {"key": "ms", "start": "2017.03", "end": "2019.02", "ko": {"title": "석사  가상대", "sub": "컴퓨터공학"}, "en": {"title": "M.S.  Gasang Univ.", "sub": "Computer Science"}},
+  {"key": "phd", "start": "2021.03", "end": null, "chart_fade_to": "2022.08", "ko": {"title": "박사과정(중퇴)  가상대", "sub": "컴퓨터공학"}, "en": {"title": "Ph.D. (withdrawn)  Gasang Univ.", "sub": "Computer Science"}}
+ ],
+ "service": {"start": "2019.07", "end": "2021.02", "ko": {"chart": "산업기능요원 복무"}, "en": {"chart": "Alternative service"}},
+ "skills": [{"category": "Platform", "items": ["Kubernetes", "Helm"]}],
+ "sections": [
+  {"title": "자격증", "body_md": "<!-- 메모: 이력서에 옮기지 않는다 -->\n이 줄은 원장 메모다.\n\n| 구분 | 취득일 |\n|---|---|\n| 가상 자격 1급 | 2018.05 |\n\n- [보도] 가상 기사 — https://example.com/news\n- 가상 강연"}
+ ]
+}

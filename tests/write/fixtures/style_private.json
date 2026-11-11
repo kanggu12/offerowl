@@ -1,0 +1,16 @@
+{
+ "_comment": "A fictional private style pack for the tests: the kind of rules one person keeps for their own documents.",
+ "banned_chars": "—",
+ "banned_patterns": [["가 아니라 .+(이다|였다)", "the 'not A but B' pattern"]],
+ "resume": {
+  "numbers": "forbid",
+  "items": 6,
+  "banned_words": {"en": ["spearheaded"], "ko": ["성공적으로"]},
+  "coined": {"ko": {"관측 가능성": "Observability"}, "en": {"lights-off": "lights-out"}},
+  "routine": {"en": ["handed over"], "ko": ["인수인계"]},
+  "title_end": {"ko": ["구축", "설계", "개발", "운영", "이관", "수립"], "en": ["build", "design", "development", "migration", "setup", "operation"]},
+  "rules": {"en": ["Write the client's name when the evidence has it."], "ko": ["고객사 이름이 근거에 있으면 쓴다."]},
+  "avoid_lead": ["dasom"]
+ },
+ "cover": {"numbers": "forbid", "max_words": {"en": 400}}
+}

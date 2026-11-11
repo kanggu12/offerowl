@@ -1,0 +1,16 @@
+node_modules/
+output/
+build/
+__pycache__/
+*.pyc
+.DS_Store
+fonts/.uuid
+examples/interview/out/
+*.egg-info/
+dist/
+deploy/docker/.env
+# a person's own profile, job and drafts, when the docs' commands are run at the root of a checkout
+/profile*.json
+/job*.json
+*.draft.json
+/style/mine/

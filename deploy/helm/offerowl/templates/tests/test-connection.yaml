@@ -1,0 +1,41 @@
+# helm test: the panel answers /health through the Service. It sends the Host header the panel accepts, because the
+# Service's own name would be refused as a foreign host.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "offerowl.fullname" . }}-test
+  labels:
+    {{- include "offerowl.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: health
+      image: {{ include "offerowl.image" . | quote }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      # Replaces the image's entrypoint: this container only asks one question and ends.
+      command: ["python3", "-c"]
+      args:
+        - |
+          import json, urllib.request
+          request = urllib.request.Request(
+              "http://{{ include "offerowl.fullname" . }}:{{ int .Values.service.panelPort }}/health",
+              headers={"Host": {{ include "offerowl.hostHeader" . | quote }}})
+          answer = json.load(urllib.request.urlopen(request, timeout=10))
+          assert answer.get("app") == "offerowl", answer
+          print("the panel answers:", answer)
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi

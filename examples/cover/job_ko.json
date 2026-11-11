@@ -1,0 +1,6 @@
+{
+ "_comment": "Render settings of the Korean example letter (src/cover_form.js documents every key). out names the files in output/.",
+ "out": "cover_example_ko",
+ "lang": "ko",
+ "theme": "navy"
+}

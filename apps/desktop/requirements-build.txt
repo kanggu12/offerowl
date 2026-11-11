@@ -1,0 +1,8 @@
+# What apps/desktop/build.py needs. The app uses the standard library, the tray icon and the figures use pystray and Pillow,
+# and pypdfium2 reads PDFs on a PC with no poppler. Pillow decodes the photos people upload: the newest release that installs
+# on each Python (13 needs 3.11), for the fixes to its image decoders since 11.3.0.
+pyinstaller==6.21.0
+pystray==0.19.5
+pillow==13.0.0; python_version >= "3.11"
+pillow==12.3.0; python_version < "3.11"
+pypdfium2==5.14.0
