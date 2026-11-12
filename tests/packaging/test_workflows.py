@@ -162,6 +162,12 @@ class DesktopTest(unittest.TestCase):
         build_py = (ROOT / "apps" / "desktop" / "build.py").read_text(encoding="utf-8")
         self.assertIn('f"Offerowl-{system}-{machine}', build_py)
 
+    def test_the_panels_tests_run_on_every_system_but_the_intel_mac(self):
+        matrix = self.job["strategy"]["matrix"]["include"]
+        self.assertEqual([m["name"] for m in matrix if m.get("tests") is False], ["macOS (Intel)"])  # it builds and starts the app
+        tests = [s for s in steps(self.job) if "tests/app" in s.get("run", "")][0]
+        self.assertEqual(tests["if"], "matrix.tests != false")  # the other three run them
+
     def test_it_can_be_called_by_the_release_and_started_by_hand(self):
         self.assertIn("workflow_call", self.doc["on"])
         self.assertIn("workflow_dispatch", self.doc["on"])
@@ -198,6 +204,11 @@ class ReleaseTest(unittest.TestCase):
         login = [s for s in steps(self.release) if s.get("uses", "").startswith("docker/login-action")][0]
         self.assertEqual(login["with"]["registry"], "ghcr.io")
         self.assertIn("docker/setup-qemu-action", " ".join(uses(self.doc)))  # arm64 is built under emulation
+
+    def test_the_release_keeps_its_own_image_cache(self):
+        build = [s for s in steps(self.release) if s.get("uses", "").startswith("docker/build-push-action")][0]["with"]
+        self.assertEqual(build["cache-to"], "type=gha,mode=max,scope=release")  # ci.yml's amd64 image saves over scope=app
+        self.assertEqual(build["cache-from"].split(), ["type=gha,scope=release", "type=gha,scope=app"])  # its own layers first
 
     def test_latest_goes_only_to_a_release_that_is_not_a_prerelease(self):
         self.assertIn("type=raw,value=latest,enable=${{ steps.v.outputs.prerelease == 'false' }}", self.text)
