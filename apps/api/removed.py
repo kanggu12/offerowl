@@ -140,8 +140,10 @@ def rows(api) -> list[dict]:
         with api.gone_meanwhile(st["id"]):  # deleted for good while this was read: left out
             days = M.removed_days(ws, st["id"])  # the day each went
             for r in M.removed_records(ws, st["id"]):
+                copy = re.search(r" \((\d+)\)\.\w+$", str(r.get("file") or ""))  # a second file of one name is kept as "name (2).pdf"
                 out.append(_row(f"material:{st['id']}:{r['id']}", "material", str(r.get("name") or r.get("title") or ""), days.get(r["id"], ""),
-                                 int(r.get("size") or 0), {"ext": r.get("kind")}, {"job": st["id"], "company": st.get("company") or st.get("role") or st["id"]}))
+                                 int(r.get("size") or 0), {"ext": r.get("kind"), **({"copy": int(copy.group(1))} if copy else {})},  # which copy, when one name came several times
+                                 {"job": st["id"], "company": st.get("company") or st.get("role") or st["id"]}))
     out.sort(key=lambda r: r["at"] or "", reverse=True)  # the newest removal first; one made before the day was kept goes last
     return out
 

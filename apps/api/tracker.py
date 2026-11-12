@@ -30,14 +30,17 @@ def stage_days(job: dict) -> dict:
 
 
 def batch_day(jobs: list[dict]) -> dict | None:
-    """The day several applications were added at once (5 or more, as when a list is brought in) whose cards still carry that
-    day as a stage's day: {day, jobs: [ids]}, or None. Those days are the adding's, not the job hunt's."""
-    by = {}  # the day added -> the cards added that day that carry it as a stage's day
+    """The day several applications were added at once (5 or more, as when a list is brought in) whose cards carry that day
+    on a stage that a later step's earlier day shows it never had: {day, jobs: [ids]}, or None. Those days are the adding's,
+    not the job hunt's. A card added by hand carries its day as its preparing day, and its later steps come after it: it is
+    never counted, so a busy day of adding never asks to clear true days."""
+    by = {}  # the day added -> the cards added that day whose stamp a later step's day disproves
     for j in jobs:
         if j.get("kind") == "edition" or j.get("removed"):  # editions have no stages; the trash is not the board
             continue
-        made = str(j.get("created") or "")[:10]  # the day it was added
-        if made and made in [str(v)[:10] for v in (j.get("dates") or {}).values()]:  # that day stamped on a stage
+        made, d = str(j.get("created") or "")[:10], j.get("dates") or {}  # the day it was added, its days as kept
+        if made and any(str(d.get(s) or "")[:10] == made and any(d.get(x) and str(d[x])[:10] < made for x in STAGES[i + 1:])  # a later step before it
+                        for i, s in enumerate(STAGES)):
             by.setdefault(made, []).append(j["id"])
     if not by:
         return None

@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href=".github/workflows/ci.yml"><img alt="CI: GitHub Actions" src="docs/assets/badges/ci.svg"></a>
-  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.9.0" src="docs/assets/badges/release.svg"></a>
+  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.9.1" src="docs/assets/badges/release.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="docs/assets/badges/license.svg"></a>
   <img alt="Runs on Windows, macOS and Linux" src="docs/assets/badges/runs-on.svg">
 </p>
@@ -73,7 +73,7 @@ docker compose -f deploy/docker/compose.yaml up -d --build
 **Python** 3.10 or newer
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.9.0/offerowl-0.9.0-py3-none-any.whl
+pipx install https://github.com/kanggu12/offerowl/releases/download/v0.9.1/offerowl-0.9.1-py3-none-any.whl
 offerowl panel --open
 ```
 

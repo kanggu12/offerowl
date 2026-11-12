@@ -20,6 +20,7 @@ import hashlib  # an asked question's id, from its words
 import json  # the map
 import pathlib  # paths
 import re  # line rules
+import threading  # one coverage build at a time
 
 from interview import corpus, cover, i18n  # items, coverage, messages
 from interview import text as T  # lines, words, abbreviations
@@ -133,7 +134,9 @@ def research_headings(job):
     return out
 
 
-LIST_MARK = re.compile(r"^\s*(?:(?:[-*\u2022\u00b7]|\d{1,2}[.)]|Q\d{0,2}[.):])\s*)+", re.I)  # "- ", "1. ", "Q3: " (or "- Q3: ") in front of a question written down
+# "- ", "1. ", "Q3: " (or "- Q3: ") in front of a question written down: a space after the mark, so "2.0 버전" and "1.5배"
+# keep their numbers (a bullet character needs none)
+LIST_MARK = re.compile(r"^\s*(?:(?:[\u2022\u00b7]|[-*](?=\s)|\d{1,2}[.)](?=\s)|Q\d{0,2}[.):](?=\s))\s*)+", re.I)
 
 
 def asked_lines(job):
@@ -148,7 +151,7 @@ def asked_lines(job):
         for line in str(r.get("asked") or "").splitlines():  # one question a line
             q = LIST_MARK.sub("", line).strip()  # the words without a list mark
             key = re.sub(r"\W+", " ", q).strip().lower()  # the same question with other spacing or marks is one question
-            if len(key) < 3:  # a stray mark, not a question
+            if len(key) < 2:  # a stray mark, not a question ("CI?" and "왜요?" are questions)
                 continue
             if key not in by:  # first asked here
                 by[key] = {"id": "a" + hashlib.sha1(key.encode("utf-8")).hexdigest()[:6], "text": q, "source": label, "rounds": []}
@@ -158,14 +161,85 @@ def asked_lines(job):
     return out
 
 
-def asked_rows(job, cov, lines=None):
-    """The map's entries for what the earlier rounds asked (asked_lines, or the lines given), rated against the scenes as
-    they are now (cover.Coverage)."""
+_COVERAGE = {}  # (job folder, its files' stamp) -> cover.Coverage: 1.5 s to build for a kit of 600 scripts, so built once per change
+_COVERAGE_LOCK = threading.Lock()  # two requests at once build it once
+
+
+def coverage(job, items, alts):
+    """The kit's coverage rules (cover.Coverage) for rating questions, kept while the kit's files (drafts among them) stay as
+    they are: the board, the deck and practice rate the rounds' questions with it."""
+    key = (str(job.dir), repr(corpus.stamp(job)))  # a file changed, a draft written: another key
+    with _COVERAGE_LOCK:
+        if key not in _COVERAGE:
+            while len(_COVERAGE) >= 4:  # a few kits at a time
+                _COVERAGE.pop(next(iter(_COVERAGE)))
+            _COVERAGE[key] = cover.Coverage(items, alts, job.kit)
+        return _COVERAGE[key]
+
+
+def with_asked(job, rows, items=None, alts=None):
+    """A map's entries with what the earlier rounds asked read now from the rounds (a map written before a round was kept
+    has none of them, or old ones): the map's own asked entries go, the rounds' come first."""
+    lines = asked_lines(job)
+    if not lines and not any(r.get("kind") == "asked" for r in rows):  # nothing asked, then or now
+        return rows
+    if items is None:
+        items, alts = corpus.load(job)  # the scenes, drafts among them
+    asked = asked_rows(job, coverage(job, items, alts), lines, items) if lines else []
+    return asked + [r for r in rows if r.get("kind") != "asked"]
+
+
+RAW_WORD = re.compile(r"[a-z0-9]+(?:[./+\-][a-z0-9]+)*|[가-힣]+")  # Latin words (with p/d) or Hangul runs, as the page splits them
+# the shell of a request, which says nothing about what is asked ("말해 보세요", "tell me about")
+TITLE_SHELL = {"말해", "보세요", "주세요", "설명해", "알려", "해", "봐", "요", "것", "대해", "에", "please", "tell", "me", "about", "can", "you",
+               "could", "would", "the", "a", "an", "is", "are", "do", "does", "your", "to", "of", "and", "on", "for", "in", "it", "s"}
+TITLE_MATCH = 0.5  # a title sharing half of the words of the question and the title together is the question's own script
+
+
+def title_words(text):
+    """The words a question and a script's title are matched by: every word but a request's shell (question words count:
+    "Why this role?" is all stop words to the coverage rules), Korean particles and English endings stripped."""
+    out = set()
+    for w in RAW_WORD.findall(str(text or "").lower()):
+        w = T.stem_ko(w) if "가" <= w[0] <= "힣" else T.stem_en(w)
+        if w not in TITLE_SHELL:
+            out.add(w)
+    return out
+
+
+def by_title(question, items):
+    """(share, item) of the script whose title is closest to a question (the words both have, of all the words of either),
+    a written script before an agent's draft when two are as close; (0, None) when no title shares a word."""
+    qs, best = title_words(question), (0.0, None)
+    if not qs:
+        return best
+    for it in items:
+        if it.get("role") not in ("scenes", "deep"):  # notes, terms and stories answer no question as a script does
+            continue
+        for title in (it.get("tko"), it.get("ten")):
+            for part in str(title or "").split(" / "):  # "1분 자기소개 / Tell me about yourself"
+                ts = title_words(part)
+                share = len(qs & ts) / len(qs | ts) if ts else 0.0
+                if share > best[0] + 1e-9 or (best[1] is not None and abs(share - best[0]) < 1e-9 and best[1].get("draft") and not it.get("draft")):
+                    best = (share, it)
+    return best
+
+
+def asked_rows(job, cov, lines=None, items=None):
+    """The map's entries for what the earlier rounds asked (asked_lines, or the lines given), each with the script that
+    answers it: the script whose title is the question's (by_title), else the coverage rules' best (cover.Coverage), which
+    words in common make at most "in part": a question really asked deserves a script of its own. One an agent drafted
+    says so ("draft")."""
     rows = []  # in the order they were first asked
     for a in asked_lines(job) if lines is None else lines:
-        rating, by, _ = cov.rate(a["text"])  # does a scene already answer it?
+        share, it = by_title(a["text"], items or [])
+        if it is not None and share >= TITLE_MATCH:  # its own script, by its title
+            rating, by = ("draft" if it.get("draft") else "strong"), [[it["id"], round(share, 2)]]
+        else:  # the words in common
+            rating, found, _ = cov.rate(a["text"])
+            rating, by = ("weak" if rating == "strong" else rating), [[i, s] for i, s in found]
         rows.append({"id": a["id"], "kind": "asked", "source": a["source"], "section": "", "text": a["text"], "ask": {"en": [a["text"]], "ko": [a["text"]]},  # in the words written down, either language
-                     "coverage": rating, "covered_by": [[i, s] for i, s in by], "rounds": a["rounds"]})  # and the rounds that asked it
+                     "coverage": rating, "covered_by": by, "rounds": a["rounds"]})  # and the rounds that asked it
     return rows
 
 
@@ -194,7 +268,7 @@ def build(job, out=None):
         rows.append({"id": pid, "kind": kind, "source": source, "section": section, "text": txt, "ask": ask,
                      "coverage": rating, "covered_by": [[i, s] for i, s in by]})  # (id, share) pairs as plain lists
 
-    rows += asked_rows(job, cov)  # what the earlier rounds asked, first
+    rows += asked_rows(job, cov, items=items)  # what the earlier rounds asked, first
     for k, (n, sec, line) in enumerate(posting_lines(posting), 1):  # one entry per posting line, ids p1, p2, ...
         add("posting", f"p{k}", f"{posting_path.name}:{n}", line,  # the source is the posting file and line number
             {"en": fill(STD["posting"]["en"], text=line), "ko": fill(STD["posting"]["ko"], text=line)}, sec)  # with its section

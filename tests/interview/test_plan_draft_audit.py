@@ -85,6 +85,33 @@ class PlanTest(unittest.TestCase):  # plan: the question map built from the post
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_a_list_mark_needs_its_space_and_short_questions_count(self):
+        """A number that starts a question ("2.0 버전…", "1.5배…") is no list mark, and "CI?" is a question."""
+        tmp, job = with_rounds([{"id": "i1", "kind": "first", "at": "2026-11-10", "asked": "2.0 버전에서 바뀐 점은?\n3.0 버전에서 바뀐 점은?\n"
+                                 "1.5배 빨라진 이유는?\nCI?\n왜요?\n1) Why now?\n-\n•ok"}])
+        try:
+            got = [a["text"] for a in plan.asked_lines(job)]
+            self.assertEqual(got, ["2.0 버전에서 바뀐 점은?", "3.0 버전에서 바뀐 점은?", "1.5배 빨라진 이유는?", "CI?", "왜요?", "Why now?", "ok"])
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_the_deck_and_practice_see_a_round_written_after_the_map(self):
+        """The map written before a round was kept has none of its questions: the deck and practice read them from the
+        rounds as they are, as the board does."""
+        from interview import deck, practice  # the readers
+        tmp, job = with_rounds([])  # no question yet
+        try:
+            plan.main(job, out=str(job.out_path()))  # the map, written now
+            prac = practice.Practice(job, pathlib.Path(tmp) / "practice", backend="none")
+            self.assertFalse([q for q in prac.questions(8, ["asked"])])  # nothing asked yet
+            (job.dir / "status.json").write_text(json.dumps({"rounds": ROUNDS}), encoding="utf-8")  # a round kept afterwards
+            rows = deck.rows_of(job)
+            self.assertEqual(["Tell me about yourself.", "Why Gamma?", "How do you roll back a bad deploy?", "What is Kafka?"],
+                             [r["text"] for r in rows if r["kind"] == "asked"])  # first, read now
+            self.assertTrue(prac.questions(8, ["asked"]))  # practice too, without being started again
+        finally:
+            shutil.rmtree(tmp)
+
     def test_phrase_without_a_model_keeps_the_rule_questions(self):
         """plan --phrase with backend none says so and keeps the rule-made questions."""
         job = helpers.example_job()  # the example

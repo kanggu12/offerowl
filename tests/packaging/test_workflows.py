@@ -206,10 +206,11 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(login["with"]["registry"], "ghcr.io")
         self.assertIn("docker/setup-qemu-action", " ".join(uses(self.doc)))  # arm64 is built under emulation
 
-    def test_the_release_keeps_its_own_image_cache(self):
+    def test_the_release_keeps_its_image_cache_where_the_next_tag_reads_it(self):
         build = [s for s in steps(self.release) if s.get("uses", "").startswith("docker/build-push-action")][0]["with"]
-        self.assertEqual(build["cache-to"], "type=gha,mode=max,scope=release")  # ci.yml's amd64 image saves over scope=app
-        self.assertEqual(build["cache-from"].split(), ["type=gha,scope=release", "type=gha,scope=app"])  # its own layers first
+        cache = "type=registry,ref=ghcr.io/${{ steps.v.outputs.owner }}/offerowl-app:buildcache"  # Actions' cache is per ref: no tag reads another's
+        self.assertEqual(build["cache-to"], cache + ",mode=max,ignore-error=true")  # a cache that cannot be written never stops the release
+        self.assertEqual([x.strip() for x in build["cache-from"].splitlines() if x.strip()], [cache, "type=gha,scope=app"])  # its own layers first, then main's amd64 ones
 
     def test_latest_goes_only_to_a_release_that_is_not_a_prerelease(self):
         self.assertIn("type=raw,value=latest,enable=${{ steps.v.outputs.prerelease == 'false' }}", self.text)

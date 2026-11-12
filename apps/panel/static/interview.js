@@ -312,7 +312,7 @@ function practiceView(j, kit0) {                                                
       onkeydown: (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submitTyped(); } } });   // Ctrl+Enter sends a typed answer
     return h("div", { class: "card pr-ask" },
       h("div", { class: "pr-qhead" }, h("span", { class: "chip count", text: fmt("pr_q", { i: PR.qi + 1, n }) }), h("span", { class: "chip pc", text: PR.turn ? fmt("pr_followup") : fmt("kind_" + q.kind) })),
-      PR.turn ? null : h("p", { class: "hint pr-topic", text: q.topic }),          // where the question comes from: the posting's line, the resume's
+      PR.turn || !q.topic ? null : h("p", { class: "hint pr-topic", text: q.topic }),   // where the question comes from: the posting's line, the resume's (an earlier round's question is its own)
       h("p", { class: "pr-question", text: PR.ask }),                                // as the interviewer asks it
       PR.askKo ? h("details", { class: "pr-ko" }, h("summary", { text: fmt("pr_show_ko") }), h("p", { text: PR.askKo })) : null,   // its translation, folded
       h("div", { class: "part-keys pr-rec" }, rec),

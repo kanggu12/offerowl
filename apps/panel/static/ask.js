@@ -57,6 +57,7 @@ async function askSend(box) {                                                   
   const text = box.value.trim();
   if (!text || task("ask").state === "running") return;                            // nothing to send, or one is still working
   UI.askDraft = ""; box.value = "";                                                 // the box is free at once: the redraw the request makes draws it empty
+  UI.askHistLen = (askDoc().history || []).length;                                  // the asks kept before this one: its working note goes once the history holds it
   const r = await act("/api/v1/ask", { text });                                     // started, or refused with its reason
   if (!(r && r.started)) { UI.askDraft = text; const b = document.getElementById("askbox"); if (b) b.value = text; }   // not taken: the words come back, to send again
   if (r && r.started === false) toast(t("The agent is still working on the last request."));
@@ -123,7 +124,7 @@ function drawAsk() {                                                            
         (it.tools || []).length ? h("div", { class: "ask-tools" }, [...new Set(it.tools)].map((x) => h("span", { class: "pill on", title: x, text: toolWords(x) }))) : null,   // a tool by what it did, its own name on the hover
         h("small", { text: [it.at, it.backend ? t(AGENT_NAME[it.backend] || it.backend) : "", it.seconds ? t("{n} s", { n: it.seconds }) : ""].filter(Boolean).join(" · ") }))))   // the agent by its name, not its setting's id
       : h("p", { class: "ask-empty", text: t("Write it as you would to Claude Code or Codex: an interview's result to record, a posting to make a resume for, a question about your applications.") }),
-    working ? h("div", { class: "ask-item" }, h("p", { class: "ask-me", text: UI.askLast || "" }), h("div", { class: "ask-ans" }, pill("busy", t("Working with Offerowl's tools…")))) : null);
+    working && hist.length <= (UI.askHistLen ?? hist.length) ? h("div", { class: "ask-item" }, h("p", { class: "ask-me", text: UI.askLast || "" }), h("div", { class: "ask-ans" }, pill("busy", t("Working with Offerowl's tools…")))) : null);   // until the history holds it: then it is there once
   const box = h("textarea", { id: "askbox", "data-key": "ask-text", rows: 2, placeholder: t("Write what the AI should do, or what to ask it"), value: UI.askDraft || "", "aria-label": t("Ask the AI"),
     oninput: (e) => { UI.askDraft = e.target.value; },
     onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); UI.askLast = e.target.value.trim(); askSend(e.target); } else if (e.key === "Escape") { e.stopPropagation(); askToggle(false); } } });   // Escape closes the top layer only: the drawer or selection under the bar stays
@@ -132,8 +133,8 @@ function drawAsk() {                                                            
     h("header", { class: "ask-head" }, icon("agent"), h("b", { text: t("Ask the AI") }),   // what the sheet is for, as its key says
       h("span", { class: "ask-sub" }, h("span", { class: "lit " + (working ? "busy" : lamp[0]), "aria-hidden": "true" }), h("span", { text: `${name} · ${t(lamp[1])}` })),   // which agent answers, and its state
       h("span", { class: "grow" }),
-      hist.length ? h("button", { class: "btn icon small", type: "button", "data-key": "ask-clear", title: t("Clear this history"), "aria-label": t("Clear this history"),
-        disabled: working || null, onclick: askClear }, icon("trash")) : null,   // the asks and answers kept in the workspace, emptied
+      hist.length ? h("button", { class: "btn small quiet", type: "button", "data-key": "ask-clear",
+        disabled: working || null, onclick: askClear }, icon("trash"), t("Clear this history")) : null,   // the asks and answers kept in the workspace, emptied: said in words
       h("button", { class: "btn icon small", type: "button", "aria-label": t("Close"), onclick: () => askToggle(false) }, icon("close"))),
     able || working ? null : h("div", { class: "band info ask-need", role: "note" },   // said before anything is typed: a request needs an agent that can use the tools
       h("p", { text: t("Requests need Claude Code or Codex, switched on and signed in.") }),
@@ -142,6 +143,7 @@ function drawAsk() {                                                            
     h("div", { class: "ask-input" }, box,
       h("button", { class: "btn primary", type: "button", disabled: working || null, "aria-label": t("Send"), onclick: () => { UI.askLast = box.value.trim(); askSend(box); } }, icon("send"))),
     h("p", { class: "ask-hint" }, h("kbd", { text: "Enter" }), t("send"), h("kbd", { text: "Shift+Enter" }), t("new line")));   // the two keys, as a prompt shows them: no sentence
+  if (document.getElementById("askpanel")) panel.classList.add("stay");            // drawn again while open: it slides in once, on opening, never at each answer
   fill(host, panel);                                                                // open: a sheet at the window's right edge, under the top bar (a phone: from the foot)
   requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });             // the newest in view
 }

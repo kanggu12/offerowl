@@ -6,6 +6,41 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-13
+
+What three independent reviews of 0.9.0 found: the panel outside the interview tab, the interview tab, and the code.
+
+### Fixed
+
+- A question an interview round asked was tied to a script that only shared a word with it ("Why did you apply?" to a
+  script about applying elsewhere), or to none ("Why this role?" is all stop words to the coverage rules). The script whose title is the question's now answers it; words in common with another script make it an answer
+  only in part, which the round's key offers to write again. A draft answering it shows as a draft, never as a finished
+  script, and the map counts the agent's draft scripts. The script key's hover shows the script's title.
+- Practice and the interview deck did not see a round's questions until the question map was made again: they read them
+  from the rounds as they are, as the board does. In a deck that follows the kit's file order, the round's questions come
+  right after the greeting (each script once), and a draft's hidden source line no longer shows in its notes.
+- "2.0 버전에서 바뀐 점은?" lost its "2." as a list mark, and "CI?" or "왜요?" were dropped as too short.
+- The day several applications were added on was offered for clearing when they were added by hand, their true preparing
+  days among them: only a day that a later step's earlier day disproves counts now. A round with more than 30 questions
+  without a script is written 30 at a time instead of refused. "1시간 30분" in a round's notes is 90 minutes, and "10분 전
+  입장" is no length. A round of today that ended leaves Make's "Next" line, today's rounds say "오늘", and the time left of
+  one going on is green there too; two rounds of one application today no longer draw the page again every 15 seconds.
+- The board showed the day an application was added as its stage's day when the stage had none: it shows none.
+  The timeline names the applications with no day instead of leaving them out without a word, puts one application's
+  steps of a day in one chip, the later step first, and its line no longer runs through the names on a phone.
+- The days table: an empty day is empty instead of "YYYY-MM-DD", the marks are said in a line over it (amber, dashed for
+  the day the band's key clears), the band's sentence keeps its meaning, and the clear's note says what it cleared.
+- The request sheet slid in again at every answer and showed a request twice while it ran; it is frosted like the
+  settings' and the agent's sheets. Make's cards on a phone show the role (two cards of one company looked the same). The
+  Trash tells copies of one file apart ("사본 10"). The photo's, a question's, an edition's and the requests' removal keys
+  say what they do. A page of the Library holds a row more.
+- A posting's "About you" (and "Your profile", "What you bring", "The ideal candidate", "Skills & experience") opens its
+  requirements: their lines were read as duties.
+- On a phone: the call's link on today's line, practice's count and kind keys, the deck's script keys and the kit's contents
+  rows are 44 px; the "주의" label of a script is readable; the progress tab's note on days out of order says what follows
+  from them.
+- The release's image cache is kept in the registry, which the next tag's run can read (Actions' cache is per ref).
+
 ## [0.9.0] - 2026-11-13
 
 What an interview round leaves behind now feeds the next one, the day of an interview has its own line, and an
@@ -414,7 +449,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/kanggu12/offerowl/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/kanggu12/offerowl/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/kanggu12/offerowl/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/kanggu12/offerowl/compare/v0.7.0...v0.8.0
