@@ -223,5 +223,18 @@ def main(argv: list | None = None) -> int:  # the command line; argv lets a call
     return 0  # a clean exit
 
 
-if __name__ == "__main__":  # run as a script, not imported
-    raise SystemExit(main())  # main's answer is the exit code
+def finish(code: int) -> None:
+    """The process ends here, once the panel has wound down: its log and the console flushed, then out at once. Python's
+    own tear-down is skipped: a daemon thread may still be inside native code then (the agent's first look, a letter's
+    pages), and a tear-down that ran under it ended a clean stop with SIGSEGV once (Python 3.12, the CI's stop test)."""
+    logging.shutdown()  # every handler flushed and closed: the log's last lines are on disk
+    for stream in (sys.stdout, sys.stderr):  # what was printed reaches whoever reads it
+        try:
+            stream.flush()
+        except (OSError, ValueError):  # a closed or broken pipe: nothing more to say there
+            pass
+    os._exit(code)  # main's answer is the exit code
+
+
+if __name__ == "__main__":  # run as a script (the launcher's runpy too), not imported
+    finish(main())
