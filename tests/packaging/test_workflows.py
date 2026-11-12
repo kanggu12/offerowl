@@ -164,9 +164,10 @@ class DesktopTest(unittest.TestCase):
 
     def test_the_panels_tests_run_on_every_system_but_the_intel_mac(self):
         matrix = self.job["strategy"]["matrix"]["include"]
-        self.assertEqual([m["name"] for m in matrix if m.get("tests") is False], ["macOS (Intel)"])  # it builds and starts the app
+        self.assertEqual([m["name"] for m in matrix if m.get("skip_tests") is True], ["macOS (Intel)"])  # it builds and starts the app
+        self.assertFalse([m for m in matrix if "tests" in m])  # no key the step compares with false: null == false in Actions
         tests = [s for s in steps(self.job) if "tests/app" in s.get("run", "")][0]
-        self.assertEqual(tests["if"], "matrix.tests != false")  # the other three run them
+        self.assertEqual(tests["if"], "${{ !matrix.skip_tests }}")  # true where the key is missing: the other three run them
 
     def test_it_can_be_called_by_the_release_and_started_by_hand(self):
         self.assertIn("workflow_call", self.doc["on"])
