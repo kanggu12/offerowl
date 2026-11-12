@@ -35,7 +35,7 @@ import unicodedata  # one spelling of a name that a Mac sends decomposed
 import urllib.parse  # a file's own name in a header, as RFC 6266 writes it
 from pathlib import Path  # paths
 
-from .workspace import read_json, retried, sha256, today, tmp_name, write_json  # files and their hashes
+from .workspace import now_minute, read_json, retried, sha256, today, tmp_name, write_json  # files and their hashes
 
 ROOT = Path(__file__).resolve().parents[2]  # the repository (or the app's bundle)
 log = logging.getLogger("offerowl.panel")  # the panel's log
@@ -211,7 +211,7 @@ def remove(ws, jid: str, mid: str) -> None:
     rels = [f"jobs/{jid}/materials/removed.json", f"jobs/{jid}/materials/removed_at.json"]  # the two files it changes
     with ws.change({"code": "undo_remove_job_material", "title": rec["title"]}, rels):  # one undo step
         write_json(folder(ws, jid) / "removed.json", sorted(removed(ws, jid) | {mid}))  # one more id off the list
-        write_json(folder(ws, jid) / "removed_at.json", {**removed_days(ws, jid), mid: today()})  # and the day it went
+        write_json(folder(ws, jid) / "removed_at.json", {**removed_days(ws, jid), mid: now_minute()})  # and when it went: the day and the hour
 
 
 def put_back(ws, jid: str, mid: str) -> dict:

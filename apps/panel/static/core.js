@@ -132,6 +132,8 @@ const UI = {                                                                    
   boards: {},                                                                       // the last interview board of each job and language, shown while a newer one loads (views.js boardOf)
   pending: {},                                                                      // keys being fetched now
   tagged: {},                                                                       // large documents by kind, with the tag each came with: asked again per revision, a 304 keeps them
+  docWait: {},                                                                      // keys asked again only after this time (a busy or unreachable server), getDoc
+  docTries: {},                                                                     // how many times in a row each failed, for the wait
   notified: {},                                                                     // reminders already shown as notifications
   typed: {},                                                                        // words typed in forms not sent yet, by field key
 };
@@ -162,9 +164,21 @@ async function api(path, body, tries = 2) {                                     
     return api(path, body, tries - 1);
   }
   if (j && j.state) { S = j.state; render(); }                                      // every write sends the state back
-  if (!r.ok) throw Object.assign(new Error(j.error || "unexpected"), { info: j });  // a refused request
+  if (!r.ok) throw Object.assign(new Error(j.error || "unexpected"), { info: j, status: r.status });   // a refused request, with its status (a 503 is the server's load, not a refusal)
   if (body !== undefined && !NOT_SAVED.test(path)) flashSaved();                   // autosave: say it was kept (a request that keeps nothing says nothing)
   return j;                                                                         // callers read extra fields such as started or undone
+}
+async function postFile(url, file, tries = 2) {                                     // a file sent as its raw bytes and its own name, as every upload goes; a busy server is asked again, as api() asks it
+  const r = await fetch(url, { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(file.name) } });
+  if (r.status === 503 && tries > 0) {                                              // every slot of the server was taken (src/ownport.py): the file never reached the API
+    const j = await r.clone().json().catch(() => ({}));
+    if (j.error === "busy") {
+      const wait = Math.min(5, Math.max(1, parseInt(r.headers.get("Retry-After") || "2", 10) || 2));   // the seconds it asked for, 1 to 5
+      await new Promise((done) => setTimeout(done, wait * 1000));
+      return postFile(url, file, tries - 1);                                        // the same file again: nothing of it was kept
+    }
+  }
+  return r;                                                                         // the caller reads it as before
 }
 async function act(path, body, okText, okKind = "done") {                          // a write from a button: errors become a toast
   try {
@@ -183,13 +197,30 @@ async function refresh() {                                                      
     const r = await fetch("/api/v1/state", { cache: "no-store", headers: tag ? { "If-None-Match": tag } : {} });  // no-store: the tag is ours, not the browser cache's
     setOffline(false);                                                              // any answer at all means the server is back
     if (r.ok) {                                                                     // a new state (a 304 is not ok: nothing changed, nothing to draw)
+      const before = S;                                                             // the state drawn until now
       S = await r.json();                                                           // unpacked by the browser when it came compressed
       stateTag = { tag: r.headers.get("ETag") || "", of: S };                       // for the next poll
       render();                                                                     // drawn
+      noteEnded(before, S);                                                         // long work that ended out of sight says so
       if (typeof fromAddress === "function") fromAddress();                         // a window opened on one application's scripts goes there once (app.js)
     }
   } catch (_) { setOffline(true); }                                                 // no server at all: the band says so
   schedule();                                                                       // and again later
+}
+// Long work that ended while the person was not looking at it says so in a note, with a key that goes to it, as Sidenote's
+// notes take one to the answer: a request to the AI with its sheet closed, a run that made the documents with another view
+// open. Work seen ending on its own screen needs no note
+function noteEnded(before, now) {
+  const was = (k) => ((before && before.tasks) || {})[k] || {}, is = (k) => ((now && now.tasks) || {})[k] || {};
+  const ended = (k) => was(k).state === "running" && is(k).state && is(k).state !== "running" && is(k).run === was(k).run;   // this very run, no longer running
+  if (ended("ask") && !UI.askOpen) {                                                // the answer is in the sheet, which is closed
+    const ok = is("ask").state === "done";
+    toast(ok ? t("The AI answered your request.") : t("The AI's request did not finish."), { words: t("See the answer"), run: () => askToggle(true) }, ok ? "done" : "bad");
+  }
+  if (ended("autopilot") && UI.view !== "make") {                                   // the run's result is on Make
+    const ok = is("autopilot").state === "done";
+    toast(ok ? t("The documents are made.") : t("Making the documents stopped."), { words: t("Open"), run: () => go("make") }, ok ? "done" : "bad");
+  }
 }
 let pollTimer = null;                                                               // the next refresh
 function schedule() {                                                               // fast while something runs
@@ -212,19 +243,30 @@ function setOffline(off) {                                                      
 }
 async function getDoc(key, path, fam) {                                             // a fetched document, cached by key; fam: the same document under its other keys (interview.js)
   if (UI.docs[key] || UI.pending[key]) return UI.docs[key] || null;                 // cached, or on its way
+  if ((UI.docWait[key] || 0) > Date.now()) return null;                             // the server was busy or out of reach: asked again after a while (below)
   UI.pending[key] = true;                                                           // one fetch per key
   const held = fam ? UI.tagged[fam] : null;                                         // the copy held under an earlier key, with the tag the server gave it
+  let passing = false;                                                              // a failure that passes (busy, a server error, no connection): never kept as the answer
   try {
     const r = await fetch(path, { cache: "no-store", headers: held ? { "If-None-Match": held.tag } : {} });   // no-store: the tag is ours, not the browser cache's
     if (r.status === 304 && held) UI.docs[key] = held.doc;                          // unchanged: the copy held, not megabytes again
+    else if (r.status >= 500) passing = true;                                       // 503 busy and the like: asked again, never drawn as "could not be read" for good
     else {
-      UI.docs[key] = await r.json();                                                // the answer, whatever its status
+      UI.docs[key] = await r.json();                                                // the answer, a refusal (4xx) included: it says why
       const tag = r.headers.get("ETag");                                            // what the server named it
       if (fam && r.ok && tag) UI.tagged[fam] = { tag, doc: UI.docs[key] };          // held for the next revision's question
     }
   }
-  catch (_) { UI.docs[key] = { error: "offline" }; }                                // shown as an error
+  catch (_) { passing = true; }                                                     // no connection, or an answer that was not JSON
   delete UI.pending[key];                                                           // done
+  if (passing) {                                                                    // asked again: after 2 s, then 4, 8, 16, at most every 30 s, while the page still draws it
+    const n = (UI.docTries[key] || 0) + 1; UI.docTries[key] = n;
+    const wait = Math.min(30000, 1000 * 2 ** Math.min(n, 5));
+    UI.docWait[key] = Date.now() + wait;
+    setTimeout(() => { if (!UI.docs[key]) { UI.docsVer++; render(); } }, wait + 50);   // drawn again then: the part that wants it asks again
+    return null;
+  }
+  delete UI.docTries[key]; delete UI.docWait[key];                                  // a good answer: the next failure starts again at 2 s
   UI.docsVer++;                                                                     // something new arrived
   render();                                                                         // drawn with it
   return UI.docs[key];                                                              // for callers that wait
@@ -236,7 +278,7 @@ const KIND = { role: "Employment", project: "Project", education: "Education", s
   award: "Award", certificate: "Certificate", other: "Other", card: "Overview", highlight: "Key project", layer: "Stack",
   competency: "Strength", about: "About me", motivation: "Motivation", typed: "Typed by you", profile: "Profile" };
 const STAGE = { preparing: "Preparing", submitted: "Submitted", interview: "Interview", result: "Result" };  // the tracker's columns
-const RATING = { strong: "Strong", weak: "Weak", none: "None" };                    // how well a posting line is covered
+const RATING = { strong: "Met", weak: "In part", none: "Not met" };                 // how well a posting line is covered: the words Insights uses
 const RATING_CLS = { strong: "rate strong", weak: "rate weak", none: "rate none", draft: "ai" };   // its lamp: met, in part, not met, as the figures colour them
 const CATEGORY = { posting: "Posting lines", resume: "Resume lines", portfolio: "Portfolio pages", term: "Terms", behavioral: "Behavioral",  // the question map's kinds
   company: "Company", opening: "Opening", scenario: "Scenarios", technical: "Technical questions" };
@@ -305,7 +347,8 @@ function errorText(e) {                                                         
   if (/^blind_leak:(\d+)/.test(what)) return tn(what.split(":")[1], "{n} pattern of your table still shows in the blind edition, so nothing was exported. Add it to what the table covers and make the PDFs again.",   // a covered name in a PDF's text, title or link
     "{n} patterns of your table still show in the blind edition, so nothing was exported. Add them to what the table covers and make the PDFs again.");
   if (/^blind_pattern:\w+:\d+$/.test(what)) { const [, list, n] = what.split(":"); return t("Pattern {n} of {list} in that table cannot be used. Fix it and pick the file again.", { n, list }); }   // the first pattern Python or JavaScript would read otherwise
-  const words = { busy: t("Offerowl is answering many requests at once. Try again in a moment."),   // still busy after two tries
+  if (what === "busy" && e.status === 503) return t("Offerowl is answering many requests at once. Try again in a moment.");   // every slot still taken after two tries (src/ownport.py)
+  const words = {
     posting: t("Paste the whole posting: it is too short to read."), bad_link: t("That link cannot be read. Paste the posting's text instead."),
     unreachable: t("The page did not answer. Paste the posting's text instead."), not_text: t("That link is not a web page. Paste the posting's text instead."),
     empty: t("That page has no text Offerowl can read. Paste the posting's text instead."), too_large: t("That page is too large. Paste the posting's text instead."),
@@ -318,8 +361,13 @@ function errorText(e) {                                                         
     material_changed: t("This file changed after you added it, so no copy was made."), material: t("That file is no longer in the list. Open the job again."),
     removed: t("That was put back or deleted already. The list shows how things are now."), busy: t("Wait until the work in progress ends, then try again."),
     delete_failed: t("Some of its files could not be deleted: another program may have them open. Close it and try again."),
-    blind_table: t("That file is not a mask table."), blind_unread: t("The blind edition's text could not be read, so nothing was exported. Make the PDFs again.") };
-  return words[what] || errorInfo(e.message === "bad_request" ? "unexpected" : e.message).msg;  // a known refusal, else the general words
+    blind_table: t("That file is not a mask table."), blind_unread: t("The blind edition's text could not be read, so nothing was exported. Make the PDFs again."),
+    no_files: t("Add your old resume, portfolio or notes first: there is nothing yet to make the documents from."),
+    too_many: t("This application holds as many as it can keep. Remove an old one first."),
+    job: t("That application is not there any more. It may be in the Trash.") };
+  if (words[what]) return words[what];                                              // a known refusal
+  if (e.status >= 400 && e.status < 500 && what !== "bad_request") return t("That could not be done. Open the page again and try once more.");   // a refusal with no words of its own: never "a problem on this PC"
+  return errorInfo(e.message === "bad_request" ? "unexpected" : e.message).msg;    // the general words
 }
 
 // ---------------------------------------------------------------- small shared pieces
@@ -382,7 +430,7 @@ function placeToast(el) {                                                       
   const bar = document.querySelector("#top .bar-in");                              // the sticky bar
   if (!bar) return;
   if (!matchMedia("(min-width: 861px)").matches) return stepAside(el, bar, ".brand, .brand-ver, .bar-in > .barchip, .barpop, .actions, .views");   // a phone's bar scrolls away: its note is a band across the window's top (skin.css)
-  const keys = [...bar.children].filter((x) => x.matches(".barchip, .ask-fab, .barpop, .actions") && x.getBoundingClientRect().width);   // the bar's own keys, at its right (the Ask the AI box among them)
+  const keys = [...bar.children].filter((x) => x.matches(".barchip, .barpop, .actions") && x.getBoundingClientRect().width);   // the bar's own keys, at its right
   const mark = bar.querySelector(".brand-ver") || bar.querySelector(".brand");     // the wordmark and its version, at its left
   if (!keys.length || !mark) return;
   const k = keys[0].getBoundingClientRect(), m = mark.getBoundingClientRect();
@@ -405,7 +453,7 @@ function placeToast(el) {                                                       
   }
   el.style.setProperty("--toast-right", `${Math.round(document.documentElement.clientWidth - (room[0] + room[1]) / 2 - wid / 2)}px`);   // centred in its room, as Sidenote's notes stand
   el.style.setProperty("--toast-top", `${Math.max(4, Math.round(k.top + k.height / 2 - hgt / 2))}px`);   // its middle on the keys' row, never above the window
-  stepAside(el, bar, ".views, .jobpick, .saved, .bar-in > .barchip, .bar-in > .ask-fab, .barpop");   // the views whole, a run's chip, the Ask the AI box: a note never lies across them
+  stepAside(el, bar, ".views, .jobpick, .saved, .bar-in > .barchip, .barpop");    // the views whole, and a run's chip: a note never lies across them
 }
 function stepAside(el, bar, what) {                                                 // what of the bar the note lies over steps aside while it shows (its glass would show it blurred)
   const t = { left: el.offsetLeft, top: el.offsetTop, right: el.offsetLeft + el.offsetWidth, bottom: el.offsetTop + el.offsetHeight };   // where it comes to rest (laid out now), not where its slide in has it
@@ -414,6 +462,16 @@ function stepAside(el, bar, what) {                                             
     if (r.width && r.right > t.left - 6 && r.left < t.right + 6 && r.bottom > t.top && r.top < t.bottom) x.classList.add("under-toast");
   }
 }
+function toastWords(text) {                                                         // "what happened: about what", as Sidenote's notes say it: the first part in bold, the rest plain
+  const s = String(text || ""); let cut = -1, sep = "", depth = 0;                  // where the first part ends, outside brackets ("(CUDA error: out of memory)" is the reason, not the end)
+  for (let i = 0; i < s.length && cut < 0; i++) {
+    const c = s[i];
+    if (c === "(" || c === "[") depth++;
+    else if ((c === ")" || c === "]") && depth) depth--;
+    else if (!depth && (s.startsWith(": ", i) || s.startsWith(" · ", i))) { cut = i; sep = s.startsWith(": ", i) ? ": " : " · "; }
+  }
+  return cut < 0 ? [h("b", { text: s })] : [h("b", { text: s.slice(0, cut) }), " " + s.slice(cut + sep.length)];   // set as text, never as HTML
+}
 function toast(text, key, kind) {                                                   // a short note in the bar (at the top on a phone); key {words, run, icon}: one key in it (Undo)
   const el = $("toast");                                                            // the one toast
   clearTimeout(toast.tm);                                                           // the newest note decides how long
@@ -421,8 +479,8 @@ function toast(text, key, kind) {                                               
   const k = kind || (key ? "done" : "info");                                        // what kind of note: done (it can be undone), warn (it held back), bad (it failed), or info
   el.dataset.kind = k;                                                              // its mark's colour (skin.css)
   fill(el, h("span", { class: "toast-mark", "aria-hidden": "true" }, icon({ done: "check", bad: "alert", warn: "alert" }[k] || "info")),   // the kind at a glance, its words say the rest
-    h("span", { class: "toast-w", text }),                                          // the words, as text
-    key ? h("button", { class: "btn small toast-key", type: "button", onclick: () => { clearTimeout(toast.tm); hide(); key.run(); } }, icon(key.icon || "undo"), key.words) : null);
+    h("span", { class: "toast-w" }, toastWords(text)),                              // what happened in bold, then about what
+    key ? h("button", { class: "btn small toast-key", type: "button", onclick: () => { clearTimeout(toast.tm); hide(); key.run(); } }, key.words) : null);   // a key in the note's colour, its words alone (as Sidenote's)
   el.classList.toggle("keyed", !!key);                                              // a note with a key takes clicks (skin.css); the others let them through
   placeToast(el);                                                                   // inside the bar on a wide window, at the foot on a phone
   el.classList.add("show");                                                         // shown
@@ -582,6 +640,26 @@ function isoTime(text) {                                                        
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 const shortDay = (day) => String(day || "").slice(5, 10);                           // 2026-11-09 as 11-09: a month and a day on a card or an axis
+// a job in one line of words: its company, and when another job has the same company (two roles at one firm), its role
+// too, so a timeline, a "next" line or a chart's row says which of the two it is
+function jobName(j) {
+  if (!j) return "";                                                                 // nothing to name
+  const name = j.company || j.role || j.id;                                         // as cards name it
+  return j.company && j.role && (S.jobs || []).some((o) => o.id !== j.id && o.company === j.company) ? `${j.company} · ${j.role}` : name;
+}
+const jobNameOf = (id, fallback = "") => jobName((S.jobs || []).find((j) => j.id === id)) || fallback;   // by its id, as a row from the server carries it
+// a file name that may wrap at its own joins (Resume_JinGu_Kang.pdf breaks after an underscore, never before its last letter):
+// the text with a break chance after each _ - and before the extension's dot; a part longer than a line still wraps anywhere
+const fileWords = (name) => String(name || "").split(/(?<=[_-])|(?=\.[^.]+$)/).flatMap((part, i) => (i ? [h("wbr"), part] : [part]));
+// a row that slides sideways says which way more of it lies: its edge fades on that side, so a word cut at the edge reads
+// as the row going on, not as a word cut short
+function edgeFade(row) {
+  const more = row.scrollWidth - row.clientWidth;                                   // how far it can slide
+  row.classList.toggle("fade-l", more > 1 && row.scrollLeft > 1);
+  row.classList.toggle("fade-r", more > 1 && row.scrollLeft < more - 1);
+  if (!row.fadeOn) { row.fadeOn = true; row.addEventListener("scroll", () => edgeFade(row), { passive: true }); }   // kept as it slides
+}
+const hourOf = (at) => (String(at || "").match(/[T ](\d{2}:\d{2})/) || ["", ""])[1];   // 2026-11-09 14:32 (or T14:32:05) as 14:32; "" for a day alone
 const pad2 = (n) => String(n).padStart(2, "0");
 const dayTime = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;   // a Date as 2026-11-10 04:37, this PC's time
 function pickField(kind, attrs, value, onValue) {                                   // a day or a time typed the panel's way, or picked from the browser's own

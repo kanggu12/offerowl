@@ -58,8 +58,7 @@ function drawPractice() {  // the practice pane for the current view
   const busy = PR.view === "busy";  // waiting for the server
   const head = `<div class="pr-head"><h2>${esc(fmt("practice_title"))}</h2>` +
     `<span class="pr-clock" title="${esc(fmt("pr_session_t"))}"><span class="lb">${esc(fmt("pr_session_t"))}</span> <b id="prSession">${PR.t0 ? clock(Date.now() - PR.t0) : "0:00"}</b></span>` +
-    `<span class="pr-clock" title="${esc(fmt("pr_answer_t"))}"><span class="lb">${esc(fmt("pr_answer_t"))}</span> <b id="prAnswer">${PR.tq && PR.view === "ask" ? clock(Date.now() - PR.tq) : "0:00"}</b></span></div>` +
-    `<p class="pr-note">${esc(fmt("pr_note"))}</p>`;  // the title, the two clocks and what the microphone does
+    `<span class="pr-clock" title="${esc(fmt("pr_answer_t"))}"><span class="lb">${esc(fmt("pr_answer_t"))}</span> <b id="prAnswer">${PR.tq && PR.view === "ask" ? clock(Date.now() - PR.tq) : "0:00"}</b></span></div>`;  // the title and the two clocks
   let body = "";  // the part that changes with the view
   if (PR.error && !PR.setup) body = `<div class="pr-card"><p>${esc(PR.error)}</p></div>`;  // no server: say why
   else if (!PR.setup) body = `<div class="pr-card"><p class="pr-dim">${esc(fmt("pr_loading"))}</p></div>`;  // still asking
@@ -73,13 +72,18 @@ function drawPractice() {  // the practice pane for the current view
   if (PR.view === "ask") { const t = $("#prText"); if (t && !PR.rec) t.focus({ preventScroll: true }); }  // ready to type
 }
 
+const PR_NAMES = { "claude-code": "Claude Code", codex: "Codex" };  // the agents by the names their makers give them
+function prWho(id) {  // who asked a session's questions, in words: an agent by its name, never its setting's id
+  return id === "fixed" ? fmt("pr_fixed") : id === "openai-compat" ? fmt("pr_local") : PR_NAMES[id] || id || "";
+}
+
 function prSetupHtml() {  // the choices before a session
   const s = PR.setup;  // what the server offers
-  const who = s.agent ? fmt("pr_agent", { name: s.agent }) : fmt("pr_fixed");  // who asks the questions
+  const who = s.agent ? fmt("pr_agent", { name: prWho(s.agent) }) : fmt("pr_fixed");  // who asks the questions, by its name
   const kinds = s.kinds.map((k) => `<button type="button" data-kind="${esc(k)}" class="${PR.kinds.includes(k) ? "on" : ""}">${esc(fmt("kind_" + k))}</button>`).join("");  // one toggle per kind
   const counts = PR_COUNTS.map((n) => `<button type="button" data-count="${n}" class="${PR.count === n ? "on" : ""}">${n}</button>`).join("");  // the session lengths
   const agent = s.agent ? `<label class="pr-sw"><input type="checkbox" id="prAgent"${PR.useAgent ? " checked" : ""}> ${esc(who)}</label>` : `<span class="pr-dim">${esc(fmt("pr_no_agent"))}</span>`;  // the agent switch, or why there is none
-  const hist = (s.history || []).length ? `<h3>${esc(fmt("pr_history"))}</h3><table class="pr-hist">${s.history.map((h) => `<tr><td>${esc(String(h.started || "").replace("T", " ").slice(0, 16))}</td><td>${esc(h.interviewer || "")}</td><td>${esc(prSumLine(h.summary))}</td></tr>`).join("")}</table>` : "";  // earlier sessions on this PC
+  const hist = (s.history || []).length ? `<h3>${esc(fmt("pr_history"))}</h3><table class="pr-hist">${s.history.map((h) => `<tr><td>${esc(String(h.started || "").replace("T", " ").slice(0, 16))}</td><td>${esc(prWho(h.interviewer))}</td><td>${esc(prSumLine(h.summary))}</td></tr>`).join("")}</table>` : "";  // earlier sessions on this PC
   return `<div class="pr-card pr-setup">` +
     `<div class="pr-row"><span class="pr-lab">${esc(fmt("pr_interviewer"))}</span>${agent}</div>` +
     `<div class="pr-row"><span class="pr-lab">${esc(fmt("pr_count"))}</span><div class="seg" id="prCounts">${counts}</div></div>` +

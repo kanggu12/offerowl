@@ -48,18 +48,19 @@ async function droppedFiles(dt, kinds = READABLE, keep = wanted) {              
   return out;                                                                       // filtered again by makeFrom
 }
 async function sendFiles(files) {                                                   // the files into the workspace, one request each; their ids
-  const ids = [];                                                                   // the new materials
+  const ids = [], missed = [];                                                      // the new materials, and the files that did not get in
   UI.sending = { done: 0, total: files.length }; render();                          // the sheet says how far
   for (const f of files) {                                                          // in order
     try {
-      const r = await fetch("/api/v1/materials", { method: "POST", body: f,         // the raw file and its own name
-        headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(f.name) } });
+      const r = await postFile("/api/v1/materials", f);                             // the raw file and its own name, asked again while the server is busy
       const j = await r.json().catch(() => ({}));                                   // a refused upload may not answer with JSON
       if (r.ok && j.material) ids.push(...(j.materials || [j.material]).map((m) => m.id));   // kept; a zip gives several
-    } catch (_) { /* the server stopped: the band says so */ }
+      else missed.push(f.name);                                                     // refused, or the server still busy after two tries
+    } catch (_) { missed.push(f.name); }                                            // the server stopped: the band says so too
     UI.sending.done++; $("canvas")._key = null; render();                           // one more
   }
   UI.sending = null;                                                                // done
+  if (missed.length) toast(tn(missed.length, "{n} file could not be added: {names}", "{n} files could not be added: {names}", { names: missed.slice(0, 3).join(", ") + (missed.length > 3 ? ` +${missed.length - 3}` : "") }), null, "warn");   // never left out unsaid
   return ids;                                                                       // for the run
 }
 function postingParts(text) {                                                       // a posting as the person gave it: a link, or its words
@@ -148,12 +149,12 @@ function heroCard() {                                                           
       jobs.length ? stageBar(jobs, { compact: true }) : h("span", { text: t("None yet") }),   // every application by stage, its words and numbers beside it
       ahead.length || next ? h("b", { text: t("Next") }) : null,
       ahead.length ? h("span", { class: "agenda" }, ahead.map(({ j, r }) => h("button", { class: "next", type: "button", onclick: () => goJob(j, "progress"),   // each round ahead opens its application
-        text: `${whenWords(r.at)} ${j.company || j.id}, ${t(ROUND_KIND[r.kind] || "Other round")}` })))
+        text: `${whenWords(r.at)} ${jobName(j)}, ${t(ROUND_KIND[r.kind] || "Other round")}` })))
       : next ? h("span", {}, linksIn(next.next).length                              // the next step's links open where they stand; its company opens the application
           ? h("span", { class: "next-line" }, h("button", { class: "next", type: "button", onclick: () => goJob(next, next.stage === "interview" ? "interview" : "progress"),
-              text: next.company || next.id }), ", ", linked(next.next))
+              text: jobName(next) }), ", ", linked(next.next))
           : h("button", { class: "next", type: "button", onclick: () => goJob(next, next.stage === "interview" ? "interview" : "progress"),
-              text: `${next.company || next.id}, ${next.next}` }), untilWords(next) ? h("span", { class: "until", "data-until-job": next.id, text: untilWords(next) })
+              text: `${jobName(next)}, ${next.next}` }), untilWords(next) ? h("span", { class: "until", "data-until-job": next.id, text: untilWords(next) })
         : isPast(next) ? h("button", { class: "until past", type: "button", onclick: () => goJob(next, "progress"), text: t("Passed, write the result") }) : null) : null,   // how long until it, kept current (untilWords)
       made ? h("b", { text: t("Latest documents") }) : null,
       made ? h("span", {}, `${made.name}, ${made.lang === "en" ? t("English") : t("Korean")}, `, h("span", { class: "nowrap", text: made.at })) : null));   // its day and time never broken
@@ -251,10 +252,13 @@ function chainCard() {                                                          
   }
   const docs = per.r + per.d + per.c;                                               // the PDFs made so far
   const open = () => { const want = jid || GENERAL; if (S.job !== want) { S.job = want; act("/api/v1/jobs/select", { job: want }); } go("documents"); };   // that edition, on its canvas
-  const step = (kind, ic, n, label, body, where, bad) => h("button", { class: "pipe-step" + (n > 0 ? " has" : "") + (bad ? " bad" : ""), "data-kind": kind, type: "button",
+  const step = (kind, ic, n, label, body, where, bad, of) => h("button", { class: "pipe-step" + (n > 0 ? " has" : "") + (bad ? " bad" : ""), "data-kind": kind, type: "button",
     onclick: () => (typeof where === "function" ? where() : go(where)) },
-    h("span", { class: "ps-head" }, h("span", { class: "ps-icon", "aria-hidden": "true" }, icon(ic)), h("span", { class: "ps-label", text: label }), h("b", { class: "ps-n", text: String(n) })),
+    h("span", { class: "ps-head" }, h("span", { class: "ps-icon", "aria-hidden": "true" }, icon(ic)),
+      h("span", { class: "ps-label" }, label, of ? h("small", { class: "ps-of", text: of }) : null), h("b", { class: "ps-n", text: String(n) })),   // what is counted, and of which edition when it is one
     body);
+  const bandName = !jid || jid === GENERAL ? t("General edition")                   // the sentences counted are this edition's: said, as the count changes with it
+    : ((S.editions || []).find((e) => e.id === jid) || {}).name || jobNameOf(jid, t("General edition"));   // a named edition by its name, a job by its company
   const top = Object.entries(kinds).filter(([k]) => KIND[k] && KIND[k] !== "Other").sort((a, b) => b[1] - a[1]);   // the kinds with a name, the most first: split as Profile splits them
   const rest = Object.values(kinds).reduce((s, v) => s + v, 0) - top.slice(0, 5).reduce((s, [, v]) => s + v, 0);   // every other fact, the unnamed kinds with them: one "Other"
   return h("section", { class: "card chain pipe", "aria-label": t("From your sources to your documents") },
@@ -269,7 +273,7 @@ function chainCard() {                                                          
     step("sentences", "edit", c.sentences || 0, tn(c.sentences || 0, "Sentence", "Sentences"),
       // while a run writes, a sentence without evidence yet is one still being checked: grey, not the red of a stopped one
       c.sentences ? segBar([{ n: c.sentences - (c.unsupported || 0), words: t("With evidence"), color: "var(--violet-bar)" }, { n: c.unsupported || 0, words: t("Without evidence"), color: writing ? "var(--ink-3)" : "var(--red-bar)" }],
-        { label: t("Sentences"), id: "chain-ev", compact: true }) : h("p", { class: "ps-none", text: t("Each sentence cites its facts.") }), open, c.unsupported > 0 && !writing),
+        { label: t("Sentences"), id: "chain-ev", compact: true }) : h("p", { class: "ps-none", text: t("Each sentence cites its facts.") }), open, c.unsupported > 0 && !writing, bandName),
     step("documents", "file", docs, tn(docs, "Document", "Documents"),
       docs ? h("div", { class: "ps-docs" }, segBar([["r", t("Resume"), 100], ["d", t("Portfolio deck"), 66], ["c", t("Cover letter"), 40]].map(([k, w, pc]) =>   // the documents by kind
         ({ n: per[k], words: w, color: `color-mix(in srgb, var(--aqua-bar) ${pc}%, var(--surface))` })), { label: t("Documents"), id: "chain-docs", compact: true }),
@@ -438,7 +442,7 @@ function resultCard(run) {                                                      
   const needs = asked.length ? ["name_missing", "email_missing"].filter((k) => asked.includes(k) || !String(det[k.replace("_missing", "")] || "").trim()) : [];   // and the other one when it is empty too, so one fix is enough
   const fix = needs.length && run === (S.runs || []).filter((x) => x.state === "done")[0] ? h("form", { class: "fixform", onsubmit: async (e) => {   // the missing fields, then the PDFs again
     e.preventDefault();
-    const fields = {}; for (const k of needs) fields[k.replace("_missing", "")] = String(UI.typed["mk-fix-" + k] || "").trim();
+    const fields = {}; for (const k of needs) { const box = e.target.querySelector(`[data-key="mk-fix-${k}"]`); fields[k.replace("_missing", "")] = String(box ? box.value : UI.typed["mk-fix-" + k] || "").trim(); }   // what the boxes show, a value filled in from the profile included
     if (Object.values(fields).some((v) => !v)) { toast(t("Fill in both.")); return; }
     await act("/api/v1/details", { fields }); forget("mk-fix-");
     await act("/api/v1/autopilot", { again: run.job, theme: UI.theme, max_pages: UI.maxPages }, t("Making the PDFs again."), "info");   // started, not done

@@ -211,7 +211,9 @@ class Router:
                 return 200, got, JSON
             if m.group(2) == "talk":  # the presentation interview: its brief, and the talk when it is made
                 return 200, a.tasks.talk_state(jid), JSON
-            job = next(j for j in a.jobs_view() if j["id"] == jid)  # its card with the summary
+            job = next((j for j in a.jobs_view() if j["id"] == jid), None)  # its card with the summary
+            if job is None:  # the general edition or a named one: an edition, not an application with a card
+                raise NotFound(path)
             return 200, {**job, "posting": (a.ws.job_dir(jid) / "posting.md").read_text(encoding="utf-8")}, JSON  # and the posting
         m = TALKSLIDE.match(path)  # one of the talk's slides as a picture
         if m:  # by its place among the talk's pictures, never a name from the request
@@ -310,11 +312,14 @@ class Router:
         if path == "/api/v1/history/undo":  # back to an earlier point of the history
             n = max(1, min(int(req.get("steps") or 1), 50)) if str(req.get("steps") or "1").isdigit() else 1  # 1 to 50 steps
             done = []  # the labels taken back
-            for _ in range(n):  # one step at a time
-                label = a.ws.undo()  # the newest step
-                if label is None:  # nothing left
-                    break  # stop
-                done.append(label)  # remembered
+            with a.ws.lock:  # the newest step is compared and the steps taken back in one go
+                if req.get("newest") is not None and str(req["newest"]) != a.ws.newest()[0]:  # a change came after the list the page drew
+                    return {"undone": [], "moved": True}  # nothing is taken back: n would now count that newer change too
+                for _ in range(n):  # one step at a time
+                    label = a.ws.undo()  # the newest step
+                    if label is None:  # nothing left
+                        break  # stop
+                    done.append(label)  # remembered
             if done:  # the profile follows
                 a.facts.rebuild()  # once
             return {"undone": done}  # what came back

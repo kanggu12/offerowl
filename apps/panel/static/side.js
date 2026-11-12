@@ -31,17 +31,17 @@ function inspEvidence() {                                                       
   const coverDoc = UI.doc === "cover";                                              // the cover letter has sentences and evidence of its own
   const m = coverDoc ? coverModel() : resumeModel();                                // the document in view (the deck prints the resume's sentences)
   if (coverDoc && !jobId()) return [h("div", { class: "ins-sec" }, h("h3", { text: t("A cover letter is written for one job") }))];   // the general edition has none
+  if (ownFileIn(edition(), UI.doc)) return [h("div", { class: "ins-sec" }, h("h3", { text: t("Your own file") }),   // a document the person made: no sentence of Offerowl's to trace (a letter brought in has no written state: asked first)
+    h("p", { class: "hint", text: t("This document is the file you brought in, shown and exported as it is. Evidence is shown for the editions Offerowl writes.") }))];
   if (coverDoc && m && m.state === "none") return [h("div", { class: "ins-sec" }, h("h3", { text: t("Evidence") }),   // nothing to count yet (the page beside says there is no letter)
     h("p", { class: "hint", text: t("Its sentences and the evidence of each show here once it is written.") }))];
   const counts = (m && m.counts) || {};                                             // its totals
   const rec = UI.sel ? sentenceOf(UI.sel) : null;                                   // the selected sentence
-  if (ownFileIn(edition(), UI.doc)) return [h("div", { class: "ins-sec" }, h("h3", { text: t("Your own file") }),   // a document the person made: no sentence of Offerowl's to trace
-    h("p", { class: "hint", text: t("This document is the file you brought in, shown and exported as it is. Evidence is shown for the editions Offerowl writes.") }))];
   const src = m && !coverDoc ? sourcesOf(m) : [];                                   // the document's sources (the resume's files; a letter cites facts sentence by sentence)
   const sources = src.length ? h("div", { class: "ins-sec" }, h("h3", { text: t("Sources of this document") }),   // what it was retrieved from
     // the files, each with a file sign (the numbers after the sentences count the facts they rest on, not these files)
     h("ol", { class: "srclist" }, src.map((x) => h("li", {}, h("span", { class: "srcn", "aria-hidden": "true" }, icon(x.typed ? "edit" : "file", 13)),
-      h("span", { class: "nm", text: x.file }), h("span", { class: "hint", text: tn(x.n, "{n} sentence", "{n} sentences") }))))) : null;
+      h("span", { class: "nm", title: x.file }, fileWords(x.file)), h("span", { class: "hint", text: tn(x.n, "{n} sentence", "{n} sentences") }))))) : null;
   if (!rec) return [sources, h("div", { class: "ins-sec" }, h("h3", { text: t("Click a sentence to see its evidence") })),
     m && m.draft && m.draft.counts && m.draft.at ? h("div", { class: "ins-sec" }, h("p", { class: "hint", text: t("Written by the agent on {at}: {n} texts, {r} rewritten after a check stopped them, {d} dropped.", { at: m.draft.at, n: m.draft.counts.written || 0, r: m.draft.counts.rewritten || 0, d: m.draft.counts.dropped || 0 }) }),
       agentOn() && edition() ? h("div", {}, h("button", { class: "btn small", onclick: () => writeResume(edition().id), text: t("Write it again") })) : null) : null,
@@ -123,7 +123,7 @@ function inspFit() {                                                            
   if (!j) return [h("div", { class: "ins-sec" }, h("h3", { text: t("No job in view") }), h("p", { class: "hint", text: t("Add a job to see how your profile fits its posting, line by line.") }),
     h("div", {}, h("button", { class: "btn small", onclick: () => go("jobs"), text: t("Add a job") })))];
   const f = fitOf(j.id);                                                            // its fit
-  if (!f) return [h("p", { class: "hint", text: t("Working out the fit…") })];      // loading
+  if (!f || f.error) return [h("p", { class: "hint", text: t("Working out the fit…") })];   // loading, or refused for now
   return [h("div", { class: "ins-sec" }, h("h3", { text: j.company || j.role || j.id }),
     h("span", { class: "num", "aria-label": t("Fit {n} of 100", { n: f.score }) }, String(f.score), h("small", { text: " / 100" })),
     segBar(["strong", "weak", "none"].map((k) => ({ n: f.counts[k] || 0, words: t(RATING_WORD[k]), color: RATING_COLOR[k] })), { label: t("The posting's lines"), id: "ifit-" + j.id })),
@@ -132,14 +132,19 @@ function inspFit() {                                                            
     h("div", { class: "ev-actions" }, h("button", { class: "btn small", onclick: () => { openApplication(j.id, "fit"); go("jobs"); }, text: t("See every line") }),
       h("button", { class: "btn small", onclick: () => makeForJob(j.id), disabled: task("autopilot").state === "running" || null, text: t("Make this job's documents") }))];
 }
-const RATING_COUNT = { strong: "{n} strong", weak: "{n} weak", none: "{n} none" };  // the fit's counts, each a sentence of its own
+const RATING_COUNT = { strong: "{n} met", weak: "{n} in part", none: "{n} not met" };   // the fit's counts, each a sentence of its own
+const withKid = (el, kid) => { if (kid) el.append(kid); return el; };            // a section with one more line at its foot, when there is one
+function builtPages() {                                                            // the limit the PDF on screen was made with, said when it differs from the choice above
+  const ed = edition(), b = ed && ed.builds && ed.builds[docLang()], n = b && Number(b.maxPages);
+  return n && n !== UI.maxPages ? h("p", { class: "hint", text: t("The PDF on screen was made with at most {n} pages.", { n }) }) : null;
+}
 function setDoc(key, value, store) { UI[key] = value; localStore(store, String(value)); render(); }  // a document setting, kept in this browser
 function inspStyle() {                                                              // the documents' language, length and parts
   const seg = (label, key, store, options, now = UI[key]) => h("div", { class: "ins-sec" }, h("h3", { text: t(label) }), h("div", { class: "seg" }, options.map(([v, w]) =>
     h("button", { "aria-pressed": now === v ? "true" : "false", onclick: () => setDoc(key, v, store), text: t(w) }))));   // pressed: the value in force, chosen or not
   const rulesNow = (S.settings && S.settings.style) || "default";                   // the writing rules in use
   const rules = h("div", { class: "ins-sec" }, h("h3", { text: t("Writing rules") }),  // the style pack every sentence is written and checked by
-    (S.styles || []).length ? h("div", { class: "seg" }, [["default", t("Offerowl's own")], ...(S.styles || []).map((n) => [n, n])].map(([k, w]) =>
+    (S.styles || []).length ? h("div", { class: "seg" }, [["default", t("Offerowl's own")], ...(S.styles || []).map((n) => [n, n === "mine" ? t("My rules") : n])].map(([k, w]) =>   // a pack added without a name is kept as "mine": said in words
       h("button", { "aria-pressed": rulesNow === k ? "true" : "false", onclick: () => act("/api/v1/settings", { style: k }), text: w })))
       : h("dl", { class: "kv" }, h("dt", { text: t("In use") }), h("dd", { text: t("Offerowl's own") })),   // one set of rules: said, as the blind table's is, not a choice of one
     h("button", { class: "btn small", onclick: () => $("stylepick").click() }, icon("upload"), t("Add your own rules")),   // a JSON file of rules
@@ -154,7 +159,7 @@ function inspStyle() {                                                          
     bl.own ? h("button", { class: "btn small", onclick: () => act("/api/v1/blind", { table: null }, t("Offerowl's own table is in use again.")), text: t("Use Offerowl's own") }) : null,   // back to the shipped one
     h("p", { class: "hint", text: t("The names, contacts and figures a blind edition covers with bars, as patterns in a JSON file. It is kept in your workspace on this PC.") }));
   return [rules, blind, seg("Document language", "docLang", "offerowl-doclang", [["ko", "Korean"], ["en", "English"]], docLang()),   // the language shown, even before one is chosen
-    seg("Pages at most", "maxPages", "offerowl-maxpages", [[2, "2 pages"], [3, "3 pages"], [4, "4 pages"], [5, "5 pages"], [6, "6 pages"], [7, "7 pages"]]),   // a long career's description runs to six, in English to seven
+    withKid(seg("Pages at most", "maxPages", "offerowl-maxpages", [[2, "2 pages"], [3, "3 pages"], [4, "4 pages"], [5, "5 pages"], [6, "6 pages"], [7, "7 pages"]]), builtPages()),   // a long career's description runs to six, in English to seven; the PDF on screen's own limit under it when it differs
     h("div", { class: "ins-sec" }, h("h3", { text: t("Tailoring makes") }),
       h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-cover", checked: UI.cover, onchange: (e) => setDoc("cover", e.target.checked, "offerowl-cover") }), h("span", { class: "track" }), t("The cover letter")),
       h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-typeset", checked: UI.typeset, disabled: !!S.engine || null, onchange: (e) => setDoc("typeset", e.target.checked, "offerowl-typeset") }), h("span", { class: "track" }), t("The PDFs too")),
@@ -197,8 +202,13 @@ function inspHistory() {                                                        
     h("div", { class: "hist" }, rows.map((r) => h("button", { onclick: async () => {   // asked first on the panel's own sheet: there is no redo
       if (await askFirst({ title: tn(r.to + 1, "Undo {n} change?", "Undo {n} changes?"), ok: t("Undo"),
         text: r.to ? t("Everything from \"{what}\" to the newest change is taken back.", { what: r.w }) : t("\"{what}\" is taken back.", { what: r.w }) }))
-        act("/api/v1/history/undo", { steps: r.to + 1 }, t("Undone.")); } },
+        histUndo(r.to + 1, steps[0].id); } },
       h("span", { text: r.n > 1 ? `${r.w} ×${r.n}` : r.w }), h("time", { text: r.t ? ago(r.t) : "" }))))];
+}
+async function histUndo(n, newest) {                                               // n steps back, only while the newest is still the one listed
+  const r = await act("/api/v1/history/undo", { steps: n, newest });              // the server compares the names under its lock
+  if (r) toast(r.moved ? t("A later change came first, so nothing was undone. The history lists both.")
+    : r.undone && r.undone.length ? t("Undone.") : t("Nothing to undo."), null, r.moved ? "warn" : r.undone && r.undone.length ? "done" : "info");   // as a note's Undo says it
 }
 function undoLabel(l) {                                                             // an undo step in words
   const x = l || {}, what = x.title || x.company || "";                             // the name it carries; a thing deleted for good leaves none

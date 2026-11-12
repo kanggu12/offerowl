@@ -271,6 +271,21 @@ function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
 }
 // <<< engine:groups
 
+  // ---------------------------------------------------------------- the sections' names on the keys
+  const REF_NAME = { stories: t("Your stories"), english: t("English phrases") };  // the kit's reference files by what they hold (a raw file name read as a section)
+  const refName = (g) => REF_NAME[String(g.name).replace(/\.md$/, "")] || g.name;
+  // a section's key in a few words: "Phone screen: career, motive, terms" says "Phone screen"; when several sections open with
+  // the same words ("Projects: Acme search, ranking", "Projects: Globex billing (SRE, …)"), each says the first thing after its colon
+  const headOf = (name) => { const m = String(name).match(/^(?:[A-Z]\.\s+)?(.{2,24}?):\s+(.*)$/); return m ? { head: m[1], tail: m[2] } : null; };
+  const HEADS = new Map(); GROUPS.forEach((g) => { const x = headOf(g.name); if (x) HEADS.set(x.head, (HEADS.get(x.head) || 0) + 1); });
+  function keyLabel(g) {                                                            // a section's key: its letter and a few words; its hover keeps the whole name
+    if (isRef(g)) return esc(refName(g));
+    const m = g.name.match(/^([A-Z])\.\s+(.*)$/); if (!m) return esc(g.name);
+    const x = headOf(g.name);
+    const words = SHORT[m[1]] || (!x ? m[2] : HEADS.get(x.head) > 1 ? x.tail.split(/,\s|\s\(/)[0] : x.head);
+    return `<span class="k">${m[1]}</span>${esc(words)}`;
+  }
+
   // ---------------------------------------------------------------- the parts, in the panel's own components
   const sw = DATA && DATA.model ? h("button", { class: "switch", type: "button", role: "switch", "aria-checked": "false", "aria-label": fmt("engine_title") }) : null;   // the similarity switch, when the server has a model
   const lamp = sw ? h("span", { class: "lit off", "aria-hidden": "true" }) : null;  // its lamp: off, loading, on, or out of reach
@@ -300,6 +315,9 @@ function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
       prefsKey),
     prefsRow, elMenu, elMain);
   const narrow = () => root.clientWidth > 0 && root.clientWidth <= 700;             // a phone, or a narrow column: one column of answers that scrolls down
+  // measured once per draw, first, before anything is written: read again after the board was emptied or a class changed, the
+  // width made the browser lay out the whole old board (300 ms of a question, measured)
+  let narrowNow = false;
 
   // ---------------------------------------------------------------- similarity half (the job's kit server)
   let dense = null;                                                                 // {q, map: id -> [score, label, text], med, max} for the last answered query
@@ -406,9 +424,12 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   }
   const HINT = KIT.weak_hint ? (typeof KIT.weak_hint === "string" ? KIT.weak_hint : KIT.weak_hint[STR.lang] || "") : "";   // the job's advice for questions without a script
   const WEAK_LINE = `<div class="kit-weak"><b>${esc(fmt("weak"))}</b>${HINT ? " " + esc(HINT) : ""}</div>`;   // said under the best card when nothing is close
+  let secStarts = new Set();                                                        // board positions whose card starts another section (an item number's board runs on past its section)
   function cardHtml(r, n) {                                                         // one item in full: header, then its script
     const it = ITEMS[r.i]; const best = n === 0 && mode === "search";
+    const g = secStarts.has(n) ? GROUP_OF.get(groupOf(it)) : null;                   // the section this card starts, said over it
     return `<article class="kit-card${best ? " best" : ""}" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}">` +
+      (g ? `<div class="kit-sec" data-c="${cat(isRef(g) ? letterOf(g) : g.name[0])}">${keyLabel(g)}</div>` : "") +
       `<div class="kit-ch" title="${esc(tip(r))}"><span class="kit-id id">${esc(it.id)}</span><span class="kit-t">${esc(it.tko)}</span>` +
       `${it.ten ? `<span class="kit-te">${esc(it.ten)}</span>` : ""}</div>` +
       `${best && weak ? WEAK_LINE : ""}<div class="kit-body">${render(it.md, !it.key)}</div></article>`;   // the scene only
@@ -427,45 +448,67 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const box = measurer(); box.innerHTML = `<div class="kit-block${whole ? " whole" : ""}" style="width:${width}px;--h:${height}px;--n:${n}">${html}</div>`;   // same title rule as on the board
     const c = box.querySelector(".kit-card"); return c.scrollWidth <= c.clientWidth + 1 && c.scrollHeight <= c.clientHeight + 1;   // the translation note can also run off the foot
   }
+  // card heights and block widths, kept across questions and keyed by everything that changes them: a card measured once at a
+  // width is not measured again (most of a question's 400 to 800 ms went to measuring the same cards again)
+  const measured = new Map();
   let board = [];                                                                   // the answers on the board, best first
   let boardOrder = [];                                                              // board positions in the order they were placed (reading order)
   let geo = { cw: 0, C: 1 };                                                        // column width and columns per screen of the last layout
-  function plan(el, cForce, cache) {                                                // place every board answer: short ones stack in a column, long ones take a block of columns
-    const W = el.clientWidth, H = el.clientHeight;
-    const C = cForce || Math.max(1, Math.floor((W + GAP) / (COLW * FSB + GAP)));    // columns on one screen
+  // Placing the board: short answers stack in a column, a long one takes a block of columns. The plan can stop after some
+  // columns and go on later: the first two screens are drawn at once and the rest a moment after, so a question shows its
+  // best answers without waiting for twenty more cards to be measured and laid out.
+  function planStart(cForce, cache, strict, W, H) {                                 // the plan's state, nothing placed yet
+    // columns on one screen: as many of the normal width (25 em) as fit, one more for narrow and one fewer for wide, so each
+    // choice changes the board (at 15 px, 25 and 29 em gave the same four)
+    const base = Math.max(1, Math.floor((W + GAP) / (25 * FSB + GAP)));
+    const C = cForce || (COLW === 22 ? base + 1 : COLW === 29 ? Math.max(1, base - 1) : base);
     const cw = Math.floor((W - (C - 1) * GAP) / C);                                 // a screen holds whole columns
-    const keyOf = (k) => board[k].i + "|" + cw + "|" + (k === 0);                   // measured once per item, width and lead position
+    const keyOf = (k) => [board[k].i, cw, lang, FSB, k === 0 && mode === "search" && weak ? "w" : "", secStarts.has(k) ? "s" : ""].join("|");   // what a card's size depends on
     const heightOf = (k) => { const key = keyOf(k); if (!cache.has(key)) cache.set(key, heightIn(cardHtml(board[k], k), cw)); return cache.get(key); };
-    const slots = []; const order = []; let cur = null; let used = 0;               // columns taken so far
-    const queue = board.map((_, k) => k);                                           // board positions not placed yet
+    return { H, C, cw, cache, strict, keyOf, heightOf, slots: [], order: [], cur: null, used: 0, queue: board.map((_, k) => k) };
+  }
+  function planRun(st, upto) {                                                      // place cards until `upto` columns are taken or the board ends
+    const { H, C, cw, cache, strict, keyOf, heightOf, slots, order, queue } = st;
+    // the cards this run will likely place, measured in one off-screen pass: one layout for all of them (a card at a time laid
+    // the box out once per card)
+    const todo = queue.slice(0, upto === Infinity ? queue.length : upto * 3 + 4).filter((k) => !cache.has(keyOf(k)));
+    if (todo.length > 1) {
+      const box = measurer(); box.innerHTML = todo.map((k) => `<div class="kit-slot" style="width:${cw}px">${cardHtml(board[k], k)}</div>`).join("");
+      const cards = box.querySelectorAll(".kit-slot > .kit-card"); todo.forEach((k, j) => cache.set(keyOf(k), cards[j].offsetHeight));
+    }
     const fillColumn = () => {                                                      // the room left at the foot of this column takes one of the next few short answers
-      for (let more = true; more && cur;) {
+      if (strict) return;                                                           // a section's own order: the card after this one never comes before it
+      for (let more = true; more && st.cur;) {
         more = false;
-        for (let i = 0; i < Math.min(4, queue.length); i++) {
+        for (let i = 0; i < Math.min(8, queue.length); i++) {                       // the next eight: a column's foot left empty under a short card was the most of a screen's blank
           const j = queue[i], hj = heightOf(j);
-          if (hj <= H && cur.used + VGAP + hj <= H) { cur.items.push(j); cur.used += VGAP + hj; order.push(j); queue.splice(i, 1); more = true; break; }
+          if (hj <= H && st.cur.used + VGAP + hj <= H) { st.cur.items.push(j); st.cur.used += VGAP + hj; order.push(j); queue.splice(i, 1); more = true; break; }
         }
       }
     };
-    while (queue.length) {
+    while (queue.length && st.used < upto) {
       const k = queue.shift(); const hk = heightOf(k);
-      if (hk <= H && cur && cur.used + VGAP + hk <= H) { cur.items.push(k); cur.used += VGAP + hk; order.push(k); continue; }
+      if (hk <= H && st.cur && st.cur.used + VGAP + hk <= H) { st.cur.items.push(k); st.cur.used += VGAP + hk; order.push(k); continue; }
       fillColumn();
-      if (hk <= H) { cur = { kind: "col", items: [k], used: hk }; slots.push(cur); used += 1; order.push(k); continue; }
-      const nkey = "n|" + keyOf(k); let n = cache.get(nkey);                        // a long answer: the fewest inner columns that hold it at full height
+      if (hk <= H) { st.cur = { kind: "col", items: [k], used: hk }; slots.push(st.cur); st.used += 1; order.push(k); continue; }
+      const nkey = "n|" + H + "|" + keyOf(k); let n = cache.get(nkey);              // a long answer: the fewest inner columns that hold it at full height
       if (n === undefined) { n = Math.max(2, Math.ceil(hk / H)); const html = cardHtml(board[k], k); while (n < 60 && !fitsBlock(html, n * cw + (n - 1) * GAP, n, H, n <= C)) n++; cache.set(nkey, n); }
-      const left = (C - (used % C)) % C;                                            // columns left on this screen
-      if (left > 0 && left < n) {                                                   // the card would run off this screen: give the rest of the screen to short answers, so it starts a screen
+      const left = (C - (st.used % C)) % C;                                         // columns left on this screen
+      if (left > 0 && left < n && !strict) {                                        // the card would run off this screen: give the rest of the screen to short answers, so it starts a screen (a section's own order runs on across the screens instead)
         for (let c = 0; c < left; c++) {
           const i = queue.findIndex((j, idx) => idx < 8 && heightOf(j) <= H); if (i < 0) break;
-          const j = queue.splice(i, 1)[0]; cur = { kind: "col", items: [j], used: heightOf(j) }; slots.push(cur); used += 1; order.push(j);
+          const j = queue.splice(i, 1)[0]; st.cur = { kind: "col", items: [j], used: heightOf(j) }; slots.push(st.cur); st.used += 1; order.push(j);
           fillColumn();
         }
       }
-      slots.push({ kind: "block", items: [k], n }); used += n; order.push(k); cur = null;
+      slots.push({ kind: "block", items: [k], n }); st.used += n; order.push(k); st.cur = null;
     }
-    return { slots, order, cw, C };
+    if (queue.length) { fillColumn(); st.cur = null; }                              // stopped: the last column takes what fits now, and the next run starts a column of its own
+    return st;
   }
+  const slotHtml = (sl, st) => (sl.kind === "block"                                 // one placed column or block, as the board draws it
+    ? `<div class="kit-block${sl.n <= st.C ? " whole" : ""}" style="width:${sl.n * st.cw + (sl.n - 1) * GAP}px;--n:${sl.n}">${cardHtml(board[sl.items[0]], sl.items[0])}</div>`
+    : `<div class="kit-slot" style="width:${st.cw}px">${sl.items.map((k) => cardHtml(board[k], k)).join("")}</div>`);
   function layoutNarrow(el) {                                                       // a narrow view: every answer in one column, in rank order, and the page scrolls
     el.className = "kit-cards phone lang-" + lang;
     el.innerHTML = board.map((r, k) => cardHtml(r, k)).join("");                    // no measuring: the column grows with the cards
@@ -473,41 +516,70 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     boardOrder = board.map((_, k) => k);
   }
   let lastTop = -1;                                                                 // the top answer last drawn, so the rise does not replay for the same answer
+  let tRest = 0;                                                                    // the board's later screens, placed after the first two are on screen
   function layout() {                                                               // the board for the current results, scrolled to its start
-    const el = elCards; el.className = "kit-cards lang-" + lang; el.style.overflowY = "";
+    clearTimeout(tRest);                                                            // the last board's later screens are not wanted any more
+    const el = elCards; el.innerHTML = ""; el.className = "kit-cards lang-" + lang; el.style.overflowY = "";   // the old board goes first: measuring the room under it laid the old board out again
+    const asked = mode === "search" && !BY_ID_LC.has(current.toLowerCase());        // a question, ranked
     if (!results.length) {                                                          // nothing matched: the script for questions without a script
       const k = KIT.fallback ? BY_ID.get(KIT.fallback) : undefined; board = k === undefined ? [] : [{ i: k, score: 0, kn: 0, dn: 0, sim: null, why: null }];   // the kit's "what to say when you do not know" item
-    } else if (mode === "search" && !BY_ID_LC.has(current.toLowerCase())) board = results.slice(0, BOARD_MAX);   // a question: the best answers first, more screens to the right
-    else {                                                                          // a section or an item number: the whole section, then the items that follow it in the files
+    } else if (asked) board = results.slice(0, BOARD_MAX);                          // a question: the best answers first, more screens to the right
+    else if (mode === "group") board = results;                                     // a section from its key: that section, in its own order, and nothing of the next
+    else {                                                                          // an item number: its section, then the items that follow it in the files
       const last = Math.max(...results.map((r) => r.i));
       board = results.concat(ITEMS.slice(last + 1, last + 21).map((_, j) => ({ i: last + 1 + j, score: 0, kn: 0, dn: 0, sim: null, why: null }))).slice(0, 60);
     }
-    if (narrow()) { layoutNarrow(el); drawRank(); return; }                         // a narrow view scrolls down instead of sliding sideways
-    if (!el.clientWidth || !el.clientHeight) return;                                // not laid out (the view is off the page): drawn when it is back
-    const cache = new Map(); const cols = (q) => q.slots.reduce((a, x) => a + (x.kind === "block" ? x.n : 1), 0);   // columns a plan takes
-    let p = plan(el, 0, cache);
-    const c0 = p.C;                                                                 // nothing more to show: fewer, wider columns until the answers fill them (never wider than about 1.7 columns)
-    for (let i = 0; i < 5 && cols(p) < p.C; i++) { const c2 = Math.max(cols(p), Math.ceil(c0 * 0.6)); if (c2 === p.C) break; p = plan(el, c2, cache); }
+    secStarts = new Set();                                                          // where a board read in the files' order enters another section, said on that card
+    if (!asked) board.forEach((r, k) => { if (k && groupOf(ITEMS[r.i]) !== groupOf(ITEMS[board[k - 1].i])) secStarts.add(k); });
+    if (narrowNow) { layoutNarrow(el); drawRank(); return; }                        // a narrow view scrolls down instead of sliding sideways
+    const W = el.clientWidth, H = el.clientHeight;                                  // the room, measured on an empty board
+    if (!W || !H) return;                                                           // not laid out (the view is off the page): drawn when it is back (attached)
+    if (measured.size > 4000) measured.clear();                                     // a long session: the oldest sizes go
+    const cache = measured; const cols = (q) => q.slots.reduce((a, x) => a + (x.kind === "block" ? x.n : 1), 0);   // columns a plan takes
+    const strict = !asked;                                                          // a section or an item number reads in the files' order
+    let p = planRun(planStart(0, cache, strict, W, H), 0);                          // the plan's frame: its columns per screen
+    p = planRun(p, 2 * p.C);                                                        // the first two screens now
+    if (!p.queue.length) {                                                          // the whole board fitted: fewer, wider columns until the answers fill them (never wider than about 1.7 columns)
+      const c0 = p.C;
+      for (let i = 0; i < 5 && cols(p) < p.C; i++) { const c2 = Math.max(cols(p), Math.ceil(c0 * 0.6)); if (c2 === p.C) break; p = planRun(planStart(c2, cache, strict, W, H), Infinity); }
+    }
     geo = { cw: p.cw, C: p.C }; boardOrder = p.order;
-    el.innerHTML = p.slots.map((s) => s.kind === "block"
-      ? `<div class="kit-block${s.n <= p.C ? " whole" : ""}" style="width:${s.n * p.cw + (s.n - 1) * GAP}px;--n:${s.n}">${cardHtml(board[s.items[0]], s.items[0])}</div>`
-      : `<div class="kit-slot" style="width:${p.cw}px">${s.items.map((k) => cardHtml(board[k], k)).join("")}</div>`).join("");
+    el.innerHTML = p.slots.map((sl) => slotHtml(sl, p)).join("");
     if (measureBox) measureBox.innerHTML = "";                                      // nothing left off-screen
+    if (p.queue.length) {                                                           // the later screens, a moment after the first two are on screen
+      const placed = p.slots.length, run = board;
+      tRest = setTimeout(() => {
+        if (gone || board !== run) return;                                          // another question came meanwhile
+        planRun(p, Infinity);
+        const tmp = h("div"); tmp.innerHTML = p.slots.slice(placed).map((sl) => slotHtml(sl, p)).join("");
+        const added = [...tmp.children]; el.append(...added);
+        if (measureBox) measureBox.innerHTML = "";
+        if (words.length) added.forEach((x) => x.querySelectorAll(".kit-card").forEach((c) => markQuery(c, words)));
+        boardOrder = p.order; drawRank(); markVisible();
+      }, 0);
+    }
     if (words.length) el.querySelectorAll(".kit-card").forEach((c) => markQuery(c, words));   // underlines only; sizes do not change
     el.style.scrollBehavior = "auto"; el.scrollLeft = 0; el.style.scrollBehavior = ""; keepLeft = 0;
     const topNow = board.length ? board[0].i : -1;                                  // the rise plays only when the top answer changes
     if (topNow !== lastTop) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); lastTop = topNow; }   // a short rise for the new answers
     drawRank(); markVisible();
+    lastW = el.clientWidth; lastH = el.clientHeight;                                // fitted to this room: the watcher below need not fit it again (the side list's coming narrowed it, and the board was drawn twice)
   }
   function drawRank() {                                                             // the side list: every answer on the board in reading order; the ones on screen are marked
     const el = elRank;
-    el.innerHTML = boardOrder.map((k) => {
-      const it = ITEMS[board[k].i];
+    const rowOf = (k) => { const it = ITEMS[board[k].i];
       return `<button type="button" class="kit-row" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}" title="${esc(tip(board[k]))}">` +
-        `<span class="kit-id">${esc(it.id)}</span><span class="kit-t">${esc(it.tko)}</span></button>`;
-    }).join("");
-    const rows = el.querySelectorAll(".kit-row");                                   // drop whole rows from the end until the list fits; never a cut-off line
-    for (let k = rows.length - 1; k >= 0 && el.clientHeight && el.scrollHeight > el.clientHeight + 1; k--) rows[k].remove();
+        `<span class="kit-id">${esc(it.id)}</span><span class="kit-t">${esc(it.tko)}</span></button>`; };
+    el.innerHTML = boardOrder.map(rowOf).join("");
+    if (!el.clientHeight || el.scrollHeight <= el.clientHeight + 1) return;         // it all fits (one layout)
+    // whole rows only, never a cut-off line, and the last place says how many more there are; it goes to the first of them.
+    // Every row's foot is read once and the list written once (a row taken off at a time laid the list out again each time)
+    const top = el.getBoundingClientRect().top + el.clientTop, room = el.clientHeight - parseFloat(getComputedStyle(el).paddingBottom || "0");
+    const rows = [...el.children], foot = rows.map((r) => r.getBoundingClientRect().bottom - top), lineH = rows[0] ? rows[0].offsetHeight : 28;
+    let keep = rows.length; while (keep > 0 && foot[keep - 1] + lineH > room) keep--;   // room for the count's own line under the rows kept
+    const more = boardOrder.length - keep, first = ITEMS[board[boardOrder[keep]].i];
+    el.innerHTML = boardOrder.slice(0, keep).map(rowOf).join("") +
+      `<button type="button" class="kit-row kit-more" data-id="${esc(first.id)}">${esc(t("and {n} more", { n: more }))}</button>`;
   }
   function markVisible() {                                                          // mark the side rows whose cards are on screen
     const el = elCards; const a = el.scrollLeft, b = a + el.clientWidth;
@@ -518,7 +590,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   function drawToc() {                                                              // the contents: every item with its full title; in a small view the largest groups fold into one row each until it all fits
     const el = elCards; el.className = "kit-cards tocv"; el.style.overflow = "";
     root.classList.remove("short");                                                 // measured against the whole screenful first
-    if (narrow()) { tocHtml(el, new Set()); return; }                               // a narrow view: one column of every group, and the page scrolls
+    if (narrowNow) { tocHtml(el, new Set()); return; }                              // a narrow view: one column of every group, and the page scrolls
     if (!el.clientWidth || !el.clientHeight) { tocHtml(el, new Set()); return; }    // not laid out yet: every group, fitted when the view is on the page
     const folded = new Set();                                                       // script groups shown as one row instead of their items
     const openGroups = () => GROUPS.filter((g) => !isRow(g) && !isRef(g) && !folded.has(g.name)).sort((a, b) => b.items.length - a.items.length);
@@ -527,19 +599,37 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     fitToc();
     const toc = el.querySelector(".kit-toc");                                       // a small kit: the view ends where its contents end, with no empty screen under them
     if (toc && toc.offsetHeight < (el.clientHeight - 4) * 0.7) { toc.style.setProperty("--row-pad", ".28em"); root.classList.add("short"); }
+    lastW = el.clientWidth; lastH = el.clientHeight;                                // fitted to this room: not fitted again for the same room
   }
   function tocHtml(el, folded) {                                                    // the contents boxes: open groups with their items, then the folded groups as rows
     const title = (it, g) => it.tko.startsWith(g + ":") ? it.tko.slice(g.length + 1).trim() : it.tko;   // no heading repeated in its own rows
     const row = (g) => {                                                            // one row that opens a whole group
       const k = isRef(g) ? letterOf(g) : g.name[0];                                 // the letter its items start with
-      const short = SHORT[g.name[0]] || g.name;                                     // the section's short name
-      const label = g.role === "terms" ? fmt("toc_terms") : isRow(g) ? fmt("toc_deep", { name: short }) : isRef(g) ? g.name : short;
+      const hd = headOf(g.name), plain = g.name.replace(/^[A-Z]\.\s+/, "");        // its name without its letter (the row shows the letter)
+      const short = SHORT[g.name[0]] || (isRow(g) && hd ? hd.tail : plain);         // a deep dive's row says what follows its colon: "이력 {name}" doubled the heading's own words
+      const label = g.role === "terms" ? fmt("toc_terms") : isRow(g) ? fmt("toc_deep", { name: short }) : isRef(g) ? refName(g) : short;
       return `<button type="button" data-g="${esc(g.name)}" data-c="${cat(k)}"><span class="kit-id">${esc(k)}</span><span>${esc(fmt("toc_count", { name: label, n: g.items.length }))}</span></button>`;
     };
     el.innerHTML = `<div class="kit-toc">${tocBoxes(folded).map((b) => `<div class="kit-tg${(b.items || b.rows).length <= 12 ? " keep" : ""}"${b.items ? ` data-c="${cat(ITEMS[b.items[0]].id)}"` : ""}><h3>${esc(b.name)}</h3>` +
         (b.rows ? b.rows.map(row).join("")
           : b.items.map((i) => { const it = ITEMS[i]; return `<button type="button" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}"><span class="kit-id">${esc(it.id)}</span><span>${esc(title(it, b.name))}</span></button>`; }).join("")) +
         `</div>`).join("")}</div>`;
+  }
+  function headContinued(el) {                                                      // a section that runs on into the next column says its name again at that column's top (B11 started a column with no B above it)
+    const toc = el.querySelector(".kit-toc"); if (!toc) return;
+    const room = el.clientHeight - 4, added = [];
+    for (const box of toc.querySelectorAll(".kit-tg")) {
+      const parts = box.getClientRects(), head = box.querySelector("h3");             // one rectangle per column the box runs through
+      if (parts.length < 2 || !head) continue;
+      const rows = [...box.querySelectorAll(":scope > button")].map((b) => [b, b.getBoundingClientRect()]);
+      for (let f = 1; f < parts.length; f++) {
+        const at = rows.find(([, r]) => r.left >= parts[f].left - 1 && r.left < parts[f].right && r.top >= parts[f].top - 1);   // the first row in that column
+        if (!at) continue;
+        const again = document.createElement("h3"); again.className = "kit-cont"; again.setAttribute("aria-hidden", "true");   // said once to a screen reader, at the section's start
+        again.textContent = head.textContent; at[0].before(again); added.push(again);
+      }
+    }
+    if (added.length && toc.offsetHeight > room) added.forEach((x) => x.remove());   // no room for the names: the columns as they were
   }
   function tocBoxes(folded) {                                                       // one box per open script group; folded groups, deep dives and reference material become rows that open their section
     const out = [], fold = [], rows = [];
@@ -562,6 +652,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const set = tocSizer(el);
     const toc = el.querySelector(".kit-toc"); const room = el.clientHeight - 4;
     for (const colEm of TOC_COLS) if (set(colEm)) {                                 // it fits: spread the rows over the height instead of leaving the foot empty
+      headContinued(el);                                                            // first, with the rows tight: a section split between columns names itself again at the next one's top
       let lo = 0.16, hi = 0.5;                                                      // row padding in ems, capped: rows spread a little, never into a sparse list
       for (let k = 0; k < 7; k++) { const mid = (lo + hi) / 2; toc.style.setProperty("--row-pad", mid + "em"); if (toc.offsetHeight <= room) lo = mid; else hi = mid; }
       toc.style.setProperty("--row-pad", lo + "em");
@@ -570,16 +661,24 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     }
     set(15); el.style.overflowY = "auto";
   }
-  function drawMenu() {                                                             // the section keys, with the open section pressed
+  function drawMenu() {                                                             // the section keys in one row, with the open section pressed and in sight
     elMenu.innerHTML = GROUPS.map((g) => {
       const on = mode === "group" && groupName === g.name ? "true" : "false";
       return g.name === FIRST ? `<button type="button" class="btn small" data-g="${esc(g.name)}" aria-pressed="${on}" title="${esc(g.name)}">${esc(fmt("first_group_short"))}</button>`
-        : `<button type="button" class="btn small" data-g="${esc(g.name)}" data-c="${cat(isRef(g) ? letterOf(g) : g.name[0])}" aria-pressed="${on}" title="${esc(g.name)}">${menuLabel(g.name)}</button>`;
+        : `<button type="button" class="btn small" data-g="${esc(g.name)}" data-c="${cat(isRef(g) ? letterOf(g) : g.name[0])}" aria-pressed="${on}" title="${esc(isRef(g) ? refName(g) : g.name)}">${keyLabel(g)}</button>`;
     }).join("");
+    const on = elMenu.querySelector('[aria-pressed="true"]');                       // the row slides to the open section, never the page
+    requestAnimationFrame(() => {
+      if (on && (on.offsetLeft < elMenu.scrollLeft || on.offsetLeft + on.offsetWidth > elMenu.scrollLeft + elMenu.clientWidth)) elMenu.scrollLeft = on.offsetLeft - 8;
+      edgeFade(elMenu);                                                             // its edges say where more sections are
+    });
   }
   function show() {                                                                 // rank (or pick the group), then draw everything on one screen
+    narrowNow = narrow();                                                           // first, before anything is written
+    clearTimeout(tRest);                                                            // a board's later screens are not placed over the contents
+    if (mode !== "toc" && elCards.classList.contains("tocv")) elCards.innerHTML = "";   // the contents go before the board's classes come: laid out under them, the contents took 170 ms
     root.classList.toggle("browse", mode === "toc");                                // the contents take the whole width: no side list
-    root.classList.toggle("narrow", narrow());                                      // one column that scrolls down
+    root.classList.toggle("narrow", narrowNow);                                     // one column that scrolls down
     homeKey.setAttribute("aria-pressed", mode === "toc" ? "true" : "false");        // on the contents now
     drawMenu();
     if (mode === "toc") { results = []; words = []; elRank.innerHTML = ""; drawToc(); return; }
@@ -605,7 +704,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   }
   function pick(id) {                                                               // bring a card on the board into view and mark it for a moment
     const el = elCards; const c = [...el.querySelectorAll(".kit-card")].find((x) => x.dataset.id === id); if (!c) return;
-    if (narrow()) { c.scrollIntoView({ block: "start", behavior: "smooth" }); }     // the page scrolls to it
+    if (narrowNow) { c.scrollIntoView({ block: "start", behavior: "smooth" }); }    // the page scrolls to it
     else {
       const holder = c.parentElement; const x = holder.offsetLeft + (holder.classList.contains("kit-slot") || holder.classList.contains("kit-block") ? 0 : c.offsetLeft);
       const a = el.scrollLeft, b = a + el.clientWidth;
@@ -632,7 +731,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     qIn.value = q; qIn.dispatchEvent(new Event("input")); qIn.focus({ preventScroll: true });
   }
   function settle() {                                                               // the whole view on the screen, under the panel's bar: a question is read without scrolling
-    if (narrow() || !root.isConnected) return;                                      // a narrow view scrolls with the page
+    if (narrowNow || !root.isConnected) return;                                     // a narrow view scrolls with the page
     const barH = (document.getElementById("top") || { offsetHeight: 0 }).offsetHeight;   // the panel's bar stays above it
     const top = root.getBoundingClientRect().top, want = barH + 12;
     if (Math.abs(top - want) > 24) window.scrollTo({ top: Math.max(0, window.scrollY + top - want), behavior: "smooth" });
@@ -651,12 +750,16 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     if (BY_ID_LC.has(q.toLowerCase())) { show(); return; }                          // an item number needs no ranking
     if (engine !== "on") { tKey = setTimeout(() => { if (current === q) show(); }, 80); return; }   // the model is off: keywords only
     // Draw once, with both halves, when the server answers; keywords alone only if it is slow. One draw, no swap.
-    tDense = setTimeout(() => fetchDense(q), 350);
-    tKey = setTimeout(() => { if (current === q) show(); }, 600);
+    tDense = setTimeout(() => fetchDense(q), 220);                                  // a pause in the typing asks the server (each key would ask it again)
+    tKey = setTimeout(() => { if (current === q) show(); }, 420);
   });
   qIn.addEventListener("focus", settle);                                            // about to type a question: the board is brought whole onto the screen
   homeKey.addEventListener("click", goHome);
   elMenu.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) openGroup(b.dataset.g); });
+  elMenu.addEventListener("wheel", (e) => {                                          // a mouse's wheel slides the one row of sections
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || elMenu.scrollWidth <= elMenu.clientWidth + 1) return;
+    elMenu.scrollLeft += e.deltaY; e.preventDefault();
+  }, { passive: false });
   elRank.addEventListener("click", (e) => { const b = e.target.closest(".kit-row"); if (b) pick(b.dataset.id); });
   elCards.addEventListener("click", (e) => {
     const b = e.target.closest(".kit-tg button"); if (!b) return;                   // a contents entry
@@ -669,7 +772,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     prefsRow.querySelectorAll('[data-pref="fs"] button').forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.v) === FSB ? "true" : "false"));
     prefsRow.querySelectorAll('[data-pref="colw"] button').forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.v) === COLW ? "true" : "false"));
   }
-  function refit() { if (gone) return; root.classList.toggle("narrow", narrow()); if (mode === "toc") drawToc(); else layout(); }   // drawn again for the room there is
+  function refit() { if (gone) return; narrowNow = narrow(); root.classList.toggle("narrow", narrowNow); if (mode === "toc") drawToc(); else layout(); }   // drawn again for the room there is
   prefsRow.addEventListener("click", (e) => {                                       // remember a setting and redraw with it
     const b = e.target.closest("button"); if (!b) return;
     const name = b.parentElement.dataset.pref, v = Number(b.dataset.v);
@@ -682,7 +785,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   });
   let lastWheel = 0;                                                                // time of the last screen turned by the wheel
   elCards.addEventListener("wheel", (e) => {                                        // a vertical wheel turns the board a screen at a time
-    if (mode === "toc" || narrow() || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // the contents and a narrow view scroll as the page does
+    if (mode === "toc" || narrowNow || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // the contents and a narrow view scroll as the page does
     if (elCards.scrollWidth <= elCards.clientWidth + 1) return;                     // one screen of answers: the wheel is the page's
     e.preventDefault();
     const now = Date.now(); if (now - lastWheel < 420) return; lastWheel = now;
@@ -700,7 +803,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     if (e.key === "Enter" && inBox && current) {                                    // Enter: search now (after pasting a question)
       clearTimeout(tKey); clearTimeout(tDense); if (engine === "on") fetchDense(current); else show(); e.preventDefault(); return;
     }
-    if (["ArrowDown", "PageDown", "ArrowUp", "PageUp"].includes(e.key) && mode !== "toc" && !narrow()) { page(/Down/.test(e.key) ? 1 : -1); e.preventDefault(); return; }   // a narrow view scrolls by itself
+    if (["ArrowDown", "PageDown", "ArrowUp", "PageUp"].includes(e.key) && mode !== "toc" && !narrowNow) { page(/Down/.test(e.key) ? 1 : -1); e.preventDefault(); return; }   // a narrow view scrolls by itself
     if (e.key === "Escape") {                                                       // once: keep the answers and select the question so the next one replaces it; twice: back to the contents
       if (mode === "toc" && !qIn.value) return;                                     // nothing of the view's to leave: the panel's own Escape
       const now = Date.now();
@@ -718,7 +821,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     clearTimeout(tSize); tSize = setTimeout(refit, 120);
   }) : null;
   if (watch) watch.observe(elCards);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (root.isConnected) refit(); });   // fitted again once the fonts are in
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measured.clear(); if (root.isConnected) refit(); });   // fitted again once the fonts are in, measured again in them
 
   // ---------------------------------------------------------------- start
   langSeg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === lang ? "true" : "false"));   // remembered language
@@ -731,15 +834,17 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     search,                                                                         // put a question in the box and run it
     attached() {                                                                    // the panel drew itself again around the view: the board back where it stood
       if (gone) return;
-      if (elCards.clientWidth !== lastW || elCards.clientHeight !== lastH) { lastW = elCards.clientWidth; lastH = elCards.clientHeight; refit(); }
+      if (elCards.clientWidth !== lastW || elCards.clientHeight !== lastH || !elCards.childElementCount) { lastW = elCards.clientWidth; lastH = elCards.clientHeight; refit(); }   // another room, or a board emptied while the view was off the page
       else if (mode !== "toc" && keepLeft) { const left = keepLeft; elCards.style.scrollBehavior = "auto"; elCards.scrollLeft = left; elCards.style.scrollBehavior = ""; }
     },
     card(id) {                                                                      // one script as the board draws it, for practice's feedback (interview.js): in a box of the view's type and language
       const i = BY_ID.get(id); if (i === undefined) return null;                    // not a script of this kit
       const box = h("div", { class: "kit kit-one" }); box.style.setProperty("--kit-fs", FSB + "px");   // the hues and the type the view has
+      const starts = secStarts; secStarts = new Set();                              // a card alone starts no section
       box.innerHTML = `<div class="kit-cards phone lang-${lang}">${cardHtml({ i, score: 0, kn: 0, dn: 0, sim: null, why: null }, 1)}</div>`;   // escaped by the engine, as on the board
+      secStarts = starts;
       return box;
     },
-    destroy() { gone = true; clearTimeout(tHealth); clearTimeout(tKey); clearTimeout(tDense); clearTimeout(tSize); if (inflight) inflight.abort(); if (watch) watch.disconnect(); },
+    destroy() { gone = true; clearTimeout(tHealth); clearTimeout(tKey); clearTimeout(tDense); clearTimeout(tSize); clearTimeout(tRest); if (inflight) inflight.abort(); if (watch) watch.disconnect(); },
   };
 }

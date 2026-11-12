@@ -330,8 +330,14 @@ function jobForm() {                                                            
   return form;                                                                      // in the view
 }
 async function makeForJob(jid) {                                                    // the automatic run for a job already added, followed on Make
-  const r = await act("/api/v1/autopilot", { job: jid, theme: UI.theme, max_pages: UI.maxPages });  // its documents from the facts kept
-  if (r) { toast(t("Started. About {m} min, nothing to click until it ends.", { m: r.estimate.minutes })); go("make"); }  // where the run shows
+  if (UI.makingFor) return;                                                         // a second press while the first is on its way queues nothing
+  UI.makingFor = jid;                                                               // asked once
+  try {
+    const r = await act("/api/v1/autopilot", { job: jid, theme: UI.theme, max_pages: UI.maxPages });   // its documents from the facts kept
+    if (!r) return;                                                                 // refused: act said why
+    toast(r.queued ? t("It starts when the run in progress ends.") : r.started ? t("Started. About {m} min, nothing to click until it ends.", { m: r.estimate.minutes }) : t("It did not start. Try again."), null, r.queued || r.started ? "info" : "bad");   // as Make says it
+    if (r.queued || r.started) go("make");                                          // where the run shows
+  } finally { UI.makingFor = null; }
 }
 async function addJob(form) {                                                       // the form to the server
   const v = form.elements.posting.value.trim();                                     // the one box: a link or the posting
@@ -340,7 +346,7 @@ async function addJob(form) {                                                   
   if (r && r.job) { UI.adding = false; forget("j-"); openApplication(r.job, "fit"); }   // the new job opens on its fit (the server put it in view)
 }
 // ---------------------------------------------------------------- the application's own questions (apps/api/answers.py)
-const qCount = (text, unit) => (unit === "words" ? String(text || "").trim().split(/\s+/).filter(Boolean).length : String(text || "").trim().length);   // as the form counts
+const qCount = (text, unit) => (unit === "words" ? String(text || "").trim().split(/\s+/).filter(Boolean).length : [...String(text || "").trim()].length);   // as the form counts, and as the server does (apps/api/answers.py count): characters, not UTF-16 halves
 const qUnit = (q) => (q.unit === "words" ? t("words") : t("characters"));       // the limit's unit
 function issueWords(code) {                                                         // one problem of an answer, in words
   const [k, rest] = String(code).split(/:(.*)/s);                                   // its kind, and what it names
@@ -433,7 +439,7 @@ function jobDetail(j, phone) {                                                  
       : tab === "interview" ? interviewPart(j) : progressPart(j)));
 }
 function fitPart(j, f) {                                                            // the posting line by line: a row each, its evidence when opened
-  if (!f) return h("p", { class: "hint", text: t("Working out the fit…") });        // loading
+  if (!f || f.error) return h("p", { class: "hint", text: t("Working out the fit…") });   // loading, or refused for now (asked again with the next revision)
   if (!f.lines.length) return h("form", { class: "posting-again", onsubmit: async (e) => { e.preventDefault();   // no line found: the part with the duties pasted here, read again at once
       const box = e.target.elements.posting, v = box.value.trim();
       if (v.length < 20) { box.setCustomValidity(t("Paste the part of the posting with its duties and requirements.")); box.reportValidity(); return; }
@@ -453,7 +459,7 @@ function fitPart(j, f) {                                                        
     h("div", { class: "fit-tools" },
       h("div", { class: "seg", "aria-label": t("Show") }, [["all", t("All {n}", { n: f.lines.length })], ...["strong", "weak", "none"].map((k) => [k, t(RATING_COUNT[k], { n: f.counts[k] })])].map(([k, w]) =>
         h("button", { "aria-pressed": want === k ? "true" : "false", onclick: () => { UI.fitFilter = k; render(); } }, k !== "all" ? h("span", { class: "lit " + RATING_CLS[k], "aria-hidden": "true" }) : null, w))),
-      h("p", { class: "hint", text: t("Each line of the posting, rated by the evidence in your profile. Worked out on this PC by words; no agent is asked.") })),
+      sentLine(false, t("Each line of the posting, rated by the evidence in your profile. Worked out on this PC by words; no agent is asked."))),   // worked out here: the state as the other parts mark it, its sentence on the hover
     groups.map((g) => h("section", { class: "fl-group", "aria-label": g.sec || t("The posting, line by line") },
       g.sec ? h("h3", { class: "fl-sec", text: g.sec }) : null,
       h("ul", { class: "fl-rows" }, g.items.map(({ ln, i }) => fitLine(j, ln, i))))),
@@ -537,7 +543,7 @@ function speech(text) {                                                         
   return parts.length > 1 ? parts.map((p) => h("span", { class: "th" }, thought(p))) : thought(parts[0] || "");  // a line per thought
 }
 const JOB_TAB_ICON = { fit: "check", docs: "file", questions: "edit", interview: "chat", progress: "clock" };   // each tab of an application, its mark
-const RATING_WORD = { strong: "Strong", weak: "Weak", none: "None" };              // a rating in one word, for the figures' legends
+const RATING_WORD = { strong: "Met", weak: "In part", none: "Not met" };           // a rating in words, for the figures' legends (as Insights says it)
 const RATING_COLOR = { strong: "var(--met-strong)", weak: "var(--met-weak)", none: "var(--met-none)" };   // its colour, as its lamp
 const COVERAGE = { strong: "A script answers it", weak: "A script answers part of it", none: "No script yet", draft: "A draft by the agent answers it" };  // a question's lamp, in words
 const COVERAGE_CLS = { strong: "ok", weak: "warn", none: "off", draft: "ai" };     // its lamp: a question with no script yet is still to do, not stopped
@@ -557,7 +563,7 @@ function interviewPart(j) {                                                     
     !(b && b.ready) || part === "map" ? h("button", { class: "btn", onclick: () => { UI.scenesFor = j.id; $("scenepick").click(); } }, icon("upload"), t("Add scenes you wrote")) : null,   // scripts written before, in the kit's markdown
     practice && part !== "talk" && part !== "practice" ? h("button", { class: "btn primary", onclick: () => { UI.ivPart = "practice"; render(); } }, icon("mic"), t("Practice")) : null);   // the main key, last: the practice part
   const keys = keysFor(null);                                                        // before the kit: what can be added already
-  if (!b) return h("div", { class: "ivpart" }, keys, h("p", { class: "hint", text: t("Reading the interview kit…") }), materialsPart(j));   // loading; the materials need no kit
+  if (!b || b.error) return h("div", { class: "ivpart" }, keys, h("p", { class: "hint", text: t("Reading the interview kit…") }), materialsPart(j));   // loading, or refused for now (never read as "no kit"); the materials need no kit
   if (!b.ready && UI.ivPart === "talk") return h("div", { class: "ivpart" }, keys, talkPart(j), materialsPart(j));   // a talk needs no question map
   if (!b.ready) return h("div", { class: "ivpart" }, keys, h("div", { class: "empty glass" }, h("h3", { text: t("No interview kit for this job yet") }),
     h("p", { text: t("The question map comes from the posting and your resume, on this PC. Scripts are written by the agent.") }),
@@ -618,7 +624,6 @@ function materialsPart(j) {                                                     
     h("button", { class: "btn", type: "button", disabled: sending || null, onclick: () => { UI.matFor = j.id; $("matpick").click(); } }, icon("upload"), t("Choose files")));
   const sec = h("section", { class: "mats", "aria-label": t("Your materials") },
     h("div", { class: "card-h" }, h("h2", { class: "scripts-h", text: t("Your materials") }), list.length ? h("span", { class: "chip count", text: String(list.length) }) : null, sentLine(false)),
-    h("p", { class: "hint", text: t("Decks, notes, briefs and code you prepared for this job. Each one is kept as you added it.") }),
     zone,
     list.length ? h("ul", { class: "mat-rows", "aria-label": t("Your materials") },   // the files: the columns' names, then a row each
       h("li", { class: "mt head", "aria-hidden": "true" }, h("div", { class: "mt-row" }, h("span", { text: t("Name") }), h("span", { text: t("Kind") }),
@@ -701,8 +706,7 @@ async function addMaterials(jid, files) {                                       
   let added = 0;                                                                    // kept
   for (const f of take) {                                                           // in order
     try {
-      const r = await fetch(`/api/v1/jobs/materials?job=${enc(jid)}`, { method: "POST", body: f,   // the raw file and its own name, as every upload goes
-        headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(f.name) } });
+      const r = await postFile(`/api/v1/jobs/materials?job=${enc(jid)}`, f);        // the raw file and its own name, asked again while the server is busy
       const j = await r.json().catch(() => ({}));                                   // a refused upload may not answer with JSON
       if (r.ok) added++; else refused(f, j.error === "material_kind" ? "kind" : j.error === "empty" ? "empty" : r.status === 413 ? "large" : "");
     } catch (_) { refused(f, ""); }                                                 // the server stopped: the band says so
@@ -901,10 +905,10 @@ function trackTimeline() {                                                      
   const tl = [];                                                                    // from the jobs' dates and reminders
   for (const j of S.jobs) {                                                         // each job
     const days = j.days || j.dates || {};                                            // the days that count: none left from a move taken back (tracker.stage_days)
-    for (const r of j.rounds || []) tl.push({ at: r.at, kind: "round", st: "interview", job: j.id, name: j.company || j.role || j.id, text: t(ROUND_KIND[r.kind] || "Other round") });   // each interview round, on its day
-    for (const st of S.stages) if (days[st]) tl.push({ at: days[st], kind: "stage", st, job: j.id, name: j.company || j.role || j.id,
+    for (const r of j.rounds || []) tl.push({ at: r.at, kind: "round", st: "interview", job: j.id, name: jobName(j), text: t(ROUND_KIND[r.kind] || "Other round") });   // each interview round, on its day
+    for (const st of S.stages) if (days[st]) tl.push({ at: days[st], kind: "stage", st, job: j.id, name: jobName(j),
       text: st === "result" && j.result ? (RESULT[j.result] ? t(RESULT[j.result]) : ownWords(j.result, days[st])) : t(STAGE[st]) });   // the result says how it ended, in the person's words when they wrote them
-    for (const r of j.reminders || []) tl.push({ at: r.at, kind: "reminder", job: j.id, name: j.company || j.role || j.id, text: r.text, done: r.done,
+    for (const r of j.reminders || []) tl.push({ at: r.at, kind: "reminder", job: j.id, name: jobName(j), text: r.text, done: r.done,
       due: S.due.some((d) => d.job === j.id && d.id === r.id) });
   }
   tl.sort((a, b) => String(b.at).localeCompare(String(a.at)));                      // by date, what happened last on top
@@ -933,7 +937,7 @@ function roundsPart(j) {                                                        
     h("div", { class: "card-h" }, h("h3", { text: t("Interview rounds") }), sentLine(false),
       edit ? null : h("button", { class: "btn small", type: "button", onclick: () => { UI.roundEdit = { job: j.id, id: "new" }; render(); } }, icon("plus"), t("Add a round"))),
     rs.length ? h("ol", { class: "round-list" }, rs.map((r) => edit === r.id ? h("li", { class: "round editing" }, roundForm(j, r)) : roundRow(r, j))) : null,
-    !rs.length && edit !== "new" ? h("p", { class: "hint", text: t("After each call or interview, keep what was asked and how it went: the next round starts from it.") }) : null,
+    !rs.length && edit !== "new" ? h("p", { class: "hint", text: t("No round recorded yet.") }) : null,   // the state, in words
     edit === "new" ? roundForm(j, null) : null);
 }
 function roundRow(r, j) {                                                           // one round, read
@@ -979,7 +983,7 @@ function reminders(jobs, one) {                                                 
     const at = day + (time ? "T" + time : "");
     act("/api/v1/reminders", { job: one ? one.id : f.elements.job.value, at, text: f.elements.text.value }, t("Reminder kept.")).then((r) => { if (r) forget("r-text"); }); } },
     h("label", { class: "field" }, h("span", { text: t("What") }), h("input", { name: "text", "data-key": "r-text", placeholder: t("Reply to the invitation") })),
-    one ? null : h("label", { class: "field" }, h("span", { text: t("Job") }), h("select", { name: "job", "data-key": "r-job" }, jobs.map((j) => h("option", { value: j.id, selected: j.id === S.job || null, text: j.company || j.role || j.id })))),
+    one ? null : h("label", { class: "field" }, h("span", { text: t("Job") }), h("select", { name: "job", "data-key": "r-job" }, jobs.map((j) => h("option", { value: j.id, selected: j.id === S.job || null, text: jobName(j) })))),
     h("label", { class: "field" }, h("span", { text: t("Day") }), dayField({ name: "day", "data-key": "r-day" }, S.today)),
     h("label", { class: "field" }, h("span", { text: t("Time") }), timeField({ name: "time", "data-key": "r-time" }, "")),
     h("button", { class: one && one.stage === "result" ? "btn" : "btn primary", type: "submit", text: t("Remind me") }));   // an ended application's reminder is a plain key: nothing is due on it
@@ -992,7 +996,7 @@ function reminders(jobs, one) {                                                 
       perm === "granted" ? h("span", { class: "pill ok", text: t("Notifications are on") }) : null,
       h("a", { class: "btn small", href: "/api/v1/reminders.ics", download: "offerowl-reminders.ics", text: t("Add them to your calendar") })),
     jobs.some((j) => (j.reminders || []).length) ? h("div", { class: "rows" }, jobs.flatMap((j) => (j.reminders || []).map((r) => h("div", { class: "remrow" },
-      h("span", {}, one ? null : h("b", { text: (j.company || j.role || j.id) + " " }), linked(r.text), " ", h("span", { class: "when", text: String(r.at).replace("T", " ") })),
+      h("span", {}, one ? null : h("b", { text: jobName(j) + " " }), linked(r.text), " ", h("span", { class: "when", text: String(r.at).replace("T", " ") })),
       h("span", { class: "part-keys" }, h("button", { class: "btn small", "data-key": "rem-done-" + r.id, "aria-pressed": r.done ? "true" : "false", onclick: () => act("/api/v1/reminders", { job: j.id, id: r.id, done: !r.done }), text: r.done ? t("Done") : t("Mark done") }),
         h("button", { class: "btn small quiet danger", "data-key": "rem-remove-" + r.id, onclick: () => removeAct("/api/v1/reminders", { job: j.id, id: r.id, remove: true }, t("Reminder removed.")), text: t("Remove") })))))) : null);
 }

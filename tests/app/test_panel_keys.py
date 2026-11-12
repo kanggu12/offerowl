@@ -194,7 +194,7 @@ class PanelKeys(unittest.TestCase):
         p.set_viewport_size({"width": 1440, "height": 900})
         p.wait_for_timeout(700)
         p.evaluate("UI.ivPart = 'deck'; render()")  # the deck, drawn by the panel too
-        p.wait_for_selector("#canvas .ivdeck .deck-scene", timeout=60000)
+        p.wait_for_selector("#canvas .ivdeck .deck-page > *", timeout=60000)  # its first tab drawn (the posting's table, or the first part)
         self.assertEqual(0, p.evaluate("document.querySelectorAll('#canvas iframe').length"))
         p.evaluate("UI.ivPart = 'search'; render()")  # back to the scripts: the same view, the question still in its box
         p.wait_for_selector("#canvas .kit .kit-q", timeout=20000)

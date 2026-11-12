@@ -29,7 +29,7 @@ function drawBar(el) {                                                          
         h("img", { class: "logo-light", src: "/brand/logo-light.svg", alt: "" }), h("img", { class: "logo-dark", src: "/brand/logo-dark.svg", alt: "" })),
       S.version && S.version !== "0" ? h("span", { class: "brand-ver", title: t("Offerowl version {v}", { v: S.version }), text: "v" + S.version }) : null,   // the version, beside the wordmark
       views, pickJob, h("span", { class: "grow" }), h("span", { class: "saved", "aria-hidden": "true", text: t("Saved") }),
-      runChip(), typeof askKey === "function" ? askKey("top") : null, agentChip(),   // the box to ask the AI (ask.js), then the agent's lamp
+      runChip(), agentChip(),
       h("div", { class: "actions" },
         h("button", { class: "btn icon", id: "undo", disabled: !S.undo || null, title: S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."),
           "aria-label": S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."), onclick: undo }, icon("undo")),
@@ -127,7 +127,7 @@ async function restoreBackup(file) {                                            
     text: t("Your files are replaced by the backup's. The ones you have now are not deleted: they stay in a folder beside your workspace, listed in the Library's trash.") }))) return;
   let r;                                                                            // the answer
   try {
-    r = await fetch("/api/v1/workspace/restore", { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(file.name) } });  // the raw file
+    r = await postFile("/api/v1/workspace/restore", file);  // the raw file
   } catch (_) { toast(t("The backup could not be restored."), null, "bad"); return; }            // the server is gone: said, not silent
   const j = await r.json().catch(() => ({}));                                       // a refusal answers with its reason
   if (r.ok) {                                                                       // where the old files are, then the page reads the restored ones
@@ -160,7 +160,7 @@ function agentPanel() {                                                         
     h("span", { class: "mail", text: a.email || t("This PC's sign-in") }), h("span", { class: "how", text: [a.plan, a.backend === "codex" ? "Codex CLI" : a.backend === "openai-compat" ? t("Local model") : "Claude Code CLI"].filter(Boolean).join(", ") })) : null;
   const help = local && (a.state === "missing" || a.state === "signed_out") ? h("p", { class: "usage-none", style: "margin-top:8px",   // the address is the fix
       text: a.state === "missing" ? t("Set the local server's address in the settings menu.") : t("Nothing answers at the local server's address. Check it in the settings menu.") })
-    : a.state === "missing" ? h("p", { class: "usage-none", style: "margin-top:8px" }, t("Reading your files needs an AI agent such as Claude Code."), " ",
+    : a.state === "missing" ? h("p", { class: "usage-none", style: "margin-top:8px" }, t("Reading your files needs an AI agent such as Claude Code or Codex."), " ",
     a.install ? h("a", { href: a.install, target: "_blank", rel: "noopener", text: t("How to get {name}", { name }) }) : null)   // the chosen agent's own page, as the state names it
     : a.state === "signed_out" && !local ? h("p", { class: "usage-none", style: "margin-top:8px",   // signed out: what signing in is for, and where the agent is chosen
       text: t("Offerowl writes with the agent you are signed in to on this PC: sign in once, and it reads your files and writes from them. The settings menu chooses which agent.") })
@@ -213,7 +213,7 @@ function paneKey(name) {                                                        
   if (name === "insp") return JSON.stringify([...base, UI.view, UI.tab, UI.sel, UI.editing, UI.drawer, UI.docLang, UI.theme, S.settings, UI.maxPages, UI.cover, UI.typeset, S.job,
     UI.docsVer, S.engine, S.english, S.styles, task("regen:" + UI.sel)]);
   const framed = kitFramed();                                                       // a kit's page is in its frame
-  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.nextEdit, UI.jobTab, UI.ivPart, UI.ivWide, UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen,
+  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.nextEdit, UI.jobTab, UI.ivPart, UI.ivWide, UI.roundEdit, UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen,
     UI.matOpen, UI.matSending, UI.libGroup, UI.libOwner, UI.libQuery, UI.libPage, (S.jobs || []).map((j) => (j.materials || []).map((m) => m.id).join()),
     (S.jobs || []).map((j) => [j.id, j.stage, j.result, j.next]),                     // a card moved on the board, or its next step changed: drawn at once   // a job's materials: one added or taken off, one opened, an upload going
     // with a kit's frame up, a document fetched for another view (Insights arrives three seconds after the page) and a window
@@ -262,8 +262,8 @@ function restoreFocus(el, f) {                                                  
   if (!n) return false;                                                             // gone
   if (f.value !== undefined && /^(INPUT|TEXTAREA)$/.test(n.tagName) && n.value !== f.value) n.value = f.value;  // the words being typed stay
   n.focus({ preventScroll: true });                                                 // back
+  if (typeof f.start === "number" && n.setSelectionRange) try { n.setSelectionRange(f.start, f.end); } catch (_) { /* not a text field */ }   // the caret where it was, not at the end
   return true;
-  if (typeof f.start === "number" && n.setSelectionRange) try { n.setSelectionRange(f.start, f.end); } catch (_) { /* not a text field */ }
 }
 function render() {                                                                 // the whole page from S and UI
   if (!S) return;                                                                   // nothing yet
@@ -317,7 +317,7 @@ $("scenepick").addEventListener("change", async (e) => {                        
   let scenes = 0, refused = 0;                                                      // what came in
   for (const f of files) {                                                          // one request each
     try {
-      const r = await fetch(`/api/v1/interview/scenes?job=${enc(UI.scenesFor)}`, { method: "POST", body: f, headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(f.name) } });
+      const r = await postFile(`/api/v1/interview/scenes?job=${enc(UI.scenesFor)}`, f);
       const j = await r.json().catch(() => ({}));                                   // its answer
       if (r.ok) scenes += j.scenes || 0; else refused++;                            // counted
     } catch (_) { refused++; }
@@ -335,7 +335,7 @@ $("matpick").addEventListener("change", (e) => {                                
 async function questionsFromFile(jid, f) {                                          // read on the server (OCR for a picture), then added
   toast(t("Reading the questions..."));                                             // OCR takes a moment
   try {
-    const r = await fetch(`/api/v1/jobs/questions/file?job=${enc(jid)}`, { method: "POST", body: f, headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(f.name) } });
+    const r = await postFile(`/api/v1/jobs/questions/file?job=${enc(jid)}`, f);
     const j = await r.json().catch(() => ({}));                                     // its answer
     toast(r.ok ? tn(j.added, "{n} question added.", "{n} questions added.") : t("No question was found in it. Paste the form's questions as they appear."), null, r.ok ? "done" : "bad");
   } catch (_) { toast(t("No question was found in it. Paste the form's questions as they appear."), null, "bad"); }
@@ -344,7 +344,7 @@ async function questionsFromFile(jid, f) {                                      
 $("photopick").addEventListener("change", async (e) => {                         // the resume's photo
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;                 // one picture
   try {
-    const r = await fetch("/api/v1/photo", { method: "POST", body: f, headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(f.name) } });
+    const r = await postFile("/api/v1/photo", f);
     if (!r.ok) { toast(r.status === 413 ? t("That picture is too large.") : t("Use a JPEG or PNG photo."), null, "bad"); return; }   // refused
     toast(t("The photo goes on the resume."), null, "done"); refresh();                           // kept, and drawn
   } catch (_) { /* the server stopped: the band says so */ }

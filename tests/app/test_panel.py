@@ -188,7 +188,11 @@ class TestFirstRun(PanelCase):
         steps = self.get("/api/v1/history")["steps"]  # the history, newest first
         self.assertEqual(["undo_lock_sentence", "undo_lock_sentence"], [s["label"]["code"] for s in steps[:2]])  # the two locks are the newest changes
         before = len(steps)  # how many steps
-        out = self.post("/api/v1/history/undo", {"steps": 2})  # back two steps at once
+        out = self.post("/api/v1/history/undo", {"steps": 2, "newest": steps[1]["id"]})  # a page that listed the history before the second lock
+        self.assertTrue(out.get("moved"))  # a later change came first
+        self.assertEqual([], out["undone"])  # so nothing is taken back: two steps would now mean another two
+        self.assertEqual(before, len(self.get("/api/v1/history")["steps"]))  # the history as it was
+        out = self.post("/api/v1/history/undo", {"steps": 2, "newest": steps[0]["id"]})  # back two steps at once, from the list as it is
         self.assertEqual(2, len(out["undone"]))  # both taken back
         self.assertEqual(before - 2, len(self.get("/api/v1/history")["steps"]))  # gone from the history
         after = self.resume()["sentences"]  # the sentences now

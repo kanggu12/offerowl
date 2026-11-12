@@ -370,7 +370,7 @@ def main() -> int:  # 0 only when nothing was found
             w.wait("boardOf(S.job) && boardOf(S.job).scripts.length > 0")  # scripts on the board
             w.shoot("interview_scripts", scroll=".scripts")  # the script cards
             # the kit's contents and search, its deck and practice, each drawn by the panel itself (kit.js, interview.js) in every look and size
-            for part, ready in (("search", "#canvas .kit .kit-tg"), ("deck", "#canvas .ivdeck .deck-scene"), ("practice", "#canvas .ivprac .pr-setup")):
+            for part, ready in (("search", "#canvas .kit .kit-tg"), ("deck", "#canvas .ivdeck .deck-page > *"), ("practice", "#canvas .ivprac .pr-setup")):
                 page.evaluate(f"UI.ivPart = '{part}'; render()")  # the sub-tab, as its key sets it
                 w.wait(f"!!document.querySelector('{ready}')", timeout=120)  # its data read and drawn
                 w.shoot("interview_" + part, prep=drawn(ready))  # the part in the panel's own parts
@@ -379,6 +379,10 @@ def main() -> int:  # 0 only when nothing was found
                     w.wait("document.querySelectorAll('#canvas .kit .kit-card').length > 0", timeout=30)
                     w.shoot("interview_search_answers", prep=drawn("#canvas .kit .kit-card"))  # the question stays in its box through every switch
                     page.evaluate("document.querySelector('#canvas .kit .kit-home').click()")  # back to the contents
+                if part == "deck":  # a part of the deck from its tab: its scripts, the dialogue beside the notes, the next part's key at its foot
+                    page.evaluate("[...document.querySelectorAll('#canvas .ivdeck .dn-key')].find((b) => /^part-/.test(b.dataset.to)).click()")
+                    w.wait("!!document.querySelector('#canvas .ivdeck .deck-page .deck-scene')", timeout=30)
+                    w.shoot("interview_deck_part", prep=drawn("#canvas .ivdeck .deck-scene"))
             page.evaluate("document.querySelector('#canvas .ivprac .pr-setup .btn.primary').click()")  # a practice session: its first question
             w.wait("!!document.querySelector('#canvas .ivprac .pr-ask textarea:not([disabled])')", timeout=60)
             w.shoot("interview_practice_ask", prep=drawn("#canvas .ivprac .pr-ask textarea"))  # the question, the record key, the answer box
@@ -554,7 +558,7 @@ def main() -> int:  # 0 only when nothing was found
             page.click(".barchip"); w.settle()  # the agent's lamp opens its panel
             w.shoot("agent_panel")  # who, the model, what it takes on, the day's calls
             page.keyboard.press("Escape"); w.settle()  # closed
-            # ---- the command bar: "Ask the AI" in the top bar opens its sheet, with two asks of a fictional day and their answers, written
+            # ---- the command bar: "Ask the AI" at the window's bottom right opens its sheet, with two asks of a fictional day and their answers, written
             # the way apps/api/ask.py keeps them (a list, a table, the tools that ran)
             asked = [{"at": "2026-11-09 18:40", "text": "감마클라우드 1차 면접 끝났어. 결과는 다음 주에 알려 준대. 기록해 줘", "backend": "claude-code",
                       "answer": "감마클라우드 지원을 **1차 면접**으로 옮기고 오늘 회차를 남겼습니다.\n\n- 다음 단계: 결과 기다리기\n- 알림: 2026-11-16 결과 확인",
@@ -565,7 +569,7 @@ def main() -> int:  # 0 only when nothing was found
             (data / "workspace" / "ask").mkdir(parents=True, exist_ok=True)  # the history's folder, as the first ask makes it
             (data / "workspace" / "ask" / "history.json").write_text(json.dumps(asked, ensure_ascii=False), encoding="utf-8")
             page.evaluate("for (const k of Object.keys(UI.docs)) if (k.startsWith('ask|')) delete UI.docs[k]; UI.askKey = null; drawAsk()")  # read again on the next open
-            page.click("#top .ask-fab")  # opened from its box in the top bar, as a person does: Escape gives the focus back to it
+            page.click("#askbar .ask-fab")  # opened from the prompt at the window's bottom right (a phone: the bar along the foot), as a person does: Escape gives the focus back to it
             w.wait("document.querySelectorAll('#askpanel .ask-item').length === 2")  # both asks drawn
             w.shoot("ask_open")  # the sheet at the window's right edge (a phone: from the foot): the agent, its lamp, the asks, the box
             page.keyboard.press("Escape"); w.settle()  # closed back into its key, which takes the focus

@@ -55,7 +55,7 @@ The panel serves each job's interview kit at its own address, `/kit/<job>/` (the
     reminders), `resume/<lang>/` (the last edition: PDFs, DOCX, pages, checks, and `cover/` with the letter's draft),
     `interview/` (the kit: `kit.json`, the resume's text, the scene files), `materials/` (the files brought in for its
     interview, `index.json` with each one's name, kind, size, day and SHA-256 (one deleted for good leaves only its id),
-    `removed.json` and `removed_at.json` (what was removed, and the day), and `.preview/` with page pictures, which a
+    `removed.json` and `removed_at.json` (what was removed, and when: the day and the hour), and `.preview/` with page pictures, which a
     backup leaves out) and `submitted/<time>/`: exact copies and `hashes.json`, written by "Lock when submitted".
   - `out/interview/<job>/` holds the kit's question map, the questions the agent expects and its draft scripts, which join the search view at once.
   - `.history/` holds the undo steps (50 at most).
@@ -273,11 +273,12 @@ every dated step.
   use it: a poll of the panel, a window dragged wider or a visit to another part keeps the question typed and the board
   where it stood. **Wide view** gives the tab the whole width (the list of applications comes back with the back key) and
   **Open in a window** opens the panel on the scripts alone (`/?job=<id>&show=scripts`).
-- **Interview deck**: the deck as it prints, in the panel's parts: who it is for with its figures, a key per part, the
-  posting line by line with the script that answers each line and a lamp for how well (a script's key goes to it in the
-  deck, or to the search view when the deck does not print it), then each script once with the question as the interviewer
-  asks it, the dialogue beside its translation, the notes and the other questions it answers, and for an English interview
-  the lines that ask again and buy time. "Interview deck to print" opens the 16:9 pages to print ([the interview deck](INTERVIEW.md#the-interview-deck)).
+- **Interview deck**: the deck as it prints, in the panel's parts, a tab per part and one part on the page at a time: who it
+  is for with its figures, then the posting line by line with the script that answers each line and a lamp for how well (a
+  script's key opens its part and goes to it, or to the search view when the deck does not print it), each part's scripts
+  with the question as the interviewer asks it, the dialogue beside its translation, the notes and the other questions it
+  answers, and for an English interview the lines that ask again and buy time. The tabs stay under the bar while a part
+  scrolls, and a part ends with the next one's key. "Interview deck to print" opens the 16:9 pages to print ([the interview deck](INTERVIEW.md#the-interview-deck)).
 - The question board, on **Question map and scripts**: the question map by category (posting lines, resume lines, portfolio
   pages, terms, behavioral, company, opening, scenarios, technical questions), each question with a lamp for whether a script
   answers it.
@@ -362,9 +363,9 @@ phone, and the figures are drawn for the width they get.
 
 ### The command bar
 
-**Ask the AI**, a box in the top bar with its key at its end (on a phone or a tablet, a frosted bar along the foot of the
-screen, so it never lies over a card), or Ctrl+K (Cmd+K), opens a sheet flush with the window's right edge, from the top
-bar to the window's foot, where you write to the agent as you would in Claude Code: an interview's result to record, a
+**Ask the AI**, a prompt floating at the window's bottom right with its key at its end (on a phone or a tablet, a frosted
+bar along the foot of the screen), or Ctrl+K (Cmd+K), opens a sheet flush with the window's right edge, from the top bar
+to the window's foot, where you write to the agent as you would in Claude Code or Codex: an interview's result to record, a
 posting to make a resume for, a question about your applications. With no agent that can use the tools (Claude Code or
 Codex, on and signed in) the sheet says so before anything is typed, with a key to the agent's panel. The
 agent runs once, in an empty scratch folder, with Offerowl's MCP server pointed at the panel the ask came through

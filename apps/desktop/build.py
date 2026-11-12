@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:  # one command builds the app an
         args += ["--add-data", f"{runtime['node_modules']}{SEP}node_modules"]  # where src/ finds them: <engine folder>/node_modules
     for name in stdlib_imports([ROOT / "apps" / "panel", ROOT / "apps" / "api", ROOT / "core" / "schema", ROOT / "src"]) + HIDDEN:  # imports PyInstaller cannot trace, plus the tray
         args += ["--hidden-import", name]  # bundled even though no traced code imports it
-    if WINDOWS:  # no console window: the icon and the panel are the program's face; problems show in a message box
+    if WINDOWS:  # no console window: the icon and the panel are the program's face; a problem shows on a page of Offerowl's own in the browser (app.py tell)
         args += ["--windowed", "--icon", str(icon(WORK / "offerowl.ico"))]  # a windowed exe needs its own icon
     args.append(str(ROOT / "apps" / "desktop" / "__main__.py"))  # the entry point, last on the command line
     print(" ".join(args))  # the build log shows the exact command

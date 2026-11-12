@@ -6,6 +6,84 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-13
+
+What a look at the whole panel, and at the interview tab's scripts and deck above all, found after 0.8.0, with the AI
+prompt back where it was asked for.
+
+### Fixed
+
+- **Ask the AI** is a prompt floating at the window's bottom right again, as it was asked for, with its key at its end; 0.8.0
+  had moved it into the top bar. A page's end scrolls clear of it, and the search view's board ends above it.
+- The settings and the agent's panel stood 240 px short of a wide window's right edge: they dock at the window's edge, as
+  the request sheet does.
+- A toast now reads as Sidenote's note does: frosted glass at 42 %, one 38 px line in the top bar, the lead word in bold,
+  and its key tinted with the note's colour.
+- Words that named Claude Code alone name Claude Code or Codex (the request box, its empty sheet, reading your files).
+  Practice named its interviewer by its setting (`claude-code`): it says "Claude Code", "Codex" or "Local model", and so does
+  each session in its history. A request's steps are named in words ("Read the applications") instead of the tools' names.
+- The interview deck on a phone ran 223 px off the screen: the deck fits, the posting's table puts each line's script under
+  it, and the part keys slide in one row.
+- The interview deck ran to tens of screens in one page (52,000 px at 2560, 101,000 on a phone): it is a tab per part with
+  one part on the page, the tabs held under the bar as part of it while a part scrolls, each part ending with the next one's
+  key. A tab says its part in a few words ("Phone screen" for "Phone screen: career, motive, terms"). A line names
+  its speaker on the same line, as the printed deck does. A scene's dialogue runs on into the second column when it is the
+  longer half, so the notes' column is not left half empty. A posting line shown with a term's entry is never marked as
+  answered in full.
+- The search view's long cards left inner columns half empty: a long translation runs on into the next column with its
+  frame on both sides. With KO chosen, the Korean is the script itself at the body's size, not a grey note. A card uses
+  two type sizes, the one chosen and nine tenths of it.
+- A question in the search view drew all its answers before showing any: it draws the first two screens, then the rest.
+  Cards are measured together and kept measured between questions (at 1440 x 900 the median wait fell from 747 to 433 ms).
+- The sections' keys took three to five rows: they slide in one row, each in a few words, the reference files named by
+  what they hold ("Your stories", "English phrases"). A section opened from its key shows its own scripts in their own
+  order; an item number's board marks where the next section starts. The list beside the board says how many answers it
+  had no room for. Each column width choice changes the board, the wide view takes the window's width, and on a phone the
+  question box stays at the top while the answers scroll.
+- Practice fills the tab's width, without the line about the microphone.
+- The presentation's script said its draft note on every slide: it is said once at the top, with a tag on each such slide,
+  and a slide's picture is at most 400 px wide.
+- Undo from the History tab took back the listed steps even when a change came after the list was drawn, so the newest
+  change went too: the page names the newest step it listed, and nothing is undone when another came first.
+- A document asked for while the panel was busy or briefly unreachable stayed failed until the page was opened again: it
+  is asked again after 2, 4 and up to 30 seconds. An upload refused because the panel was busy is sent again once, and
+  the files that could not be added are named.
+- A busy panel's refusal, a missing job and other refusals say what happened in words. Opening the general edition's
+  card by its id returned an error page; it is a 404.
+- An answer's length counted a character outside the basic plane twice; it counts characters as the form and the server
+  do. Pressing a job's make key twice started two runs. A field's caret went to its start after a redraw.
+- The Library's and the Trash's row keys were icons only: they say Open, Export, Remove, Put back and Delete for good.
+  The Trash shows the hour a file went (several went on one day), and a page of either holds as many rows as the window.
+- Two applications at one company are told apart by role in the timeline, the reminders, the "next" line and Insights.
+- The wait from submission to interview took the upper of two middle values: it is their mean, with the number of waits.
+- A long file name broke before its last letter: it wraps at its underscores. A cover letter you brought in said no
+  letter was written; its evidence tab says it is your own file. The style tab says when the PDF on screen was made with
+  another page limit. The Make view names the edition its sentence count is of.
+- The fit's ratings read Met, In part and Not met, as Insights says them ("None" sat beside "1 source"). A submitted
+  application's state read as a command in Korean ("제출하고 잠금"): it reads "제출본, 잠김", and its Make PDFs key is gone
+  instead of greyed out. Guidance sentences on the fit, the materials, the rounds and the Trash gave way to the state
+  they describe.
+- The evidence quotes had an amber stripe at their side: a grey line, as a printed quote has.
+- On a phone the four stages and the fit's four choices stay in one row each, in their order, and the day fields take the
+  row (two to a row cut "YYYY-MM-DD"). The Library's Trash key takes its own row.
+- The applications' page scrolled 96 px past a list that already fitted the window.
+- The desktop app said that it could not start, or that its server kept stopping, in the system's grey message box: it
+  says so on a page of Offerowl's own look in the browser, with the end of the log and a key to the logs folder. On macOS
+  and Linux it said nothing outside the log.
+- A toast on a phone stands in the bar's place at the top of the window, and the page runs under it once the bar has
+  scrolled away: it was frosted too thinly to read over the words beneath, and now has the bar's own glass. A toast that
+  came while a question was open showed under its dimmed backdrop; it shows above it.
+- A request to the AI that ended with its sheet closed, or a run that made the documents while another view was open,
+  ended without a word: a toast says so, with a key to the answer or to the run, as Sidenote's notes take one to the answer.
+
+### Changed
+
+- The CI uses `actions/checkout`, `actions/setup-python` and `actions/setup-node` v7 (Node 24).
+- The lint pass checks the stylesheets too: a comment left open after a rule swallowed the rules under it without a
+  word from any browser or test (it took a card's title and the deck's spacing during this release's work).
+- `GET /api/v1/history` gives each step an `id`, and `POST /api/v1/history/undo` takes `newest`, the id of the step the
+  page listed first ([ARCHITECTURE](docs/ARCHITECTURE.md)).
+
 ## [0.8.0] - 2026-11-12
 
 The interview tab drawn by the panel itself; when many requests come at once, when the panel is stopped, when it crashes,
@@ -283,7 +361,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/kanggu12/offerowl/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/kanggu12/offerowl/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kanggu12/offerowl/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/kanggu12/offerowl/compare/v0.6.1...v0.6.2

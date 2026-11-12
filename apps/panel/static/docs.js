@@ -587,8 +587,10 @@ function viewDocuments(host) {                                                  
     title: why, onclick: () => exportPdfs() }, icon("desktop"), t("Export to Desktop"));
   const building = !!ed && task("build:" + ed.id).state === "running";              // PDFs on the way
   const frozen = !!(j && j.locked);                                                  // a submitted application is not made again
-  const makeBtn = h("button", { class: "btn" + (b || !ed || frozen ? "" : " primary"), disabled: !ed || building || frozen || null,   // the next step before any PDF, once there is an edition to make them of
-    title: frozen ? t("A submitted application is not made again.") : null, onclick: () => makePdfs() }, icon("file"), building ? t("Making the PDFs…") : t("Make PDFs"));
+  // the next step before any PDF, once there is an edition to make them of; a submitted application has none (its lock says so
+  // beside it: a key that could not be pressed only said why on a hover a phone cannot show)
+  const makeBtn = frozen ? null : h("button", { class: "btn" + (b || !ed ? "" : " primary"), disabled: !ed || building || null,
+    onclick: () => makePdfs() }, icon("file"), building ? t("Making the PDFs…") : t("Make PDFs"));
   // The blind edition's switch: on, the PDFs are made again with the names of the person's table under bars. It shows what the
   // pages are, or while they are made, what was asked for them
   const asked = building && UI.blindAsk && UI.blindAsk.key === (ed ? ed.id : "") + "|" + lang ? UI.blindAsk.on : null;   // the switch pressed for this edition, while it is made
@@ -644,7 +646,7 @@ function sentPanel(j, sent) {                                                   
 function docBody(m, j) {                                                            // the page area under the toolbar
   const body = h("div", { id: "docbody" });                                         // where the pages go
   if (UI.offline) return fill(body, band("unexpected", { retry: refresh }));         // the server is gone
-  if (!m) return fill(body, h("div", { class: "empty glass" }, h("p", { text: t("Laying out your pages…") })));  // loading
+  if (!m || m.error) return fill(body, h("div", { class: "empty glass" }, h("p", { text: t("Laying out your pages…") })));  // loading, or refused for now (never read as "no resume yet")
   const sent = j && j.locked ? j.locked : null;                                     // what this application sent, frozen
   if (sent && (!(m.blocks || []).length || (UI.mode === "typeset" && sent.brought))) return fill(body, sentPanel(j, sent));   // a submitted application with nothing to draw, or whose own files went out (no pages of Offerowl's): the copies that went out, never an offer to write it again
   if (m.missing && m.missing.includes("needs_translation") && UI.mode !== "typeset") return fill(body, band("needs_translation"));  // the English edition without its profile: the live canvas waits for it, the printed pages do not

@@ -85,10 +85,10 @@ function kpiRow(d) {
     ["case", t("Applications"), String(k.applications || 0), t("{n} still open", { n: k.open || 0 })],
     ["chat", t("Reached interview"), k.interview_rate === null || k.interview_rate === undefined ? "–" : k.interview_rate + "%",
       t("{i} of {s} submitted", { i: (d.funnel || {}).interview || 0, s: (d.funnel || {}).submitted || 0 })],
-    ["check", t("Average fit"), k.fit_avg === null || k.fit_avg === undefined ? "–" : String(k.fit_avg), k.fit_best ? t("Best: {c} {n}", { c: k.fit_best.company, n: k.fit_best.score }) : t("No posting rated yet")],
+    ["check", t("Average fit"), k.fit_avg === null || k.fit_avg === undefined ? "–" : String(k.fit_avg), k.fit_best ? t("Best: {c} {n}", { c: jobNameOf(k.fit_best.job, k.fit_best.company), n: k.fit_best.score }) : t("No posting rated yet")],
     ["list", t("Facts kept"), String(k.facts || 0), t("{n} projects", { n: k.projects || 0 })],
     ["person", t("Career length"), years || rest ? t("{y}y {m}m", { y: years, m: rest }) : "–", t("{n} companies", { n: k.companies || 0 })],
-    ["clock", t("Submission to interview"), k.wait_days === null || k.wait_days === undefined ? "–" : t("{n} days", { n: k.wait_days }), t("the middle of every wait")],
+    ["clock", t("Submission to interview"), k.wait_days === null || k.wait_days === undefined ? "–" : t("{n} days", { n: k.wait_days }), k.waits ? tn(k.waits, "the middle of {n} wait", "the middle of {n} waits") : t("the middle of every wait")],
   ];
   return h("div", { class: "ins-kpis" }, tiles.map(([ic, w, n, sub], i) =>
     h("div", { class: "ins-kpi" }, h("span", { class: "ins-ic", "aria-hidden": "true" }, icon(ic)),
@@ -324,7 +324,7 @@ function gapsTile(d, host) {
   const seen = {};                                                                  // dots at one score stack upward a little
   for (const f of fits) {
     const k = Math.round(f.score / 3), lift = (seen[k] = (seen[k] || 0) + 1) - 1;  // near the same score: lifted, not hidden
-    svg.append(sv("g", { class: "dot", tabindex: "0", "data-tip": t("{c}: fit {n}, {s} met, {w} in part, {m} not met", { c: f.company, n: f.score, s: f.counts.strong, w: f.counts.weak, m: f.counts.none }) },
+    svg.append(sv("g", { class: "dot", tabindex: "0", "data-tip": t("{c}: fit {n}, {s} met, {w} in part, {m} not met", { c: jobNameOf(f.job, f.company), n: f.score, s: f.counts.strong, w: f.counts.weak, m: f.counts.none }) },
       sv("circle", { class: "hit", cx: x(f.score), cy: ay - lift * 9, r: 9 }), sv("circle", { class: "mk", cx: x(f.score), cy: ay - lift * 9, r: 5, style: `--c:var(--stage-${f.stage})` })));
   }
   const pick = (d.areas || []).filter((a) => a.none > 0 && !a.soft).sort((a, b) => b.none - a.none || b.demand - a.demand).slice(0, 3);   // the craft's areas most often not met
@@ -335,7 +335,7 @@ function gapsTile(d, host) {
     fits.length ? legend(["preparing", "submitted", "interview", "result"].map((st) => ({ words: t(STAGE[st]), color: `var(--stage-${st})`, shape: "dot", n: fits.filter((f) => f.stage === st).length })).filter((k) => k.n)) : null,   // the dots' colours are the stages
     lines.length ? h("h4", { class: "ins-h4", text: t("Lines not met") }) : null,   // the tile's second part named too: the strip above is the postings, these their lines
     lines.length ? h("ul", { class: "gp-rows" }, lines.slice(0, 6).map((l) => h("li", { class: "gp-row" },
-      mono(l.company, "sm", ((S.jobs || []).find((j) => j.id === l.job) || {}).stage), h("div", { class: "gp-t" }, h("span", { class: "gp-area", text: t(l.area) + " · " + l.company }), h("span", { class: "gp-text", text: l.text, title: l.text })))))
+      mono(l.company, "sm", ((S.jobs || []).find((j) => j.id === l.job) || {}).stage), h("div", { class: "gp-t" }, h("span", { class: "gp-area", text: t(l.area) + " · " + jobNameOf(l.job, l.company) }), h("span", { class: "gp-text", text: l.text, title: l.text })))))
       : h("p", { class: "ins-none", text: t("Nothing unmet yet.") }));
 }
 
@@ -349,7 +349,7 @@ function readyTile(d) {
       const c = r.coverage, sum = c ? c.strong + c.weak + c.none : 0;               // the kit's likely questions
       return h("li", { class: "rd-item", "data-stage": r.stage },
         mono(r.company, "sm", r.stage),
-        h("button", { class: "rd-name", type: "button", onclick: () => goJob(r, "interview"), title: t("Open its interview tab") }, h("b", { text: r.company }), h("small", { text: t(STAGE[r.stage]) })),
+        h("button", { class: "rd-name", type: "button", onclick: () => goJob(r, "interview"), title: t("Open its interview tab") }, h("b", { text: jobNameOf(r.job, r.company) }), h("small", { text: t(STAGE[r.stage]) })),
         h("span", { class: "rd-fit", "data-tip": r.fit === null ? null : t("Fit {n} / 100", { n: r.fit }) }, r.fit === null ? h("small", { text: t("No posting") }) : [h("b", { text: String(r.fit) }), h("i", { class: "rd-fitbar", style: `--w:${r.fit}%;--c:${MET_SOLO[metTone(r.fit)]}`, "aria-hidden": "true" })]),
         h("span", { class: "rd-meta" },
           c ? h("span", { class: "rd-cov", tabindex: "0", "data-tip": t("Interview map: {s} met, {w} in part, {n} not met, {k} scripts", { s: c.strong, w: c.weak, n: c.none, k: r.scripts }) },

@@ -42,7 +42,16 @@ class LintTest(unittest.TestCase):
         self.write("a.sh", "#!/bin/sh\necho ok\n")
         r = self.lint()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("lint: 4 steps, 0 failed", r.stdout)
+        self.assertIn("lint: 5 steps, 0 failed", r.stdout)
+
+    def test_a_comment_left_open_in_a_stylesheet_fails(self):  # it would swallow the rules under it, silently
+        self.write("a.css", ".a { color: red; }   /* a note left open\n.b { color: blue; } /* the next note */\n")
+        r = self.lint()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("FAIL", self.line(r, "css"))
+        self.assertIn("a.css:1", r.stdout)  # where the comment opens
+        self.write("a.css", ".a { color: red; }   /* a note */\n/* a note on two\n   lines */\n.b { color: blue; }\n")
+        self.assertIn("OK", self.line(self.lint(), "css"))  # closed comments, long ones too, pass
 
     def test_a_python_syntax_error_fails(self):
         self.write("bad.py", "def broken(:\n    pass\n")

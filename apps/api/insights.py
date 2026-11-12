@@ -64,6 +64,17 @@ WEEKS = 10                                                                      
 EVENT_KINDS = ("submitted", "interview", "result")                                  # the dates a week counts: what moved, not when a card was made
 
 
+def median(xs: list) -> float | int | None:
+    """The middle of a sorted list: the mean of the two middle values when the count is even (14 and 25 days: 19.5), None for none."""
+    if not xs:  # no wait yet
+        return None
+    m = len(xs) // 2  # the middle place
+    if len(xs) % 2:  # an odd count: the one in the middle
+        return xs[m]
+    mid = (xs[m - 1] + xs[m]) / 2  # an even count: halfway between the two
+    return int(mid) if mid == int(mid) else mid  # 20 rather than 20.0
+
+
 def result_kind(stage: str, words: str) -> str:
     """What an application's end was: offer, rejected, closed, none (ended with no words for it) or open (not ended)."""
     if stage != "result":                                                           # still going
@@ -349,7 +360,7 @@ def summary(api, today: date | None = None) -> dict:
                 "fit_avg": round(sum(fit_scores) / len(fit_scores)) if fit_scores else None, "fit_best": max(fits, key=lambda f: f["score"]) if fits else None,
                 "facts": len(kept), "projects": kinds.get("project", 0), "career_months": career,
                 "companies": len({l["org"] for l in lanes if l["kind"] == "role"}),
-                "wait_days": gaps_days[len(gaps_days) // 2] if gaps_days else None},     # the median wait from submission to interview
+                "wait_days": median(gaps_days), "waits": len(gaps_days)},     # the median wait from submission to interview, and how many waits it is of
         "stages": {s: stages.get(s, 0) for s in ("preparing", "submitted", "interview", "result")},
         "results": {k: ends.get(k, 0) for k in ("offer", "rejected", "closed", "none")},
         "funnel": funnel,
