@@ -455,9 +455,28 @@ def check_path(job, path, strict=True, style=None, orgs=None):  # drafts are che
     return scenes, bad  # the caller prints its own report
 
 
+def letters_twice(job):
+    """[(letter, [(file, title)])] for every section letter that two differently named sections share (a section taken over
+    from another job's kit, say). Their keys and their hue look alike in the search view and the contents."""
+    import re  # the headings
+    by = {}  # letter -> the sections that use it
+    for path, _, _, role in job.sources():  # the kit's files, in its order
+        if role == "reference":  # notes and stories have no lettered sections
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"^##\s+([A-Z])\.\s+(.+?)\s*$", line)  # "## A. Behavioral, career"
+            if m and (path.name, m.group(2)) not in by.setdefault(m.group(1), []):
+                by[m.group(1)].append((path.name, m.group(2)))
+    return [(k, v) for k, v in sorted(by.items()) if len({t for _, t in v}) > 1]
+
+
 def main(job, grow=0, base=None, strict=False, style=None, files=None, ids=None, quiet=False):  # the check command
-    """Print one line per scene with problems and the verdict line; exit 1 when any scene has a problem."""
+    """Print one line per scene with problems and the verdict line; exit 1 when any scene has a problem. A letter two
+    sections share is said in a line of its own, without failing the check: the scenes are sound, their keys look alike."""
     items, scenes, bad = run(job, grow, base, strict, style, files, ids)  # every check for the job
+    if not quiet and not files and not ids:  # the whole kit: its sections' letters
+        for letter, where in letters_twice(job):
+            print(i18n.t("check_letter_twice", letter=letter, where="; ".join(f"{f} \"{t}\"" for f, t in where)))
     if not quiet:  # quiet: only the verdict line
         for it, probs in bad:  # one line per scene with problems
             why = "; ".join(i18n.reason(code, **slots) for code, slots in probs)  # all its problems on one line

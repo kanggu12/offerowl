@@ -52,7 +52,7 @@ For example, a panel on port 9000 that the agent may only read:
 | `build_pdfs` | The typeset PDFs | `POST /api/v1/jobs/build` |
 | `export_documents` | The made files copied to the Desktop; refused while a sentence lacks evidence | `POST /api/v1/jobs/export` |
 | `make_interview_kit` | The interview question map now | `POST /api/v1/interview/kit` |
-| `write_interview_scripts` | More scripts by the AI backend, the likeliest questions first | `POST /api/v1/interview/scripts` |
+| `write_interview_scripts` | More scripts by the AI backend, the likeliest questions first, or the map's entries named in `ids` (an earlier round's questions without a script) | `POST /api/v1/interview/scripts` |
 | `move_job` | A stage, its date or any stage's day (`dates`), the next step (a link it comes with kept whole) or the result; `advance` moves one column right | `POST /api/v1/tracker/edit`, `next` |
 | `log_round` | Keep an interview round: its kind, day, the questions asked and notes; change or remove one | `POST /api/v1/tracker/round` |
 | `add_fact` | A fact the person states, kept as typed with its own words as evidence | `POST /api/v1/facts/add` |

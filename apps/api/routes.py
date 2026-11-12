@@ -388,6 +388,8 @@ class Router:
         if path == "/api/v1/tracker/edit":  # a card moved or edited
             a.board(req)  # one undo step
             return None  # the new state is the whole answer
+        if path == "/api/v1/tracker/clear_day":  # the day a batch of applications was added, off their stages
+            return {"cleared": a.clear_batch_day(str(req.get("day") or ""))}  # the cards changed; the new state is drawn
         if path == "/api/v1/tracker/next":  # a card's move-on button
             a.next_stage(a.need_job(req))  # one column right
             return None  # the new state is the whole answer
@@ -398,11 +400,14 @@ class Router:
         if path == "/api/v1/interview/kit":  # make the interview kit without tailoring the rest
             jid = a.need_job(req)  # which job
             return {"questions": len(t.ensure_kit(jid, lang_of(req.get("lang"))))}  # the map's size
-        if path == "/api/v1/interview/scripts":  # more scripts, the likeliest questions first
+        if path == "/api/v1/interview/scripts":  # more scripts, the likeliest questions first, or the map's entries named in ids
             jid = a.need_job(req)  # which job
+            ids = req.get("ids")  # a round's questions without a script, as the board names them
+            if ids is not None and (not isinstance(ids, list) or not 0 < len(ids) <= 30 or not all(isinstance(x, str) and re.fullmatch(r"[a-z][a-z0-9]{0,15}", x) for x in ids)):
+                raise ValueError("bad_ids")  # 400: a list of up to 30 of the map's ids
             # a submitted application still gets ready for its interview: the scripts go to the kit's own folder, and the
             # submitted copies stay as they went
-            return {"started": t.write_scripts(jid, lang_of(req.get("lang"))), "task": f"scripts:{jid}"}  # the task's key
+            return {"started": t.write_scripts(jid, lang_of(req.get("lang")), ids=ids), "task": f"scripts:{jid}"}  # the task's key
         if path == "/api/v1/interview/talk/brief":  # the presentation interview's brief: topics, minutes, day, format, the interviewers' words
             jid = a.need_job(req)  # which job
             return {"brief": t.save_talk_brief(jid, req.get("brief"))}  # as kept; a brief with no topic is refused (400 bad_brief)

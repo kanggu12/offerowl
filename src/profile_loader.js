@@ -132,7 +132,8 @@ function cleanName(name, nameEn) {
 // Markdown body of a ledger section to blocks: tables (head and rows), bullet items and sub captions.
 // HTML comments, prose notes and links are dropped: a ledger section holds notes for its owner that must not reach a resume
 function mdBlocks(md) {
-  const text = String(md || "").replace(/<!--[\s\S]*?-->/g, "");         // drop comments first (they may span lines)
+  let text = String(md || ""), was;                                       // drop comments first (they may span lines),
+  do { was = text; text = text.replace(/<!--[\s\S]*?-->/g, ""); } while (text !== was);   // until none is left: a comment inside another leaves one
   const blocks = [];                                                     // the blocks in reading order
   let table = null;                                                      // the table being collected
   const cells = ln => ln.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim().replace(/\*\*(.+?)\*\*/g, "$1").replace(/`/g, ""));   // a table row's cells

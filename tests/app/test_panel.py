@@ -915,6 +915,38 @@ class TestUnderLoadAndStop(unittest.TestCase):
         self.assertIn("panel stopped", log)
 
 
+class TestDaysOfABatch(PanelCase):
+    """The days that count, and a list of applications added on one day (a list brought in): the day of the adding stamped
+    on their stages is cleared from all of them in one undo step."""
+
+    def test_a_day_after_a_later_steps_never_counts(self):
+        sys.path.insert(0, str(ROOT))
+        from apps.api import tracker  # the rule itself
+        job = {"stage": "result", "dates": {"preparing": "2026-11-07", "submitted": "2026-11-07", "result": "2026-10-28"}}
+        self.assertEqual({"result": "2026-10-28"}, tracker.stage_days(job))  # prepared and sent after the answer: neither counts
+        job = {"stage": "interview", "dates": {"preparing": "2026-10-01", "submitted": "2026-10-05", "interview": "2026-10-20"}}
+        self.assertEqual(job["dates"], tracker.stage_days(job))  # in order: every day counts
+        job = {"stage": "interview", "dates": {"preparing": "2026-11-07", "submitted": "2026-10-15", "interview": "2026-11-09"}}
+        self.assertEqual({"submitted": "2026-10-15", "interview": "2026-11-09"}, tracker.stage_days(job))  # only the day out of order goes
+
+    def test_the_day_of_a_batch_is_cleared_in_one_step(self):
+        posting = POSTING.read_text(encoding="utf-8")
+        ids = [self.post("/api/v1/jobs", {"company": f"배치{i}", "posting": posting})["job"] for i in range(5)]  # five added today
+        for jid in ids:
+            self.wait_task(f"analyze:{jid}")  # their analyses end first: each is a step of its own
+        today = time.strftime("%Y-%m-%d")
+        jobs = {j["id"]: j for j in self.get("/api/v1/state")["jobs"]}
+        self.assertTrue(all(jobs[jid]["dates"].get("preparing") == today for jid in ids))  # the adding stamped today on them
+        self.assertEqual([], self.post("/api/v1/tracker/clear_day", {"day": "2001-01-01"})["cleared"])  # no batch on that day: nothing changes
+        self.assertEqual(sorted(ids), sorted(self.post("/api/v1/tracker/clear_day", {"day": today})["cleared"]))
+        jobs = {j["id"]: j for j in self.get("/api/v1/state")["jobs"]}
+        self.assertTrue(all(not jobs[jid]["dates"].get("preparing") for jid in ids))  # that day, gone from each
+        self.assertEqual("undo_board_days", self.get("/api/v1/history")["steps"][0]["label"]["code"])  # one step for all five
+        self.post("/api/v1/undo", {})  # and back at once
+        jobs = {j["id"]: j for j in self.get("/api/v1/state")["jobs"]}
+        self.assertTrue(all(jobs[jid]["dates"].get("preparing") == today for jid in ids))
+
+
 class TestStandinAsAProgram(unittest.TestCase):
     """The stand-in started as a program, as the closed-network test starts it in the app image (`python3 apps/api/standin.py
     serve <port>`): from another folder, with no PYTHONPATH, it still binds through src/ownport.py and answers. An earlier

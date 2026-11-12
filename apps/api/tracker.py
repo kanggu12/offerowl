@@ -18,13 +18,31 @@ MAX_REMINDERS = 20  # per job: a card is not a calendar
 def stage_days(job: dict) -> dict:
     """The days a card reached its stages, as the board, the timeline and the counts read them. A day of a stage after the
     one it is in now is left from a move taken back and does not count (at the result every earlier step does), and a
-    "preparing" day later than a later step's (a card added after it was sent) is not when it was prepared."""
+    stage's day later than a later step's cannot be when it happened (a card added or moved after it was sent or answered,
+    the day of the adding stamped on it): it does not count either. The day stays on the card, for the person to set."""
     d = job.get("dates") or {}  # as kept: a move never clears the days of the stages after it
     upto = STAGES.index(job["stage"]) if job.get("stage") in STAGES else 0  # where it is now
     out = {s: d[s] for s in STAGES[: upto + 1] if d.get(s)}  # the stages it went through
-    if out.get("preparing") and any(v < out["preparing"] for s, v in out.items() if s != "preparing"):  # prepared after it was sent
-        del out["preparing"]
+    for i, s in enumerate(STAGES):  # each step against the steps after it, as they were kept
+        if s in out and any(d.get(x) and x in out and str(d[x]) < str(out[s]) for x in STAGES[i + 1:]):  # it came after a later one
+            del out[s]
     return out
+
+
+def batch_day(jobs: list[dict]) -> dict | None:
+    """The day several applications were added at once (5 or more, as when a list is brought in) whose cards still carry that
+    day as a stage's day: {day, jobs: [ids]}, or None. Those days are the adding's, not the job hunt's."""
+    by = {}  # the day added -> the cards added that day that carry it as a stage's day
+    for j in jobs:
+        if j.get("kind") == "edition" or j.get("removed"):  # editions have no stages; the trash is not the board
+            continue
+        made = str(j.get("created") or "")[:10]  # the day it was added
+        if made and made in [str(v)[:10] for v in (j.get("dates") or {}).values()]:  # that day stamped on a stage
+            by.setdefault(made, []).append(j["id"])
+    if not by:
+        return None
+    day, ids = max(by.items(), key=lambda kv: len(kv[1]))  # the biggest batch
+    return {"day": day, "jobs": ids} if len(ids) >= 5 else None
 
 
 def timeline(jobs: list[dict]) -> list[dict]:

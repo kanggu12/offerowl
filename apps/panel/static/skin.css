@@ -1144,10 +1144,25 @@ body:has(#setup:not([hidden])) #askbar { display: none; }                       
 .round-h { display: flex; align-items: center; gap: 10px; min-width: 0; } .round-h .when { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .round-asked .k { font-size: 12px; color: var(--ink-3); } .round-asked ul { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13px; }
 .round-notes { margin: 0; font-size: 13px; color: var(--ink-2); white-space: pre-wrap; }
+/* a round's questions with the script that answers each: a lamp, the question, its script's key (or "no script yet") */
+.round-asked ul.asked-list { list-style: none; padding-left: 0; gap: 4px; }
+.asked-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 26px; }
+.asked-list .asked-q { overflow-wrap: anywhere; }                                   /* a long question wraps under itself, its key stays at the row's end */
+.asked-list .asked-by { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.asked-list .asked-none { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.round-kit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 4px; }
 .round-top { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr); gap: var(--gap-s); align-items: end; }
 @media (max-width: 859px) { .prow.nodate, .prow.nodate.with-result { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .round-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .round-top > :first-child { grid-column: 1 / -1; } }
 .rhead-facts .agenda { display: grid; gap: 2px; justify-items: start; }             /* the rounds ahead, one a line, the nearest first */
+.rhead-facts .agenda .next-line { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0 8px; }   /* a round of today and its time left on one line */
+/* a round of today on its application's head (make.js todayBand): its lamp, its hour, the time left, the call's link, the
+   scripts' search; once it ends, the key that writes down its questions. A note on the board, coloured by its lamp only */
+.today-band { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 var(--gap-m); padding: 8px 12px; border: 1px solid var(--board-rim);
+  border-radius: 2px; background: var(--board); font-size: 13.5px; }
+.today-band .until { font-size: 12.5px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.today-band.ahead .until { color: var(--amber); } .today-band.on .until { color: var(--green); }   /* the words take the lamp's colour: soon, going on */
+.today-band .hint { flex: 1 1 240px; min-width: 0; }
 /* 11-10 second review: English notes a little wider (their keys' words are longer), a short answer cell on one line, the
    phone's application without the list's head above it, the latest documents' day kept whole */
 .active-card .ac-keys .btn { padding-inline: 10px; }   /* a little closer, so English keys and a three-digit fit stay on the note */
@@ -1913,7 +1928,7 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 .kit-pref .hint { font-size: 13px; }
 /* the sections: a small key each, its letter in the section's hue */
 /* the sections' keys: one row that slides (the wheel slides it too); three to five rows of keys took 160 px of a 900 px window */
-.kit-menu { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.kit-menu { flex: none; display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }   /* never squeezed: a row that scrolls has no least height, and a tall contents under it took its room while the contents were fitted */
 .kit-menu::-webkit-scrollbar { display: none; }
 .kit-menu .btn.small { flex: none; scroll-snap-align: start; }
 .kit-menu .btn.small { padding: 0 8px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); max-width: 100%; }
@@ -2207,3 +2222,25 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 .pr-scene { display: grid; gap: 6px; }
 .kit.kit-one { height: auto; gap: 0; }                                                 /* one script from the search view, for the feedback */
 @media (max-width: 640px) { .pr-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pr-rows th { width: 92px; } .pr-question { font-size: var(--fs-lg); } }
+
+/* every application's days in one table (views.js daysTable): a row each, its name, then a day per stage in the stages'
+   columns; a stage it has not reached is a dash; a day out of order wears the warning colour on its field's rim. A phone:
+   the name across, the four days two by two under it */
+.daystable { display: grid; gap: 0; padding: 4px 16px 10px; }
+.daystable .dt-batch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 10px 0 6px; }
+.daystable .dt-batch p { margin: 0; }
+.dt-row { display: grid; grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(150px, 1fr)); align-items: center; gap: 10px 14px; padding: 8px 0; border-top: 1px solid var(--line); }
+.dt-row.dt-head { border-top: 0; padding: 6px 0; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.dt-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dt-name .linkish { min-width: 0; overflow-wrap: anywhere; text-align: left; font-weight: 600; color: var(--ink); }
+.dt-none { color: var(--ink-3); padding-left: 12px; }
+.dt-cell { display: grid; gap: 3px; min-width: 0; } .dt-lab { display: none; font-size: 12px; color: var(--ink-3); }
+.dt-cell.off input:not(.pick) { border-color: var(--amber); }                          /* out of order: kept on the card, left out of the timeline and the charts */
+@media (max-width: 720px) {
+  .dt-row.dt-head { display: none; }
+  .dt-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dt-name { grid-column: 1 / -1; }
+  .dt-none { display: none; } .dt-lab { display: block; }
+}
+@media (max-width: 640px), (pointer: coarse) { .dt-cell .pickfield > input:not(.pick) { min-height: 44px; } }   /* a thumb: the field as tall as its calendar key (44 px), as on the progress tab */
+

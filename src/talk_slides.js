@@ -58,8 +58,8 @@ function portfolio(profile, jobFile, page) {
   return got;                                                                // its slides, its title, its colour set
 }
 
-const plain = s => String(s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;| /g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
-  .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();   // a slide's words without markup
+const plain = s => String(s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;| /g, " ").replace(/&lt;/g, "<")
+  .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();   // a slide's words without markup; &amp; last, so "&amp;lt;" reads "&lt;", not "<"
 
 // What each portfolio slide is, for the planner: its number, kind, title, tagline, period, role and context, and its project
 function slideInfo(s, i) {

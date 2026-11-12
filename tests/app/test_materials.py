@@ -394,6 +394,9 @@ class Previews(Server):
         got = self.get(self.base(rec["id"]) + "/preview")
         self.assertEqual("frame", got["view"])  # shown in a frame
         self.assertNotIn("<script", got["html"])  # its script taken out (the frame's sandbox runs none either)
+        odd = M.frame_html("<p>a</p><SCRIPT>x()</script foo><p>b</p>")  # an end tag holding more, in capitals
+        self.assertNotIn("x()", odd)  # its code went with it
+        self.assertTrue(odd.startswith("<p>a</p><p>b</p>"), odd)  # and the page around it stays
         self.assertNotIn("<base", got["html"])  # its links keep no address of their own
         self.assertIn("<h1>Gamma Cloud</h1>", got["html"])  # the page itself
         status, headers, body = self.raw(self.base(rec["id"]))  # the file itself, at the panel's address

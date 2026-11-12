@@ -280,7 +280,7 @@ const KIND = { role: "Employment", project: "Project", education: "Education", s
 const STAGE = { preparing: "Preparing", submitted: "Submitted", interview: "Interview", result: "Result" };  // the tracker's columns
 const RATING = { strong: "Met", weak: "In part", none: "Not met" };                 // how well a posting line is covered: the words Insights uses
 const RATING_CLS = { strong: "rate strong", weak: "rate weak", none: "rate none", draft: "ai" };   // its lamp: met, in part, not met, as the figures colour them
-const CATEGORY = { posting: "Posting lines", resume: "Resume lines", portfolio: "Portfolio pages", term: "Terms", behavioral: "Behavioral",  // the question map's kinds
+const CATEGORY = { asked: "Asked before", posting: "Posting lines", resume: "Resume lines", portfolio: "Portfolio pages", term: "Terms", behavioral: "Behavioral",  // the question map's kinds
   company: "Company", opening: "Opening", scenario: "Scenarios", technical: "Technical questions" };
 const AGENT_NAME = { "claude-code": "Claude Code", codex: "Codex", "openai-compat": "Local model", none: "No agent", standin: "Stand-in" };  // names a person knows
 const VIEWS = [["make", "Make"], ["profile", "Profile"], ["jobs", "Applications"], ["documents", "Documents"], ["insights", "Insights"], ["library", "Library"]];   // an application holds its fit, questions, interview and progress  // the navigation, in order: making first

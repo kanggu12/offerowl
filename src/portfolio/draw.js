@@ -35,7 +35,7 @@ const C = {
 const lumHex = h => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
 C.on = fill => /^#[0-9A-Fa-f]{6}$/.test(fill) && lumHex(fill) > 0.24 ? C.navy : C.white;
 
-const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");   // text and attribute values alike: a quote never ends an attribute early
 const r1 = v => Math.round(v * 10) / 10;
 
 // Text width, measured from the glyph advances in the Pretendard font files (opentype.js). Estimates per character class

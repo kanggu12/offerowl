@@ -596,7 +596,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const openGroups = () => GROUPS.filter((g) => !isRow(g) && !isRef(g) && !folded.has(g.name)).sort((a, b) => b.items.length - a.items.length);
     tocHtml(el, folded);
     while (!tocFits(el) && openGroups().length > 1) { folded.add(openGroups()[0].name); tocHtml(el, folded); }   // fold the largest open group
-    fitToc();
+    while (!fitToc() && openGroups().length > 1) { folded.add(openGroups()[0].name); tocHtml(el, folded); }   // no room to name a section again where it runs on (B11 at a column's top with no B over it): one more folds
     const toc = el.querySelector(".kit-toc");                                       // a small kit: the view ends where its contents end, with no empty screen under them
     if (toc && toc.offsetHeight < (el.clientHeight - 4) * 0.7) { toc.style.setProperty("--row-pad", ".28em"); root.classList.add("short"); }
     lastW = el.clientWidth; lastH = el.clientHeight;                                // fitted to this room: not fitted again for the same room
@@ -629,7 +629,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
         again.textContent = head.textContent; at[0].before(again); added.push(again);
       }
     }
-    if (added.length && toc.offsetHeight > room) added.forEach((x) => x.remove());   // no room for the names: the columns as they were
+    if (added.length && toc.offsetHeight > room) { added.forEach((x) => x.remove()); return false; }   // no room for the names: the columns as they were
+    return true;                                                                    // every split section names itself again (or none is split)
   }
   function tocBoxes(folded) {                                                       // one box per open script group; folded groups, deep dives and reference material become rows that open their section
     const out = [], fold = [], rows = [];
@@ -648,18 +649,22 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   }
   function tocFits(el) { const set = tocSizer(el); return TOC_COLS.some((c) => set(c)); }   // fits at some column width?
   function fitToc() {                                                               // the widest columns at which the whole contents fit; otherwise a vertical scroll, never cut text
-    const el = elCards; if (!el.querySelector(".kit-toc")) return;
+    const el = elCards; if (!el.querySelector(".kit-toc")) return true;             // says whether it fit with every split section named again
     const set = tocSizer(el);
-    const toc = el.querySelector(".kit-toc"); const room = el.clientHeight - 4;
-    for (const colEm of TOC_COLS) if (set(colEm)) {                                 // it fits: spread the rows over the height instead of leaving the foot empty
-      headContinued(el);                                                            // first, with the rows tight: a section split between columns names itself again at the next one's top
-      let lo = 0.16, hi = 0.5;                                                      // row padding in ems, capped: rows spread a little, never into a sparse list
-      for (let k = 0; k < 7; k++) { const mid = (lo + hi) / 2; toc.style.setProperty("--row-pad", mid + "em"); if (toc.offsetHeight <= room) lo = mid; else hi = mid; }
-      toc.style.setProperty("--row-pad", lo + "em");
-      if (toc.offsetHeight > room) { toc.style.setProperty("--row-pad", ".16em"); set(colEm); }   // safety: back to the tight rows
-      return;
-    }
-    set(15); el.style.overflowY = "auto";
+    let widest = 0;                                                                 // the widest columns at which the rows fit, kept for when no width has room for the names
+    for (const colEm of TOC_COLS) if (set(colEm)) {
+      widest = widest || colEm;
+      if (headContinued(el)) { spread(colEm); return true; }                        // with the rows tight: a section split between columns names itself again at the next one's top
+    }                                                                               // (narrower columns may have the room the widest lack)
+    if (widest) { set(widest); spread(widest); return false; }                      // no width with room for them: the widest that fits, without them
+    set(15); el.style.overflowY = "auto"; return false;
+  }
+  function spread(colEm) {                                                          // the contents fit: spread the rows over the height instead of leaving the foot empty
+    const el = elCards, toc = el.querySelector(".kit-toc"), set = tocSizer(el), room = el.clientHeight - 4;
+    let lo = 0.16, hi = 0.5;                                                        // row padding in ems, capped: rows spread a little, never into a sparse list
+    for (let k = 0; k < 7; k++) { const mid = (lo + hi) / 2; toc.style.setProperty("--row-pad", mid + "em"); if (toc.offsetHeight <= room) lo = mid; else hi = mid; }
+    toc.style.setProperty("--row-pad", lo + "em");
+    if (toc.offsetHeight > room) { toc.style.setProperty("--row-pad", ".16em"); set(colEm); }   // safety: back to the tight rows
   }
   function drawMenu() {                                                             // the section keys in one row, with the open section pressed and in sight
     elMenu.innerHTML = GROUPS.map((g) => {

@@ -44,6 +44,16 @@ class PartsTest(unittest.TestCase):  # the no-model parts
         idx = audit.Related({"a": "the deploy path for payments", "b": "kafka settlement events for payments", "c": "the deploy path for orders"})
         self.assertEqual(idx.best("kafka settlement for payments", 1)[0][0], "b")  # kafka and settlement are rare
 
+    def test_names_are_found_in_time_on_a_long_run_of_digits(self):
+        """A name with an inner capital or a digit is found, and a long token with a word character after its digits no
+        longer backtracks exponentially (22 zeros took 0.15 s and every one more doubled it)."""
+        import time  # the bound
+        names = [p for kind, p, _ in audit.claim_phrases("We moved MoAI and KohakuHub onto H100 nodes with Codex in 2024.") if kind == "name"]
+        self.assertEqual(["MoAI", "KohakuHub", "H100", "Codex"], names)
+        t0 = time.perf_counter()
+        audit.claim_phrases("The trace held A" + "0" * 5000 + "_x and nothing more.")
+        self.assertLess(time.perf_counter() - t0, 1.0)
+
     def test_risk_order(self):
         """A scene that limits its scope and claims in the first person ranks above a plain one."""
         hedged = audit.risk("Honestly, the service already ran before I came; I set up the billing team in March 2024.", 30)

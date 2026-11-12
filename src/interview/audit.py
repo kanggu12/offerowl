@@ -252,7 +252,7 @@ def claim_phrases(par):
         n = re.sub(r"[^\d.]", "", m.group(1)).rstrip(".") or m.group(1).lower()  # digits, or the quantity word itself
         if unit and plain_number(n, par, m.start()):  # an amount with a unit (not a year or a label)
             out.append(("number", m.group(0).strip(), [n, T.stem_en(unit[0].lower())]))
-    for m in re.finditer(r"\b[A-Z][A-Za-z0-9]*(?:[A-Z0-9][A-Za-z0-9]*)+\b|\b[A-Z][a-z]{2,}\b", par):  # MoAI, KohakuHub, Codex
+    for m in re.finditer(r"\b[A-Z](?=[A-Za-z0-9]*[A-Z0-9])[A-Za-z0-9]+\b|\b[A-Z][a-z]{2,}\b", par):  # MoAI, KohakuHub, Codex (no nested repeat: one backtracked exponentially)
         w = m.group(0)  # the name
         if m.start() == 0 or par[max(0, m.start() - 2):m.start()].strip() in (".", ":", ""):  # a capital at a sentence start is not a name
             if not re.search(r"[A-Z].*[A-Z]|\d", w):  # unless it is a name by its shape

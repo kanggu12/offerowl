@@ -522,7 +522,7 @@ const fmt = (k, v) => String(STR[k] || k).replace(/\{(\w+)\}/g, (m, n) => (v && 
 const BY_ID = new Map(ITEMS.map((it, i) => [it.id, i]));  // id -> position
 const BY_ID_LC = new Map(ITEMS.map((it, i) => [it.id.toLowerCase(), i]));  // typed ids are matched without case
 // Served pages call their own origin. A saved copy (file://) asks the local server only whether it is up, then opens the live page.
-const API = location.protocol.startsWith("http") ? "" : "http://127.0.0.1:" + ((DATA && DATA.port) || 8796) + "/";  // served: the page's own folder (the panel's /kit/<job>/ too); a saved copy: the port it was served from
+const API = location.protocol.startsWith("http") ? "" : "http://127.0.0.1:" + ((DATA && Number(DATA.port)) || 8796) + "/";  // served: the page's own folder (the panel's /kit/<job>/ too); a saved copy: the port it was served from
 
 // ---------- small helpers ----------
 const $ = (s) => document.querySelector(s);  // one element by selector

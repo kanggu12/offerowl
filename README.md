@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href=".github/workflows/ci.yml"><img alt="CI: GitHub Actions" src="docs/assets/badges/ci.svg"></a>
-  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.8.1" src="docs/assets/badges/release.svg"></a>
+  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.9.0" src="docs/assets/badges/release.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="docs/assets/badges/license.svg"></a>
   <img alt="Runs on Windows, macOS and Linux" src="docs/assets/badges/runs-on.svg">
 </p>
@@ -73,7 +73,7 @@ docker compose -f deploy/docker/compose.yaml up -d --build
 **Python** 3.10 or newer
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.8.1/offerowl-0.8.1-py3-none-any.whl
+pipx install https://github.com/kanggu12/offerowl/releases/download/v0.9.0/offerowl-0.9.0-py3-none-any.whl
 offerowl panel --open
 ```
 
@@ -138,7 +138,7 @@ checks stopped when the AI backend drafted for the fictional example:
 | Portfolio deck, 16:9, with figures drawn from your facts, or from slides you wrote | PDF, PPTX |
 | Cover letter, the posting's duties in the posting's order | PDF, DOCX with its fonts inside |
 | Answers to the application form's questions, within each limit | text |
-| Interview kit: the likely questions, scripts from your own documents, search, practice, cue cards and a deck to read before the day | a local page, PDF |
+| Interview kit: the likely questions (what an earlier round asked first), scripts from your own documents, search, practice, cue cards and a deck to read before the day | a local page, PDF |
 | A talk for an interview that starts with a presentation: your portfolio's pages among slides drawn for the talk, in the interviewers' order, and the script to say over each slide with its time | PDF, a local page |
 | Application board: stages, dates, next steps, reminders | a local page, iCalendar |
 

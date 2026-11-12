@@ -547,6 +547,35 @@ class Draft(unittest.TestCase):
         self.assertEqual(20, len(items))  # twenty, none written twice
         self.assertEqual(20, len({it["id"] for it in items}))  # with their own ids
 
+    def test_a_round_s_questions_lead_the_board_and_get_their_scripts(self):
+        """The questions a round asked lead the interview board, each with the rounds that asked it, and one click writes a
+        script for each one that no script answers yet; the board then says a draft answers them."""
+        jid = self.c.post("/api/v1/jobs", {"company": "감마", "posting": POSTING})["job"]  # a job
+        self.c.wait(f"analyze:{jid}")  # ordered by words
+        self.c.api.tasks.ensure_kit(jid, "ko")  # its kit and question map, no script yet
+        asked = "1. 가장 어려웠던 장애를 말해 주세요\n- Tell me about the time you scaled a queue"  # as written down after the round (fictional)
+        rec = self.c.post("/api/v1/tracker/round", {"job": jid, "kind": "first", "at": "2026-11-12T14:00", "asked": asked})["round"]
+        url = f"/api/v1/jobs/{urllib.parse.quote(jid)}/interview"
+        board = self.c.get(url)  # read now, with the round just kept
+        self.assertEqual([], validate.check("interview", board))  # it fits its schema
+        self.assertEqual("asked", board["categories"][0]["kind"])  # first
+        qs = board["categories"][0]["questions"]
+        self.assertEqual(["가장 어려웠던 장애를 말해 주세요", "Tell me about the time you scaled a queue"], [q["text"] for q in qs])  # list marks dropped
+        self.assertEqual([[rec["id"]], [rec["id"]]], [q["rounds"] for q in qs])
+        missing = [q["id"] for q in qs if q["coverage"] == "none"]
+        self.assertEqual(2, len(missing))  # no script answers them yet
+        for bad in (["../x"], [], ["a"] * 31, "a1b2c3"):  # not a list of the map's ids
+            with self.assertRaisesRegex(RuntimeError, "bad_ids"):  # refused, nothing started
+                self.c.post("/api/v1/interview/scripts", {"job": jid, "lang": "ko", "ids": bad})
+        got = self.c.post("/api/v1/interview/scripts", {"job": jid, "lang": "ko", "ids": missing})  # the round's key
+        done = self.c.wait(got["task"])
+        self.assertEqual("done", done["state"], done)
+        self.assertEqual(2, done["result"]["drafted"], done)  # one script each, and no other question's
+        after = {q["id"]: q for q in self.c.get(url)["categories"][0]["questions"]}
+        self.assertTrue(all(after[i]["coverage"] != "none" and after[i]["covered_by"] for i in missing), after)  # a script answers each now
+        self.c.post("/api/v1/undo", {})  # the round taken back
+        self.assertNotIn("asked", [c["kind"] for c in self.c.get(url)["categories"]])  # its questions leave the board with it
+
     def test_a_submitted_application_still_gets_its_interview_scripts(self):
         """Interviews come after the application is sent: a locked job writes its scripts into the kit's folder."""
         jid = self.c.post("/api/v1/jobs", {"company": "감마", "posting": POSTING})["job"]  # a job

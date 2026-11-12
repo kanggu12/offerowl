@@ -131,6 +131,23 @@ class SessionTest(unittest.TestCase):  # the practice service with stand-ins for
         fb = p.answer(s["id"], q["qid"], turn=1, text="About five minutes.", typed=True)  # the follow-up's answer
         self.assertIsNone(fb["scene"]["turn"])  # an agent follow-up is not held to a turn of the scene
 
+    def test_questions_asked_before_come_in_their_own_words(self):
+        """A question an earlier round asked is asked again as it was written down, and the agent's phrasing leaves it so."""
+        from interview.job import Job  # the copied job
+        tmp, job_dir = helpers.copy_workspace()
+        try:
+            (job_dir / "status.json").write_text(json.dumps({"rounds": [{"id": "i1", "kind": "first", "at": "2026-11-10",
+                                                                         "asked": "Tell me about yourself.\nHow do you roll back a bad deploy?"}]}), encoding="utf-8")
+            p = practice.Practice(Job(job_dir), self.out, ask=self.ask)  # the stand-in agent phrases the session
+            s = p.start(n=4, kinds=["asked"], seed=1)
+            self.assertTrue(s["questions"])  # the example's scripts answer them
+            for q in s["questions"]:
+                self.assertEqual(q["kind"], "asked")
+                self.assertIn(q["ask"], ("Tell me about yourself.", "How do you roll back a bad deploy?"))  # never the agent's wording
+            self.assertIn("asked", p.setup()["default_kinds"])  # on by default
+        finally:
+            shutil.rmtree(tmp)
+
     def test_a_follow_up_in_another_language_falls_back(self):
         """The interview is in English: a follow-up the agent writes in Korean gives way to the scene's own."""
         korean = lambda task, prompt, system: ({"q1": "Tell me about it?"} if task == "interview-practice-ask" else  # noqa: E731  phrases in English

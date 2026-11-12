@@ -6,6 +6,56 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-13
+
+What an interview round leaves behind now feeds the next one, the day of an interview has its own line, and an
+application's days can be put right in one table.
+
+### Security
+
+- The public repository has Dependabot alerts and security updates, and CodeQL code scanning, on. What its first scan
+  found is fixed: a saved page's preview, and the live deck's frame, remove a script whose end tag holds more
+  (`</script foo>`) or is in capitals (the frames' sandbox ran none of it either); the kit's server answers a page's origin
+  with its own list's value, and the panel's redirect to a kit escapes the id and the query again; the kit's font route makes
+  a path only from its list of names.
+
+### Added
+
+- **The questions an interview asked lead the kit.** The questions written down under a round (one a line) are the
+  question map's first kind, "Asked before": the interview deck shows them right after the greeting, practice asks them in
+  the words they were asked in (the agent never rewords them), and the next scripts answer them first. A question asked
+  again in a later round is one entry with both rounds, and its id comes from its words, so its draft stays its draft when
+  lines are added above it.
+- Under each round every question has a lamp and the key of the script that answers it, which opens that script in the
+  scripts' search. The questions no script answers, or one only in part, get scripts of their own with one key: the agent
+  writes them under a section of their own (L, or the first letter the kit leaves free), answering each as it was asked and
+  going one step deeper. `POST /api/v1/interview/scripts` and the MCP tool `write_interview_scripts` take the map's `ids`.
+- **Today's interview on its application.** A round of today shows on the application's head on every tab: its hour, the
+  time left or how long it has been going on (kept current, its length read from its notes, such as "15:00~15:30"), the
+  call's link and the scripts' search. Once it ends, the line offers to write down the questions asked. Make's "Next" line
+  shows the time left for today's rounds too.
+- **Every application's days in one table.** The timeline's "Edit the days" key opens a table of every application's stage
+  days. When five or more applications were added on one day and carry that day as a stage's day (a list brought in at
+  once stamps its day on every card), one key clears that day from all of them in one undo step
+  (`POST /api/v1/tracker/clear_day`).
+- The kit check names two sections with different titles under one letter (a section taken over from another kit), without
+  failing: the scripts are sound, only their keys look alike.
+
+### Fixed
+
+- The kit's contents scrolled at common window sizes (1920 x 1080 with one kit, 1680 x 1050, 2560 x 1300 and others): the
+  row of section keys above them was squeezed while the contents were fitted, so the largest groups were folded for a room
+  21 px taller than the view had. The row keeps its height, and every size measured fits on one screen.
+- A section that runs on into another column did not always say its name again at that column's top: when the widest
+  columns have no room for the names, narrower columns, or one more folded group, make room.
+- A stage's day later than a later step's day (a card moved on after it was sent or answered, the day of the move stamped
+  on it) counted on the timeline and in the charts for every stage, not only for "preparing". It stays on the card, is left
+  out of both, and the days table marks it.
+- What CodeQL's first scan found: a slide's words read "&amp;lt;" as "<" (the entities were decoded twice); a quote in a
+  picture's attribute value ended the attribute early; a long run of digits followed by a letter made the interview
+  audit's name finder backtrack exponentially (22 digits took 0.15 s, each one more doubled it); a ledger's comment written
+  inside another left "<!--" in its text.
+
 ## [0.8.1] - 2026-11-13
 
 What a look at the whole panel, and at the interview tab's scripts and deck above all, found after 0.8.0, with the AI
@@ -364,7 +414,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/kanggu12/offerowl/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/kanggu12/offerowl/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/kanggu12/offerowl/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kanggu12/offerowl/compare/v0.6.2...v0.7.0

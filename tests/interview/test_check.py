@@ -84,6 +84,25 @@ class CheckTest(unittest.TestCase):  # the checker on the clean example and on c
         finally:
             shutil.rmtree(tmp)  # remove the copy
 
+    def test_a_letter_two_sections_share_is_said_without_failing(self):
+        """Two differently named sections under one letter (one taken over from another kit) are named in a note line,
+        and the check still passes: the scenes are sound, only their keys look alike."""
+        import contextlib  # the printed lines
+        import io  # caught in memory
+        self.assertEqual(check.letters_twice(helpers.example_job()), [])  # the example uses each letter once
+        tmp, job_dir = helpers.copy_workspace()  # a copy to rename a section in
+        try:
+            plant(job_dir, "## U. 이력 상세: 베타커머스", "## R. 이력 상세: 베타커머스", name="deep.md")  # U's section now says R
+            job = Job(job_dir)  # read the copy
+            self.assertEqual(check.letters_twice(job), [("R", [("deep.md", "이력 상세: 알파페이"), ("deep.md", "이력 상세: 베타커머스")])])
+            out = io.StringIO()  # what the command prints
+            with contextlib.redirect_stdout(out):
+                code = check.main(job)  # the whole kit, as `offerowl interview check` runs it
+            self.assertEqual(code, 0)  # a shared letter alone does not fail the check
+            self.assertIn("R", [ln for ln in out.getvalue().splitlines() if "베타커머스" in ln][0])  # the note names the letter
+        finally:
+            shutil.rmtree(tmp)  # remove the copy
+
 
 if __name__ == "__main__":  # the file can also run on its own
     unittest.main()
