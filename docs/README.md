@@ -342,8 +342,9 @@ Offerowl never opens the CLI's login files.
 | A local model | Start Ollama, vLLM or LM Studio. In **Settings**, set **AI agent** to **Local model** and type the server's address. `OFFEROWL_LLM=openai-compat` and `OFFEROWL_LLM_URL`, set before starting, do the same and win over a saved choice ([USAGE.md](USAGE.md#the-ai-backend)) |
 | No AI | Leave the switch off. You still get the canvas, the fit by words, typesetting, every check, search, practice and the tracker |
 
-**Ask the AI.** The box in the top bar, **Ask the AI** (on a phone or a tablet, the bar along the foot of the screen), or
-Ctrl+K (Cmd+K on a Mac), opens a sheet at the window's right edge where you write to the agent as you would to Claude Code:
+**Ask the AI.** The prompt at the window's bottom right, **Ask the AI** (on a phone or a tablet, the bar along the foot of the
+screen), or Ctrl+K (Cmd+K on a Mac), opens a sheet at the window's right edge where you write to the agent as you would to
+Claude Code or Codex:
 an interview's result to record, a posting to make a resume for, a question about your applications. It acts through
 Offerowl's own tools only, the answer names the tools that ran, and undo takes back what it changed. Enter sends,
 Shift+Enter starts a new line, and Escape closes the sheet. It needs Claude Code or Codex, switched on and signed in; until

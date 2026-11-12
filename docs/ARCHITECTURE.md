@@ -293,7 +293,7 @@ What keeps the panel whole when much is asked at once, when it is stopped, and w
 | `/api/v1/jobs/<id>/posting`, `/sent/<name>`, `/kit/<name>`, `/kit/out/<name>` | A job's posting as read, a copy that went out (only one its lock recorded), a note of its interview kit, the deck and plan the kit's maker wrote |
 | `/api/v1/reminders/due` | The reminders that are due and not done (the desktop app can ask this to show them) |
 | `/api/v1/reminders.ics` | Every open reminder as an iCalendar file |
-| `/api/v1/history` | `{steps: [{n, t, label}]}`: the undo steps, newest first |
+| `/api/v1/history` | `{steps: [{n, t, label, id}]}`: the undo steps, newest first; `id` names a step for `history/undo` |
 | `/api/v1/removed` | The Trash (apps/api/removed.py): `{rows, asides}`. `rows` is everything removed, newest first: `{id, kind, name, at, size, note, owner, restore, delete}`, with `kind` `source`, `photo`, `job`, `edition` or `material`, `at` the day it went (empty for one removed by an older Offerowl), and the routes that put it back and delete it for good. `asides` are the folders a restore kept beside the workspace, to delete only |
 | `/api/v1/ask` | `{history, running}`: the command bar's asks and answers, oldest first, and whether one runs now |
 | `/api/v1/schema/<name>` | A schema: `profile`, `job`, `plan`, `fit`, `resume`, `cover`, `interview`, `edition` |
@@ -352,7 +352,7 @@ sizes, times, tokens and error codes, never text. `calls`, `median` (seconds, p5
 | `/api/v1/sentences/lock` | `{sid, locked, lang, job}` | Locks a sentence against Edit and Regenerate, or unlocks it. A new draft keeps a locked sentence's words |
 | `/api/v1/sentences/regenerate` | `{sid, lang, job, way}` | New words from the sentence's evidence alone, from the agent and checked like every draft (task `regen:<sid>`). `way` is the direction of a rewrite button: `shorter`, `plainer` or `result` (the result first) |
 | `/api/v1/undo` | `{}` or `{only: id}` | Takes back the last change. With `only` (the state's `undo_id` when a change was made, as a removal's note sends it) only while that change is still the newest: otherwise nothing is undone and the answer says `moved: true` |
-| `/api/v1/history/undo` | `{steps: n}` | Takes back the last n changes |
+| `/api/v1/history/undo` | `{steps: n}` or `{steps: n, newest: id}` | Takes back the last n changes. With `newest` (the `id` of the first step `GET /api/v1/history` listed) only while that step is still the newest: otherwise nothing is undone and the answer says `moved: true` |
 | `/api/v1/jobs` | `{posting}` or `{url}`, with `company` and `role` optional | A job from a pasted posting or a link. With neither `company` nor `role`, both are read from the posting, and so are any application questions it lists. Its analysis starts at once, by words on this PC (task `analyze:<job>`): adding a job sends nothing to the agent. Answers `{job}` |
 | `/api/v1/jobs/select` | `{job}` | The job in view |
 | `/api/v1/jobs/analyze` | `{job}` | Analyzes the posting again (task `analyze:<job>`): the agent orders the skill groups, strengths and projects when one is on, else the fit by words does |

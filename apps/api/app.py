@@ -22,7 +22,7 @@ from .agent import BACKENDS, AgentCard  # the agent card
 from .autopilot import runs as autopilot_runs  # the finished runs the page lists
 from .facts import FACT_FILES, Facts, pick, problems, text_of  # facts and the profile
 from .tasks import DECK_STYLES, FORMS, THEMES, Tasks, file_hash  # long tasks
-from .workspace import STAGES, Workspace, read_json, retried, today, write_json, write_text  # files, undo, and moves waited for on Windows
+from .workspace import STAGES, Workspace, now_minute, read_json, retried, today, write_json, write_text  # files, undo, and moves waited for on Windows
 
 log = logging.getLogger("offerowl.api")  # the panel's log
 ROOT = Path(__file__).resolve().parents[2]  # the repository (or the app's bundle)
@@ -747,7 +747,7 @@ class Api:
         stash = {"candidates": []}  # what it takes along, for the Removed list's put-back
         # one undo brings it all back, the stash included: undone, the stash goes
         with self.ws.change({"code": "undo_remove_material", "title": str(rec.get("name") or "")[:60]}, FACT_FILES + [f"sources/removed/{mid}.json"]):
-            self.ws.update_material(mid, removed=True, removed_at=today())  # hidden, with the day the list shows
+            self.ws.update_material(mid, removed=True, removed_at=now_minute())  # hidden, with the day and hour the list shows
             if rec.get("example"):  # its name, email and phone leave with it, unless the person changed them since
                 from .facts import details_from  # the fields a profile file fills in
                 det = self.facts.details()  # what "Your details" holds
@@ -896,7 +896,7 @@ class Api:
                     if isinstance(req.get(k), str):  # only the fields that were sent
                         st[k] = req[k].strip()[:1000 if k in ("next", "result") else 200]  # trimmed and bounded: a next step may hold a meeting's long link whole
                 if off:  # off the board: undo, or the Removed list, brings it back
-                    st["removed"], st["removed_at"] = True, today()  # with the day the list shows
+                    st["removed"], st["removed_at"] = True, today()  # with the day the list shows (a job's card keeps a day: core/schema/job.schema.json)
                 self.ws.save_job(st)  # one write for every change
 
     def next_stage(self, jid: str) -> None:

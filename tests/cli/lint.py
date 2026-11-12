@@ -12,6 +12,8 @@ One line per step. The exit code is 1 when any step fails.
   json    every .json file parses
   node    `node --check` on every .js file
   shell   `bash -n` on every .sh file, and shellcheck on them
+  css     every .css file's comments close, and none holds a rule: a comment left open after a rule runs over the rules
+          under it, and the page loses them without a word (no browser or test says so)
 """
 import ast  # parse Python without running it
 import json  # parse JSON files
@@ -102,9 +104,34 @@ def check_shell(files: list) -> tuple:
     return True, f"{len(sh)} files; shellcheck clean"
 
 
+def check_css(files: list) -> tuple:
+    """(ok, detail) for the stylesheets: each /* has its */, no */ stands alone, and no comment holds a brace (the rules it
+    would have swallowed)"""
+    css = [f for f in files if f.suffix == ".css"]
+    for f in css:
+        text = f.read_text(encoding="utf-8")
+        at, outside = 0, []  # where the scan is, and the text between the comments
+        while True:
+            start = text.find("/*", at)  # the next comment
+            if start < 0:  # none left
+                outside.append(text[at:])
+                break
+            end = text.find("*/", start + 2)  # its close
+            line = text.count("\n", 0, start) + 1  # where it opens, for the message
+            if end < 0:  # never closed: everything after it is lost
+                return False, f"{f.relative_to(ROOT)}:{line}: a comment is never closed"
+            if "{" in text[start + 2:end] or "}" in text[start + 2:end]:  # a rule inside: one left open further up swallowed it
+                return False, f"{f.relative_to(ROOT)}:{line}: a comment holds a rule (a comment left open swallows the rules after it)"
+            outside.append(text[at:start])
+            at = end + 2
+        if any("*/" in part for part in outside):  # a close with no comment open
+            return False, f"{f.relative_to(ROOT)}: a */ closes no comment"
+    return True, f"{len(css)} files"
+
+
 def main() -> int:
     files = walk()
-    steps = [("python", check_python), ("json", check_json), ("node", check_node), ("shell", check_shell)]
+    steps = [("python", check_python), ("json", check_json), ("node", check_node), ("shell", check_shell), ("css", check_css)]
     failed = 0
     for name, step in steps:
         ok, detail = step(files)

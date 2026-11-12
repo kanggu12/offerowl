@@ -88,6 +88,15 @@ def words(text):
     return {w.lower() for w in WORD.findall(text or "")}
 
 
+def line_coverage(row, scenes, sid):
+    """How well a posting line is answered, as the deck says it: the map's rating, except that a term's entry, a note or a story
+    explains a word and never answers a line in full ("Open-source contributions" was shown as answered by "What is Kubernetes")."""
+    cov = row.get("coverage") or "none"  # the map's rating
+    if cov == "strong" and sid and scenes[sid][0].get("role") not in ("scenes", "deep"):  # the script shown is not a question's script
+        return "weak"  # in part
+    return cov
+
+
 def best(row, scenes):
     """The script that answers a question: among those the map found, a question script before a deep dive or a note; then
     the one whose title shares the most words with the question ("1분 자기소개" for "자기소개 부탁드립니다"); then the map's
@@ -295,7 +304,7 @@ def posting_page(rows, scenes, s, english, unref):
     trs = []  # table rows
     for r in lines:  # one per line
         sid = best(r, scenes)  # its script
-        cov = r.get("coverage") or "none"  # how well a script answers it
+        cov = line_coverage(r, scenes, sid)  # how well a script answers it
         by = (f'<span class="id">{html.escape(sid)}</span> {html.escape(unref(scenes[sid][0].get("tko") or scenes[sid][0].get("ten") or ""))}'
               if sid else html.escape(s["deck_none"]))  # the script, or that there is none yet
         trs.append(f'<tr><td>{html.escape(r.get("text") or "")}</td><td class="by">{by}</td>'
@@ -388,7 +397,7 @@ def data(job, kinds=None, ids=None, n=None, lang=None):
                 continue
             sid = best(r, scenes)  # the script that answers the line
             posting.append({"text": r.get("text") or "", "script": sid or "", "title": plain(scenes[sid][0].get("tko") or scenes[sid][0].get("ten")) if sid else "",
-                            "coverage": r.get("coverage") or "none"})  # how well a script answers it
+                            "coverage": line_coverage(r, scenes, sid)})  # how well a script answers it
     parts = {}  # part -> scripts in it
     for part, _, _ in pages:  # in order
         parts[part] = parts.get(part, 0) + 1  # counted

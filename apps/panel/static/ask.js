@@ -1,8 +1,8 @@
-// Offerowl's panel, the command bar: "Ask the AI", a box in the top bar (on a phone or a tablet, a bar along the foot of the
-// screen), opens a sheet at the window's right edge where the person writes to the AI agent as they would in Claude Code
-// ("Gamma Cloud's first call is done, write it down", "make a resume for this posting: ..."). The agent acts through
-// Offerowl's own tools (POST /api/v1/ask, apps/api/ask.py) and its answer comes back here with the tools that ran. Ctrl+K or
-// Cmd+K opens and closes it; Enter sends, Shift+Enter starts a new line.
+// Offerowl's panel, the command bar: "Ask the AI", a closed prompt floating at the bottom right of every view (on a phone or a
+// tablet, a bar along the foot of the screen), as the owner asked: a box like a coding agent's prompt, where the person writes
+// to the AI agent ("Gamma Cloud's first call is done, write it down", "make a resume for this posting: ..."). It opens a sheet
+// at the window's right edge. The agent acts through Offerowl's own tools (POST /api/v1/ask, apps/api/ask.py) and its answer
+// comes back there with the tools that ran. Ctrl+K or Cmd+K opens and closes it; Enter sends, Shift+Enter starts a new line.
 "use strict";                                                                       // catches undeclared names and silent writes early
 
 const MAC = /mac|iphone|ipad/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "");   // the key's name on this keyboard
@@ -56,9 +56,11 @@ function askDoc() {                                                             
 async function askSend(box) {                                                       // the words to the agent
   const text = box.value.trim();
   if (!text || task("ask").state === "running") return;                            // nothing to send, or one is still working
+  UI.askDraft = ""; box.value = "";                                                 // the box is free at once: the redraw the request makes draws it empty
   const r = await act("/api/v1/ask", { text });                                     // started, or refused with its reason
-  if (r && r.started) { UI.askDraft = ""; box.value = ""; }                         // sent: the box is free again (a refused ask keeps its words)
-  else if (r && r.started === false) toast(t("The agent is still working on the last request."));
+  if (!(r && r.started)) { UI.askDraft = text; const b = document.getElementById("askbox"); if (b) b.value = text; }   // not taken: the words come back, to send again
+  if (r && r.started === false) toast(t("The agent is still working on the last request."));
+  const now = document.getElementById("askbox"); if (now) now.focus({ preventScroll: true });   // the keyboard stays in the box the sheet now has
 }
 
 async function askClear() {                                                         // the history emptied, once the person agrees: it cannot come back
@@ -75,20 +77,31 @@ function askToggle(open) {                                                      
   drawAsk();
   if (open) { setTimeout(() => { const b = document.getElementById("askbox"); if (b) b.focus(); }, 30); return; }   // straight to the words
   const back = UI.askBack; UI.askBack = null;                                       // the field it was opened from, else the key that stands again
-  const key = [...document.querySelectorAll(".ask-fab")].find((x) => x.offsetParent);   // the key this window shows: the top bar's, or the foot's on a phone
+  const key = document.querySelector("#askbar .ask-fab");                          // the closed prompt, standing again
   const to = back && back.isConnected && back !== document.body ? back : key;
   if (to) to.focus({ preventScroll: true });
 }
 
-function askKey(where) {                                                            // the closed bar: a box that says what it is for, where the hand looks for it
+function askKey() {                                                                 // the closed prompt: words that say what it is for, the agent's lamp, its key
   const working = task("ask").state === "running", lamp = agentLamp();              // a request on its way, and the agent's lamp
-  return h("button", { class: "ask-fab " + where + (working ? " working" : ""), type: "button", "data-lamp": working ? "busy" : lamp[0], "aria-haspopup": "dialog", "aria-controls": "askpanel",
+  return h("button", { class: "ask-fab" + (working ? " working" : ""), type: "button", "data-lamp": working ? "busy" : lamp[0], "aria-haspopup": "dialog", "aria-controls": "askpanel",
     title: t("Ask the AI ({key})", { key: MAC ? "\u2318K" : "Ctrl+K" }), onclick: () => askToggle(true) },   // its key on this keyboard, said on the hover
     h("span", { class: "ask-fab-i", "aria-hidden": "true" }, icon("agent")),        // the agent's mark, lit by its lamp
-    h("span", { class: "ask-fab-w" }, h("span", { class: "w-l", text: t("Ask the AI") }), h("span", { class: "w-s", text: t("Ask AI") })),   // the box's own words: what it is for (a narrow bar: the short ones)
-    where === "top" ? h("kbd", { class: "ask-fab-k", "aria-hidden": "true", text: MAC ? "\u2318K" : "Ctrl K" }) : null);   // its key, as a command box shows it (a phone has none)
+    h("span", { class: "ask-fab-w", text: t("Ask the AI") }),                      // the box's own words: what it is for
+    h("kbd", { class: "ask-fab-k", "aria-hidden": "true", text: MAC ? "\u2318K" : "Ctrl K" }));   // its key at the end, as a command box shows it (a phone has none: skin.css)
 }
 
+// what each of Offerowl's tools (apps/mcp/server.py) did, in words: a request's answer lists the steps it took
+const TOOL_WORDS = { status: "Read the status", list_jobs: "Read the applications", get_job: "Read an application", job_fit: "Read the fit",
+  read_document: "Read a document", document_file: "Opened a document's file", deck: "Read the deck", interview_board: "Read the interview board",
+  interview_search: "Searched the scripts", form_answers: "Read the form answers", tracker: "Read the board", insights: "Read the insights",
+  library: "Read the library", task: "Read a task", add_job: "Added a posting", make_documents: "Made the documents", build_pdfs: "Made the PDFs",
+  export_documents: "Exported the documents", make_interview_kit: "Made the interview kit", write_interview_scripts: "Wrote the interview scripts",
+  move_job: "Moved an application", log_round: "Recorded an interview", add_fact: "Put in a fact", reminder: "Set a reminder" };
+function toolWords(x) {                                                             // a tool's step in words; another tool keeps its own name, spaced
+  const name = String(x).replace(/^.*__/, "");                                      // mcp__offerowl__list_jobs: the tool's own part
+  return TOOL_WORDS[name] ? t(TOOL_WORDS[name]) : name.replace(/_/g, " ");
+}
 function drawAsk() {                                                                // the key and, when open, the bar
   let host = document.getElementById("askbar");
   if (!host) { host = document.createElement("div"); host.id = "askbar"; document.body.append(host); }
@@ -100,16 +113,16 @@ function drawAsk() {                                                            
   const key = JSON.stringify([UI.askOpen, working, tk.t, hist.length, last.at, last.text, last.seconds, last.ok, String(last.answer || "").length, LANG, lamp, name]);
   if (host._key === key) return;                                                    // nothing new: the words being typed stay
   host._key = key;
-  if (!UI.askOpen) return fill(host, askKey("foot"));                               // closed: a phone's bar along the foot (the top bar holds the key on a wider window)
+  if (!UI.askOpen) return fill(host, askKey());                                     // closed: the prompt at the bottom right (a phone: the bar along the foot)
   const items = hist.slice(-12);                                                    // the last asks, oldest first
   const log = h("div", { class: "ask-log", role: "log", "aria-live": "polite" },
     items.length ? items.map((it) => h("div", { class: "ask-item" },
       h("p", { class: "ask-me", text: it.text }),
       h("div", { class: "ask-ans" + (it.ok ? "" : " bad") },
         ASK_WORDS[it.answer] || !it.answer ? h("p", { text: t(ASK_WORDS[it.answer] || "No answer came back.") }) : answerView(it.answer),
-        (it.tools || []).length ? h("div", { class: "ask-tools" }, [...new Set(it.tools)].map((x) => h("span", { class: "pill on", title: x, text: String(x).replace(/^.*__/, "").replace(/_/g, " ") }))) : null,   // a tool by its words (list jobs), its own name on the hover
+        (it.tools || []).length ? h("div", { class: "ask-tools" }, [...new Set(it.tools)].map((x) => h("span", { class: "pill on", title: x, text: toolWords(x) }))) : null,   // a tool by what it did, its own name on the hover
         h("small", { text: [it.at, it.backend ? t(AGENT_NAME[it.backend] || it.backend) : "", it.seconds ? t("{n} s", { n: it.seconds }) : ""].filter(Boolean).join(" · ") }))))   // the agent by its name, not its setting's id
-      : h("p", { class: "ask-empty", text: t("Write what you would ask Claude Code: an interview's result to record, a posting to make a resume for, a question about your applications.") }),
+      : h("p", { class: "ask-empty", text: t("Write it as you would to Claude Code or Codex: an interview's result to record, a posting to make a resume for, a question about your applications.") }),
     working ? h("div", { class: "ask-item" }, h("p", { class: "ask-me", text: UI.askLast || "" }), h("div", { class: "ask-ans" }, pill("busy", t("Working with Offerowl's tools…")))) : null);
   const box = h("textarea", { id: "askbox", "data-key": "ask-text", rows: 2, placeholder: t("Write what the AI should do, or what to ask it"), value: UI.askDraft || "", "aria-label": t("Ask the AI"),
     oninput: (e) => { UI.askDraft = e.target.value; },
@@ -128,7 +141,7 @@ function drawAsk() {                                                            
     log,
     h("div", { class: "ask-input" }, box,
       h("button", { class: "btn primary", type: "button", disabled: working || null, "aria-label": t("Send"), onclick: () => { UI.askLast = box.value.trim(); askSend(box); } }, icon("send"))),
-    h("p", { class: "ask-hint", text: t("Enter sends, Shift+Enter a new line. Sent to the agent, which acts only through Offerowl's tools.") }));
+    h("p", { class: "ask-hint" }, h("kbd", { text: "Enter" }), t("send"), h("kbd", { text: "Shift+Enter" }), t("new line")));   // the two keys, as a prompt shows them: no sentence
   fill(host, panel);                                                                // open: a sheet at the window's right edge, under the top bar (a phone: from the foot)
   requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });             // the newest in view
 }

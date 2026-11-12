@@ -10,7 +10,9 @@ const LIB_GROUPS = [["all", "All", "list"], ["source", "Your files", "upload"], 
 const LIB_COLOR = { source: "var(--blue)", input: "var(--violet)", made: "var(--green)", sent: "var(--amber)", kit: "var(--orange)" };   // each kind's mark, as in the legend
 const LIB_KIND_ICON = { pdf: "file", md: "edit", txt: "edit", json: "list", png: "person", jpg: "person", posting: "link", questions: "chat", html: "globe", pptx: "slides", docx: "file" };
 const LIB_KIND_WORD = { md: "Markdown", txt: "Text", json: "JSON", html: "Web page", pdf: "PDF", pptx: "Slides", docx: "Word", png: "Picture", jpg: "Picture", py: "Code" };   // a file's kind in words
-const LIB_PAGE = 14;                                                                // rows to a page: one screen, never a long scroll
+// rows to a page: as many as the window holds under the Library's head (a row is 54 px), so a tall screen is not left two
+// thirds empty under 14 rows and a short one does not scroll; 8 at the least, 40 at the most
+const libPageSize = () => Math.max(8, Math.min(40, Math.floor((innerHeight - 464) / 54)));   // 464 px of head, filters, pager and the foot kept clear of the AI prompt (measured)
 const TRASH_ICON = { source: "upload", photo: "person", job: "case", edition: "file", material: "file", aside: "folder" };   // a removed thing's mark, by what it was
 const trashKind = (k) => ({ source: t("Your file"), photo: t("Resume photo"), job: t("Application"), edition: t("Edition"), material: t("Application file"),
   aside: t("Workspace before a restore") }[k] || t("File"));                           // what it was, in words
@@ -144,22 +146,23 @@ function trashRow(r) {                                                          
     h("span", { class: "lib-own", role: "cell" }, trashWhose(r)),
     h("span", { class: "lib-about", role: "cell", text: trashAbout(r) }),
     h("span", { class: "lib-size", role: "cell", text: bytes(r.size) }),
-    h("span", { class: "lib-date", role: "cell", title: r.at || t("Before the day was kept"), text: r.at ? shortDay(r.at) : "–" }),   // the day it went; one removed by an older Offerowl has none
+    h("span", { class: "lib-date", role: "cell", title: r.at || t("Before the day was kept"), text: r.at ? [shortDay(r.at), hourOf(r.at)].filter(Boolean).join(" ") : "–" }),   // the day and hour it went: many go on one day; one removed by an older Offerowl has none
     h("span", { class: "lib-keys trash-keys", role: "cell" },
-      r.restore ? h("button", { class: "btn icon small", type: "button", "data-key": "put-back-" + r.id, title: t("Put back"), "aria-label": t("Put {name} back", { name }), onclick: () => trashDo(r, "restore") }, icon("restore"))
+      r.restore ? h("button", { class: "btn small", type: "button", "data-key": "put-back-" + r.id, "aria-label": t("Put {name} back", { name }), onclick: () => trashDo(r, "restore") }, icon("restore"), h("span", { text: t("Put back") }))
         : h("span", { class: "lib-slot", "aria-hidden": "true" }),
-      h("button", { class: "btn icon small danger", type: "button", "data-key": "delete-" + r.id, title: t("Delete for good"), "aria-label": t("Delete {name} for good", { name }), onclick: () => trashDo(r, "delete") }, icon("trash"))));
+      h("button", { class: "btn small danger", type: "button", "data-key": "delete-" + r.id, "aria-label": t("Delete {name} for good", { name }), onclick: () => trashDo(r, "delete") }, icon("trash"), h("span", { text: t("Delete for good") }))));
 }
 function viewTrash(d, q, setUI) {                                                  // the Trash in the Library's table, and the folders restores kept aside
   if (!d) return h("div", { class: "lib-table", "aria-busy": "true" }, h("p", { class: "ins-none", text: t("Listing what you removed…") }));
   if (d.error) return h("p", { class: "ins-none", text: t("The list could not be read.") });
   const rows = (d.rows || []).filter((r) => !q || [trashName(r), trashWhat(r), trashAbout(r), r.name].join(" ").toLowerCase().includes(q));
+  const LIB_PAGE = libPageSize();                                                  // this window's page
   const pages = Math.max(1, Math.ceil(rows.length / LIB_PAGE)), page = Math.min(UI.libPage || 0, pages - 1);
   const shown = rows.slice(page * LIB_PAGE, page * LIB_PAGE + LIB_PAGE);
   const asides = d.asides || [];
   return [
     h("div", { class: "trash-head" },
-      h("p", { text: (d.rows || []).length ? t("What you removed waits here. Put it back, or delete it for good. Undo also brings back your last change.")
+      h("p", { text: (d.rows || []).length ? tn(d.rows.length, "{n} thing removed.", "{n} things removed.")   // the count; what each key does is on the key
         : asides.length ? t("Nothing you removed waits here. Below are the folders a restore kept beside your workspace.")   // only folders: never "empty" above a list
         : t("The trash is empty. What you remove waits here, so you can put it back.") }),
       (d.rows || []).length ? h("button", { class: "btn small danger", type: "button", "data-key": "trash-empty", onclick: () => emptyTrash(d.rows || []) }, icon("trash"), t("Empty the trash")) : null),
@@ -177,9 +180,9 @@ function viewTrash(d, q, setUI) {                                               
           h("span", { class: "lib-own", role: "cell" }, h("span", { class: "trash-own" }, h("span", { class: "lib-ownic", "aria-hidden": "true" }, icon("folder")), h("span", { text: t("Beside your workspace") }))),
           h("span", { class: "lib-about", role: "cell", text: trashAbout(a) }),
           h("span", { class: "lib-size", role: "cell", text: bytes(a.size) }),
-          h("span", { class: "lib-date", role: "cell", title: a.at, text: shortDay(a.at) }),
+          h("span", { class: "lib-date", role: "cell", title: a.at, text: [shortDay(a.at), hourOf(a.at)].filter(Boolean).join(" ") }),   // the day and the hour of that restore
           h("span", { class: "lib-keys trash-keys", role: "cell" }, h("span", { class: "lib-slot", "aria-hidden": "true" }),
-            h("button", { class: "btn icon small danger", type: "button", "data-key": "delete-" + a.id, title: t("Delete for good"), "aria-label": t("Delete {name} for good", { name: a.name }), onclick: () => trashDo(a, "delete") }, icon("trash"))))))) : null];
+            h("button", { class: "btn small danger", type: "button", "data-key": "delete-" + a.id, "aria-label": t("Delete {name} for good", { name: a.name }), onclick: () => trashDo(a, "delete") }, icon("trash"), h("span", { text: t("Delete for good") }))))))) : null];
 }
 
 function viewLibrary(host) {
@@ -194,6 +197,7 @@ function viewLibrary(host) {
   const keyOfOwner = (r) => r.owner ? (r.owner.job ? "job:" + r.owner.job : "ed:" + r.owner.edition) : "profile";
   const match = rows.filter((r) => (group === "all" || r.group === group) && (!owner || keyOfOwner(r) === owner) &&
     (!q || [r.name, fileName(r), ownerWords(r.owner), rowWords(r), r.kind].join(" ").toLowerCase().includes(q)));
+  const LIB_PAGE = libPageSize();                                                  // this window's page
   const pages = Math.max(1, Math.ceil(match.length / LIB_PAGE)), page = Math.min(UI.libPage || 0, pages - 1);
   const shown = match.slice(page * LIB_PAGE, page * LIB_PAGE + LIB_PAGE);
   const setUI = (k, v) => { UI[k] = v; if (k !== "libPage") UI.libPage = 0; render(); };   // a new filter starts at the first page
@@ -231,10 +235,10 @@ function viewLibrary(host) {
         h("span", { class: "lib-about", role: "cell", text: rowWords(r) }),
         h("span", { class: "lib-size", role: "cell", text: bytes(r.size) }),
         h("span", { class: "lib-date", role: "cell", title: String(r.date || ""), text: shortDay(r.date) }),   // the day as 11-09; the hour shows on a hover
-        h("span", { class: "lib-keys", role: "cell" },                               // three fixed places: open, to the Desktop, take off; a row without one keeps its place empty
-          r.open ? h("a", { class: "btn icon small", href: r.open, target: "_blank", rel: "noopener", title: t("Open"), "aria-label": t("Open {name}", { name: fileName(r) }) }, icon("open")) : h("span", { class: "lib-slot", "aria-hidden": "true" }),
-          r.export ? h("button", { class: "btn icon small", type: "button", title: t("Save to the Desktop"), "aria-label": t("Save {name} to the Desktop", { name: fileName(r) }), onclick: () => libDo(r, "export") }, icon("desktop")) : h("span", { class: "lib-slot", "aria-hidden": "true" }),
-          r.remove ? h("button", { class: "btn icon small danger", type: "button", title: t("Remove"), "aria-label": t("Remove {name}", { name: fileName(r) }), onclick: () => libDo(r, "remove") }, icon("close")) : h("span", { class: "lib-slot", "aria-hidden": "true" }))))
+        h("span", { class: "lib-keys", role: "cell" },                               // three fixed places: open, to the Desktop, take off, each in words; a row without one keeps its place empty
+          r.open ? h("a", { class: "btn small", href: r.open, target: "_blank", rel: "noopener", "aria-label": t("Open {name}", { name: fileName(r) }) }, icon("open"), h("span", { text: t("Open") })) : h("span", { class: "lib-slot", "aria-hidden": "true" }),
+          r.export ? h("button", { class: "btn small", type: "button", title: t("Save to the Desktop"), "aria-label": t("Save {name} to the Desktop", { name: fileName(r) }), onclick: () => libDo(r, "export") }, icon("desktop"), h("span", { text: t("Export") })) : h("span", { class: "lib-slot", "aria-hidden": "true" }),
+          r.remove ? h("button", { class: "btn small danger", type: "button", "aria-label": t("Remove {name}", { name: fileName(r) }), onclick: () => libDo(r, "remove") }, icon("close"), h("span", { text: t("Remove") })) : h("span", { class: "lib-slot", "aria-hidden": "true" }))))
         : h("p", { class: "ins-none lib-none", text: t("No file matches.") })),
     trash ? null : pager(page, pages, (p) => setUI("libPage", p), match.length ? t("{a}–{b} of {n}", { a: page * LIB_PAGE + 1, b: page * LIB_PAGE + shown.length, n: match.length }) : "")));   // the pages, numbered
 }

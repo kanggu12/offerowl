@@ -37,6 +37,11 @@ def today() -> str:
     return datetime.date.today().isoformat()  # local date; the board has no time of day
 
 
+def now_minute() -> str:
+    """This minute (YYYY-MM-DD HH:MM, local time): when a thing was taken off, so that several taken off on one day are told apart."""
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")  # the Trash shows the day and the hour
+
+
 def read_json(path: Path, default):
     """A JSON file, or `default` when it is missing or unreadable (a half-written file must not stop the panel)."""
     try:
@@ -213,7 +218,8 @@ class Workspace:
         out = []  # newest first
         for f in reversed(self._history()):  # every step
             rec = read_json(f, {})  # its record
-            out.append({"n": int(f.stem), "t": rec.get("t"), "label": rec.get("label") or {}})  # its number, time and words
+            out.append({"n": int(f.stem), "t": rec.get("t"), "label": rec.get("label") or {},  # its number, time and words
+                        "id": f"{int(f.stem)}:{rec.get('t')}"})  # its name as newest() gives it: the page sends the newest one back with an undo
         return out  # the files themselves never leave this module
 
     def undo_label(self) -> dict | None:

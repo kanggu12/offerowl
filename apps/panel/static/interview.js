@@ -45,6 +45,7 @@ function ivDeck(j) {                                                            
   if (!d) return ivWait(null, t("Reading the interview deck…"));                    // on its way
   if (d.error) return h("div", { class: "iv-wait card" }, h("p", { class: "hint", role: "status", text: t("The interview deck could not be read.") }));
   if (UI.deckView && UI.deckView.doc === d) return UI.deckView.el;                  // drawn once per copy: a redraw of the panel around it keeps it
+  if (UI.deckView && UI.deckView.el.spy) UI.deckView.el.spy.disconnect();         // the copy drawn before watches no more
   const el = deckView(j, d);                                                        // drawn
   UI.deckView = { doc: d, el };                                                     // kept for the next redraw
   return el;
@@ -52,28 +53,39 @@ function ivDeck(j) {                                                            
 function deckView(j, d) {                                                           // the deck in the panel's parts: paper for what is read, the panel's chips, lamps and keys
   const w = d.words || {};                                                          // the deck's own words, in the panel's language (src/interview/i18n.json)
   const partName = (p) => (w.parts || {})[p] || p;                                  // a part of the deck in words; a file-ordered deck names its file's heading
+  // a part's key in a few words: a file's heading reads "Phone screen: career, motive, terms", and its key says what comes before
+  // the colon ("Phone screen"); the heading over the part, and the key's hover, keep the whole name
+  const headOf = (name) => { const m = String(name).match(/^(.{2,24}?):\s+(.*)$/); return m ? { head: m[1], tail: m[2] } : null; };
+  const heads = new Map(); for (const x of d.counts.parts) { const hd = headOf(partName(x.part)); if (hd) heads.set(hd.head, (heads.get(hd.head) || 0) + 1); }
+  const shortPart = (p) => { const name = partName(p), x = headOf(name); return !x ? name : heads.get(x.head) > 1 ? x.tail.split(/,\s|\s\(/)[0] : x.head; };   // parts that open alike say what follows their colon
   if (!(d.scenes || []).length) return h("section", { class: "ivdeck" }, h("div", { class: "empty glass" }, h("p", { text: w.empty || t("No scripts yet") })));   // no script yet
   const who = (x) => (x === "me" ? t("You") : t("Interviewer"));                    // a speaker in the panel's words
   const anchor = (x) => "deck-" + j.id + "-" + x;                                   // a place in the deck the keys go to
-  const goTo = (x) => { const el = document.getElementById(anchor(x)); if (el) el.scrollIntoView({ behavior: ivSmooth(), block: "start" }); };   // under the panel's bar (scroll-margin)
   const flash = (el) => { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); };   // the card gone to says so with its edge
-  const inDeck = new Set(d.scenes.map((s) => s.id));                                // the scripts this deck prints
+  const inDeck = new Map(d.scenes.map((s) => [s.id, s.part]));                      // the scripts this deck prints, and the part each is in
   const toScript = (id) => {                                                        // a script named in the posting's table
     if (!inDeck.has(id)) { ivOpenScript(id); return; }                              // not printed here: the search view has every script
-    goTo(id); const el = document.getElementById(anchor(id)); if (el) flash(el);    // printed further down
+    show("part-" + groups.findIndex((g) => g.part === inDeck.get(id)), false);       // its part, then the script in it
+    const el = document.getElementById(anchor(id)); if (el) { el.scrollIntoView({ behavior: ivSmooth(), block: "start" }); flash(el); }
   };
   const fig = (n, label) => h("div", { class: "stat" }, h("b", { text: String(n) }), h("span", { class: "k", text: label }));   // one figure of the cover
-  const head = h("header", { class: "deck-head paper" },                            // the cover: the company, the role, what the deck holds
+  const head = h("header", { class: "deck-head paper" },                            // the cover: the company, the role, what the deck holds (each part's count is on its key)
     h("div", { class: "deck-who" }, h("span", { class: "deck-eye", text: w.title || t("Interview deck") }), h("h2", { text: d.company || "" }),
       d.role ? h("p", { class: "sub", text: d.role }) : null),
-    h("div", { class: "deck-figs" }, fig(d.counts.scripts, w.scripts), fig(d.counts.questions, w.questions),
-      d.counts.parts.map((p) => fig(p.n, partName(p.part)))));                      // the scripts per part
+    h("div", { class: "deck-figs" }, fig(d.counts.scripts, w.scripts), fig(d.counts.questions, w.questions)));
   const groups = [];                                                                // the scripts by part, in the deck's order
   for (const s of d.scenes) { const g = groups[groups.length - 1]; if (g && g.part === s.part) g.items.push(s); else groups.push({ part: s.part, items: [s] }); }
-  const nav = h("nav", { class: "deck-nav", "aria-label": w.title || t("Interview deck") },   // a key to each part of the deck
-    d.posting.length ? h("button", { class: "btn small", type: "button", onclick: () => goTo("posting"), text: w.posting_title }) : null,
-    groups.map((g, i) => h("button", { class: "btn small", type: "button", onclick: () => goTo("part-" + i) }, partName(g.part), h("span", { class: "n", text: String(g.items.length) }))),
-    d.stall.length ? h("button", { class: "btn small", type: "button", onclick: () => goTo("stall"), text: w.stall_title }) : null);
+  // the deck's parts as tabs, one part on the page at a time: the whole deck in one page ran to tens of screens (52,000 px at
+  // 2560, 101,000 on a phone), and a long scroll is what the panel's other views were cut down from (lists with a detail,
+  // tabs). The row stays under the bar while a long part scrolls
+  const navKey = (to, words, n, full) => h("button", { class: "dn-key", type: "button", role: "tab", "data-to": to, "aria-selected": "false",
+    title: full && full !== words ? full : null, onclick: () => show(to, true) },
+    words, n ? h("span", { class: "n", text: String(n) }) : null);                   // a part as a tab: its words, its count, the open one underlined
+  const tabs = h("div", { class: "dn-row", role: "tablist", "aria-label": w.title || t("Interview deck") },   // the tabs, in a row that slides sideways (its edges fade where more are)
+    d.posting.length ? navKey("posting", w.posting_title) : null,
+    groups.map((g, i) => navKey("part-" + i, shortPart(g.part), g.items.length, partName(g.part))),
+    d.stall.length ? navKey("stall", w.stall_title) : null);
+  const nav = h("nav", { class: "deck-nav", "aria-label": w.title || t("Interview deck") }, tabs);   // held under the bar with the bar's glass
   const posting = d.posting.length ? h("section", { class: "deck-sec paper", id: anchor("posting"), "aria-label": w.posting_title },   // the posting line by line, with the script for each line
     h("h3", { text: w.posting_title }),
     h("div", { class: "deck-table" }, h("table", { class: "deck-lines" },
@@ -100,14 +112,47 @@ function deckView(j, d) {                                                       
         h("div", { class: "deck-talk" }, s.turns.map((x) => h("div", { class: "turn " + x.who }, h("span", { class: "who", text: who(x.who) }), h("span", { class: "en" }, speech(x.en))))),
         side.length ? h("div", { class: "deck-side" }, side) : null));
   };
-  const parts = groups.map((g, i) => h("section", { class: "deck-part", id: anchor("part-" + i), "aria-label": partName(g.part) },
+  const partEl = (g, i) => h("section", { class: "deck-part", id: anchor("part-" + i), "aria-label": partName(g.part) },
     h("h3", { class: "deck-ph" }, h("span", { text: partName(g.part) }), h("span", { class: "chip count", text: String(g.items.length) })),
-    g.items.map(scene)));
+    g.items.map(scene));
   const stall = d.stall.length ? h("section", { class: "deck-sec paper", id: anchor("stall"), "aria-label": w.stall_title },   // an English interview: the lines that ask again and buy time
     h("h3", { text: w.stall_title }),
     h("div", { class: "deck-stall" }, d.stall.map((x) => h("div", { class: "turn me" }, h("span", { class: "en" }, speech(x.en)), h("span", { class: "hint", text: x.use })))))
     : null;
-  return h("section", { class: "ivdeck", "aria-label": w.title || t("Interview deck") }, head, nav, posting, parts, stall);
+  // the pages the tabs open, in the deck's order: the posting, each part, the lines that buy time; each made the first time
+  // it is shown, and kept
+  const pages = [posting ? { to: "posting", el: () => posting, words: w.posting_title } : null,
+    ...groups.map((g, i) => ({ to: "part-" + i, el: () => partEl(g, i), words: shortPart(g.part) })),
+    stall ? { to: "stall", el: () => stall, words: w.stall_title } : null].filter(Boolean);
+  const made = new Map();                                                           // the pages drawn so far
+  const navAt = h("div", { class: "deck-nav-mark", "aria-hidden": "true" });        // where the row stands in the page: once it has gone under the bar, the row is held there
+  const host = h("div", { class: "deck-page", role: "tabpanel" });                  // the one part on the page
+  const show = (to, toTop) => {                                                     // a tab's part on the page, its key underlined, the next part's key at its foot
+    const at = Math.max(0, pages.findIndex((x) => x.to === to)), pg = pages[at];
+    UI.deckPart = UI.deckPart || {}; UI.deckPart[j.id] = pg.to;                     // kept while the page is open: a redraw or a detour comes back to it
+    if (!made.has(pg.to)) made.set(pg.to, pg.el());
+    const next = pages[at + 1];                                                     // reading on, without going back up to the row
+    fill(host, made.get(pg.to), next ? h("div", { class: "deck-next" }, h("button", { class: "btn", type: "button", onclick: () => show(next.to, true) },
+      h("span", { text: t("Next: {part}", { part: next.words }) }), h("span", { class: "flip", "aria-hidden": "true" }, icon("back")))) : null);   // the arrow of the pager's next key
+    nav.querySelectorAll("button").forEach((b) => { const on = b.dataset.to === pg.to; b.setAttribute("aria-selected", on ? "true" : "false");
+      if (on && (b.offsetLeft < tabs.scrollLeft || b.offsetLeft + b.offsetWidth > tabs.scrollLeft + tabs.clientWidth)) tabs.scrollLeft = b.offsetLeft - 8; });   // the row slides to it, never the page
+    requestAnimationFrame(() => edgeFade(tabs));                                    // its edges say where more tabs are
+    if (toTop && navAt.getBoundingClientRect().top < (document.getElementById("top") || { offsetHeight: 0 }).offsetHeight) navAt.scrollIntoView({ behavior: "auto", block: "start" });   // a new part starts at its top
+  };
+  const el = h("section", { class: "ivdeck", "aria-label": w.title || t("Interview deck") }, head, navAt, nav, host);
+  show((UI.deckPart || {})[j.id] || pages[0].to, false);                            // the part last open, else the first
+  deckHold(el, nav, navAt);                                                         // the row held under the bar while a long part scrolls
+  return el;
+}
+function deckHold(el, nav, navAt) {                                                // the tabs' row, once it has gone under the bar, held there as part of it
+  if (!window.IntersectionObserver) return;
+  // held under the bar, the row becomes part of it: the bar's own glass and foot line (a band glued to the bar, as Sidenote's
+  // are); in its place in the page it is a plain row of tabs, no box
+  const barH = () => (document.getElementById("top") || { offsetHeight: 0 }).offsetHeight;
+  const held = new IntersectionObserver(([x]) => nav.classList.toggle("stuck", !x.isIntersecting && x.boundingClientRect.top < barH() + 1),
+    { rootMargin: `-${barH()}px 0px 0px 0px` });
+  requestAnimationFrame(() => held.observe(navAt));
+  el.spy = held;                                                                    // let go with the deck (ivDeck)
 }
 
 // ---------------------------------------------------------------- the talk's script
@@ -129,8 +174,11 @@ function ivTalkScript(j, st) {                                                  
 }
 function talkScriptView(j, d) {                                                     // the printed script's parts, in the panel's: paper for what is read, its chips and tables
   const w = d.words || {};                                                          // the script's own words, in the talk's language
+  const drafts = d.slides.filter((s) => s.draft).length;                             // slides whose words were made from the slide itself
   const head = h("header", { class: "ts-head paper" }, h("h3", { text: d.title }), h("p", { class: "sub", text: d.sub }),
-    d.notes.map((n) => h("p", { class: "ts-warn", role: "note" }, icon("alert"), h("span", { text: n }))));   // what the checks found
+    d.notes.map((n) => h("p", { class: "ts-warn", role: "note" }, icon("alert"), h("span", { text: n }))),   // what the checks found
+    drafts ? h("p", { class: "ts-drafts" }, h("span", { class: "chip ai", text: w.draft }),   // said once here, and each such slide wears the tag (the same sentence on every slide was noise)
+      h("span", { text: tn(drafts, "The words of {n} slide are a draft made from its own text.", "The words of {n} slides are drafts made from their own text.") })) : null);
   const top = h("div", { class: "ts-top" },                                         // the parts' times, and how to speak
     h("div", { class: "ts-parts paper" }, h("table", {}, h("thead", {}, h("tr", {}, [w.part, w.pages, w.time, w.run].map((x) => h("th", { scope: "col", text: x })))),
       h("tbody", {}, d.parts.map((r) => h("tr", {}, h("td", { text: r.name }), h("td", { text: r.pages }), h("td", { class: "tm", text: r.time }), h("td", { class: "tm", text: r.run })))))),
@@ -140,12 +188,11 @@ function talkScriptView(j, d) {                                                 
     h("div", { class: "ts-l" },
       s.picture ? h("img", { src: `/api/v1/jobs/${enc(j.id)}/talk/slides/${i + 1}.png?v=${d.at || 0}`, alt: "", loading: "lazy", decoding: "async" }) : h("div", { class: "ts-noimg" }),   // the slide as it prints
       h("div", { class: "ts-tm" }, h("b", { text: s.time }), h("span", { text: `${w.run} ${s.run}` }))),   // its time and the running total
-    h("div", { class: "ts-r" }, h("h4", {}, h("span", { class: "n", text: String(s.page) }), h("span", { text: s.title })),
+    h("div", { class: "ts-r" }, h("h4", {}, h("span", { class: "n", text: String(s.page) }), h("span", { text: s.title }), s.draft ? h("span", { class: "chip ai", text: w.draft }) : null),
       s.cue ? mark(w.point, "", ivRich(s.cue)) : null,
       s.lines.map((x) => h("p", {}, ivRich(x))),                                    // what to say
       s.short ? mark(w.short, "warn", ivRich(s.short)) : null,
-      s.ask.map((q) => mark(w.ask, "pc", ivRich(q))),
-      s.draft ? mark(w.draft, "ai", w.draft_tip) : null));                           // words made from the slide itself
+      s.ask.map((q) => mark(w.ask, "pc", ivRich(q)))));
   const qa = d.qa.length ? h("section", { class: "ts-qa paper", "aria-label": w.qa }, h("h3", { text: w.qa }),
     d.qa.map((q) => h("div", { class: "ts-q" }, h("div", { class: "ts-qh" }, h("b", {}, ivRich(q.q)), h("span", { class: "hint", text: String(w.page || "{n}").replace("{n}", q.page) })),
       h("p", {}, ivRich(q.a))))) : null;
@@ -221,7 +268,6 @@ function practiceView(j, kit0) {                                                
     const head = h("div", { class: "pr-head" }, h("h3", { text: fmt("practice_title") }),   // the title and the two clocks
       h("span", { class: "pr-clock" }, h("span", { class: "k", text: fmt("pr_session_t") }), h("b", { "data-clock": "session", text: PR.t0 ? clock(Date.now() - PR.t0) : "0:00" })),
       h("span", { class: "pr-clock" }, h("span", { class: "k", text: fmt("pr_answer_t") }), h("b", { "data-clock": "answer", text: PR.tq && PR.view === "ask" ? clock(Date.now() - PR.tq) : "0:00" })));
-    const note = h("p", { class: "hint", text: fmt("pr_note") });                   // what the microphone does and when the script shows
     const err = PR.error && PR.setup ? h("div", { class: "band", role: "alert" }, h("p", { text: fmt("pr_error", { error: PR.error }) })) : null;   // said once
     let body;                                                                       // the part that changes with the view
     if (PR.error && !PR.setup) body = h("div", { class: "card" }, h("p", { text: t("The interview kit could not start.") }));   // no kit to talk to
@@ -231,20 +277,20 @@ function practiceView(j, kit0) {                                                
     else if (PR.view === "ask" || busy) body = askCard(busy);                       // the question and the answer keys
     else if (PR.view === "feedback") body = feedbackCard();                         // what the answer was like, then the script
     else body = summaryCard();                                                      // the session's summary
-    fill(el, head, note, err, body);
+    fill(el, head, err, body);
     if (PR.setup) PR.error = "";                                                    // an error is shown once
     if (PR.view === "ask" && !PR.rec && el.isConnected) { const box = el.querySelector("textarea"); if (box && !box.disabled) box.focus({ preventScroll: true }); }   // ready to type
   }
   function setupCard() {                                                            // the choices before a session
     const s = PR.setup;                                                             // what the kit offers
-    const sw = s.agent ? h("button", { class: "switch", type: "button", role: "switch", "aria-checked": PR.useAgent ? "true" : "false", "aria-label": fmt("pr_agent", { name: s.agent }),
+    const sw = s.agent ? h("button", { class: "switch", type: "button", role: "switch", "aria-checked": PR.useAgent ? "true" : "false", "aria-label": fmt("pr_agent", { name: prWho(s.agent) }),
       onclick: () => { PR.useAgent = !PR.useAgent; store.set("pr-agent", PR.useAgent ? "1" : "0"); draw(); } }) : null;   // the agent asks, or the scripts' own questions
     const row = (label, ...kids) => h("div", { class: "pr-row" }, h("span", { class: "pr-lab", text: label }), h("div", { class: "pr-val" }, kids));   // one setting
     const hist = (s.history || []).length ? h("div", { class: "pr-hist" }, h("h4", { text: fmt("pr_history") }),   // earlier sessions on this PC
       h("table", {}, h("tbody", {}, s.history.map((x) => h("tr", {}, h("td", { text: String(x.started || "").replace("T", " ").slice(0, 16) }),
-        h("td", { text: x.interviewer || "" }), h("td", { text: sumLine(x.summary) })))))) : null;
+        h("td", { text: prWho(x.interviewer) }), h("td", { text: sumLine(x.summary) })))))) : null;
     return h("div", { class: "card pr-setup" },
-      row(fmt("pr_interviewer"), sw, h("span", { class: s.agent ? "" : "hint", text: s.agent ? fmt("pr_agent", { name: s.agent }) : fmt("pr_no_agent") })),
+      row(fmt("pr_interviewer"), sw, h("span", { class: s.agent ? "" : "hint", text: s.agent ? fmt("pr_agent", { name: prWho(s.agent) }) : fmt("pr_no_agent") })),
       row(fmt("pr_count"), h("div", { class: "seg", role: "group", "aria-label": fmt("pr_count") }, PR_COUNTS.map((n) => h("button", { type: "button", "aria-pressed": PR.count === n ? "true" : "false",
         onclick: () => { PR.count = n; store.set("pr-count", n); draw(); }, text: String(n) })))),
       row(fmt("pr_kinds"), h("div", { class: "seg pr-kinds", role: "group", "aria-label": fmt("pr_kinds") }, s.kinds.map((x) => h("button", { type: "button", "aria-pressed": PR.kinds.includes(x) ? "true" : "false",
@@ -299,6 +345,9 @@ function practiceView(j, kit0) {                                                
       h("div", { class: "part-keys" }, canFollow ? keyBtn(fmt("pr_answer_fu"), () => ask(PR.turn + 1, PR.follow.followup, ""), { primary: true }) : null,
         last ? null : keyBtn(fmt("pr_next"), next, { primary: !canFollow }), keyBtn(fmt("pr_end"), end, { primary: last && !canFollow, quiet: !(last && !canFollow) }))),
     h("div", { class: "pr-scene" }, h("h4", { text: fmt("fb_scene") }), scene || h("p", { class: "hint", text: fmt("fb_no_scene") }))];
+  }
+  function prWho(id) {                                                              // who asked a session's questions, in words: an agent by its name, never its setting's id
+    return id === "fixed" ? fmt("pr_fixed") : id === "openai-compat" ? fmt("pr_local") : AGENT_NAME[id] ? t(AGENT_NAME[id]) : id || "";
   }
   function sumLine(s) {                                                             // a session's summary in one line
     if (!s) return "";                                                              // nothing answered yet

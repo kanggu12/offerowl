@@ -95,7 +95,7 @@ class TestRemoved(PanelCase):
         self.assertGreaterEqual(st["removed"]["sources"], 1)  # counted for the page, by kind
         self.assertEqual(sum(v for k, v in st["removed"].items() if k != "all"), st["removed"]["all"])  # and in all
         row = self.row("source:" + rec["id"])
-        self.assertEqual(time.strftime("%Y-%m-%d"), row["at"])  # with the day it went
+        self.assertRegex(row["at"], r"^" + time.strftime("%Y-%m-%d") + r" \d\d:\d\d$")  # with the day and the hour it went
         self.assertGreater(row["note"]["facts"], 0)  # and the facts a put-back brings
         self.assertEqual({"path": "/api/v1/removed/restore", "body": {"id": "source:" + rec["id"]}}, row["restore"])  # its routes
         self.assertFalse([r for r in self.fact_rows() if SOURCE_WORDS in json.dumps(r, ensure_ascii=False)])  # its facts are off the profile
@@ -154,7 +154,7 @@ class TestRemoved(PanelCase):
         self.post("/api/v1/jobs/remove", {"job": jid})  # off the board
         self.assertGreaterEqual(len(self.traces(JOB_WORDS)), 4)  # its folder's files and the undo steps hold its words before the deletion
         row = self.row("job:" + jid)
-        self.assertEqual(("job", time.strftime("%Y-%m-%d")), (row["kind"], row["at"]))
+        self.assertEqual(("job", time.strftime("%Y-%m-%d")), (row["kind"], row["at"][:10]))
         for path, body in (("/api/v1/jobs/build", {"job": jid, "lang": "ko"}), ("/api/v1/jobs/analyze", {"job": jid}),   # a job in the Trash takes no work:
                            ("/api/v1/tracker/edit", {"job": jid, "next": "x"}), ("/api/v1/jobs/select", {"job": jid})):  # nothing writes into a folder on its way out
             self.assertEqual("job", self.post(path, body, expect=400)["what"], path)
@@ -203,7 +203,7 @@ class TestRemoved(PanelCase):
         gone = self.send(f"/api/v1/jobs/materials?job={q(jid)}", f"{MATERIAL_WORDS}.md", f"# {MATERIAL_WORDS} answers\n".encode())["material"]
         for m in (keep, gone):
             self.post("/api/v1/jobs/materials/remove", {"job": jid, "id": m["id"]})
-        self.assertEqual(time.strftime("%Y-%m-%d"), self.row(f"material:{jid}:{gone['id']}")["at"])
+        self.assertRegex(self.row(f"material:{jid}:{gone['id']}")["at"], r"^" + time.strftime("%Y-%m-%d") + r" \d\d:\d\d$")  # the day and the hour
         self.assertGreaterEqual(len(self.traces(MATERIAL_WORDS)), 3)  # its file, its record, its removal's undo step
         self.post("/api/v1/removed/restore", {"id": f"material:{jid}:{keep['id']}"})  # back
         listed = [m["id"] for m in self.get(f"/api/v1/jobs/{q(jid)}/materials")["materials"]]

@@ -25,7 +25,9 @@
     btn.setAttribute("role", "combobox");                                          // a screen reader hears a list to choose from
     btn.setAttribute("aria-haspopup", "listbox");
     btn.setAttribute("aria-expanded", "false");
-    const name = sel.getAttribute("aria-label") || (sel.labels && sel.labels[0] ? sel.labels[0].textContent : "");   // its name, as the select had it
+    const lab = sel.labels && sel.labels[0] ? sel.labels[0] : null;                 // a <label> around it holds its options' words too: only the label's own words name it
+    const own = lab ? [...lab.childNodes].filter((n) => n !== sel && !(n.contains && n.contains(sel))).map((n) => n.textContent).join(" ").replace(/\s+/g, " ").trim() : "";
+    const name = sel.getAttribute("aria-label") || own;                             // its name, as the select had it
     if (name) btn.setAttribute("aria-label", name);
     if (sel.dataset.key) btn.dataset.key = sel.dataset.key + "-combo";             // found again after a redraw (app.js keyOf)
     btn.innerHTML = '<span class="combo-val"></span>' + MARK;                       // the words, then the chevron

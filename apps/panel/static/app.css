@@ -318,7 +318,7 @@
 /* the evidence in sight: under each fact its source's words and file; in the evidence tab each passage under the
    number the canvas puts after the sentence */
 .fact-ev { display: grid; gap: 3px; margin-top: 4px; }
-.fact-ev q { display: block; padding-left: var(--gap-s); border-left: 2px solid var(--hl-line); font-size: var(--fs-xs); line-height: 1.6; color: var(--ink-2); font-weight: 400; quotes: none; }   /* closed, the first words only (views.js), so the list stays light and nothing is cut */
+.fact-ev q { display: block; padding-left: var(--gap-s); border-left: 2px solid var(--rule-2); font-size: var(--fs-xs); line-height: 1.6; color: var(--ink-2); font-weight: 400; quotes: none; }   /* closed, the first words only (views.js), so the list stays light and nothing is cut */
 .fact-src { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 400; color: var(--ink-3); }   /* quiet: the words above it are the evidence */
 .ev-note { position: relative; padding-left: calc(var(--gap-s) + 22px); }
 .ev-note .evn { position: absolute; left: var(--gap-s); top: var(--gap-s); min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--cite-bg); color: var(--cite-ink);

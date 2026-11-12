@@ -24,6 +24,7 @@ into runtime/ of the data folder at the first start, so it needs no Docker.
 from __future__ import annotations  # hints stay strings, so new hint syntax runs on older Pythons
 
 import argparse  # the command line
+import html  # the notice page's words, set as text
 import json  # the server's answers
 import os  # environment
 import runpy  # engine scripts run by this program as the interpreter
@@ -207,6 +208,9 @@ KO = {
         "다른 프로그램이 Offerowl이 쓰는 포트({port})를 쓰고 있습니다. 그 프로그램을 끈 뒤 Offerowl을 다시 켜세요.",
     "The Offerowl server did not start. The end of its log:": "Offerowl 서버가 시작하지 못했습니다. 기록의 끝:",  # shown when the first start fails
     "Offerowl's server keeps stopping. The end of its log:": "Offerowl 서버가 계속 멈춥니다. 기록의 끝:",  # shown when the restart limit is reached
+    "Offerowl could not start": "Offerowl을 시작하지 못했습니다",  # the notice's title when the start failed
+    "Offerowl stopped": "Offerowl이 멈췄습니다",  # the notice's title when it ended on a problem
+    "Open the logs folder": "로그 폴더 열기",  # the notice's key
     "Open Offerowl": "Offerowl 열기",  # the tray's default item, the panel
     "Open the data folder": "데이터 폴더 열기",  # the tray menu item for the logs and settings
     "Quit": "끝내기",  # the tray menu item that ends the app
@@ -228,13 +232,73 @@ def say(text: str, log: CappedLog | None = None) -> None:  # one stamped format 
         print(line, flush=True)  # flushed so a terminal or a pipe sees it at once
 
 
-def tell(text: str, log: CappedLog | None = None) -> None:  # for problems the person has to act on
-    """A problem the person has to know about. The Windows app has no console, so it is shown in a message box."""
-    say(text, log)  # kept in the log too, for reading later
-    if sys.platform == "win32" and FROZEN:  # only the windowless Windows app needs a box
+SHOW = {"browser": True}  # whether a problem may be shown in the browser: off with --no-browser (a test's run, a service)
+
+
+def notice_page(title: str, text: str, detail: str = "") -> str:
+    """A problem as a page of Offerowl's own look, for the browser the panel lives in: the wordmark, an amber lamp and the
+    title, the words, the end of a log when there is one, and a key to the logs folder. One file, nothing fetched: the
+    panel's colours and type, light or dark as the system is. The system's grey message box it replaces read as another
+    program's."""
+    esc = html.escape  # every word set as text
+    logo = ""  # the wordmark in both themes, read from the app's own files (absent from a bare copy: no picture then)
+    for theme in ("light", "dark"):  # the page shows the one for the system's theme
+        f = ROOT / "docs" / "assets" / f"logo-{theme}.svg"
+        if f.is_file():
+            logo += f'<span class="logo {theme}">{f.read_text(encoding="utf-8")}</span>'
+    logs = (data_dir() / "logs").as_uri()  # where app.log and the server's log are
+    tail_html = f"<pre>{esc(detail)}</pre>" if detail else ""  # the log's end, as it was written
+    css = """
+:root { color-scheme: light dark; --desk: #fafafa; --paper: #ffffff; --line: #ebebeb; --line-2: #d4d4d4; --ink: #171717;
+  --ink-2: #4d4d4d; --ink-3: #666666; --well: #f5f5f5; --amber: #8f4700; --lamp: rgba(255, 190, 110, .16); }
+@media (prefers-color-scheme: dark) { :root { --desk: #0a0a0a; --paper: #121212; --line: #262626; --line-2: #3a3a3a;
+  --ink: #ededed; --ink-2: #c7c7c7; --ink-3: #a1a1a1; --well: #0f0f0f; --amber: #ffb224; --lamp: rgba(255, 178, 36, .07); } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+  background: radial-gradient(1200px 640px at 3% -8%, var(--lamp), transparent 64%), var(--desk); color: var(--ink);
+  font: 14px/1.6 Pretendard, "Segoe UI", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+main { width: min(560px, 100%); display: grid; gap: 14px; padding: 22px 22px 18px; border: 1px solid var(--line);
+  border-radius: 2px; background: var(--paper); box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .35); }
+.logo svg { display: block; height: 22px; width: auto; } .logo.dark { display: none; }
+@media (prefers-color-scheme: dark) { .logo.light { display: none; } .logo.dark { display: block; } }
+h1 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.02em;
+  line-height: 1.35; overflow-wrap: anywhere; }
+h1 i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--amber); }
+p { margin: 0; color: var(--ink-2); overflow-wrap: anywhere; }
+pre { margin: 0; max-height: 300px; overflow: auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: 2px;
+  background: var(--well); color: var(--ink-2); font: 12px/1.55 "JetBrains Mono", ui-monospace, Consolas, monospace;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.keys { display: flex; justify-content: flex-end; }
+.keys a { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid var(--line-2);
+  border-radius: 2px; background: var(--paper); color: var(--ink); font-weight: 500; text-decoration: none; }
+.keys a:hover { background: var(--well); } .keys a:focus-visible { outline: 2px solid var(--ink-3); outline-offset: 2px; }
+"""
+    return (f'<!doctype html><html lang="{ui_lang()}"><head><meta charset="utf-8">'
+            f'<meta name="viewport" content="width=device-width, initial-scale=1"><title>{esc(title)} · Offerowl</title>'
+            f'<style>{css}</style></head><body><main role="alert">{logo}'
+            f'<h1><i aria-hidden="true"></i>{esc(title)}</h1><p>{esc(text)}</p>{tail_html}'
+            f'<div class="keys"><a href="{esc(logs)}">{esc(t("Open the logs folder"))}</a></div></main></body></html>')
+
+
+def tell(text: str, log: CappedLog | None = None, title: str = "", detail: str = "") -> None:  # for problems the person has to act on
+    """A problem the person has to know about: in the log, and on a page of Offerowl's own look in the browser (notice_page).
+    Only when no browser can be opened at all does the Windows app, which has no console, fall back to the system's box, so
+    that the problem is said somewhere."""
+    say(text + ("\n" + detail if detail else ""), log)  # kept in the log too, for reading later
+    if not SHOW["browser"]:  # a test's run or a service: the log is the place
+        return
+    try:  # the page, beside the logs it points to
+        page = data_dir() / "logs" / "problem.html"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(notice_page(title or t("Offerowl could not start"), text, detail), encoding="utf-8")
+        if webbrowser.open(page.as_uri()):  # shown
+            return
+    except OSError:  # no data folder to write in: the box below
+        pass
+    if sys.platform == "win32" and FROZEN:  # the windowless Windows app with no browser to show it in
         import ctypes  # Windows only, so imported here
         MB_ICONWARNING, MB_TOPMOST = 0x30, 0x40000  # a warning icon, and the box stays above the browser
-        ctypes.windll.user32.MessageBoxW(None, text, "Offerowl", MB_ICONWARNING | MB_TOPMOST)  # blocks until the person closes it
+        ctypes.windll.user32.MessageBoxW(None, text + ("\n\n" + detail if detail else ""), "Offerowl", MB_ICONWARNING | MB_TOPMOST)  # blocks until closed
 
 
 def _windows_job():  # a crash or a Task Manager kill must not orphan the server
@@ -534,7 +598,7 @@ def run(args) -> int:  # the normal start, from a double-click
         return 0  # the other copy does the work
     if not port_free(port):  # a foreign program on the port: say so, do not guess
         # the person has to free the port; the box says how
-        tell(t("Another program is using the port Offerowl needs ({port}). Close that program, then start Offerowl again.", port=port), log)
+        tell(t("Another program is using the port Offerowl needs ({port}). Close that program, then start Offerowl again.", port=port), log, title=t("Offerowl could not start"))
         log.close()  # nothing more to log
         return 1  # a start that did not happen
     runtime = prepare_runtime(data, log)  # Node.js for the documents: unpacked now at the first start, found at every later one
@@ -548,7 +612,7 @@ def run(args) -> int:  # the normal start, from a double-click
         say(f"starting the server on {url}", log)  # the log shows which port was used
         # up, or exited early: either one ends the wait
         if not wait_for(lambda: health(port) is not None or server.exited() is not None, timeout=60) or health(port) is None:
-            tell(t("The Offerowl server did not start. The end of its log:") + "\n\n" + tail(server.log.path), log)  # the log tail tells why
+            tell(t("The Offerowl server did not start. The end of its log:"), log, title=t("Offerowl could not start"), detail=tail(server.log.path))  # the log tail tells why
             return 1  # finally still stops whatever started
         say("the server is up", log)  # marks a good start in the log
         if not args.no_browser:  # --no-browser leaves the browser alone
@@ -637,7 +701,7 @@ def watch(server: Child, log: CappedLog, stop: threading.Event, code: dict) -> N
         if server.exited() is None:  # polled, so the loop never blocks on it
             continue  # running
         if server.given_up():  # too many restarts: stop instead of looping
-            tell(t("Offerowl's server keeps stopping. The end of its log:") + "\n\n" + tail(server.log.path), log)  # the log tail tells why
+            tell(t("Offerowl's server keeps stopping. The end of its log:"), log, title=t("Offerowl stopped"), detail=tail(server.log.path))  # the log tail tells why
             code["exit"] = 1  # the app's exit code reports the failure
             stop.set()  # ends the tray loop and run()
             return  # this thread is done
@@ -862,6 +926,7 @@ def main(argv: list[str] | None = None) -> int:  # the one entry for the app and
         report = traceback.format_exc()  # what happened
         print(report, file=sys.stderr)  # for the program that started this one
         helper = bool(argv) and (argv[0].lower().endswith(".py") or argv[0] in ("--serve", "--smoke", "--check"))  # a process with no person at its screen
+        SHOW["browser"] = SHOW["browser"] and "--no-browser" not in argv   # an error before the options were read: the same rule
         try:  # the person's log, when the data folder can be written
             log = CappedLog(data_dir() / "logs" / "app.log")
             log.write(report.encode("utf-8"))
@@ -869,7 +934,7 @@ def main(argv: list[str] | None = None) -> int:  # the one entry for the app and
         except OSError:  # no log then: the exit code still says it failed
             pass
         if not helper:  # the app a person started: it says so once
-            tell(t("Offerowl stopped because of an error. The details are in the logs folder of {path}.", path=data_dir()))
+            tell(t("Offerowl stopped because of an error. The details are in the logs folder of {path}.", path=data_dir()), title=t("Offerowl stopped"))
         return 1  # a failure, with no dialog of the bootloader's
 
 
@@ -902,6 +967,7 @@ def roles(argv: list[str]) -> int:  # one process plays one of these
     ap.add_argument("--serve", action="store_true", help=argparse.SUPPRESS)  # the server's own role
     ap.add_argument("--smoke", action="store_true", help=argparse.SUPPRESS)  # the document check's own role
     args = ap.parse_args(argv)  # exits with a usage line on bad options
+    SHOW["browser"] = not args.no_browser and not (args.serve or args.smoke or args.check)   # a problem shows in the browser only for a person's own start
     if args.serve:  # the child role first: it must not start another app
         return serve(args.port)  # the server's exit code is the child's
     if args.smoke:  # started by --check
