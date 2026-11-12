@@ -739,7 +739,8 @@ def serve(port: int) -> int:  # the child role, so one file holds both programs
     as_engine_process()  # the server starts Node.js, the browser and poppler: they must see the PC's libraries, with no console window
     sys.path.insert(0, str(ROOT))  # apps/ is found from here
     from apps.panel import server as panel  # noqa: E402
-    return panel.main(["--port", str(port)])  # the panel's own exit code becomes this one
+    panel.finish(panel.main(["--port", str(port)]))  # the panel's own exit code becomes this one, with no tear-down under a daemon thread (server.py finish)
+    return 1  # not reached: finish ends the process
 
 
 def smoke() -> int:  # the --smoke role, started by check() with the server's environment

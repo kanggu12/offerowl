@@ -900,14 +900,17 @@ class TestUnderLoadAndStop(unittest.TestCase):
         import subprocess  # the panel as its own process
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-stop-"))
         self.addCleanup(shutil.rmtree, tmp, True)
+        env = dict(os.environ, PYTHONFAULTHANDLER="1")  # a crash prints every thread's stack, for this test's message
         p = subprocess.Popen([sys.executable, str(ROOT / "apps" / "panel" / "server.py"), "--port", "0", "--data", str(tmp)],
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", env=env)
         self.addCleanup(p.stdout.close)  # cleanups run last first: the pipe goes after the process is reaped
         self.addCleanup(lambda: p.poll() is None and p.kill())
         self.assertTrue(p.stdout.readline().startswith("http://127.0.0.1:"))  # serving
         p.send_signal(signal.SIGTERM)  # docker stop, a pod's end, the desktop app's quit
-        self.assertEqual(0, p.wait(15))  # a clean exit, well inside Docker's ten seconds
-        log = (tmp / "logs" / "panel.log").read_text(encoding="utf-8")
+        code = p.wait(15)  # well inside Docker's ten seconds
+        said = p.stdout.read()  # what the panel printed, a crash's stacks with it
+        log = (tmp / "logs" / "panel.log").read_text(encoding="utf-8") if (tmp / "logs" / "panel.log").is_file() else ""
+        self.assertEqual(0, code, f"the panel's output:\n{said[-4000:]}\nits log:\n{log[-3000:]}")  # a clean exit; else the moment it failed, to read
         self.assertIn("stopping: signal", log)
         self.assertIn("panel stopped", log)
 

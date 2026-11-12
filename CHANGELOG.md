@@ -67,6 +67,9 @@ prompt back where it was asked for.
 - On a phone the four stages and the fit's four choices stay in one row each, in their order, and the day fields take the
   row (two to a row cut "YYYY-MM-DD"). The Library's Trash key takes its own row.
 - The applications' page scrolled 96 px past a list that already fitted the window.
+- A stop from outside (SIGTERM) right after the panel started ended once in a crash (SIGSEGV) on Python 3.12, after the
+  panel had wound down cleanly: Python's own tear-down ran while a background thread was still at work. The panel now
+  ends at once when it has wound down, its log and console flushed, as the panel and as the desktop app's server.
 - The desktop app said that it could not start, or that its server kept stopping, in the system's grey message box: it
   says so on a page of Offerowl's own look in the browser, with the end of the log and a key to the logs folder. On macOS
   and Linux it said nothing outside the log.
