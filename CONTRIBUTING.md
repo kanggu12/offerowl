@@ -147,8 +147,11 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
      `python3 -m unittest discover -s tests/packaging`, and commit.
   3. Push the tag `vx.y.z`. `.github/workflows/release.yml` checks that the tag, the package and the notes agree before it
      builds anything, then publishes the section as the release's notes.
-- **Before the tag.** The desktop builds and the chart's cluster test, which the release runs first, can be started by hand
-  (Actions, `desktop` or `chart-e2e`, **Run workflow**).
+- **Before the tag.** Wait for `ci` on main, which runs every test on each Python. The release runs the desktop builds and
+  the chart's cluster test itself and publishes nothing until they pass, so they need not be waited for twice; start them
+  by hand first (Actions, `desktop` or `chart-e2e`, **Run workflow**) only when a change to the app's build or to the chart
+  could leave a tag with no release. The desktop builds run the panel's tests on Windows, the Apple silicon Mac and Linux;
+  the Intel Mac builds the app and starts it with `--check`.
 - **The repository's About.** Its description, website and topics (the five or so words a person looking for it types, never
   the stack) are kept in `.github/repo.json`: `sh .github/repo-meta.sh` sets them on GitHub after the file changes, and turns
   on Discussions and the private vulnerability reports of [SECURITY.md](.github/SECURITY.md).

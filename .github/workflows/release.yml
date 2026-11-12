@@ -113,8 +113,12 @@ jobs:
           provenance: false   # GitHub's signed record is attached below; this keeps the registry's manifest list clean
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=app
-          cache-to: type=gha,mode=max,scope=app
+          # a scope of its own: ci.yml's image (amd64 only) saved over the shared one, so every release built its arm64 layers
+          # again under emulation (7.5 minutes); the release's own scope keeps them from one release to the next
+          cache-from: |
+            type=gha,scope=release
+            type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=release
       - name: Where the image was built, signed by GitHub
         uses: actions/attest-build-provenance@v4
         with:
