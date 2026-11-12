@@ -50,17 +50,18 @@ SYSTEM = "You write interview scenes. Facts about the candidate come only from t
 REPAIR = ("\n\n## Your last answer was rejected\nThe checks found: {reasons}\nWrite the whole scene again and fix these, keeping what was good. A name that is "
           "not in the evidence cannot be in a sentence about what the candidate did; say how it works in the present tense instead, or leave it out.")
 # Default sections of each kind of question
-LETTERS = {"posting": "P", "resume": "R", "portfolio": "F", "term": "Q", "behavioral": "D", "company": "C", "opening": "O", "scenario": "E", "technical": "T"}
+LETTERS = {"asked": "L", "posting": "P", "resume": "R", "portfolio": "F", "term": "Q", "behavioral": "D", "company": "C", "opening": "O", "scenario": "E", "technical": "T"}
 # Names of the kinds, for the heading of a section the kit does not have yet
-KIND_NAMES = {"ko": {"posting": "공고 줄마다", "resume": "이력서 줄마다", "portfolio": "포트폴리오 장마다", "term": "용어",
+KIND_NAMES = {"ko": {"asked": "지난 면접에서 받은 질문", "posting": "공고 줄마다", "resume": "이력서 줄마다", "portfolio": "포트폴리오 장마다", "term": "용어",
                      "behavioral": "인성", "company": "회사", "opening": "첫 인사", "scenario": "상황 대응", "technical": "기술 질문"},
-              "en": {"posting": "Posting lines", "resume": "Resume lines", "portfolio": "Portfolio pages", "term": "Terms",
+              "en": {"asked": "Asked in earlier rounds", "posting": "Posting lines", "resume": "Resume lines", "portfolio": "Portfolio pages", "term": "Terms",
                      "behavioral": "Behavioral", "company": "Company", "opening": "Opening", "scenario": "Scenarios", "technical": "Technical"}}  # headings of new sections
-# The likeliest questions first, so a few scenes already cover what nearly every interview asks; terms come last, there are many
-ORDER = ("behavioral", "company", "scenario", "technical", "posting", "resume", "portfolio", "opening", "term")
+# The likeliest questions first, so a few scenes already cover what nearly every interview asks; terms come last, there are many.
+# What an earlier round really asked comes before all of them: the next round may ask it again or go deeper.
+ORDER = ("asked", "behavioral", "company", "scenario", "technical", "posting", "resume", "portfolio", "opening", "term")
 # Kinds about how things work: a sentence that explains may name what the person's documents never mention. Every other
 # kind is about the person's own work or about the company, so everything in it stays grounded.
-EXPLAINING = ("scenario", "technical", "term")
+EXPLAINING = ("scenario", "technical", "term", "asked")  # a question really asked may be about how a thing works
 # The JSON shape of one drafted scene: two titles, the key line, the caution, and the dialogue as [label, text] pairs
 SCHEMA = {"type": "object", "additionalProperties": False, "required": ["title_ko", "title_en", "key", "lines", "caution"],
           "properties": {"title_ko": {"type": "string"}, "title_en": {"type": "string"}, "key": {"type": "string"},
@@ -99,6 +100,20 @@ def next_ids(items):
         if m:  # ids of other shapes take no part
             top[m.group(1)] = max(top.get(m.group(1), 0), int(m.group(2)))  # keep the highest number per letter
     return {k: v + 1 for k, v in top.items()}  # one past the highest, so no id is reused
+
+
+def asked_letter(job, cats, kit_letters, id_letters=()):
+    """The section the scenes for questions of earlier rounds join: the kit's own choice in draft_sections, the section an
+    earlier run made for them, else L, or the first letter that no section, no item's id and no other kind uses (a kit of
+    its own may already have an L about something else, and a new scene there would sit under the wrong heading)."""
+    if "asked" in (job.kit.get("draft_sections") or {}):  # the kit says where
+        return kit_letters["asked"]
+    names = {n["asked"] for n in KIND_NAMES.values()}  # the heading a run before gave them, in either language
+    for letter, head in cats.items():
+        if head.split(". ", 1)[-1] in names:  # "L. 지난 면접에서 받은 질문"
+            return letter
+    taken = set(cats) | set(id_letters) | {v for k, v in kit_letters.items() if k != "asked"}  # the kit's sections, its ids' letters, the other kinds' letters
+    return next((c for c in "LABCDEFGHIJKMNOPQRTUVWXYZ" if c not in taken), "X")  # S is a stories file's own; X when all are taken
 
 
 def categories(items):
@@ -220,6 +235,7 @@ def main(job, out=None, ids=None, limit=0, backend=None, plan_file=None, ask=Non
     own = check.own_tokens(job)  # the words of the person's own documents, for scenes that deny experience
     nxt, cats = next_ids(items), categories(items)  # new ids and the headings they join
     kit_letters = {**LETTERS, **(job.kit.get("draft_sections") or {})}  # the kit may move kinds to other letters
+    kit_letters["asked"] = asked_letter(job, cats, kit_letters, nxt)  # a section of their own, never another one's letter
     lang = i18n.lang()  # headings of new sections in the message language
     planned = []  # (entry, letter, id) in writing order
     for entry in chosen:  # ids are given out first, so they do not depend on which scene finishes first

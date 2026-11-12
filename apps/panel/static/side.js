@@ -217,7 +217,7 @@ function undoLabel(l) {                                                         
     undo_reset: ["Set {what} to confirm again", "Put a fact back to confirm"], undo_keep_all: ["Kept {n} facts"], undo_typed: ["Added {what}", "Added a fact"],
     undo_details: ["Typed in your details"], undo_remove_material: ["Removed {what}", "Removed a file"], undo_add_material: ["Added files"],
     undo_add_job: ["Added the job {what}", "Added a job"], undo_posting: ["Changed the posting of {what}", "Changed a posting"], undo_add_edition: ["Added the edition {what}", "Added an edition"], undo_analysis: ["Ordered the resume for a job"],
-    undo_draft: ["Wrote the resume"], undo_figures: ["Drew the deck's figures"], undo_board: ["Changed the card of {what}", "Changed a card"], undo_lock: ["Locked the submitted copies"],
+    undo_draft: ["Wrote the resume"], undo_figures: ["Drew the deck's figures"], undo_board: ["Changed the card of {what}", "Changed a card"], undo_board_days: ["Cleared the day stamped on {n} applications"], undo_lock: ["Locked the submitted copies"],
     undo_sentence: ["Changed a sentence"], undo_lock_sentence: ["Locked a sentence"], undo_unlock_sentence: ["Unlocked a sentence"],
     undo_reminder: ["Changed a reminder of {what}", "Changed a reminder"], undo_round: ["Changed an interview round of {what}", "Changed an interview round"],
     undo_remove_job_material: ["Removed {what}", "Removed a file"], undo_blind: ["Changed the blind edition's table"], undo_remove_job: ["Removed the job {what}", "Removed a job"],

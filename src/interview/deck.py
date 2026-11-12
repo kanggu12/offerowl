@@ -25,8 +25,8 @@ from interview import check, corpus, i18n  # scenes, items, strings
 from interview import plan as ivplan  # the question map when none was written
 from interview.cue import PRINT_KEY, PRINT_SCRIPT, _unref, line_html  # the cue cards' cross-reference filter, speech and print key marks
 
-ORDER = ("opening", "behavioral", "company", "posting", "resume", "portfolio", "scenario", "technical", "closing")  # as an interview runs
-PER_KIND = {"opening": 2, "behavioral": 6, "company": 2, "posting": 8, "resume": 5, "portfolio": 4,  # scripts per part by default:
+ORDER = ("opening", "asked", "behavioral", "company", "posting", "resume", "portfolio", "scenario", "technical", "closing")  # as an interview runs, what an earlier round asked right after the greeting
+PER_KIND = {"opening": 2, "asked": 10, "behavioral": 6, "company": 2, "posting": 8, "resume": 5, "portfolio": 4,  # scripts per part by default:
             "scenario": 5, "technical": 5, "closing": 1}  # the likeliest of each, so the deck stays one sitting's reading
 CLOSING = "your questions"  # the behavioral topic asked at the end, which closes the deck
 NOTE_HEAD = re.compile(r"^(?:-\s+)?\*\*([^*]{1,12})\*\*\s*[:：]?\s*")  # a note line's own label, such as **핵심** or **주의**
@@ -144,7 +144,7 @@ def pick(rows, scenes, kinds=None, ids=None, n=None):
     return chosen
 
 
-TIED_KINDS = ("opening", "behavioral", "company", "closing")  # the questions a file-order deck names under a script
+TIED_KINDS = ("opening", "asked", "behavioral", "company", "closing")  # the questions a file-order deck names under a script
 
 
 def file_order(rows, scenes, files=None):

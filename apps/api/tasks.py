@@ -104,7 +104,8 @@ def live_html(html: str, allowed: tuple = ()) -> str:
     # cannot read from file:// either. A link's href stays as written: a click in the frame follows nothing
     out = re.sub(r'(?<![\w-])(src|href|xlink:href)="file://([^"]*)"', lambda m: picture(m) if m.group(1) == "src" or is_svg_image(html, m.start()) else m.group(0), html)
     out = re.sub(r"""url\(["']?\.\./fonts/(Pretendard-[A-Za-z]+\.ttf)["']?\)""", r'url("/fonts/\1")', out)  # the panel serves the same fonts
-    out = re.sub(r"<script\b[^>]*>.*?</script>", "", out, flags=re.S)  # the frame runs nothing
+    out = re.sub(r"<script\b[^>]*>.*?</script\b[^>]*>", "", out, flags=re.S | re.I)  # the frame runs nothing: scripts with their code,
+    out = re.sub(r"<script\b[^>]*>", "", out, flags=re.I)  # and a script tag left open
     out = out.replace('<pre id="probe-out"></pre>', "")  # nor needs the measurements' place
     frame = ("<style>@media screen { html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; text-rendering: geometricPrecision; } "  # the canvas is behind the frame, the pane scrolls, and scaled glyphs keep the spacing they print with
              ".slide { margin: 0 0 24px 0; box-shadow: none; } a { pointer-events: none; color: inherit; } }</style>")  # a link in a frame would leave the deck

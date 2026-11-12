@@ -326,15 +326,27 @@ every dated step.
 - Interview rounds: after each call or interview, its kind (recruiter call, first, second, third or final interview, coding
   test, assignment, culture fit), its day and time, the questions asked (one a line) and how it went. A round ahead shows on
   Make under "Next", the nearest first; every round is on the timeline, and a recorded round counts as an interview reached
-  in Insights whatever the card's column. The agent keeps them with the MCP tool `log_round`. A stage's lamp is unlit before the application is sent and lit while it is on its way; at the result only an offer
-  is green.
+  in Insights whatever the card's column. The agent keeps them with the MCP tool `log_round`. The questions asked lead the
+  job's question map, so the interview deck shows them right after the greeting, practice asks them in the words they were
+  asked in, and the next scripts answer them first. Under each round every question has a lamp and the key of the script
+  that answers it (it opens that script in the scripts' search); the questions no script answers, or one only in part, get
+  their own scripts from the agent with one key (`POST /api/v1/interview/scripts` with their `ids`). A stage's lamp is unlit
+  before the application is sent and lit while it is on its way; at the result only an offer is green.
 - The board (Applications, Board): four columns (preparing, submitted, interview, result). Drag a card, or use its "Move to" key,
   which names the next column; a card's name opens its application. Each card has its next step, saved as you type.
 - Links: an address written in a next step, a round's notes, a reminder, the timeline or a file's preview is a link that
   opens in a new tab (`noopener`, `noreferrer`), named for its service (Google Meet, Zoom, Microsoft Teams, Webex,
   Calendly, Cal.com, Google Calendar) or its site, the whole address on hover; on a key that holds the words (a card's
   next step) the links stand beside it (`core.js` `linked`).
-- A timeline of every dated step and reminder, newest first.
+- A timeline of every dated step and reminder, newest first. Its **Edit the days** key opens a table of every
+  application with a field per stage it reached. A stage's day later than a later step's day (a card moved on after it was
+  sent or answered, the day of the move stamped on it) stays on the card but counts nowhere, and its field is marked. When
+  five or more applications were added on one day and carry that day as a stage's day (a list brought in at once stamps its
+  day on every card), a band names the day and one key clears it from all of them, in one undo step.
+- A round of today shows on its application's head, whatever the tab: its hour and kind, the time left or how long it has
+  been going on (kept current; its length from its notes, such as "15:00~15:30" or "30분", else an hour), the call's link
+  from its notes or the next step, and the scripts' search. Once it ends, the line offers to write down the questions
+  asked, which opens the round's form. Make's "Next" line shows the time left for today's rounds too.
 - Days and times read one way across the panel: 2026-11-09, 11-09 on a card or an axis, 19:00. The day and time fields
   show them so, whatever the browser's own pattern, and the calendar or clock key beside one opens the browser's own; a day
   typed as 2026.11.9, 2026/11/09, 20261109 or 2026년 11월 9일 is read and shown back as 2026-11-09.

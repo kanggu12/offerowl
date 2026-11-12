@@ -437,7 +437,7 @@ def md_blocks(text: str) -> list[dict]:
 def frame_html(text: str) -> str:
     """A saved page for the preview's frame: its scripts, its base address and any redirect out (the frame's sandbox runs
     nothing either), and links a click cannot follow. The frame's page takes the panel's policy: nothing loads from elsewhere."""
-    out = re.sub(r"<script\b[^>]*>.*?</script\s*>", "", text, flags=re.S | re.I)  # scripts with their code
+    out = re.sub(r"<script\b[^>]*>.*?</script\b[^>]*>", "", text, flags=re.S | re.I)  # scripts with their code (an end tag may hold more, "</script foo>")
     out = re.sub(r"<script\b[^>]*>", "", out, flags=re.I)  # a script tag left open
     out = re.sub(r"<base\b[^>]*>", "", out, flags=re.I)  # no other address for its links and pictures
     out = re.sub(r"<meta\b[^>]*http-equiv\s*=\s*[\"']?refresh[^>]*>", "", out, flags=re.I)  # no redirect to another page

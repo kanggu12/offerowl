@@ -317,7 +317,8 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         job, slash, sub = rest.partition("/")
         if not slash:  # /kit/<job>: the page's relative links need the folder's slash
             self.send_response(301)
-            self.send_header("Location", f"/kit/{job}/" + (f"?{parts.query}" if parts.query else ""))
+            self.send_header("Location", f"/kit/{urllib.parse.quote(urllib.parse.unquote(job), safe='')}/"  # the id and the query escaped again: no
+                             + (f"?{urllib.parse.quote(parts.query, safe='=&%+')}" if parts.query else ""))  # character of the request ends the header
             self.send_header("Content-Length", "0")
             self.end_headers()
             return

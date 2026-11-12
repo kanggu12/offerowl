@@ -899,6 +899,24 @@ class Api:
                     st["removed"], st["removed_at"] = True, today()  # with the day the list shows (a job's card keeps a day: core/schema/job.schema.json)
                 self.ws.save_job(st)  # one write for every change
 
+    def clear_batch_day(self, day: str) -> list[str]:
+        """The stage days that equal the day a batch of applications was added (tracker.batch_day), cleared on those cards in
+        one undo step: the day of the adding was stamped on them, not the day they were sent or answered. The ids changed."""
+        from . import tracker  # the batch
+        with self.ws.lock:  # read and written in one step
+            jobs = self.ws.jobs()  # every card on the board, as kept
+            batch = tracker.batch_day(jobs)  # found again here, never taken from the page
+            if not batch or batch["day"] != day:  # the page's batch is not the one there is now
+                return []
+            ids = batch["jobs"]
+            files = [f for jid in ids for f in self.ws.job_files(jid)]  # every card it changes
+            with self.ws.change({"code": "undo_board_days", "n": len(ids)}, files):  # one step for all of them
+                for jid in ids:
+                    st = self.ws.job(jid)
+                    st["dates"] = {k: v for k, v in (st.get("dates") or {}).items() if str(v)[:10] != day}  # that day, gone
+                    self.ws.save_job(st)
+            return ids
+
     def next_stage(self, jid: str) -> None:
         """Move a job one column to the right."""
         with self.ws.lock:  # looked up and moved in one step (board takes the same lock again)

@@ -299,21 +299,22 @@ class Kits:
             out.append(dst.name)
         return out
 
-    def write_scripts(self, job_id: str, lang: str = "ko", limit: int = SCRIPTS_AT_ONCE) -> bool:
-        """More scripts for a job, the likeliest questions first (task "scripts:<job>")."""
-        return self.start(f"scripts:{job_id}", self._write_scripts, job_id, lang, limit)  # one per job at a time
+    def write_scripts(self, job_id: str, lang: str = "ko", limit: int = SCRIPTS_AT_ONCE, ids: list[str] | None = None) -> bool:
+        """More scripts for a job (task "scripts:<job>"): the likeliest questions first, or the map's entries named in ids (the
+        questions of an interview round that no script answers yet)."""
+        return self.start(f"scripts:{job_id}", self._write_scripts, job_id, lang, limit, ids)  # one per job at a time
 
-    def _write_scripts(self, job_id: str, lang: str, limit: int) -> None:
+    def _write_scripts(self, job_id: str, lang: str, limit: int, ids: list[str] | None = None) -> None:
         key = f"scripts:{job_id}"  # this task
-        self._set(key, step="scripts", done=0, total=limit)  # the page shows the count
+        self._set(key, step="scripts", done=0, total=len(ids) if ids else limit)  # the page shows the count
         self.ensure_kit(job_id, lang)  # the map is there, and sees what was drafted before
-        drafted, stopped = self._draft_scenes(job_id, limit, lambda done, total: self._set(key, done=done, total=total))  # the counter moves as each scene is finished
+        drafted, stopped = self._draft_scenes(job_id, limit, lambda done, total: self._set(key, done=done, total=total), ids=ids)  # the counter moves as each scene is finished
         self.ensure_kit(job_id, lang)  # the map again: it now sees these drafts
         self._set(key, state="done", step="", result={"drafted": drafted, "stopped": stopped})  # what the page says at the end
 
-    def _draft_scenes(self, job_id: str, limit: int = 5, progress=None, cancel=None) -> tuple[int, bool]:
-        """New scripts for the likeliest questions no scene covers, through src/interview/draft.py (checked in strict mode).
-        Returns (how many passed, whether the agent stopped)."""
+    def _draft_scenes(self, job_id: str, limit: int = 5, progress=None, cancel=None, ids: list[str] | None = None) -> tuple[int, bool]:
+        """New scripts for the likeliest questions no scene covers, or for the map's entries named in ids, through
+        src/interview/draft.py (checked in strict mode). Returns (how many passed, whether the agent stopped)."""
         from interview import draft as ivdraft  # the scene writer
         from interview import plan as ivplan  # the question map
         from interview.job import Job  # the kit's job folder
@@ -328,7 +329,8 @@ class Kits:
                     log.info("expected questions for %s: %s", job_id, why)  # for the log
                 write_json(job.out_dir() / "plan.json", {"job": job.name, "questions": ivplan.build(job)})  # the map with them
                 jobs = 1 if backend == "openai-compat" else SCRIPT_WORKERS  # a local model answers one at a time; a CLI agent can take a few
-                stopped = ivdraft.main(job, limit=limit, backend=backend, jobs=jobs, progress=progress, cancel=cancel) == 1  # writes drafts/drafts-<n>.md and .rejected.md; 1 when the model stopped
+                stopped = ivdraft.main(job, ids=",".join(ids) if ids else None, limit=0 if ids else limit, backend=backend, jobs=jobs,  # the entries asked for, or the likeliest
+                                       progress=progress, cancel=cancel) == 1  # writes drafts/drafts-<n>.md and .rejected.md; 1 when the model stopped
             except (SystemExit, Exception) as exc:  # a scene did not parse, or a bug
                 log.info("drafting scenes for %s stopped: %s", job_id, exc)  # for the log
                 stopped = True  # said on the page

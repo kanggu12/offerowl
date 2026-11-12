@@ -7,8 +7,8 @@ description: >-
 type: application
 # The chart's own version and the app's version are written by hand and kept equal to deploy/python/offerowl/__init__.py
 # by tests/packaging. The release workflow packages the chart under the release's version.
-version: 0.8.1
-appVersion: "0.8.1"
+version: 0.9.0
+appVersion: "0.9.0"
 kubeVersion: ">=1.25.0-0"
 keywords:
   - resume

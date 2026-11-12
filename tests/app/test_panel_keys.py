@@ -205,6 +205,47 @@ class PanelKeys(unittest.TestCase):
         p.evaluate("UI.docsVer++; render()")
         self.assertNotEqual(before, p.evaluate("$('canvas')._key"))
 
+    def test_7c_a_large_kit_s_contents_fit_one_screen_and_name_a_split_section_again(self):
+        # a kit of some 180 scripts at 1920 x 1080 and 2560 x 1300: the contents fold their largest groups until they fit the
+        # view with no scroll, and a section that runs on into another column says its name again at that column's top. The
+        # section keys' row above them is never squeezed while they are fitted (a tall contents took 21 px of its height, so
+        # the folding was measured in a room the view did not have, and the contents scrolled)
+        p = self.page
+        words = ["로그 확인", "배포 되돌리기", "노드 교체", "알림 정리", "디스크 부족", "인증서 만료", "메모리 누수", "느린 질의",
+                 "캐시 무효화", "권한 요청", "작업 대기열", "백업 복구"]  # fictional script titles
+        parts = []
+        for k, letter in enumerate("BCFGHIJLMNPSTVW"):  # letters the example kit does not use
+            parts.append(f"## {letter}. 묶음 {letter}: {words[k % len(words)]}와 그 밖의 상황\n")
+            for n in range(1, 9 + (k * 5) % 9):  # 8 to 16 scripts a section
+                t = words[(k + n) % len(words)]
+                parts.append(f"### {letter}{n}. {t}, 그리고 {words[(k * n) % len(words)]}이 겹칠 때 / When {n} things meet\n"
+                             f"**면접관** What would you do first?\n**해석** 무엇부터 하겠어요?\n**나** I would read the logs.\n**해석** 로그부터 읽겠습니다.\n")
+        sent = p.evaluate("""async (text) => (await fetch('/api/v1/interview/scenes?job=' + encodeURIComponent(S.job), { method: 'POST', body: new Blob([text]),
+            headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': 'more.md' } })).status""", "\n".join(parts))
+        self.assertEqual(200, sent)
+        state = """() => { const el = document.querySelector('#canvas .kit-cards'), toc = el && el.querySelector('.kit-toc'); if (!toc) return null;
+            const menu = document.querySelector('#canvas .kit-menu'), key = menu.querySelector('.btn');
+            const runs = [...toc.querySelectorAll('.kit-tg')].reduce((n, b) => n + Math.max(0, b.getClientRects().length - 1), 0);
+            return { fits: toc.offsetHeight <= el.clientHeight - 4, scroll: el.style.overflowY || '', runs, named: toc.querySelectorAll('.kit-cont').length,
+                     squeezed: Math.round(menu.getBoundingClientRect().height) < Math.round(key.getBoundingClientRect().height) }; }"""
+        try:
+            for w, h in ((1920, 1080), (2560, 1300)):
+                p.set_viewport_size({"width": w, "height": h})
+                p.evaluate("go('interview'); UI.ivPart = 'map'; render()")  # away, so the scripts' part is drawn anew with the new file
+                p.wait_for_timeout(300)
+                p.evaluate("go('interview'); UI.ivPart = 'search'; render()")
+                p.wait_for_selector("#canvas .kit .kit-home", timeout=60000)
+                p.evaluate("document.querySelector('#canvas .kit .kit-home').click()")  # the contents
+                p.wait_for_function("!!document.querySelector('#canvas .kit-toc') && !!document.querySelector('#canvas .kit-menu [data-g^=\"W.\"]')", timeout=60000)   # the new file's sections are in
+                p.wait_for_timeout(900)  # fitted again once the fonts are in
+                got = p.evaluate(state)
+                self.assertEqual(got["scroll"], "", (w, h, got))  # one screen, no scroll
+                self.assertTrue(got["fits"], (w, h, got))
+                self.assertFalse(got["squeezed"], (w, h, got))  # the keys' row keeps its height
+                self.assertEqual(got["runs"], got["named"], (w, h, got))  # every run into another column names its section there
+        finally:
+            p.set_viewport_size({"width": 1440, "height": 900})
+
     def test_8_no_page_errors(self):
         self.assertEqual([], self.errors)
 

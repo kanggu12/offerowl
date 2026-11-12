@@ -7,6 +7,19 @@ import unittest  # the test runner
 
 import helpers  # the import path and the example
 from interview import audit, draft, plan  # the commands
+from interview.job import Job  # a copied job
+
+# Two interview rounds as the panel keeps them in the job's status.json: list marks, a stray mark, and one question the
+# second round asked again with other spacing (fictional)
+ROUNDS = [{"id": "i1", "kind": "first", "at": "2026-11-10T15:00", "asked": "- Tell me about yourself.\n2) Why Gamma?\nQ3: How do you roll back a bad deploy?\n-\n"},
+          {"id": "i2", "kind": "second", "at": "2026-11-14", "asked": "How do you roll back a  bad deploy?\nWhat is Kafka?"}]
+
+
+def with_rounds(rounds):
+    """A copy of the example with the rounds written beside its kit; returns (tmp dir, job)."""
+    tmp, job_dir = helpers.copy_workspace()  # removed by the caller
+    (job_dir / "status.json").write_text(json.dumps({"id": "gamma-platform", "rounds": rounds}), encoding="utf-8")
+    return tmp, Job(job_dir)
 
 
 def scene_answer(title_ko, title_en, me, number=None):
@@ -49,6 +62,28 @@ class PlanTest(unittest.TestCase):  # plan: the question map built from the post
         self.assertEqual(by["Run Kafka event pipelines between orders, settlement and notifications"]["coverage"], "strong")
         self.assertEqual(by["Terraform and infrastructure as code"]["coverage"], "none")  # a posting line the documents never touch is rated none
         self.assertTrue(all(r["ask"]["en"] and r["ask"]["ko"] for r in rows))  # rule-made questions in both languages
+
+    def test_questions_asked_in_earlier_rounds_lead_the_map(self):
+        """What the rounds asked comes first, each question once with every round that asked it, its id from its words."""
+        import re  # the ids' form
+        tmp, job = with_rounds(ROUNDS)
+        try:
+            rows = plan.build(job)
+            asked = [r for r in rows if r["kind"] == "asked"]
+            self.assertEqual(rows[:len(asked)], asked)  # before every other kind
+            self.assertEqual([r["text"] for r in asked], ["Tell me about yourself.", "Why Gamma?", "How do you roll back a bad deploy?", "What is Kafka?"])
+            self.assertEqual([r["rounds"] for r in asked], [["i1"], ["i1"], ["i1", "i2"], ["i2"]])  # the one asked again names both rounds
+            self.assertEqual(asked[0]["source"], "2026-11-10 first")  # the first round that asked it
+            self.assertTrue(all(re.fullmatch(r"a[0-9a-f]{6}", r["id"]) for r in asked))
+            self.assertNotEqual(asked[0]["coverage"], "none")  # the example's self-introduction answers it
+            self.assertEqual(asked[0]["ask"], {"en": ["Tell me about yourself."], "ko": ["Tell me about yourself."]})  # as written down
+            ids = {r["text"]: r["id"] for r in asked}
+            shutil.rmtree(tmp)
+            tmp, job = with_rounds([dict(ROUNDS[0], asked="What brought you here?\n" + ROUNDS[0]["asked"]), ROUNDS[1]])  # a line written above them
+            again = {r["text"]: r["id"] for r in plan.build(job) if r["kind"] == "asked"}
+            self.assertEqual({k: again[k] for k in ids}, ids)  # every question keeps its id, so its draft stays its draft
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_phrase_without_a_model_keeps_the_rule_questions(self):
         """plan --phrase with backend none says so and keeps the rule-made questions."""
@@ -113,6 +148,37 @@ class DraftTest(unittest.TestCase):  # draft: scenes from a stand-in model, chec
         text = (self.out / "drafts" / "drafts-1.md").read_text(encoding="utf-8")  # the written draft file
         self.assertIn("## Q. 꼬리 질문: 줄임말과 용어", text)  # the scene goes under the kit's term section heading
         self.assertIn("### Q3. Kafka가 뭐야 / What is Kafka?", text)  # terms.md already has Q1 and Q2, so the next free id is Q3
+
+    def test_questions_asked_before_get_a_section_of_their_own(self):
+        """A script for a question an earlier round asked is written first, with the depth of a question really asked, under a
+        section of its own: L, or the first letter the kit leaves free when its own L is about something else."""
+        calls = []
+
+        def ask(prompt, entry):  # a grounded Kafka scene, as in the term test
+            calls.append(prompt)
+            me = "**Kafka** is / an event stream. // At **Beta Commerce** / settlement and notifications / ==consume the same events== on their own."
+            return scene_answer("Kafka가 뭐야", "What is Kafka?", me)
+
+        for planted, letter in ((None, "L"), ("## L. 모를 때, 마무리", "B")):  # the example as it is; then with its K section lettered L
+            tmp, job = with_rounds(ROUNDS)
+            out = pathlib.Path(tmp) / "out"
+            try:
+                if planted:  # the kit's own L, about something else
+                    qa = job.interview / "qa.md"
+                    qa.write_text(qa.read_text(encoding="utf-8").replace("## K. 모를 때, 마무리", planted), encoding="utf-8")
+                    job = Job(job.dir)  # read again
+                plan.main(job, out=str(out))
+                rows = json.loads((out / "plan.json").read_text(encoding="utf-8"))["questions"]
+                kafka = next(r["id"] for r in rows if r["kind"] == "asked" and r["text"] == "What is Kafka?")
+                self.assertEqual(draft.ranked(rows)[0]["kind"], "asked")  # written before every other kind
+                draft.main(job, out=str(out), ids=kafka, ask=ask)
+                text = (out / "drafts" / "drafts-1.md").read_text(encoding="utf-8")
+                self.assertRegex(text, rf"(?m)^## {letter}\. (지난 면접에서 받은 질문|Asked in earlier rounds)$")  # a heading of its own
+                self.assertIn(f"### {letter}1. Kafka가 뭐야 / What is Kafka?", text)
+                self.assertIn(f"- **근거**: {kafka} ", text)  # the question it answers
+                self.assertIn("really asked this in an earlier round", calls[-1])  # the depth of a question really asked
+            finally:
+                shutil.rmtree(tmp)
 
     def test_no_model_stops_cleanly(self):
         """With backend none nothing is written and the command says the model stopped."""

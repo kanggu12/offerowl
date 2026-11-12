@@ -451,10 +451,15 @@ class Server:
             out = p.post("/api/v1/interview/kit", {"job": need(a, "job"), "lang": a.get("lang")})  # the map
             return {"questions": out.get("questions")}  # its size
 
-        @tool("write_interview_scripts", "Have the AI backend write more interview scripts, the likeliest questions first. "
-                                         "Task scripts:<job>.", S({"job": JOB, "lang": LANG}, ("job",)), read=False)
+        @tool("write_interview_scripts", "Have the AI backend write more interview scripts, the likeliest questions first, or the "
+                                         "question map's entries named in `ids` (such as the questions an earlier round asked that no "
+                                         "script answers yet: kind `asked` in the interview board). Task scripts:<job>.",
+              S({"job": JOB, "lang": LANG, "ids": {"type": "array", "items": {"type": "string"}, "maxItems": 30}}, ("job",)), read=False)
         def write_interview_scripts(a):
-            out = p.post("/api/v1/interview/scripts", {"job": need(a, "job"), "lang": a.get("lang")})  # started
+            body = {"job": need(a, "job"), "lang": a.get("lang")}  # which job, in which language
+            if a.get("ids"):  # the entries asked for
+                body["ids"] = list(a["ids"])
+            out = p.post("/api/v1/interview/scripts", body)  # started
             return {"started": out.get("started"), "task": out.get("task")}
 
         @tool("move_job", "Move an application on the board or edit its card: a stage, the stage's date (YYYY-MM-DD), any stage's "

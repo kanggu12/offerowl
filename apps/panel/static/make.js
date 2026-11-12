@@ -148,8 +148,9 @@ function heroCard() {                                                           
       h("b", { text: t("Applications") }),
       jobs.length ? stageBar(jobs, { compact: true }) : h("span", { text: t("None yet") }),   // every application by stage, its words and numbers beside it
       ahead.length || next ? h("b", { text: t("Next") }) : null,
-      ahead.length ? h("span", { class: "agenda" }, ahead.map(({ j, r }) => h("button", { class: "next", type: "button", onclick: () => goJob(j, "progress"),   // each round ahead opens its application
-        text: `${whenWords(r.at)} ${jobName(j)}, ${t(ROUND_KIND[r.kind] || "Other round")}` })))
+      ahead.length ? h("span", { class: "agenda" }, ahead.map(({ j, r }) => h("span", { class: "next-line" }, h("button", { class: "next", type: "button", onclick: () => goJob(j, "progress"),   // each round ahead opens its application
+        text: `${whenWords(r.at)} ${jobName(j)}, ${t(ROUND_KIND[r.kind] || "Other round")}` }),
+        String(r.at).slice(0, 10) === today && roundStart(r) !== null && dayState(r).state !== "over" ? h("span", { class: "until", "data-round-day": j.id + "|" + r.id, "data-state": dayState(r).state, text: dayWords(r) }) : null)))   // today's: the time left, kept current
       : next ? h("span", {}, linksIn(next.next).length                              // the next step's links open where they stand; its company opens the application
           ? h("span", { class: "next-line" }, h("button", { class: "next", type: "button", onclick: () => goJob(next, next.stage === "interview" ? "interview" : "progress"),
               text: jobName(next) }), ", ", linked(next.next))
@@ -193,7 +194,64 @@ setInterval(() => {                                                             
     const w = untilWords(((S && S.jobs) || []).find((x) => x.id === el.dataset.untilJob));
     if (el.textContent !== w) el.textContent = w;
   }
-}, 30000);
+  let turned = false;                                                               // a round of today that began or ended: its lamp and keys change, so the page is drawn again
+  for (const el of document.querySelectorAll("[data-round-day]")) {
+    const [jid, rid] = el.dataset.roundDay.split("|"), j = ((S && S.jobs) || []).find((x) => x.id === jid);
+    const r = j && (j.rounds || []).find((x) => x.id === rid);
+    if (!r) continue;
+    const st = dayState(r), w = dayWords(r);
+    if (el.textContent !== w) el.textContent = w;
+    if (el.dataset.state !== st.state) turned = true;
+  }
+  if (turned) render();
+}, 15000);
+
+// ---------------------------------------------------------------- a round of today: its hour, the time left, the call's link, and once it ends the questions to write down
+const ROUND_MINUTES = 60;                                                           // how long a round is taken to last when its notes give no end
+function roundStart(r) {                                                            // its start in milliseconds, or null without an hour
+  const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(String(r && r.at || ""));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : null;
+}
+function roundMinutes(r) {                                                          // its length: "15:00~15:30" or "30분", "45 min" in its notes, else an hour
+  const n = String(r.notes || "");
+  const span = /(\d{1,2}):(\d{2})\s*[~\u2013-]\s*(\d{1,2}):(\d{2})/.exec(n);
+  const m = span ? (+span[3] * 60 + +span[4]) - (+span[1] * 60 + +span[2]) : 0;
+  if (m >= 10 && m <= 240) return m;
+  const said = /(\d{2,3})\s*(?:분|min)/i.exec(n);
+  return said && +said[1] >= 10 && +said[1] <= 240 ? +said[1] : ROUND_MINUTES;
+}
+function dayState(r) {                                                              // ahead, on or over, with the minutes to its start or since it
+  const at = roundStart(r), now = Date.now();
+  if (at === null) return { state: "over", mins: 0 };
+  if (now < at) return { state: "ahead", mins: Math.ceil((at - now) / 60000) };
+  return now < at + roundMinutes(r) * 60000 ? { state: "on", mins: Math.floor((now - at) / 60000) } : { state: "over", mins: 0 };
+}
+function dayWords(r) {                                                              // "in 32 min", "on, 12 min in", "ended"
+  const st = dayState(r), hm = (n) => (n >= 60 ? t("{h}h {m}m", { h: Math.floor(n / 60), m: n % 60 }) : t("{m} min", { m: n }));
+  return st.state === "ahead" ? t("Starts in {w}", { w: hm(st.mins) }) : st.state === "on" ? t("Going on, {w} in", { w: hm(st.mins) }) : t("Ended");
+}
+function roundToday(j) {                                                            // the job's round of today at an hour: the one ahead or going on, else the last that ended
+  const today = S.today || "";
+  const rs = (j.rounds || []).filter((r) => String(r.at || "").slice(0, 10) === today && roundStart(r) !== null);
+  return rs.find((r) => dayState(r).state !== "over") || rs[rs.length - 1] || null;
+}
+function todayMarks() {                                                            // where each round of today stands, for the panes' keys: a round that begins or ends draws them again
+  return (S.jobs || []).map((j) => { const r = roundToday(j); return r ? j.id + ":" + r.id + ":" + dayState(r).state : ""; }).filter(Boolean).join();
+}
+function todayBand(j, where) {                                                      // one line on an application's head: today's round, its time left, its call's link
+  const r = roundToday(j); if (!r) return null;
+  const st = dayState(r), links = linksIn(r.notes).length ? r.notes : j.next;      // the call's address: in the round's notes, else in the next step
+  const toScripts = () => { UI.jobTab = "interview"; UI.ivPart = "search"; render(); };   // the scripts' search, where a question heard is typed
+  const toWrite = () => { UI.jobTab = "progress"; UI.roundEdit = { job: j.id, id: r.id }; render(); };   // the round's form, its questions box
+  return h("div", { class: "today-band " + st.state, role: "status", "aria-label": t("Today's interview") },
+    h("span", { class: "lit " + (st.state === "on" ? "ok" : st.state === "ahead" ? "warn" : "off"), "aria-hidden": "true" }),
+    h("b", { text: t("Today {time}, {round}", { time: String(r.at).slice(11, 16), round: t(ROUND_KIND[r.kind] || "Other round") }) }),
+    h("span", { class: "until", "data-round-day": j.id + "|" + r.id, "data-state": st.state, text: dayWords(r) }),
+    st.state !== "over" ? linkKeys(links) : null,                                   // the call's link while it is ahead or going on
+    st.state !== "over" && !(where === "interview" && UI.ivPart === "search") ? h("button", { class: "btn small", type: "button", onclick: toScripts }, icon("search"), t("Search the scripts")) : null,
+    st.state === "over" && !String(r.asked || "").trim() ? h("button", { class: "btn small", type: "button", onclick: toWrite }, icon("edit"), t("Write down the questions asked")) : null,
+    st.state === "over" && !String(r.asked || "").trim() ? h("span", { class: "hint", text: t("They lead the question map: the next scripts answer them first.") }) : null);
+}
 const STAGE_ORDER = { interview: 0, submitted: 1, preparing: 2 };                  // what needs the person first
 function activeStrip() {                                                            // the applications still going, as cards: stage, company, role, next step
   const list = (S.jobs || []).filter((j) => j.stage !== "result").sort((a, b) => (STAGE_ORDER[a.stage] ?? 3) - (STAGE_ORDER[b.stage] ?? 3) || String(b.created || "").localeCompare(String(a.created || ""))).slice(0, 12);   // every one still going (a dozen at most), as dense cards

@@ -1,6 +1,8 @@
 """The question map: every question the interview is likely to bring, from the job's own text files.
 
 Deterministic extraction (no model):
+  - the questions asked in the earlier rounds, as the person wrote them down after each one (the panel's rounds, kept in
+    the job's status.json), first: the next round may ask them again or go deeper;
   - one entry per line of the posting (its list items, or its sentences when it has no lists);
   - "tell me about this line" for each line of the submitted resume;
   - follow-ups for each page of the submitted portfolio (pages split by form feeds, as pdftotext writes them, or by
@@ -14,6 +16,7 @@ asks it once for the scenario and technical questions that no line of a document
 anticipated.json and join every later map. Writes plan.json and plan.md to the output folder.
 """
 import glob  # research files
+import hashlib  # an asked question's id, from its words
 import json  # the map
 import pathlib  # paths
 import re  # line rules
@@ -24,7 +27,7 @@ from interview.job import read_json, read_text  # files
 
 HERE = pathlib.Path(__file__).resolve().parent  # src/interview
 STD = json.loads((HERE / "questions.json").read_text(encoding="utf-8"))  # standard questions and templates
-KINDS = ("posting", "resume", "portfolio", "term", "behavioral", "company", "scenario", "technical", "opening")  # the kinds of the map, in its order
+KINDS = ("asked", "posting", "resume", "portfolio", "term", "behavioral", "company", "scenario", "technical", "opening")  # the kinds of the map, in its order
 META = re.compile(r"^[\w ./-]{1,24}:\s")  # "Location: ..." style metadata lines of a posting
 # Words that name a duty or requirement section, in English and Korean; a posting without lists is read only there
 DUTY = re.compile(r"responsib|qualif|requir|prefer|what you|you will|you'll|duties|skills|about the role|자격|우대|업무|담당|요건|역할|필수", re.I)
@@ -130,6 +133,42 @@ def research_headings(job):
     return out
 
 
+LIST_MARK = re.compile(r"^\s*(?:(?:[-*\u2022\u00b7]|\d{1,2}[.)]|Q\d{0,2}[.):])\s*)+", re.I)  # "- ", "1. ", "Q3: " (or "- Q3: ") in front of a question written down
+
+
+def asked_lines(job):
+    """[{id, text, source, rounds}] from the job's interview rounds (status.json beside the kit, as the panel keeps it): each
+    round in the order it happened, one question a line, list marks dropped. A question asked again is one entry, its source
+    the first round ("YYYY-MM-DD kind") and its rounds every round that asked it. The id comes from the question's words
+    (a1b2c3), so a draft written for it stays its draft when lines are added above it or a later round asks it again."""
+    st = read_json(job.dir / "status.json", {}) or {}  # the panel's record of the job; a kit outside the panel has none
+    out, by = [], {}  # the questions in the order first asked; their words, folded -> the entry
+    for r in sorted((r for r in st.get("rounds") or [] if isinstance(r, dict)), key=lambda r: str(r.get("at") or "")):  # in the order they happened
+        label = f'{str(r.get("at") or "")[:10]} {r.get("kind") or ""}'.strip()  # its day and kind, as the source column says it
+        for line in str(r.get("asked") or "").splitlines():  # one question a line
+            q = LIST_MARK.sub("", line).strip()  # the words without a list mark
+            key = re.sub(r"\W+", " ", q).strip().lower()  # the same question with other spacing or marks is one question
+            if len(key) < 3:  # a stray mark, not a question
+                continue
+            if key not in by:  # first asked here
+                by[key] = {"id": "a" + hashlib.sha1(key.encode("utf-8")).hexdigest()[:6], "text": q, "source": label, "rounds": []}
+                out.append(by[key])
+            if str(r.get("id") or "") not in by[key]["rounds"]:  # this round asked it too
+                by[key]["rounds"].append(str(r.get("id") or ""))
+    return out
+
+
+def asked_rows(job, cov, lines=None):
+    """The map's entries for what the earlier rounds asked (asked_lines, or the lines given), rated against the scenes as
+    they are now (cover.Coverage)."""
+    rows = []  # in the order they were first asked
+    for a in asked_lines(job) if lines is None else lines:
+        rating, by, _ = cov.rate(a["text"])  # does a scene already answer it?
+        rows.append({"id": a["id"], "kind": "asked", "source": a["source"], "section": "", "text": a["text"], "ask": {"en": [a["text"]], "ko": [a["text"]]},  # in the words written down, either language
+                     "coverage": rating, "covered_by": [[i, s] for i, s in by], "rounds": a["rounds"]})  # and the rounds that asked it
+    return rows
+
+
 def fill(template, **kw):
     """A template from questions.json with its slots filled."""
     # a list template gives several questions, a single string gives one; both come back as a list
@@ -155,6 +194,7 @@ def build(job, out=None):
         rows.append({"id": pid, "kind": kind, "source": source, "section": section, "text": txt, "ask": ask,
                      "coverage": rating, "covered_by": [[i, s] for i, s in by]})  # (id, share) pairs as plain lists
 
+    rows += asked_rows(job, cov)  # what the earlier rounds asked, first
     for k, (n, sec, line) in enumerate(posting_lines(posting), 1):  # one entry per posting line, ids p1, p2, ...
         add("posting", f"p{k}", f"{posting_path.name}:{n}", line,  # the source is the posting file and line number
             {"en": fill(STD["posting"]["en"], text=line), "ko": fill(STD["posting"]["ko"], text=line)}, sec)  # with its section
@@ -297,6 +337,8 @@ def main(job, out=None, phrase=False, backend=None, expect=False):
     # entries per kind, for the summary line
     count = {k: sum(1 for r in rows if r["kind"] == k) for k in KINDS}
     # the summary line; behavioral and company questions are reported together as general ones
+    if count["asked"]:  # what the earlier rounds asked, said first
+        print(i18n.t("plan_asked", n=count["asked"]))
     print(i18n.t("plan_summary", posting=count["posting"], resume=count["resume"], portfolio=count["portfolio"], terms=count["term"],
                  general=count["behavioral"] + count["company"], expected=count["scenario"] + count["technical"], opening=count["opening"], out=d / "plan.json"))
     return 0

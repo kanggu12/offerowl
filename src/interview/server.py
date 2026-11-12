@@ -33,7 +33,7 @@ PAGE = HERE / "page.html"  # the single-page template
 PRACTICE_JS = HERE / "practice.js"  # practice mode, inlined into the page so a saved copy stays one file
 FONTS = HERE / "fonts"  # Pretendard and JetBrains Mono, served locally so nothing loads from the internet
 FONT_FILES = {"PretendardVariable.woff2", "JetBrainsMono.woff2"}  # the only files the /fonts route serves
-SCRIPT = re.compile(r"<script(?![^>]*\b(?:src|type)=)[^>]*>(.*?)</script>", re.S)  # an inline script that runs (not a JSON data block)
+SCRIPT = re.compile(r"<script(?![^>]*\b(?:src|type)=)[^>]*>(.*?)</script\b[^>]*>", re.S | re.I)  # an inline script that runs (not a JSON data block), in any case
 
 
 def page_policy(body: str, scripts=None) -> str:
@@ -148,8 +148,9 @@ class Handler(http.server.BaseHTTPRequestHandler):  # the routes; make_server bi
         origin = self.headers.get("Origin")  # a page of another origin, or a saved copy from file:// (Origin: null)
         # "null" is also what a sandboxed frame on any web site sends: it may learn that the server is up, never read the kit
         saved = origin == "null" and urllib.parse.urlsplit(self.path).path == "/api/health"
-        if origin and (origin in self.origins or saved):  # our own pages, and a saved copy's health check
-            self.send_header("Access-Control-Allow-Origin", origin)  # lets that page read the answer
+        allowed = "null" if saved else next((o for o in self.origins if o == origin), None)  # our own pages, and a saved copy's health check
+        if origin and allowed:  # the value sent is our own list's, never the request's words
+            self.send_header("Access-Control-Allow-Origin", allowed)  # lets that page read the answer
             self.send_header("Access-Control-Allow-Private-Network", "true")  # Chrome's private-network check for 127.0.0.1
         for k, v in (extra or {}).items():  # route-specific headers
             self.send_header(k, v)  # add each extra header
@@ -195,8 +196,8 @@ class Handler(http.server.BaseHTTPRequestHandler):  # the routes; make_server bi
             self._send(200, body, "text/html; charset=utf-8", {"Content-Security-Policy": page_policy(body)})  # its own scripts only
         elif url.path.startswith("/fonts/"):  # the two font files, nothing else
             name = url.path[len("/fonts/"):]  # the file name after the prefix
-            f = FONTS / name  # where it would be on disk
-            if name in FONT_FILES and f.is_file():  # allow-list, so a path like ../ never reaches other files
+            f = next((FONTS / n for n in sorted(FONT_FILES) if n == name), None)  # one of the allowed names, made from the list: a path like ../ never reaches other files
+            if f is not None and f.is_file():
                 self._send(200, f.read_bytes(), "font/woff2", {"Cache-Control": "max-age=86400"})  # fonts do not change, so the browser may keep them a day
             else:
                 self._send(404, "not found", "text/plain; charset=utf-8")  # any other name

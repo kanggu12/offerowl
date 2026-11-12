@@ -3,10 +3,11 @@
 The page asks a question; you answer aloud or type; only after you finish does it show the feedback and your own
 scene. Nothing listens unless you press record, and nothing suggests what to say while you answer.
 
-Questions. The question map (plan.py) holds what an interviewer has in front of them: posting lines, resume lines,
-portfolio pages, behavioral and company questions. Every topic that a scene covers becomes one question. The fixed list
-asks it with the scene's own first interviewer line, and the scene's later interviewer lines are its follow-ups. With an
-agent (src/llm.py run()), one call per session phrases the questions as an interviewer would, and one call per answer
+Questions. The question map (plan.py) holds what an interviewer has in front of them: what the earlier rounds asked,
+posting lines, resume lines, portfolio pages, behavioral and company questions. Every topic that a scene covers becomes
+one question. The fixed list asks it with the scene's own first interviewer line (a question an earlier round asked, in
+the words it was asked in), and the scene's later interviewer lines are its follow-ups. With an agent (src/llm.py run()),
+one call per session phrases the questions as an interviewer would (never the ones asked before), and one call per answer
 asks a follow-up about what you actually said.
 
 Feedback, without a model:
@@ -42,8 +43,8 @@ DEFAULT_WORDS = 70  # the target when a question has no scene: two to four sente
 KEY_SHARE = 0.6  # share of the key phrase's content words an answer needs for the phrase to count as landed
 KEEP = 500  # session files kept; the oldest beyond this are removed, so the folder never grows without end
 MAX_TEXT = 6000  # longest answer text accepted, in characters (a ten-minute answer is far shorter)
-KINDS = ("posting", "resume", "portfolio", "behavioral", "company", "scenario", "technical", "opening", "term")  # the map's kinds
-DEFAULT_KINDS = ("posting", "resume", "portfolio", "behavioral", "company", "scenario", "technical")  # what an interviewer asks; terms and openings are opt-in
+KINDS = ("asked", "posting", "resume", "portfolio", "behavioral", "company", "scenario", "technical", "opening", "term")  # the map's kinds
+DEFAULT_KINDS = ("asked", "posting", "resume", "portfolio", "behavioral", "company", "scenario", "technical")  # what an interviewer asks; terms and openings are opt-in
 SID = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{4}$")  # a session id: date, time and four hex digits (nothing else may name a file)
 # The one call per session that phrases the questions, and the one call per answer that asks a follow-up
 # The interview is in English, whatever language the agent usually answers its user in, so both prompts say so
@@ -488,9 +489,10 @@ class Practice:  # one per server
                         continue
                     used.add(sid)  # taken
                     it, tt = scenes[sid]  # the scene and its turns
+                    asked = r["text"] if r["kind"] == "asked" else tt[0]["q"]  # a question an earlier round asked comes in the words it was asked in
                     out.append({"qid": f"q{len(out) + 1}", "kind": r["kind"], "topic": r["text"], "source": r["source"],
-                                "scene": sid, "title": it.get("ten") or it.get("tko"), "ask": tt[0]["q"], "ask_ko": tt[0]["q_ko"],
-                                "fixed": tt[0]["q"], "turns": len(tt)})  # the scene's own line asks it
+                                "scene": sid, "title": it.get("ten") or it.get("tko"), "ask": asked, "ask_ko": tt[0]["q_ko"],
+                                "fixed": tt[0]["q"], "turns": len(tt)})  # the scene's own line asks the rest
                     break  # one per kind per round
                 if len(out) >= n:  # enough
                     break
@@ -509,6 +511,8 @@ class Practice:  # one per server
         except Exception as e:  # noqa: BLE001  no model, a timeout or a wrong answer: the fixed list stays
             return str(e)
         for q in qs:  # merge the phrasing back
+            if q["kind"] == "asked":  # asked before, in these words: kept as they were
+                continue
             v = out.get(q["qid"]) if isinstance(out, dict) else None  # this question's new wording
             if isinstance(v, str) and 3 <= len(v.split()) <= 60:  # a real question, not a fragment or an essay
                 q["ask"] = v.strip()  # the agent's wording; the scene's line stays in "fixed"

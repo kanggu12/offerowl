@@ -105,7 +105,7 @@ Every key is optional.
 | `research` | `research/*.md` | company research for the question map |
 | `names` | none | a job-relative file of `Korean = English` lines: the spellings a scene's English lines use for names. They join the evidence of every drafted scene and ground the checks. The panel writes it from the resume draft and the profile's English names |
 | `grow_skip` | none | ids or section letters left out of the length-growth rule |
-| `draft_sections` | `posting P, resume R, portfolio F, term Q, behavioral D, company C, opening O, scenario E, technical T` | the section letter a drafted scene of each kind joins |
+| `draft_sections` | `asked L, posting P, resume R, portfolio F, term Q, behavioral D, company C, opening O, scenario E, technical T` | the section letter a drafted scene of each kind joins (`asked`: a free letter when the kit already uses L) |
 | `evidence_chars` | `18000` | characters of evidence for one drafted scene; lower it for a local model with a small context |
 | `coverage` | `{"strong": 0.6, "weak": 0.3, "spoken": true, "strong_roles": ["scenes", "deep"]}` | coverage thresholds; whether a scene is measured on what it says only, and the roles that can rate a line strong |
 | `size_queries` | first, middle and last eval question | the three searches of `cards --sizes` |
@@ -182,10 +182,11 @@ panel's `/kit/<job>/api/practice/` ([APP.md](APP.md#an-applications-interview)).
 Record and Stop, and the feedback and your own script appear only after you answer.
 
 - **Questions.** The question map (`plan`, built when practice first opens) gives the topics an interviewer has in
-  front of them. Every topic a scene covers becomes one question, one per scene, the kinds taken in turn (posting,
-  resume, portfolio, behavioral, company, scenario and technical by default; openings and terms on request). Without an
-  agent the question is the scene's own first interviewer line and the follow-ups are its later interviewer lines (the
-  fixed list). With an agent, one call per session (`src/llm.py run()`) phrases the questions as an interviewer would, and
+  front of them. Every topic a scene covers becomes one question, one per scene, the kinds taken in turn (what the earlier
+  rounds asked, posting, resume, portfolio, behavioral, company, scenario and technical by default; openings and terms on
+  request). Without an agent the question is the scene's own first interviewer line and the follow-ups are its later
+  interviewer lines (the fixed list); a question an earlier round asked comes in the words it was written down in. With an
+  agent, one call per session (`src/llm.py run()`) phrases the questions as an interviewer would (never one asked before), and
   one call per answer asks a follow-up about what you actually said, in English whatever language the agent usually
   answers you in; a follow-up that comes back in another language gives way to the scene's own.
 - **Answers.** Record answers aloud (the browser's MediaRecorder) or type them. A recording is transcribed on this
@@ -238,8 +239,8 @@ before the day:
 
 - the cover: the company and the role, how many scripts the deck holds and which questions they answer;
 - the posting, line by line, with the script that answers each line and how well (answered, in part, a draft, none yet);
-- the likeliest questions in the order an interview runs: the opening minutes, the introduction and the questions about
-  you, why this company, the posting's lines, the resume, the portfolio, the expected situations, the technical
+- the likeliest questions in the order an interview runs: the opening minutes, what the earlier rounds asked (up to ten),
+  the introduction and the questions about you, why this company, the posting's lines, the resume, the portfolio, the expected situations, the technical
   questions and the questions you ask at the end. Each prints one script: the question as it is asked (its Korean under
   it in an English deck), the dialogue with the interviewer's lines small and grey and mine at full size (the cue cards'
   marks: stress, the highlighter, breaths, a new line per sentence mark), then the translation as one note after the
@@ -256,7 +257,8 @@ and its speech marks drawn by the panel.
 
 A kit written by hand for one call, with every script in the order you expect it, can set `"deck": {"order": "file"}`
 in kit.json. The deck then prints every question script once, in the file's order, under its file heading, with up to
-four common questions the map surely ties to it; deep dives, terms and references stay out. `?kinds` and `?ids` still
+four common questions the map surely ties to it (an earlier round's questions among them); deep dives, terms and
+references stay out. `?kinds` and `?ids` still
 pick from the map as above.
 
 ## The talk
@@ -384,7 +386,10 @@ In the panel, a job that is not there answers 404 `no_job`, one with no kit 404 
 - length, with `--base`: no scene's lines may get shorter, and with `--grow F` they must reach F times their earlier
   length (except `grow_skip`).
 
-The last line is the verdict: `checked N scenes (of M items), problems K`, where K counts scenes with any problem.
+The last line is the verdict: `checked N scenes (of M items), problems K`, where K counts scenes with any problem. Two
+sections with different titles under one letter (a section taken over from another kit) are named in a line of their own
+before it, `NOTE two sections share the letter A: qa.md "…"; common.md "…"`, and do not count as a problem: their keys and
+their colour look alike in the search view.
 
 `cards` opens every card in the real page (an id search shows that card first) at 2560x1300 and 1440x900 in the dark
 theme and counts clipped text, speech marks left visible, empty fields, dialogue lines without a name tag, Korean lines
@@ -401,6 +406,9 @@ measures another set of the same form instead, such as the example kit's cards a
 ## Question map (`plan`)
 
 `plan` collects the likely questions from the job's own text files, without a model:
+- first, the questions the earlier rounds asked, as written down after each one (the panel's interview rounds, kept in the
+  job's `status.json`; one a line, list marks dropped). A question asked again is one entry with every round that asked it,
+  and its id comes from its words (`a1b2c3`), so a draft written for it stays its draft when lines are added above it;
 - one entry per item of the posting (its list items, or its sentences when it has no lists);
 - "tell me about this line" for each line of the submitted resume;
 - follow-ups for each page of the submitted portfolio (pages split at form feeds, as pdftotext writes them, or at
@@ -424,8 +432,11 @@ The map goes to `plan.json` and `plan.md` in the output folder.
 ## Drafting scenes (`draft`)
 
 `draft` writes scenes for planned questions: by default those that no scene or draft covers, or the ones named with
-`--ids`. The likeliest kinds come first (behavioral, company, scenario, technical, posting, resume, portfolio, opening,
-terms), so `--limit` keeps the questions nearly every interview asks, and the next run goes on where this one stopped.
+`--ids`. The likeliest kinds come first (what an earlier round asked, then behavioral, company, scenario, technical,
+posting, resume, portfolio, opening, terms), so `--limit` keeps the questions nearly every interview asks, and the next run
+goes on where this one stopped. The scenes for questions asked before answer them as asked (`draft_depth.json` `asked`) and
+go under a section of their own: L, or when the kit already uses L for a section or an id, the first letter it leaves free;
+a later run finds that section by its name.
 
 For each question, the evidence is collected without the model (`src/interview/evidence.py`). Every source is cut into
 passages, and the passages are ranked by the rare words they share with the question (BM25), so "Slurm" counts for much

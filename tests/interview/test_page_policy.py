@@ -68,7 +68,7 @@ class PolicyTest(unittest.TestCase):
             policy = headers.get("Content-Security-Policy") or ""
             src = next(p for p in policy.split(";") if p.strip().startswith("script-src"))
             self.assertNotIn("unsafe-inline", src, path)  # no script that is not named runs
-            scripts = re.findall(r"<script(?![^>]*\b(?:src|type)=)[^>]*>(.*?)</script>", body, re.S)  # the page's own
+            scripts = re.findall(r"<script(?![^>]*\b(?:src|type)=)[^>]*>(.*?)</script\b[^>]*>", body, re.S | re.I)  # the page's own
             self.assertTrue(scripts, path)
             for s in scripts:  # each one named by its hash, as the browser computes it
                 digest = base64.b64encode(hashlib.sha256(s.encode("utf-8")).digest()).decode()

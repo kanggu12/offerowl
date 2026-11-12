@@ -268,12 +268,15 @@ function viewJobs(host) {                                                       
     alone ? null : h("div", { class: "viewhead" }, h("h1", { text: t("Applications") }),   // a phone's one application starts at its own head (its back key)
       h("span", { class: "sub", text: jobs.length ? tn(jobs.length, "{n} application", "{n} applications") : t("Paste a posting to see how your profile fits it") }),
       trashLine((S.removed || {}).jobs, tn((S.removed || {}).jobs, "{n} application in the trash", "{n} applications in the trash")),   // removed ones, a key away
-      h("span", { class: "grow" }), modes, jobs.length ? h("button", { class: "btn", onclick: () => { UI.adding = !UI.adding; render(); } }, icon(UI.adding ? "close" : "plus"), UI.adding ? t("Close the form") : t("Add a job")) : null),
+      h("span", { class: "grow" }), modes,
+      mode === "timeline" && jobs.length ? h("button", { class: "btn", type: "button", "aria-pressed": UI.editDays ? "true" : "false", onclick: () => { UI.editDays = !UI.editDays; render(); } },
+        icon(UI.editDays ? "check" : "calendar"), UI.editDays ? t("Done") : t("Edit the days")) : null,   // every application's days in one table
+      jobs.length ? h("button", { class: "btn", onclick: () => { UI.adding = !UI.adding; render(); } }, icon(UI.adding ? "close" : "plus"), UI.adding ? t("Close the form") : t("Add a job")) : null),
     jobs.length && mode !== "board" && !alone ? h("div", { class: "jobs-viz" }, stageBar(jobs)) : null,   // every application by stage, at a glance
     (S.due || []).length ? h("div", { class: "band info", role: "status" }, h("p", {}, h("b", { text: t("Due now") }), " ",   // the reminders whose time has come: whose, then what
       S.due.map((d, i) => [i ? " · " : "", h("b", { text: d.name }), " " + d.text]))) : null,
     (UI.adding || !jobs.length) ? jobForm() : null,
-    !jobs.length ? null : mode === "board" ? trackBoard(jobs) : mode === "timeline" ? trackTimeline() : h("div", { class: "jobsplit" + (list ? "" : " alone") },   // the jobs on the left, the one open on the right; alone, the whole width
+    !jobs.length ? null : mode === "board" ? trackBoard(jobs) : mode === "timeline" ? (UI.editDays ? daysTable(jobs) : trackTimeline()) : h("div", { class: "jobsplit" + (list ? "" : " alone") },   // the jobs on the left, the one open on the right; alone, the whole width
       list, phone && !alone ? null : jobDetail(open, phone || wide)));
   if (list) keepListPlace(list, open);                                              // where the person left the list, with the open one in sight
 }
@@ -434,6 +437,7 @@ function jobDetail(j, phone) {                                                  
         j.locked ? h("button", { class: "btn", type: "button", onclick: () => { UI.doc = "resume"; go("documents"); }, text: t("See what was sent") })   // submitted: its documents are the sent copies, kept as they went
         : h("button", { class: j.stage === "result" || tab === "interview" || tab === "progress" ? "btn" : "btn primary", "data-act": "job-make", disabled: tk.state === "running" || run || null, onclick: () => makeForJob(j.id),   // the main key, unless the tab has its own (Practice, Remind me) or the application ended: one main key in sight
           text: run ? t("A run is going") : t("Make this job's documents") }))),
+    todayBand(j, tab),                                                              // a round today: its hour, the time left, its call's link; once it ends, the questions to write down
     tabs,
     h("div", { class: "jd-body", role: "tabpanel", id: "jpane", "aria-labelledby": "jtab-" + tab }, tab === "fit" ? fitPart(j, f) : tab === "docs" ? docsPart(j, tk) : tab === "questions" ? questionsCard(j)
       : tab === "interview" ? interviewPart(j) : progressPart(j)));
@@ -921,6 +925,47 @@ function trackTimeline() {                                                      
       h("b", { text: e.name }), e.kind === "reminder" ? h("span", { class: "chip pc", text: e.done ? t("Done") : e.due ? t("Due") : t("Reminder") }) : null,
       h("span", { class: "tl-what", text: unlinked(e.text) })), linkKeys(e.text)])))));   // a link beside the step's key, never inside it
 }
+// ---------------------------------------------------------------- every application's days in one table
+// The progress tab sets one application's days; this sets them all at once, a row each, the stages each went through. A day
+// that comes after a later step's is left out of the timeline and the charts (tracker.stage_days) and wears the warning colour
+// here, for the person to set. When five or more applications were added on one day and carry it as a stage's day (a list
+// brought in: the adding stamped its own day), one key clears that day from them, in one undo step
+function batchDay(jobs) {                                                           // as tracker.batch_day: {day, ids} or null
+  const by = new Map();                                                             // the day added -> the cards that carry it
+  for (const j of jobs) {
+    const made = String(j.created || "").slice(0, 10);
+    if (made && Object.values(j.dates || {}).some((v) => String(v).slice(0, 10) === made)) by.set(made, [...(by.get(made) || []), j.id]);
+  }
+  let best = null; for (const [day, ids] of by) if (!best || ids.length > best.ids.length) best = { day, ids };
+  return best && best.ids.length >= 5 ? best : null;
+}
+function daysTable(jobs) {
+  const batch = batchDay(jobs);
+  const clear = async () => {                                                       // asked first: many cards change at once (undo brings them back)
+    if (!(await askFirst({ title: tn(batch.ids.length, "Clear {day} from {n} application?", "Clear {day} from {n} applications?", { day: batch.day }), ok: t("Clear"),
+      text: t("The stages that carry that day lose it and leave the timeline and the charts. Undo brings it back.") }))) return;
+    await act("/api/v1/tracker/clear_day", { day: batch.day }, t("Cleared."));
+  };
+  const reached = (j) => S.stages.slice(0, S.stages.indexOf(j.stage) + 1);         // the stages it went through
+  return h("section", { class: "daystable paper", "aria-label": t("Edit the days") },
+    batch ? h("div", { class: "band info dt-batch", role: "status" },
+      h("p", {}, toastWords(tn(batch.ids.length, "{n} application added on {day}: it carries that day as a stage's day.",
+        "{n} applications added on {day}: they carry that day as a stage's day.", { day: batch.day }))),   // what, in bold, then what it means
+      h("button", { class: "btn small", type: "button", onclick: clear }, t("Clear that day"))) : null,
+    h("div", { class: "dt-row dt-head", role: "row" }, h("span", { role: "columnheader", text: t("Application") }),
+      S.stages.map((st) => h("span", { role: "columnheader", text: t(STAGE[st]) }))),
+    jobs.map((j) => h("div", { class: "dt-row", role: "row", "data-stage": j.stage },
+      h("span", { class: "dt-name", role: "cell" }, mono(j.company || j.role || j.id, "sm", j.stage),
+        h("button", { class: "linkish", type: "button", onclick: () => openApplication(j.id, "progress"), text: jobName(j) })),
+      S.stages.map((st) => {
+        if (!reached(j).includes(st)) return h("span", { class: "dt-none", role: "cell", text: "–" });   // a stage it has not reached
+        const kept = (j.dates || {})[st] || "", off = kept && !(j.days || {})[st];     // a day out of order: kept, not counted
+        return h("span", { class: "dt-cell" + (off ? " off" : ""), role: "cell", title: off ? t("It comes after a later step's day, so the timeline and the charts leave it out.") : null },
+          h("span", { class: "dt-lab", "aria-hidden": "true", text: t(STAGE[st]) }),   // its stage's name, where the head row is not shown (a phone)
+          dayField({ "data-key": `dt-${j.id}-${st}`, "aria-label": `${jobName(j)}: ${t(STAGE[st])}` }, kept,
+            (v) => act("/api/v1/tracker/edit", { job: j.id, dates: { [st]: v } })));
+      }))));
+}
 // ---------------------------------------------------------------- the interview rounds of one application (tracker.set_round)
 const ROUND_KIND = { call: "Recruiter call", first: "First interview", second: "Second interview", third: "Third interview", final: "Final interview",
   coding: "Coding test", assignment: "Assignment", culture: "Culture fit", other: "Other round" };
@@ -941,13 +986,37 @@ function roundsPart(j) {                                                        
     edit === "new" ? roundForm(j, null) : null);
 }
 function roundRow(r, j) {                                                           // one round, read
-  const asked = String(r.asked || "").split("\n").map((x) => x.trim()).filter(Boolean);   // the questions, one a line
   return h("li", { class: "round" },
     h("div", { class: "round-h" }, h("b", { text: t(ROUND_KIND[r.kind] || "Other round") }), h("span", { class: "when", text: whenWords(r.at) }), h("span", { class: "grow" }),
       h("button", { class: "btn small quiet", type: "button", onclick: () => { UI.roundEdit = { job: j.id, id: r.id }; render(); } }, icon("edit"), t("Edit"))),
-    asked.length ? h("div", { class: "round-asked" }, h("span", { class: "k", text: tn(asked.length, "{n} question asked", "{n} questions asked") }),
-      h("ul", {}, asked.map((q) => h("li", { text: q })))) : null,
+    roundAsked(r, j),
     r.notes ? h("p", { class: "round-notes" }, linked(r.notes)) : null);
+}
+function roundAsked(r, j) {                                                         // a round's questions, each with the script that answers it: they lead the question map (plan.py, kind "asked")
+  const lines = String(r.asked || "").split("\n").map((x) => x.trim()).filter(Boolean);   // as written, one a line
+  if (!lines.length) return null;
+  const head = h("span", { class: "k", text: tn(lines.length, "{n} question asked", "{n} questions asked") });
+  const b = boardOf(j.id);                                                          // the job's interview board, read once per revision
+  const cat = b && b.ready ? (b.categories || []).find((c) => c.kind === "asked") : null;
+  const qs = cat ? cat.questions.filter((q) => (q.rounds || []).includes(r.id)) : [];   // this round's questions as the map read them, a question asked again among them
+  if (!qs.length) return h("div", { class: "round-asked" }, head, h("ul", {}, lines.map((q) => h("li", { text: q }))),   // no kit yet (or still read): the words as written
+    b && b.ready === false ? h("div", { class: "round-kit" }, h("span", { class: "hint", text: t("A question map shows which of them a script answers.") }),
+      h("button", { class: "btn small", type: "button", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }) }, icon("map"), t("Make the question map"))) : null);
+  const tk = task("scripts:" + j.id), writing = tk.state === "running";            // the agent writing this job's scripts now
+  const missing = qs.filter((q) => ["none", "weak"].includes(q.coverage || "none")).map((q) => q.id);   // no script answers them, or one only in part: a question really asked deserves its own
+  const open = (id) => { UI.jobTab = "interview"; ivOpenScript(id); };              // the script in the scripts' search, on the interview tab
+  return h("div", { class: "round-asked" }, head,
+    h("ul", { class: "asked-list" }, qs.map((q) => { const by = (q.covered_by || [])[0], c = q.coverage || "none";
+      return h("li", {}, h("span", { class: "lit " + (COVERAGE_CLS[c] || "off"), title: t(COVERAGE[c] || COVERAGE.none) }, h("span", { class: "sr", text: t(COVERAGE[c] || COVERAGE.none) })),
+        h("span", { class: "asked-q", text: q.text }),
+        by ? h("button", { class: "btn small quiet asked-by", type: "button", title: t(COVERAGE[c] || ""), onclick: () => open(by) }, t(c === "draft" ? "Draft {id}" : "Script {id}", { id: by }))
+          : h("span", { class: "asked-none", text: t("No script yet") })); })),
+    missing.length ? h("div", { class: "round-kit" },
+      S.agent.state === "ready" ? h("button", { class: "btn small agent", type: "button", disabled: writing || null,
+          onclick: () => act("/api/v1/interview/scripts", { job: j.id, lang: docLang(), ids: missing }) }, icon("agent"),
+          writing ? t("Writing… {done} of {total}", { done: tk.done || 0, total: tk.total || 0 }) : tn(missing.length, "Write a new script", "Write {n} new scripts"))
+        : null,
+      h("span", { class: "hint", text: S.agent.state === "ready" ? t("For the questions no script answers, or answers only in part.") : t("Scripts are written by the agent. Turn it on to draft them.") })) : null);
 }
 function roundForm(j, r) {                                                          // a round written or changed: its kind, day, time, the questions, notes
   const last = (j.rounds || []).slice(-1)[0];

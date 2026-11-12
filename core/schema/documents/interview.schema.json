@@ -26,6 +26,7 @@
         "properties": {
           "kind": {
             "enum": [
+              "asked",
               "posting",
               "resume",
               "portfolio",
@@ -63,7 +64,8 @@
                   "enum": [
                     "strong",
                     "weak",
-                    "none"
+                    "none",
+                    "draft"
                   ]
                 },
                 "covered_by": {
@@ -71,6 +73,17 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "rounds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "A question an earlier round asked: the ids of the rounds that asked it (tracker.set_round)."
+                },
+                "source": {
+                  "type": "string",
+                  "description": "A question an earlier round asked: the round's day and kind, such as \"2026-11-12 first\"."
                 }
               }
             }
@@ -142,6 +155,9 @@
           "type": "integer"
         },
         "uncovered": {
+          "type": "integer"
+        },
+        "drafted": {
           "type": "integer"
         }
       }
