@@ -82,7 +82,7 @@ gh attestation verify Offerowl-linux-x64 --repo kanggu12/offerowl
 
 On Windows, compare `Get-FileHash Offerowl.exe` with its line. The files are built and checked on Windows, on macOS (Apple
 silicon and Intel) and on Linux. The image has no line in `SHA256SUMS`; GitHub's record of where it was built is checked by
-name: `gh attestation verify oci://ghcr.io/kanggu12/offerowl-app:0.6.2 --repo kanggu12/offerowl`.
+name: `gh attestation verify oci://ghcr.io/kanggu12/offerowl-app:0.7.0 --repo kanggu12/offerowl`.
 
 **Options.** `--no-browser`, `--no-tray` (no notification area), `--port N`, and `--check` (a throwaway copy with a stand-in
 agent reads one file, makes the example's documents, and stops). [APP.md](APP.md) describes the panel.
@@ -111,7 +111,7 @@ first build takes several minutes; later starts take seconds. `./offerowl open` 
 A published image instead of a build (the version is on the Releases page):
 
 ```bash
-OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.6.2 docker compose -f deploy/docker/compose.yaml up -d
+OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.7.0 docker compose -f deploy/docker/compose.yaml up -d
 ```
 
 Settings come from your shell or from a `.env` file next to `deploy/docker/compose.yaml`:
@@ -148,7 +148,7 @@ The volume stays.
 ## 3. A Kubernetes cluster (Helm)
 
 ```bash
-helm install offerowl oci://ghcr.io/kanggu12/charts/offerowl --version 0.6.2 --namespace offerowl --create-namespace
+helm install offerowl oci://ghcr.io/kanggu12/charts/offerowl --version 0.7.0 --namespace offerowl --create-namespace
 kubectl --namespace offerowl port-forward svc/offerowl 8797:8797
 ```
 
@@ -159,8 +159,8 @@ port on both sides. `helm test offerowl --namespace offerowl` asks its health ch
 From a checkout, with an image you built and pushed where the cluster can pull it:
 
 ```bash
-docker build -f deploy/docker/Dockerfile -t registry.example.com/offerowl-app:0.6.2 .
-docker push registry.example.com/offerowl-app:0.6.2
+docker build -f deploy/docker/Dockerfile -t registry.example.com/offerowl-app:0.7.0 .
+docker push registry.example.com/offerowl-app:0.7.0
 helm install offerowl deploy/helm/offerowl --namespace offerowl --create-namespace --set image.repository=registry.example.com/offerowl-app
 ```
 
@@ -194,6 +194,54 @@ Make the key's Secret first: `kubectl create namespace offerowl`, then
 - **Your documents** go to `export/` on the claim (`/data/export`) when you choose **Export to Desktop**; this copies them
   out: `kubectl --namespace offerowl exec deploy/offerowl -- tar -C /data -cf - export | tar -xf -`
 
+**Several people.** Offerowl holds one person's profile and documents and has no login, so people never share a panel.
+List them in `tenants` and one release runs an Offerowl for each, named `<release>-offerowl-<name>`:
+
+```yaml
+# team-values.yaml
+ingress:
+  enabled: true
+  className: nginx
+  tenantHost: "{name}.offerowl.example.com"     # alice.offerowl.example.com, bob.offerowl.example.com
+networkPolicy:
+  allowFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+tenants:
+  - name: alice
+    ingress:
+      annotations:
+        nginx.ingress.kubernetes.io/auth-type: basic
+        nginx.ingress.kubernetes.io/auth-secret: alice-basic-auth
+  - name: bob
+    resources:
+      limits:
+        memory: 6Gi
+    persistence:
+      size: 10Gi
+    ingress:
+      annotations:
+        nginx.ingress.kubernetes.io/auth-type: basic
+        nginx.ingress.kubernetes.io/auth-secret: bob-basic-auth
+```
+
+- **Each person's own:** a pod, a Service, a claim (`<release>-offerowl-<name>-data`), a NetworkPolicy that lets no
+  other pod in (another person's neither), a `helm test` pod, and with the Ingress a host name and a login of their own. A
+  panel answers its own host name only, so a request meant for another person is refused even if it reaches the wrong pod.
+- **Each person's limits:** a heavy build stays inside its person's CPU and memory limits, and the pods are spread over the
+  nodes (softly: a small cluster still runs them all), so one node lost takes the fewest panels with it.
+- **Each person's settings:** every value of the chart is each person's default, and a person's `ai`, `resources`,
+  `persistence`, `language`, `timezone`, `extraEnv` (added to the release's), `ingress` and scheduling fields replace it for
+  them alone. values.yaml lists them under `tenants`.
+- **Refused before anything is made:** a name that is not a DNS label or is listed twice, a field that is not a person's
+  own (a typo), a claim or a host name given to two people, `persistence.existingClaim` for the whole release (everyone would
+  share it), and a person without a host name when the Ingress is on. Each refusal says what to change.
+- **Turning a release to tenants** removes its own Offerowl but keeps its claim (`<release>-offerowl-data`): give it to its
+  person with `tenants[].persistence.existingClaim`. Removing someone from the list stops their panel and keeps their claim.
+- **Without an Ingress**, forward one person's Service at a time: `kubectl --namespace offerowl port-forward
+  svc/team-offerowl-alice 8797:8797`.
+
 **Update.** `helm upgrade offerowl oci://ghcr.io/kanggu12/charts/offerowl --version <new> --namespace offerowl`. The claim
 stays.
 
@@ -203,7 +251,7 @@ stays.
 ## 4. The Python package
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.6.2/offerowl-0.6.2-py3-none-any.whl
+pipx install https://github.com/kanggu12/offerowl/releases/download/v0.7.0/offerowl-0.7.0-py3-none-any.whl
 offerowl panel --open
 ```
 

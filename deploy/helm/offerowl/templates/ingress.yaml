@@ -1,12 +1,23 @@
 {{- if .Values.ingress.enabled }}
-# The panel behind an Ingress. The panel has no login: put one in front of it (values.yaml, "ingress").
+{{- $h := dict -}}
+{{- $_ := include "offerowl.instances" (dict "root" . "holder" $h) -}}
+{{- range $c := $h.instances }}
+{{- with $c }}
+{{- $annotations := .Values.ingress.annotations }}
+{{- $tls := .Values.ingress.tls }}
+{{- if .Tenant }}
+{{- $annotations = .Values.tenantIngress.annotations }}
+{{- $tls = .Values.tenantIngress.tls }}
+{{- end }}
+---
+# The panel behind an Ingress{{ if .Tenant }}, {{ .Tenant }}'s at their own host name, behind their own login{{ end }}. The panel has no login: put one in front of it (values.yaml, "ingress").
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "offerowl.fullname" . }}
+  name: {{ include "offerowl.instanceName" . }}
   labels:
     {{- include "offerowl.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  {{- with $annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -14,11 +25,24 @@ spec:
   {{- with .Values.ingress.className }}
   ingressClassName: {{ . | quote }}
   {{- end }}
-  {{- with .Values.ingress.tls }}
+  {{- with $tls }}
   tls:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
+    {{- if .Tenant }}
+    - host: {{ .Values.tenantIngress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "offerowl.instanceName" . }}
+                port:
+                  name: http
+    {{- else }}
+    {{- $one := . }}
     {{- range .Values.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
@@ -28,9 +52,12 @@ spec:
             pathType: {{ .pathType | default "Prefix" }}
             backend:
               service:
-                name: {{ include "offerowl.fullname" $ }}
+                name: {{ include "offerowl.instanceName" $one }}
                 port:
                   name: http
           {{- end }}
     {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

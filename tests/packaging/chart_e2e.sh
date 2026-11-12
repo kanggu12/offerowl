@@ -34,6 +34,7 @@ if curl -s -m 2 -o /dev/null "http://127.0.0.1:$PORT/health"; then
 fi
 
 PF_PID=""
+SVC=offerowl   # the Service forward() reaches: the release's own, or one person's when the release has tenants
 cleanup() {
   [ -n "$PF_PID" ] && kill "$PF_PID" 2> /dev/null   # the forward always ends with the run
   if [ "${CHART_E2E_KEEP:-0}" = 1 ]; then   # CHART_E2E_KEEP=1 leaves the cluster to look at
@@ -57,7 +58,7 @@ forward() {   # forward the panel's port, replacing an earlier forward
     wait "$PF_PID" 2> /dev/null
   fi
   # kubectl itself runs in the background (not the kc function, whose subshell would keep running after a kill)
-  "$KUBECTL" --namespace "$NS" port-forward "svc/offerowl" "$PORT:$PORT" > "$WORK/forward.log" 2>&1 &
+  "$KUBECTL" --namespace "$NS" port-forward "svc/$SVC" "$PORT:$PORT" > "$WORK/forward.log" 2>&1 &
   PF_PID=$!
   for _ in $(seq 40); do
     # the answer counts only while this forward is alive: if it could not bind (the port is taken by another program),
@@ -150,6 +151,35 @@ check "helm test passes" "$HELM" test offerowl --namespace "$NS" --timeout 3m
 "$HELM" uninstall offerowl --namespace "$NS" > /dev/null 2>&1
 check "helm uninstall leaves the claim with the documents" kc get pvc offerowl-data
 check "helm uninstall removes the deployment" bash -c "! $KUBECTL --namespace $NS get deploy offerowl"
+
+echo "[two people on one release]"
+# Each person in tenants gets an Offerowl of their own: their own pod, claim and Service, and what one saves the other never
+# sees. Bob's claim takes the size of his own values.
+jobs_seen() {   # how many applications the forwarded panel holds
+  curl -sf -m 5 "http://127.0.0.1:$PORT/api/v1/state" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['jobs']))"
+}
+"$HELM" install team "$REPO/deploy/helm/offerowl" --namespace "$NS" "${IMG_ARGS[@]}" \
+  --set 'tenants[0].name=alice' --set 'tenants[1].name=bob' --set 'tenants[1].persistence.size=1Gi' \
+  --wait --timeout "$WAIT" > "$WORK/helm_team.log" 2>&1
+check "helm install with two people, both pods ready" grep -q "STATUS: deployed" "$WORK/helm_team.log"
+check "two deployments, one for each" test "$(kc get deploy -l app.kubernetes.io/instance=team --no-headers | wc -l)" = 2
+check "alice's claim is bound" test "$(kc get pvc team-offerowl-alice-data -o jsonpath='{.status.phase}')" = Bound
+check "bob's claim is bound, at his own size" test "$(kc get pvc team-offerowl-bob-data -o jsonpath='{.spec.resources.requests.storage}')" = 1Gi
+SVC=team-offerowl-alice
+check "alice's panel through port-forward" forward
+check "alice adds an application" curl -sf -m 10 -X POST "http://127.0.0.1:$PORT/api/v1/jobs" \
+  -H "Content-Type: application/json" -H "Origin: http://127.0.0.1:$PORT" \
+  -d '{"company":"Acme","role":"Platform engineer","posting":"Acme builds payment systems. You will run its Kubernetes platform."}'
+check "alice's panel lists it" test "$(jobs_seen)" = 1
+SVC=team-offerowl-bob
+check "bob's panel through port-forward" forward
+check "bob's panel does not list alice's application (a workspace of his own)" test "$(jobs_seen)" = 0
+SVC=team-offerowl-alice
+check "alice's panel again" forward
+check "alice's application is still hers" test "$(jobs_seen)" = 1
+check "helm test passes for both people" "$HELM" test team --namespace "$NS" --timeout 3m
+"$HELM" uninstall team --namespace "$NS" > /dev/null 2>&1
+check "helm uninstall leaves both people's claims" kc get pvc team-offerowl-alice-data team-offerowl-bob-data
 
 echo "==== $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

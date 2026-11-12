@@ -1,5 +1,10 @@
+{{- $h := dict -}}
+{{- $_ := include "offerowl.instances" (dict "root" . "holder" $h) -}}
+{{- range $c := $h.instances }}
+{{- with $c }}
 {{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
-# The data folder: settings, the workspace (profile, jobs, documents) and the logs.
+---
+# The data folder{{ if .Tenant }} of {{ .Tenant }}{{ end }}: settings, the workspace (profile, jobs, documents) and the logs.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -18,4 +23,6 @@ spec:
   resources:
     requests:
       storage: {{ .Values.persistence.size }}
+{{- end }}
+{{- end }}
 {{- end }}

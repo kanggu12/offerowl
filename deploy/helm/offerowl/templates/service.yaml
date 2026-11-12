@@ -1,9 +1,14 @@
+{{- $h := dict -}}
+{{- $_ := include "offerowl.instances" (dict "root" . "holder" $h) -}}
+{{- range $c := $h.instances }}
+{{- with $c }}
+---
 # The panel, which serves the interview kit too (/kit/<job>/). ClusterIP by default: reached with kubectl port-forward, as
 # compose publishes it on the host's 127.0.0.1 only.
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "offerowl.fullname" . }}
+  name: {{ include "offerowl.instanceName" . }}
   labels:
     {{- include "offerowl.labels" . | nindent 4 }}
 spec:
@@ -15,3 +20,5 @@ spec:
       port: {{ int .Values.service.panelPort }}
       targetPort: http
       protocol: TCP
+{{- end }}
+{{- end }}

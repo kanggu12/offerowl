@@ -1,16 +1,25 @@
-{{- $name := include "offerowl.fullname" . -}}
+{{- $h := dict -}}
+{{- $_ := include "offerowl.instances" (dict "root" . "holder" $h) -}}
+{{- $one := index $h.instances 0 -}}
 {{- $ns := .Release.Namespace -}}
 {{- $panel := int .Values.service.panelPort -}}
 Offerowl is installed as release {{ .Release.Name }} in namespace {{ $ns }}.
+{{- if .Values.tenants }} Each of its {{ len .Values.tenants }} people has an Offerowl of their own:
+their own pod, claim and policy{{ if .Values.ingress.enabled }}, host name and login{{ end }}.
+{{- end }}
 
 Open the panel
   The panel has no login and holds your profile and documents, so nothing is exposed. Forward its port to the machine
   you sit at, using the same port number on both sides (the panel answers only requests addressed to its own port):
-
-    kubectl --namespace {{ $ns }} port-forward svc/{{ $name }} {{ $panel }}:{{ $panel }}
+{{ range $c := $h.instances }}
+    {{ with $c.Tenant }}{{ . }}: {{ end }}kubectl --namespace {{ $ns }} port-forward svc/{{ include "offerowl.instanceName" $c }} {{ $panel }}:{{ $panel }}
+{{- end }}
 
   and open http://127.0.0.1:{{ $panel }} in a browser on that machine; an application's interview kit is on the same
   port, at /kit/<job>/. Keep the forward on 127.0.0.1, the default: --address 0.0.0.0 would open the panel to your network.
+{{- if .Values.tenants }}
+  One forward at a time on this port: every person's panel answers its own port, the same number for all.
+{{- end }}
 
 Check it
     helm test {{ .Release.Name }} --namespace {{ $ns }}
@@ -18,27 +27,50 @@ Check it
 
 Storage
   persistence.enabled is false: the workspace lives in the pod and is lost whenever the pod is replaced.
+{{- else if .Values.tenants }}
+
+Storage
+{{- range $c := $h.instances }}
+  {{ $c.Tenant }}'s workspace is on the claim {{ include "offerowl.claimName" $c }}.
+{{- end }}
+  helm uninstall leaves the claims in place; delete one with kubectl when its person no longer wants their documents.
 {{- else }}
 
 Storage
-  Your workspace is on the claim {{ include "offerowl.claimName" . }}. helm uninstall leaves it in place; delete it with
+  Your workspace is on the claim {{ include "offerowl.claimName" $one }}. helm uninstall leaves it in place; delete it with
   kubectl when you no longer want your documents.
 {{- end }}
 
 The AI backend
-{{- if eq (toString .Values.ai.backend) "openai-compat" }}
-  openai-compat at {{ .Values.ai.url }}{{ if .Values.ai.model }}, model {{ .Values.ai.model }}{{ end }}.
+{{- range $c := $h.instances }}
+{{- if eq (toString $c.Values.ai.backend) "openai-compat" }}
+  {{ with $c.Tenant }}{{ . }}: {{ end }}openai-compat at {{ $c.Values.ai.url }}{{ if $c.Values.ai.model }}, model {{ $c.Values.ai.model }}{{ end }}.
+{{- else if $c.Tenant }}
+  {{ $c.Tenant }}: none: the AI steps stop and the facts are filled in by hand. Documents are still made.
 {{- else }}
   none: the AI steps stop and you fill in the facts yourself. Documents are still made. To use a local model server,
   set ai.backend=openai-compat and ai.url.
 {{- end }}
-{{- if .Values.ingress.enabled }}
+{{- end }}
+{{- if and .Values.ingress.enabled .Values.tenants }}
 
 Ingress
-  The panel is reachable at {{ include "offerowl.ingressHosts" . }} through the Ingress. It has no login of its own:
+{{- range $c := $h.instances }}
+  {{ $c.Tenant }}: {{ include "offerowl.ingressHosts" $c }}
+{{- end }}
+  Each panel has no login of its own: make sure the Ingress puts one in front of each, every person's own, and TLS.
+{{- else if .Values.ingress.enabled }}
+
+Ingress
+  The panel is reachable at {{ include "offerowl.ingressHosts" $one }} through the Ingress. It has no login of its own:
   make sure the Ingress puts one in front of it, and TLS.
 {{- end }}
-{{- if .Values.networkPolicy.enabled }}
+{{- if and .Values.networkPolicy.enabled .Values.tenants }}
+
+Isolation
+  Each person's NetworkPolicy lets no pod connect to their panel, another person's pod neither; it takes effect only if
+  the cluster's network plugin enforces NetworkPolicy.
+{{- else if .Values.networkPolicy.enabled }}
 
 Isolation
   The NetworkPolicy of this release lets no pod connect to the panel; it takes effect only if the cluster's network

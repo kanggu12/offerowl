@@ -6,6 +6,34 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-12
+
+Several people on one cluster, each with an Offerowl of their own.
+
+### Added
+
+- The chart's `tenants`: list people and one release runs an Offerowl for each, named `<release>-offerowl-<name>`. Each
+  person has their own pod, Service, claim (`<release>-offerowl-<name>-data`), NetworkPolicy (no other pod may connect,
+  another person's neither) and `helm test` pod, and with the Ingress their own host name (`ingress.tenantHost`, `{name}`
+  replaced by theirs) behind their own login (their own annotations). A person's panel answers their host name only.
+  Offerowl keeps one person's documents and has no login, so several people are several Offerowls, never one panel shared.
+- A person's own `ai`, `resources`, `persistence`, `language`, `timezone`, `extraEnv` (added to the release's), `ingress`
+  and scheduling fields replace the release's values for them alone, so one person can have more memory, a larger claim or
+  a model server of their own.
+- The people's pods are spread over the nodes (softly), so a node that is lost takes the fewest panels with it, and a heavy
+  build stays inside its own person's limits.
+- Settings that cannot work side by side are refused before anything is made, each with what to change: a name that is
+  not a DNS label or is listed twice, a field that is not a person's own, a claim or a host name given to two people,
+  `persistence.existingClaim` for the whole release (everyone would share it), a person with no host name when the Ingress
+  is on, a name too long for the objects' names, and a person's AI settings that cannot work (named with the person).
+
+### Changed
+
+- Without `tenants` the chart renders exactly what it did, so a release that is one person's upgrades with nothing
+  changed. A release that turns to tenants keeps its claim for its person's `existingClaim`.
+- The chart's cluster test installs two people and checks that what one adds the other never sees, that each claim is
+  bound at its own size, and that `helm test` passes for both.
+
 ## [0.6.2] - 2026-11-12
 
 What a look at the interview tab's own pages inside the panel, at what the tests leave open, and at every Python from 3.10
@@ -153,7 +181,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/kanggu12/offerowl/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/kanggu12/offerowl/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/kanggu12/offerowl/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/kanggu12/offerowl/releases/tag/v0.6.0

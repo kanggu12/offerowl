@@ -73,6 +73,9 @@ ingress:
   #   - secretName: offerowl-tls
   #     hosts:
   #       - offerowl.example.com
+  # With tenants (below), each person's host name: {name} is replaced by theirs, for example {name}.offerowl.example.com
+  # gives alice.offerowl.example.com. A person's own tenants[].ingress.host replaces it. ingress.hosts is not used then.
+  tenantHost: ""
 
 # One volume for the workspace: the settings, your profile, jobs and documents, and the logs (the data folder, /data).
 # enabled: false uses an emptyDir instead, and everything starts over whenever the pod is replaced.
@@ -161,3 +164,35 @@ podAnnotations: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Several people on one release. Offerowl holds one person's profile and documents and has no login, so people never share
+# a panel: each person listed here gets an Offerowl of their own, named <fullname>-<name>: their own pod, Service, claim
+# (<fullname>-<name>-data), NetworkPolicy (no other pod, another person's included, may connect) and test pod, and with
+# the Ingress their own host name (ingress.tenantHost) behind their own login (their own annotations, for example a
+# basic-auth Secret of their own), the panel answering that host alone. A heavy build stays inside its person's limits,
+# and the pods are spread over the nodes (softly), so one node lost takes the fewest panels with it.
+#
+# Every value above is each person's default; a person's own fields replace it for them alone: ai, resources,
+# persistence (size, storageClass, or an existingClaim of their own), language, timezone, podAnnotations, nodeSelector,
+# tolerations, affinity, extraEnv (added to the release's) and ingress (host, annotations, tls). Anything else is refused,
+# and so are a name twice, a claim or host for two people, and persistence.existingClaim for the whole release (every
+# person would share it).
+#
+# Empty, the default: the release is one person's, named <fullname>, exactly as before. A release that turns to tenants
+# keeps its claim (<fullname>-data); give it to its person with tenants[].persistence.existingClaim.
+tenants: []
+#   - name: alice                          # a DNS label: lower-case letters, digits and -
+#   - name: bob
+#     ai:
+#       backend: openai-compat
+#       url: http://ollama.models.svc:11434
+#       model: my-model
+#     resources:
+#       limits:
+#         memory: 6Gi
+#     persistence:
+#       size: 10Gi
+#     ingress:
+#       annotations:
+#         nginx.ingress.kubernetes.io/auth-type: basic
+#         nginx.ingress.kubernetes.io/auth-secret: bob-basic-auth

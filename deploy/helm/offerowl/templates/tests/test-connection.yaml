@@ -1,9 +1,14 @@
-# helm test: the panel answers /health through the Service. It sends the Host header the panel accepts, because the
+{{- $h := dict -}}
+{{- $_ := include "offerowl.instances" (dict "root" . "holder" $h) -}}
+{{- range $c := $h.instances }}
+{{- with $c }}
+---
+# helm test: the panel answers /health through the Service{{ if .Tenant }} ({{ .Tenant }}'s){{ end }}. It sends the Host header the panel accepts, because the
 # Service's own name would be refused as a foreign host.
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ include "offerowl.fullname" . }}-test
+  name: {{ include "offerowl.instanceName" . }}-test
   labels:
     {{- include "offerowl.labels" . | nindent 4 }}
     app.kubernetes.io/component: test
@@ -25,7 +30,7 @@ spec:
         - |
           import json, urllib.request
           request = urllib.request.Request(
-              "http://{{ include "offerowl.fullname" . }}:{{ int .Values.service.panelPort }}/health",
+              "http://{{ include "offerowl.instanceName" . }}:{{ int .Values.service.panelPort }}/health",
               headers={"Host": {{ include "offerowl.hostHeader" . | quote }}})
           answer = json.load(urllib.request.urlopen(request, timeout=10))
           assert answer.get("app") == "offerowl", answer
@@ -39,3 +44,5 @@ spec:
         limits:
           cpu: 200m
           memory: 128Mi
+{{- end }}
+{{- end }}

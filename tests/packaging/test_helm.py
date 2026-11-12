@@ -256,6 +256,114 @@ class ChartTest(unittest.TestCase):
         for name in ("OFFEROWL_PANEL_PORT", "OFFEROWL_LLM_KEY", "OFFEROWL_DATA_DIR", "OFFEROWL_ALLOWED_HOSTS", "TZ", "HOME"):
             self.assertIn(f"extraEnv may not set {name}", self.refused(values={"extraEnv": [{"name": name, "value": "x"}]}), name)
 
+    # --- several people on one release (tenants)
+
+    TEAM = {"ingress": {"enabled": True, "className": "nginx", "tenantHost": "{name}.offerowl.example.invalid",
+                        "annotations": {"nginx.ingress.kubernetes.io/auth-type": "basic"}},
+            "tenants": [{"name": "alice"},
+                        {"name": "bob", "ai": {"backend": "openai-compat", "url": "http://models.example.invalid:11434", "model": "m"},
+                         "resources": {"limits": {"memory": "6Gi"}}, "persistence": {"size": "10Gi"},
+                         "extraEnv": [{"name": "OFFEROWL_LLM_REASONING", "value": "none"}],
+                         "ingress": {"annotations": {"nginx.ingress.kubernetes.io/auth-secret": "bob-basic-auth"}}}]}
+
+    def by_person(self, objs: dict, kind: str) -> dict:
+        """{person: object} of one kind, by the tenant label every object of a person carries"""
+        return {o["metadata"]["labels"]["offerowl/tenant"]: o for o in objs.get(kind, [])}
+
+    def test_without_tenants_the_release_is_one_person_s_as_before(self):
+        objs = self.render()
+        for kind, items in objs.items():
+            for o in items:
+                self.assertNotIn("offerowl/tenant", o["metadata"]["labels"], kind)  # no person's label, so a selector fixed at
+                #                                                                     the first install never changes on upgrade
+        self.assertEqual(objs["Deployment"][0]["spec"]["selector"]["matchLabels"],
+                         {"app.kubernetes.io/name": "offerowl", "app.kubernetes.io/instance": "offerowl"})
+        self.assertNotIn("topologySpreadConstraints", objs["Deployment"][0]["spec"]["template"]["spec"])
+
+    def test_each_person_has_their_own_pod_service_claim_policy_and_test(self):
+        objs = self.render(name="team", values=self.TEAM)
+        for kind in ("Deployment", "Service", "PersistentVolumeClaim", "NetworkPolicy", "Ingress", "Pod"):
+            self.assertEqual(sorted(self.by_person(objs, kind)), ["alice", "bob"], kind)  # one each, nothing shared
+        names = {o["metadata"]["name"] for items in objs.values() for o in items}
+        self.assertLessEqual({"team-offerowl-alice", "team-offerowl-bob", "team-offerowl-alice-data", "team-offerowl-bob-data",
+                              "team-offerowl-alice-test", "team-offerowl-bob-test"}, names)
+        self.assertNotIn("team-offerowl", names)  # no Offerowl of the release's own beside the people's
+        for person, d in self.by_person(objs, "Deployment").items():
+            spec = d["spec"]
+            self.assertEqual(spec["selector"]["matchLabels"]["offerowl/tenant"], person)  # its own pods only
+            claims = [v["persistentVolumeClaim"]["claimName"] for v in spec["template"]["spec"]["volumes"] if "persistentVolumeClaim" in v]
+            self.assertEqual(claims, [f"team-offerowl-{person}-data"])  # their own documents
+            self.assertEqual(self.by_person(objs, "Service")[person]["spec"]["selector"]["offerowl/tenant"], person)
+
+    def test_a_person_s_own_values_replace_the_release_s_for_them_alone(self):
+        objs = self.render(name="team", values=self.TEAM)
+        deps = self.by_person(objs, "Deployment")
+        env = {p: {e["name"]: e for e in d["spec"]["template"]["spec"]["containers"][0]["env"]} for p, d in deps.items()}
+        limits = {p: d["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] for p, d in deps.items()}
+        self.assertEqual((limits["alice"]["memory"], limits["bob"]["memory"]), ("4Gi", "6Gi"))  # bob's limit, alice keeps the release's
+        self.assertEqual(limits["bob"]["cpu"], "4")  # the rest of the release's resources still apply to bob
+        self.assertEqual((env["alice"]["OFFEROWL_LLM"]["value"], env["bob"]["OFFEROWL_LLM"]["value"]), ("none", "openai-compat"))
+        self.assertNotIn("OFFEROWL_LLM_URL", env["alice"])
+        self.assertIn("OFFEROWL_LLM_REASONING", env["bob"])  # bob's own environment, added to the release's
+        self.assertNotIn("OFFEROWL_LLM_REASONING", env["alice"])
+        sizes = {p: c["spec"]["resources"]["requests"]["storage"] for p, c in self.by_person(objs, "PersistentVolumeClaim").items()}
+        self.assertEqual(sizes, {"alice": "5Gi", "bob": "10Gi"})
+
+    def test_each_person_has_their_own_host_login_and_a_panel_that_answers_it_alone(self):
+        objs = self.render(name="team", values=self.TEAM)
+        ingresses = self.by_person(objs, "Ingress")
+        for person in ("alice", "bob"):
+            rule = ingresses[person]["spec"]["rules"]
+            self.assertEqual([r["host"] for r in rule], [f"{person}.offerowl.example.invalid"])
+            self.assertEqual(rule[0]["http"]["paths"][0]["backend"]["service"]["name"], f"team-offerowl-{person}")
+            env = {e["name"]: e for e in self.by_person(objs, "Deployment")[person]["spec"]["template"]["spec"]["containers"][0]["env"]}
+            self.assertEqual(env["OFFEROWL_ALLOWED_HOSTS"]["value"], f"{person}.offerowl.example.invalid")  # another person's name is refused
+        bob = ingresses["bob"]["metadata"]["annotations"]
+        self.assertEqual(bob["nginx.ingress.kubernetes.io/auth-secret"], "bob-basic-auth")  # bob's own login
+        self.assertEqual(bob["nginx.ingress.kubernetes.io/auth-type"], "basic")  # with the release's annotations under it
+        self.assertNotIn("nginx.ingress.kubernetes.io/auth-secret", ingresses["alice"]["metadata"]["annotations"])
+        own = self.render(name="team", values={**self.TEAM, "tenants": [{"name": "carol", "ingress": {"host": "cv.example.invalid"}}]})
+        self.assertEqual(self.by_person(own, "Ingress")["carol"]["spec"]["rules"][0]["host"], "cv.example.invalid")  # a host of their own
+
+    def test_no_pod_reaches_a_person_s_panel_another_person_s_neither(self):
+        objs = self.render(name="team", values=self.TEAM)
+        for person, policy in self.by_person(objs, "NetworkPolicy").items():
+            spec = policy["spec"]
+            self.assertEqual(spec["podSelector"]["matchLabels"]["offerowl/tenant"], person)
+            sources = spec["ingress"][0]["from"]
+            self.assertEqual(len(sources), 1)  # nothing but their own test pod
+            self.assertEqual(sources[0]["podSelector"]["matchLabels"]["offerowl/tenant"], person)
+            self.assertEqual(sources[0]["podSelector"]["matchLabels"]["app.kubernetes.io/component"], "test")
+        script = self.by_person(objs, "Pod")["bob"]["spec"]["containers"][0]["args"][0]
+        self.assertIn("http://team-offerowl-bob:8797/health", script)  # bob's test asks bob's panel
+
+    def test_the_people_s_pods_are_spread_over_the_nodes(self):
+        for d in self.by_person(self.render(name="team", values=self.TEAM), "Deployment").values():
+            spread = d["spec"]["template"]["spec"]["topologySpreadConstraints"]
+            self.assertEqual(spread[0]["topologyKey"], "kubernetes.io/hostname")
+            self.assertEqual(spread[0]["whenUnsatisfiable"], "ScheduleAnyway")  # soft: a small cluster still runs them all
+            self.assertEqual(spread[0]["labelSelector"]["matchLabels"], {"app.kubernetes.io/name": "offerowl", "app.kubernetes.io/instance": "team"})
+
+    def test_people_who_cannot_work_side_by_side_are_refused_with_what_to_change(self):
+        one = {"name": "a"}
+        cases = [
+            ({"tenants": [{"name": "Alice"}]}, "must be a DNS label"),
+            ({"tenants": [one, one]}, "listed twice"),
+            ({"tenants": [{"name": "a", "resource": {}}]}, "not a person's own setting"),
+            ({"tenants": [one], "persistence": {"existingClaim": "shared"}}, "every person would share one claim"),
+            ({"tenants": [{"name": "a", "persistence": {"existingClaim": "c"}}, {"name": "b", "persistence": {"existingClaim": "c"}}]}, "named for two people"),
+            ({"tenants": [one], "ingress": {"enabled": True}}, "no host name for the Ingress"),
+            ({"tenants": [one], "ingress": {"enabled": True, "tenantHost": "offerowl.example.invalid"}}, "{name}"),
+            ({"tenants": [{"name": "a", "ingress": {"host": "x.example.invalid"}}, {"name": "b", "ingress": {"host": "x.example.invalid"}}],
+              "ingress": {"enabled": True}}, "given to two people"),
+            ({"tenants": [{"name": "a" * 60}]}, "too long"),
+            ({"tenants": ["alice"]}, "must be a map"),
+            ({"tenants": [{"name": "a", "ai": {"backend": "openai-compat"}}]}, "tenants (a): ai.backend=openai-compat needs ai.url"),
+            ({"tenants": [{"name": "a", "extraEnv": [{"name": "TZ", "value": "x"}]}]}, "tenants (a): extraEnv may not set TZ"),
+        ]
+        for values, words in cases:
+            self.assertIn(words, self.refused(values=values), values)
+
     # --- manifests and packaging
 
     def test_the_manifests_are_valid_kubernetes(self):
@@ -269,6 +377,11 @@ class ChartTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         ingress = run([self.helm, "template", "offerowl", str(CHART), "--set", "ingress.enabled=true"]).stdout
         self.assertEqual(run([kubeconform, "-strict", "-ignore-missing-schemas", "-"], input=ingress).returncode, 0)
+        team = tmpdir(self) / "team.json"  # several people, each with their own objects
+        team.write_text(json.dumps(self.TEAM), encoding="utf-8")
+        people = run([self.helm, "template", "team", str(CHART), "-f", str(team)]).stdout
+        r = run([kubeconform, "-strict", "-ignore-missing-schemas", "-summary", "-"], input=people)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_the_chart_packages_under_a_release_version(self):
         out = tmpdir(self)

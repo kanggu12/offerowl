@@ -1,11 +1,16 @@
-{{- include "offerowl.validate" . -}}
-{{- $panel := int .Values.service.panelPort -}}
-{{- $health := dict "path" "/health" "port" "http" "httpHeaders" (list (dict "name" "Host" "value" (include "offerowl.hostHeader" .))) -}}
-# The app: the panel, the engine, the interview view and the renderer (deploy/docker/Dockerfile) in one pod.
+{{- $h := dict -}}
+{{- $_ := include "offerowl.instances" (dict "root" . "holder" $h) -}}
+{{- range $c := $h.instances }}
+{{- with $c }}
+{{- include "offerowl.validate" . }}
+{{- $panel := int .Values.service.panelPort }}
+{{- $health := dict "path" "/health" "port" "http" "httpHeaders" (list (dict "name" "Host" "value" (include "offerowl.hostHeader" .))) }}
+---
+# The app: the panel, the engine, the interview view and the renderer (deploy/docker/Dockerfile) in one pod{{ if .Tenant }}, for {{ .Tenant }} alone{{ end }}.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "offerowl.fullname" . }}
+  name: {{ include "offerowl.instanceName" . }}
   labels:
     {{- include "offerowl.labels" . | nindent 4 }}
 spec:
@@ -77,7 +82,7 @@ spec:
                   key: {{ .Values.ai.secretKey | quote }}
             {{- end }}
             {{- if .Values.ingress.enabled }}
-            # The host names the Ingress sends to the panel; the panel refuses any other Host header.
+            # The host names the Ingress sends to the panel; the panel refuses any other Host header{{ if .Tenant }}, every other person's included{{ end }}.
             - name: OFFEROWL_ALLOWED_HOSTS
               value: {{ include "offerowl.ingressHosts" . | quote }}
             {{- end }}
@@ -128,6 +133,18 @@ spec:
           emptyDir:
             sizeLimit: {{ .Values.persistence.size }}
           {{- end }}
+      {{- if .Tenant }}
+      # The people's pods are spread over the nodes, so a node that is lost takes the fewest panels with it. Soft: a
+      # cluster with fewer nodes than people still runs them all.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "offerowl.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -140,3 +157,5 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
+{{- end }}

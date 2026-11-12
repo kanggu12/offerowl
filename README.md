@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href=".github/workflows/ci.yml"><img alt="CI: GitHub Actions" src="docs/assets/badges/ci.svg"></a>
-  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.6.2" src="docs/assets/badges/release.svg"></a>
+  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.7.0" src="docs/assets/badges/release.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="docs/assets/badges/license.svg"></a>
   <img alt="Runs on Windows, macOS and Linux" src="docs/assets/badges/runs-on.svg">
 </p>
@@ -73,14 +73,15 @@ docker compose -f deploy/docker/compose.yaml up -d --build
 **Python** 3.10 or newer
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.6.2/offerowl-0.6.2-py3-none-any.whl
+pipx install https://github.com/kanggu12/offerowl/releases/download/v0.7.0/offerowl-0.7.0-py3-none-any.whl
 offerowl panel --open
 ```
 
 To write, Offerowl uses the AI agent you are signed in to: sign in to
 [Claude Code](https://code.claude.com/docs/en/setup) once, or use Codex or a local model. With no AI at all, an Offerowl
-profile file still becomes PDFs. [docs/INSTALL.md](docs/INSTALL.md) has the Kubernetes chart, updating, removing and what
-to choose if your system warns about the unsigned app; [docs/OFFLINE.md](docs/OFFLINE.md) covers networks with no internet.
+profile file still becomes PDFs. [docs/INSTALL.md](docs/INSTALL.md) has the Kubernetes chart (one person's, or several
+people's, each with an Offerowl of their own), updating, removing and what to choose if your system warns about the
+unsigned app; [docs/OFFLINE.md](docs/OFFLINE.md) covers networks with no internet.
 
 [What it needs](docs/INSTALL.md#what-you-need): Windows, macOS or Linux, 8 GB of memory, and Edge or Chrome (Chromium on Linux)
 to print the PDFs.

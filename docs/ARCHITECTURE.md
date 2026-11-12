@@ -101,7 +101,11 @@ The code is the same in each. What differs is who starts the server and what typ
   typesetting libraries and PDFium for reading PDFs, and it prints with the PC's own Chrome or Edge. When the engine starts one of its helper scripts, the
   app stands in for Python.
 - **The container** holds LibreOffice and Chromium, so its PDFs are the reference for the checks.
-- **The chart** runs that image in one pod with a volume claim.
+- **The chart** runs that image in one pod with a volume claim. With `tenants` it runs one such pod for each person, each
+  with a claim, a Service, a NetworkPolicy and a host name of their own: Offerowl keeps one person's documents and has no
+  login, so several people are several Offerowls, never one panel shared.
+- **A container** counts as Offerowl's own image, where the tools are called directly, only when it carries LibreOffice;
+  any other container (a dev container, a CI job's) is taken for a PC.
 - **The Python package** installs the whole engine folder as data and starts the launcher from there. It typesets with Docker
   where Docker is here, else with the PC's browser ([Which renderer runs](#which-renderer-runs)).
 
