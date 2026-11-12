@@ -197,6 +197,10 @@ body:not(.q) #home, body.practicing #practiceBtn { background: var(--seg-on); bo
   background: var(--set-fill); border: 1px solid var(--glass-edge); border-top-color: var(--glass-edge-top); border-left-color: var(--glass-edge-left);
   box-shadow: var(--set-shadow); backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2); }
 .prefs[hidden] { display: none; }
+/* The question before the similarity model is dropped: the settings sheet's own look, under the switch, never the browser's box */
+.prefs.ask { right: var(--ask-right, 56px); width: min(300px, calc(100vw - 24px)); background: var(--sheet); backdrop-filter: none; -webkit-backdrop-filter: none; }  /* --ask-right: under the switch's right edge, set when it opens; a sentence is read on it, so it is solid, where the settings sheet is glass */
+.prefs.ask p { margin: 0; font-size: 12.5px; font-weight: 500; line-height: 1.55; color: var(--ink); word-break: keep-all; }
+.prefs.ask .seg { justify-content: flex-end; }
 .prefs .pr { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 12.5px; font-weight: 650; color: var(--ink-2); }
 /* Icon keys: Classic's bar icon button */
 .icon-btn { flex: none; display: inline-grid; place-items: center; cursor: pointer; width: 36px; height: 34px; border-radius: 5px; border: 1px solid var(--key-icon-line); background: var(--key-icon-fill); box-shadow: var(--key-icon-shadow); color: var(--ink); font-size: 15px; }
@@ -438,6 +442,10 @@ mark.hl.pr-hl { font-weight: 650; }
   .top { position: sticky; top: 0; }
   .bar { flex-wrap: wrap; gap: 6px 8px; padding: 8px 10px 6px; }
   .search { order: 9; flex: 1 1 100%; height: 42px; }
+  /* the similarity switch, when the server has a model, sits beside the box it belongs to: among the keys it pushed the
+     last one onto a row of its own at 390 px and less */
+  .bar:has(.engine:not([hidden])) .search { flex: 1 1 calc(100% - 68px); }
+  .engine { order: 10; height: 42px; padding-left: 4px; border-left: 0; }
   .home span, #practiceBtn span { display: none; }
   .home { padding: 0 11px; }
   .seg button { height: 32px; padding: 1px 9px; }
@@ -448,6 +456,7 @@ mark.hl.pr-hl { font-weight: 650; }
   .cards.tocv { height: auto; overflow: visible; font-size: 15px; }
   .cards.tocv .toc { column-count: 1 !important; }
   .prefs { left: 8px; right: 8px; }
+  .prefs.ask { right: 8px; width: auto; }  /* the switch's question spans the phone too */
   .pr-wrap, .pr-scene .pr-cards { font-size: 15px; }
   .pr-head .pr-clock:first-of-type { margin-left: 0; }
   .pr-question { font-size: 18px; }
@@ -483,6 +492,10 @@ mark.hl.pr-hl { font-weight: 650; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
     </button>
     <button type="button" class="icon-btn" id="theme" title="{{theme_title}}" aria-label="{{theme_aria}}">◐</button>
+    <div class="prefs ask" id="engineAsk" role="alertdialog" aria-labelledby="engineAskText" hidden>
+      <p id="engineAskText">{{engine_confirm}}</p>
+      <div class="seg"><button type="button" id="engineOff">{{engine_off_now}}</button><button type="button" id="engineKeep" class="on">{{engine_keep}}</button></div>
+    </div>
     <div class="prefs" id="prefsPanel" hidden>
       <div class="pr"><span>{{text_size}}</span><div class="seg" data-pref="fs"><button type="button" data-v="12">12</button><button type="button" data-v="13">13</button><button type="button" data-v="14">14</button><button type="button" data-v="15">15</button></div></div>
       <div class="pr"><span>{{col_width}}</span><div class="seg" data-pref="colw"><button type="button" data-v="22">{{col_narrow}}</button><button type="button" data-v="25">{{col_normal}}</button><button type="button" data-v="29">{{col_wide}}</button></div></div>
@@ -522,6 +535,7 @@ const store = {  // per-viewer settings; storage can be missing or blocked, so e
   set(k, v) { try { localStorage.setItem("offerowl-interview:" + k, v); } catch (e) { /* ignore */ } },
 };
 
+// >>> engine:words (the panel's own script view carries the same lines: apps/panel/static/kit.js, tests/packaging/test_kit_engine.py)
 // ---------- tokenising (keyword half) ----------
 // Korean particles and endings stripped from the end of a word, longest first.
 const JOSA = ["에서부터", "으로부터", "이라고", "에게서", "으로서", "으로써", "에서는", "에서도", "으로는", "이라는", "까지는",
@@ -615,6 +629,8 @@ function bm25(qm) {  // score of every item for a query term map
   return s;
 }
 
+// <<< engine:words
+
 // ---------- similarity half (server) ----------
 let dense = null;  // {q, map: id -> [score, label, text], med, max} for the last answered query
 let denseOk = null;  // null unknown, true reachable, false down
@@ -636,10 +652,19 @@ async function health() {  // ask the server how the model is; poll while it loa
     if (j.state === "loading") tHealth = setTimeout(health, 1000);
   } catch (e) { setEngine("down"); tHealth = setTimeout(health, 15000); }  // look again now and then
 }
-async function switchEngine() {  // the switch: load the model, or drop it
+function askEngine(open) {  // the sheet under the switch that asks before the model is dropped
+  const sheet = $("#engineAsk"); sheet.hidden = !open;
+  if (!open) return;
+  togglePrefs(false);  // one sheet under the bar at a time
+  const bar = sheet.offsetParent.getBoundingClientRect(), sw = $("#engine").getBoundingClientRect();
+  sheet.style.setProperty("--ask-right", Math.max(8, Math.round(bar.right - sw.right)) + "px");  // its right edge under the switch's
+  $("#engineKeep").focus();  // Enter keeps the model; dropping it takes a deliberate click
+}
+async function switchEngine(sure) {  // the switch: load the model, or drop it once the sheet's answer is "turn off"
   if (engine !== "on" && engine !== "off") return;
   const want = engine === "on" ? "off" : "on";
-  if (want === "off" && !confirm(fmt("engine_confirm"))) return;  // a stray click must not drop the model mid-interview
+  if (want === "off" && sure !== true) { askEngine($("#engineAsk").hidden); return; }  // a stray click must not drop the model mid-interview
+  askEngine(false);
   setEngine(want === "on" ? "loading" : "off");  // answer the click at once
   try { await fetch(API + "api/model/" + want, { method: "POST", cache: "no-store" }); } catch (e) { /* health says what happened */ }
   health();
@@ -664,6 +689,7 @@ async function fetchDense(q) {  // ask the server for every item's similarity to
   }
 }
 
+// >>> engine:rank
 // ---------- fusion ----------
 function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim, why}], words, weak}
   const { m, words } = queryTerms(q);
@@ -691,7 +717,9 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   const weak = d ? d.max < 0.6 : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62
   return { list: out.slice(0, 40), words, weak };
 }
+// <<< engine:rank
 
+// >>> engine:script
 // ---------- markdown for the cards ----------
 const FIELD = /^(?:-\s+)?\*\*(핵심|KO|EN|국문|주의|꼬리 대비|면접관|나|해석)(?:\(([^)]*)\))?\*\*\s*[:：]?\s*(.*)$/;  // labelled field line
 const FIELD_CLASS = { "핵심": "key", KO: "ko", "국문": "ko", EN: "en", "주의": "note", "꼬리 대비": "note", "면접관": "en iv", "나": "en me", "해석": "ko tr" };  // dialogue: the interviewer's and my English lines, each with its 해석 under it
@@ -810,7 +838,9 @@ function markQuery(el, ws0) {  // underline the query's words inside an element'
     n.replaceWith(...span.childNodes);
   }
 }
+// <<< engine:script
 
+// >>> engine:groups
 // ---------- groups and the section menu ----------
 // Each reference file (notes, stories) is one group, and items with no section of their own form the "remember first" group.
 const FIRST = fmt("first_group");  // that group's name
@@ -830,6 +860,7 @@ function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
   const m = name.match(/^([A-Z])\.\s/);
   return m ? `<span class="k">${m[1]}</span>${esc(SHORT[m[1]] || name.slice(3))}` : esc(name);
 }
+// <<< engine:groups
 
 // ---------- view ----------
 let mode = "toc";  // toc, search, group or practice
@@ -854,11 +885,13 @@ function tip(r) {  // tooltip text with the two halves of the score
 }
 const HINT = KIT.weak_hint ? (typeof KIT.weak_hint === "string" ? KIT.weak_hint : KIT.weak_hint[STR.lang] || "") : "";  // the job's advice for questions without a script
 const WEAK_LINE = `<div class="weak"><b>${esc(fmt("weak"))}</b>${HINT ? " " + esc(HINT) : ""}</div>`;  // said under the best card when nothing is close
+// >>> engine:lines
 function scriptHtml(html) {  // script lines: ' // ' ends a thought (a new line), ' / ' is a short breath (a faint slash), Korean brackets are unspoken stage notes
   const dir = (t) => t.replace(/\(([^()<>]*[\uac00-\ud7a3][^()<>]*)\)/g, '<span class="dir">($1)</span>');
   if (!/\s\/\/?\s/.test(html)) return dir(html);  // prose without marks stays prose
   return html.split(/\s+\/\/\s+/).map((t) => `<span class="th">${dir(t).replace(/ \/ /g, ' <span class="br">/</span> ')}</span>`).join("");
 }
+// <<< engine:lines
 function cardHtml(r, n) {  // one item in full: header, then its script
   const it = ITEMS[r.i]; const best = n === 0 && mode === "search";
   return `<article class="card${best ? " best" : ""}" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}">` +
@@ -1109,7 +1142,9 @@ $("#cards").addEventListener("click", (e) => {
   if (t.dataset.g) openGroup(t.dataset.g); else search(t.dataset.id);
 });
 document.querySelectorAll(".seg button[data-lang]").forEach((b) => b.addEventListener("click", () => setLang(b.dataset.lang)));
-$("#engine").addEventListener("click", switchEngine);
+$("#engine").addEventListener("click", () => switchEngine());  // never the event as its answer: only the sheet's key says "turn off"
+$("#engineOff").addEventListener("click", () => switchEngine(true));
+$("#engineKeep").addEventListener("click", () => askEngine(false));
 function applyPrefs() {  // the one type size and the column width, everywhere at once
   document.documentElement.style.setProperty("--fs-base", FSB + "px");
   document.querySelectorAll('.seg[data-pref="fs"] button').forEach((b) => b.classList.toggle("on", Number(b.dataset.v) === FSB));
@@ -1122,10 +1157,12 @@ function setPref(name, v) {  // remember a setting and redraw with it
 document.querySelectorAll(".seg[data-pref] button").forEach((b) => b.addEventListener("click", () => setPref(b.parentElement.dataset.pref, Number(b.dataset.v))));
 function togglePrefs(open) {  // the settings sheet under the bar
   const panel = $("#prefsPanel"); const show = open === undefined ? panel.hidden : open;
+  if (show) $("#engineAsk").hidden = true;  // one sheet under the bar at a time: the switch's question closes, the model stays
   panel.hidden = !show; $("#prefs").setAttribute("aria-expanded", String(show));
 }
 $("#prefs").addEventListener("click", (e) => { e.stopPropagation(); togglePrefs(); });
 document.addEventListener("click", (e) => { if (!$("#prefsPanel").hidden && !e.target.closest("#prefsPanel")) togglePrefs(false); });  // a click elsewhere closes it
+document.addEventListener("click", (e) => { if (!$("#engineAsk").hidden && !e.target.closest("#engineAsk, #engine")) askEngine(false); });  // and the switch's question (the switch itself opens and closes it): the model stays
 window.addEventListener("popstate", () => {  // back: from answers to the contents
   if (mode === "toc") return;
   const box = $("#q"); box.value = ""; current = ""; mode = "toc"; groupName = null;
@@ -1145,7 +1182,8 @@ let lastEsc = 0;  // time of the previous Escape
 document.addEventListener("keydown", (e) => {
   const q = $("#q");
   if (mode === "practice" && document.activeElement !== q) {  // practice keeps its keys: typing goes into the answer box, not the search box
-    if (e.key === "Escape" && !$("#prefsPanel").hidden) { togglePrefs(false); e.preventDefault(); }  // Escape still closes the settings
+    if (e.key === "Escape" && !$("#engineAsk").hidden) { askEngine(false); e.preventDefault(); }  // Escape answers the switch's question: keep it
+    else if (e.key === "Escape" && !$("#prefsPanel").hidden) { togglePrefs(false); e.preventDefault(); }  // Escape still closes the settings
     return;
   }
   if (e.altKey && !e.ctrlKey) {  // language shortcuts; Alt+letters open browser menus on Windows, so digits
@@ -1156,6 +1194,7 @@ document.addEventListener("keydown", (e) => {
     clearTimeout(tKey); clearTimeout(tDense); if (engine === "on") fetchDense(current); else show(); e.preventDefault(); return;
   }
   if (["ArrowDown", "PageDown", "ArrowUp", "PageUp"].includes(e.key) && mode !== "toc" && !PHONE.matches) { page(/Down/.test(e.key) ? 1 : -1); e.preventDefault(); return; }  // a phone scrolls by itself
+  if (e.key === "Escape" && !$("#engineAsk").hidden) { askEngine(false); e.preventDefault(); return; }  // Escape answers the switch's question first: keep it
   if (e.key === "Escape" && !$("#prefsPanel").hidden) { togglePrefs(false); e.preventDefault(); return; }  // Escape closes the settings first
   if (e.key === "Escape") {  // once: keep the answers and select the question so the next one replaces it; twice: back to the contents
     const now = Date.now();
@@ -1163,7 +1202,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault(); return;
   }
   if ((e.key === "/" && document.activeElement !== q) || (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey))) { q.focus(); q.select(); e.preventDefault(); return; }
-  if (document.activeElement !== q && e.key.length === 1 && !e.ctrlKey && !e.metaKey) { q.focus({ preventScroll: true }); q.select(); }  // a new question replaces the old one
+  if (document.activeElement !== q && e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.metaKey) { q.focus({ preventScroll: true }); q.select(); }  // a new question replaces the old one (Space stays a key's own: it presses the key in focus)
 });
 $("#theme").addEventListener("click", () => {  // light, dark, then back to the OS setting
   const order = ["", "light", "dark"]; const cur = document.documentElement.dataset.theme || "";

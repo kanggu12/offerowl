@@ -78,7 +78,10 @@ services:
     mem_limit: ${OFFEROWL_MEM:-4g}
     cpus: ${OFFEROWL_CPUS:-4}
 
-    restart: "no"
+    # A panel that crashes (exits with an error, the kernel's out-of-memory kill included) comes back, three times at most,
+    # so a fault that repeats stops instead of looping. One you stop yourself stays stopped. Every file is written whole or
+    # not at all, so a restart finds the workspace as the last finished write left it.
+    restart: "on-failure:3"
     logging:
       driver: json-file
       options: { max-size: "5m", max-file: "2" }

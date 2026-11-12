@@ -183,6 +183,8 @@ def run_one(spec: str, sets_file: pathlib.Path, out_file: pathlib.Path, cache: p
         return probe_agent(sets, out_file, cache)
     name, _, variant = spec.partition(":")  # laya:multilingual -> laya, multilingual
     opts = {"variant": variant} if name == "laya" and variant else {}  # the Laya variant, or auto routing
+    if name == "vega":  # the reader: vega is the setting's (default 0.8B), vega:4b names one
+        opts = {"reader_name": variant} if variant else {}
     if name == "agent":  # cached answers, so a rerun costs nothing
         opts.update(cache=str(cache), batch_chars=batch_chars)  # fuller calls mean fewer calls
     rec = {"backend": spec, "sets": {}, "errors": {}}  # the record
@@ -199,6 +201,8 @@ def run_one(spec: str, sets_file: pathlib.Path, out_file: pathlib.Path, cache: p
     rec["peak_rss_mb"] = laya.peak_rss_mb()  # this process
     rec["child_peak_rss_mb"] = round(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024, 1)  # the agent's CLI
     rec["loads"] = {v: round(m.load_sec, 1) for v, m in laya._LOADED.items()}  # Laya variants loaded and their load times
+    from decide import vega  # Vega's readers loaded, if any; imports nothing of the maker's by itself
+    rec["loads"].update({f"vega:{vega.name_of(r)}": round(sec, 1) for r, (_, sec) in vega._LOADED.items()})
     out_file.write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
 
@@ -343,7 +347,7 @@ def main(argv=None) -> int:
     p.add_argument("--out", required=True, help="results folder")
     p.add_argument("--private", help="JSON list of private sets (same keys as PUBLIC, absolute paths)")
     p.add_argument("--only", help="comma list of set names to keep")
-    p.add_argument("--backends", default="rules", help="comma list: rules, agent, agent-probe, laya, laya:<variant>")
+    p.add_argument("--backends", default="rules", help="comma list: rules, agent, agent-probe, laya, laya:<variant>, vega, vega:<reader>")
     p.add_argument("--threads", default="8", help="CPU threads for Laya")
     p.add_argument("--agent-batch-chars", type=int, default=40000, help="characters of items per agent call")
     p.add_argument("--report", action="store_true", help="only score what is in --out")

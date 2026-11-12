@@ -81,7 +81,7 @@ class AnswerTasks:
         jd = self.ws.job_dir(job_id) / "posting.md"  # the posting, for what the company asks for
         posting = jd.read_text(encoding="utf-8") if jd.is_file() else ""
         style = draft.style_pack(self.style_spec())  # the person's rules
-        with self.model_lock:  # one model task at a time
+        with self.turn(key, self.model_lock):  # one model task at a time, said on the page while it waits
             backend = self.backend()  # which agent
             if backend == "none":  # no agent: said plainly
                 self._set(key, state="error", error={"code": "agent_unavailable"})

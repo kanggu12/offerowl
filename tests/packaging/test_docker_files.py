@@ -127,7 +127,7 @@ class ComposeTest(unittest.TestCase):
         self.assertNotIn("privileged", self.app)
         self.assertNotIn("network_mode", self.app)
         self.assertNotIn("cap_add", self.app)
-        self.assertEqual(self.app["restart"], "no")  # nothing restarts by itself
+        self.assertEqual(self.app["restart"], "on-failure:3")  # a crash comes back, a few times at most; a stop stays a stop
         self.assertTrue(any(t.startswith("/tmp:") for t in self.app["tmpfs"]))
         self.assertIn("pids_limit", self.app)
 

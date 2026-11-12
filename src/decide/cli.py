@@ -3,9 +3,10 @@
 """The decision layer's command (docs/DECISIONS.md).
 
     python3 src/decide/cli.py list                         the backends, whether each can answer now, where inputs go
-    python3 src/decide/cli.py run <task> <items.json> [--backend rules|agent|laya|jev] [--cache DIR]
+    python3 src/decide/cli.py run <task> <items.json> [--backend rules|agent|laya|vega|jev] [--cache DIR]
                                                            one decision per item; items.json is a list of objects
-    python3 src/decide/cli.py fetch <variant>              download one Laya variant, checked against pinned hashes
+    python3 src/decide/cli.py fetch <variant>              download one Laya variant, checked against pinned hashes,
+                                                           or Vega's reader and engine (vega, vega:4b)
 
 Tasks: line_kind, coverage, claim, contradiction. Messages follow OFFEROWL_LANG (ko or en).
 """
@@ -15,6 +16,9 @@ import pathlib  # paths
 import sys  # exit codes and the import path
 
 SRC = pathlib.Path(__file__).resolve().parent.parent  # src/, so `decide` and `llm` import the same way from anywhere
+# This folder is on the path when the file runs as a script; its laya.py, agent.py and rules.py would then pass for
+# top-level packages of the same names (the maker's laya package among them), so it comes off, and src/ goes first.
+sys.path[:] = [p for p in sys.path if pathlib.Path(p or ".").resolve() != SRC / "decide"]
 if str(SRC) not in sys.path:  # add src/ only once
     sys.path.insert(0, str(SRC))  # first on the path, so this checkout wins over an installed copy
 
@@ -35,6 +39,8 @@ MSG = {  # every message a person reads, in both languages with the same keys
         "failed": "{backend} could not decide: {why}",
         "fetched": "Laya {variant}: {n} files in {where}",
         "fetch_failed": "Laya {variant}: download failed: {why}",
+        "fetched_vega": "Vega {reader}: reader and engine in the Hugging Face cache, loaded in {sec:.0f} s",
+        "fetch_vega_failed": "Vega {reader}: {why}",
     },
     "ko": {
         "row": "{mark} {name:6} {state:9} {where}{why}",
@@ -49,6 +55,8 @@ MSG = {  # every message a person reads, in both languages with the same keys
         "failed": "{backend}로 판단하지 못했다: {why}",
         "fetched": "Laya {variant}: 파일 {n}개, {where}",
         "fetch_failed": "Laya {variant}: 내려받지 못했다: {why}",
+        "fetched_vega": "Vega {reader}: 판독기와 엔진이 Hugging Face 캐시에 있다, 불러오는 데 {sec:.0f}초",
+        "fetch_vega_failed": "Vega {reader}: {why}",
     },
 }
 
@@ -65,7 +73,7 @@ def cmd_list(_a) -> int:
     except D.DecideUnavailable as e:  # a mistyped OFFEROWL_DECIDE
         print(e)
         name = ""
-    for row in D.backend_info(llm.lang()):  # rules, agent, laya, jev
+    for row in D.backend_info(llm.lang()):  # rules, agent, laya, vega, jev
         where = t("stays") if row["local"] is True else t("leaves") if row["local"] is False else t("follows")  # the local-first fact
         why = f"  ({row['why']})" if row.get("why") else ""  # what is missing
         print(t("row", mark="*" if row["name"] == name else " ", name=row["name"], state=t("ready") if row["ready"] else t("not_ready"), where=where, why=why))
@@ -92,7 +100,17 @@ def cmd_run(a) -> int:
 
 
 def cmd_fetch(a) -> int:
-    """Download one Laya variant on purpose."""
+    """Download one Laya variant, or Vega's reader and engine, on purpose."""
+    if a.variant == "vega" or a.variant.startswith("vega:"):  # vega, vega:4b
+        from decide import vega  # the maker's package, through its own loader
+        r = a.variant.partition(":")[2]  # the reader: "" for the default 0.8B
+        try:
+            sec = vega.fetch(r)  # downloads what is missing, then loads it once
+        except D.DecideUnavailable as e:  # the package is not installed, or the download failed
+            print(t("fetch_vega_failed", reader=vega.name_of(r), why=e))
+            return 1
+        print(t("fetched_vega", reader=vega.name_of(r), sec=sec))
+        return 0
     from decide import laya  # the runtime
     try:
         got = laya.fetch(a.variant)  # missing files only, each checked
@@ -112,8 +130,8 @@ def main(argv=None) -> int:
     r.add_argument("items", help="a JSON list of objects with the task's fields")
     r.add_argument("--backend", choices=D.BACKENDS, help="default: OFFEROWL_DECIDE, else rules")
     r.add_argument("--cache", help="folder for the agent's answers, so a rerun asks nothing again")
-    f = sub.add_parser("fetch", help="download one Laya variant")
-    f.add_argument("variant", help="english, multilingual, typed-decisions, english-onnx or english-onnx-int8")
+    f = sub.add_parser("fetch", help="download one Laya variant, or Vega")
+    f.add_argument("variant", help="english, multilingual, typed-decisions, english-onnx, english-onnx-int8, vega or vega:4b")
     a = p.parse_args(argv)  # stops with a usage message on a mistake
     return {"list": cmd_list, "run": cmd_run, "fetch": cmd_fetch}[a.cmd](a)
 

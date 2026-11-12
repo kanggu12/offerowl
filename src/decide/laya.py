@@ -415,6 +415,15 @@ def states(task: str, item: dict) -> list:
     return [{"statement A": item["a"], "statement B": item["b"]}]  # contradiction: the two statements
 
 
+def whole_state(task: str, item: dict):
+    """The one state a reader of long states gets for an item (Jev, Vega): Laya's state for it, with a coverage item's
+    evidence texts together, so one call sees every candidate. Only the task's fields are in it, never an item's id."""
+    if task == "coverage":  # the line with all its candidates at once
+        ev = item["evidence"] if isinstance(item["evidence"], list) else [item["evidence"]]  # one text or a list
+        return {"posting line": item["line"], "evidence": [str(e) for e in ev]}
+    return states(task, item)[0]  # a posting line as plain text; a claim or a pair as an object
+
+
 def decide(task: str, items: list, variant: str | None = None, **_) -> list:
     """Laya's decision for each item. A coverage item takes the candidate with the highest expected strength
     (strong 2, weak 1, none 0), so one candidate that shows the line is enough, as for the rules and the agent."""

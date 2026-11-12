@@ -58,6 +58,19 @@ PRACTICE_POST = ("/api/practice/start", "/api/practice/answer", "/api/practice/f
                  "/api/practice/transcribe")  # the practice writes
 
 
+def view_data(job, items, alts, lang=None, model=False):
+    """What a view of the kit reads: every item with its script, the phrasings, the kit's settings the view uses, the
+    synonym groups and the view's words in a language (the run's own when none is named). The search page gets it
+    inlined; the panel's own view asks the panel for it (apps/api/task_kit.py kit_view)."""
+    kit = job.kit  # the job's settings
+    return {"items": [{k: it[k] for k in PAGE_FIELDS} for it in items],  # trimmed items
+            "alts": alts,  # phrasings feed the keyword index too
+            "kit": {k: kit.get(k) for k in ("sections", "strip", "fallback", "weak_hint", "hidden_labels", "examples")},  # what the view reads (examples: the job's own, for the search box)
+            "syn": SYNONYMS + list(kit.get("synonyms") or []),  # built-in groups, then the job's own
+            "str": i18n.page(lang),  # strings in the view's language
+            "model": bool(model)}  # show the similarity switch?
+
+
 class Index:  # one per server
     """The job's items and the page data built from them; rebuilt when a source file changes."""
 
@@ -80,17 +93,11 @@ class Index:  # one per server
             if stamp == self.stamp:  # another request rebuilt while we waited
                 return
             t0 = time.time()  # build timer
+            self.job.reload_kit()  # kit.json may have changed too: its section names and each file's role are read again
+            stamp = corpus.stamp(self.job)  # with the kit as read now (a file whose role changed may have joined or left)
             items, alts = corpus.load(self.job)  # parse the markdown and the phrasings
-            kit = self.job.kit  # the job's settings
-            payload = {  # everything the page needs, inlined as one JSON object
-                "items": [{k: it[k] for k in PAGE_FIELDS} for it in items],  # trimmed items
-                "alts": alts,  # phrasings feed the keyword index too
-                "kit": {k: kit.get(k) for k in ("sections", "strip", "fallback", "weak_hint", "hidden_labels")},  # what the page reads
-                "syn": SYNONYMS + list(kit.get("synonyms") or []),  # built-in groups, then the job's own
-                "str": i18n.page(),  # strings in the page's language
-                "model": self.model,  # show the similarity switch?
-                "port": self.port,  # where a saved copy finds this server
-            }
+            payload = view_data(self.job, items, alts, model=self.model)  # everything the page needs, inlined as one JSON object
+            payload["port"] = self.port  # where a saved copy finds this server
             self.data = json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")  # no "<" at all: "</script>" and "<!--<script" cannot end or bend the block
             self.items, self.alts, self.stamp = items, alts, stamp  # publish
             self.built_ms = int((time.time() - t0) * 1000)  # for /api/health

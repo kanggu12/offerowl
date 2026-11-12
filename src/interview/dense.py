@@ -1,4 +1,4 @@
-"""The optional similarity half of the search (off unless `serve --model DIR` names a model).
+"""The optional similarity half of the search (off unless `serve --model DIR` or OFFEROWL_SEARCH_MODEL names a model).
 
 The page ranks by keywords (BM25) by itself, and that is the default. With a model, this module embeds every view
 of every item with a multilingual model (bge-m3, int8 ONNX on CPU), caches the vectors on disk, and for each query
@@ -10,11 +10,25 @@ import ctypes  # hand memory freed by the model back to the system
 import functools  # small cache for repeated queries
 import gc  # collect the model's objects at once when it is switched off
 import hashlib  # cache keys for embedded texts
+import os  # OFFEROWL_SEARCH_MODEL
 import pathlib  # paths
 import threading  # the model loads in the background; locks around switching and rebuilding
 
 MAX_TOKENS = 512  # long chunks are cut here; views are short anyway
 MODEL_TAG = "bge-m3-int8"  # part of every cache key, so a model change never reuses old vectors
+SETTING = "OFFEROWL_SEARCH_MODEL"  # the model's folder, named once for `serve` and for the panel's kit view
+FILES = ("tokenizer.json", "onnx/model_int8.onnx")  # what that folder holds
+
+
+def from_setting():
+    """(folder, problem) of OFFEROWL_SEARCH_MODEL: the folder and "" when it holds the model's files; (None, "") when
+    the setting is empty; (None, the files not found there) otherwise, so the caller can say why there is no switch."""
+    raw = os.environ.get(SETTING, "").strip()  # an empty setting is no setting
+    if not raw:
+        return None, ""
+    folder = pathlib.Path(raw).expanduser()  # ~ as a person writes it
+    missing = [f for f in FILES if not (folder / f).is_file()]  # both are needed before the switch can load anything
+    return (None, ", ".join(missing)) if missing else (folder, "")
 
 
 def rss_mb():

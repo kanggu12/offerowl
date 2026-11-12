@@ -335,10 +335,9 @@ def record(job):
     return st if isinstance(st, dict) else {}
 
 
-def page(job, kinds=None, ids=None, n=None, lang=None, fonts="fonts", embedded=False):
-    """The deck as one HTML page. embedded: shown inside the Offerowl panel, which names it and prints it itself."""
-    s = i18n.page(lang)  # the page's language
-    unref = _unref(job.kit)  # the writer's cross-references are removed, as on the search view
+def select(job, kinds=None, ids=None, n=None):
+    """What a deck holds, for the printed page and for the panel alike: (pages, scenes, rows, kinds asked for, ids asked for).
+    pages is [[part, [rows], scene id]] in the deck's order; kinds and ids are None when not asked for."""
     scenes = scenes_of(job)  # every script
     rows = rows_of(job)  # the question map
     want_kinds = {k.strip() for k in kinds.split(",") if k.strip()} if kinds else None  # parts asked for
@@ -352,13 +351,65 @@ def page(job, kinds=None, ids=None, n=None, lang=None, fonts="fonts", embedded=F
             pages += [pg for pg in pick(rows, scenes, None, None, n) if pg[2] not in printed]  # the posting, the resume, the technical questions
     else:  # the map's likeliest questions, part by part
         pages = pick(rows, scenes, want_kinds, want_ids, n)  # what the deck prints
-    english = is_english(scenes)  # spoken in English
+    return pages, scenes, rows, want_kinds, want_ids
+
+
+def company_role(job):
+    """(company, role) as the cover names them: the panel's record of the application, else the kit's own company name."""
     st = record(job)  # the application's record
     co = job.kit.get("company") or {}  # the kit's company name
     company = st.get("company") or (co.get("ko") or co.get("en") if isinstance(co, dict) else str(co)) or job.name  # how the cover names it
+    return company, st.get("role") or ""
+
+
+def data(job, kinds=None, ids=None, n=None, lang=None):
+    """The deck as data, for the Offerowl panel, which draws it with its own parts: the same scripts in the same order as the
+    printed page, each line as written (its speech marks are drawn by the panel), and the deck's words in the language asked."""
+    s = i18n.page(lang)  # the deck's words
+    unref = _unref(job.kit)  # the writer's cross-references are removed, as on the page
+    pages, scenes, rows, want_kinds, want_ids = select(job, kinds, ids, n)  # what the page prints
+    english = is_english(scenes)  # spoken in English: the question is asked in English, with its Korean under it
+    company, role = company_role(job)  # as the cover names them
+    plain = lambda x: unref(x or "").replace("**", "").replace("==", "")  # noqa: E731  a title without the writer's marks
+    out = []  # the scripts, in the deck's order
+    for part, rs, sid in pages:  # each script once
+        item, pairs, notes = scenes[sid]  # its dialogue and the notes under it
+        ask = ask_of(rs[0], "en" if english else "ko")  # the question that put it in the deck, as the interviewer asks it
+        sub = ask_of(rs[0], "ko") if english else ""  # its Korean under it in an English deck
+        out.append({"id": item["id"], "part": part, "ask": ask, "sub": sub if sub != ask else "", "title": plain(item.get("tko") or item.get("ten")),
+                    "draft": bool(item.get("draft")),  # an agent's draft says so
+                    "turns": [{"who": "interviewer" if who == "면접관" else "me", "en": unref(en), "ko": unref(ko)} for who, en, ko in pairs],  # spoken lines, each with its translation
+                    "notes": [re.sub(r"^-\s+", "", unref(ln).strip()) for ln in notes if ln.strip() and not ln.strip().startswith("#")],  # what to say if they dig further
+                    "also": [ask_of(r, "en" if english else "ko") for r in rs[1:]]})  # the other questions it answers
+    posting = []  # the posting line by line, as the page's second page
+    if pages and not want_ids and (not want_kinds or "posting" in want_kinds):  # the page prints it on the same terms
+        for r in rows:  # in the map's order
+            if kind_of(r) != "posting":  # another part's question
+                continue
+            sid = best(r, scenes)  # the script that answers the line
+            posting.append({"text": r.get("text") or "", "script": sid or "", "title": plain(scenes[sid][0].get("tko") or scenes[sid][0].get("ten")) if sid else "",
+                            "coverage": r.get("coverage") or "none"})  # how well a script answers it
+    parts = {}  # part -> scripts in it
+    for part, _, _ in pages:  # in order
+        parts[part] = parts.get(part, 0) + 1  # counted
+    stall = [{"en": en, "use": use} for en, use in zip(STALL, s["deck_stall_uses"])] if pages and english and not want_ids else []  # the lines that buy time
+    words = {k[len("deck_"):]: s[k] for k in ("deck_title", "deck_translation", "deck_notes", "deck_also", "deck_draft", "deck_none", "deck_posting_title",
+                                             "deck_posting_cols", "deck_cov", "deck_parts", "deck_scripts", "deck_questions", "deck_stall_title", "deck_empty")}  # the deck's own words
+    return {"company": company, "role": role, "english": english, "lang": s["lang"], "words": words,
+            "counts": {"scripts": len(pages), "questions": sum(len(p[1]) for p in pages), "parts": [{"part": p, "n": k} for p, k in parts.items()]},
+            "posting": posting, "scenes": out, "stall": stall}
+
+
+def page(job, kinds=None, ids=None, n=None, lang=None, fonts="fonts", embedded=False):
+    """The deck as one HTML page. embedded: shown inside the Offerowl panel, which names it and prints it itself."""
+    s = i18n.page(lang)  # the page's language
+    unref = _unref(job.kit)  # the writer's cross-references are removed, as on the search view
+    pages, scenes, rows, want_kinds, want_ids = select(job, kinds, ids, n)  # what the deck prints
+    english = is_english(scenes)  # spoken in English
+    company, role = company_role(job)  # how the cover names them
     body = []  # the pages
     if pages:  # anything to print
-        body.append(cover_page(job, pages, rows, s, company, st.get("role") or ""))  # the cover
+        body.append(cover_page(job, pages, rows, s, company, role))  # the cover
         if not want_ids and (not want_kinds or "posting" in want_kinds):  # the whole interview on one page, unless only some scripts were asked for
             body.append(posting_page(rows, scenes, s, english, unref))  # the posting line by line
         flow = [scene_page(part, rs, *scenes[sid], s, english, unref) for part, rs, sid in pages]  # each script once

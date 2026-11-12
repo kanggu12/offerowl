@@ -94,12 +94,14 @@
     const lines = new Set([...range.getClientRects()].filter((r) => r.width > 1).map((r) => Math.round(r.top)));  // the lines it takes
     const word = n.nodeValue.trim();                                                // one word: no space inside
     // a short word on two lines was squeezed; addresses and paths may wrap, and a line may break before an opening parenthesis
-    // (a school and its place, '가나다대학교' then '(서울)', is set that way): only a break elsewhere in the word counts
+    // (a school and its place, '가나다대학교' then '(서울)', is set that way) or after the hyphen of a compound word
+    // ('client-' then 'side', as English is set and every browser breaks it): only a break elsewhere in the word counts
     if (lines.size > 1 && !/\s/.test(word) && word.length < 40 && !/[@/.]/.test(word)) {
       const t = n.nodeValue, tops = [];
       for (let i = 0; i < t.length; i++) { const one = document.createRange(); one.setStart(n, i); one.setEnd(n, i + 1); const b = one.getClientRects()[0]; tops.push(b && b.width > 0 ? Math.round(b.top) : null); }
       const breaks = []; for (let i = 1, last = tops[0]; i < t.length; i++) { if (tops[i] === null) continue; if (last !== null && tops[i] !== last) breaks.push(i); last = tops[i]; }
-      if (!breaks.length || breaks.some((i) => t[i] !== "(" && t[i] !== "\uff08")) out.overflow.push({ what: "a word broken across lines", el: desc(el) });
+      const setRight = (i) => t[i] === "(" || t[i] === "\uff08" || /[\p{L}\p{N}][-\u2010\u2013]$/u.test(t.slice(0, i));   // before a parenthesis, or after a compound word's hyphen
+      if (!breaks.length || breaks.some((i) => !setRight(i))) out.overflow.push({ what: "a word broken across lines", el: desc(el) });
     }
     for (const r of range.getClientRects()) {                                       // each line of it
       if (r.width < 1 || r.height < 1) continue;                                    // empty boxes at line ends

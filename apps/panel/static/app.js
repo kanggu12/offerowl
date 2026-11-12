@@ -29,7 +29,7 @@ function drawBar(el) {                                                          
         h("img", { class: "logo-light", src: "/brand/logo-light.svg", alt: "" }), h("img", { class: "logo-dark", src: "/brand/logo-dark.svg", alt: "" })),
       S.version && S.version !== "0" ? h("span", { class: "brand-ver", title: t("Offerowl version {v}", { v: S.version }), text: "v" + S.version }) : null,   // the version, beside the wordmark
       views, pickJob, h("span", { class: "grow" }), h("span", { class: "saved", "aria-hidden": "true", text: t("Saved") }),
-      runChip(), agentChip(),
+      runChip(), typeof askKey === "function" ? askKey("top") : null, agentChip(),   // the box to ask the AI (ask.js), then the agent's lamp
       h("div", { class: "actions" },
         h("button", { class: "btn icon", id: "undo", disabled: !S.undo || null, title: S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."),
           "aria-label": S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."), onclick: undo }, icon("undo")),
@@ -66,7 +66,7 @@ function agentChip() {                                                          
   const a = S.agent, lamp = agentLamp();                                            // the card and its lamp
   const name = a.backend === "none" ? t("AI agent") : t(AGENT_NAME[a.backend] || a.backend);  // its name, in the page's language (a local model is named, the two CLIs are names)
   return h("div", { class: "barpop" },
-    h("button", { class: "barchip", "aria-expanded": UI.agentPop ? "true" : "false", "aria-haspopup": "dialog", title: t(lamp[1]),
+    h("button", { class: "barchip", "aria-expanded": UI.agentPop ? "true" : "false", "aria-haspopup": "dialog", title: `${name}: ${t(lamp[1])}`, "aria-label": `${name}: ${t(lamp[1])}`,   // its name and state, said on the hover too: a narrow bar shows its lamp alone
       onclick: () => { UI.agentPop = !UI.agentPop; UI.menu = false; render(); } }, h("span", { class: "barchip-i", "aria-hidden": "true" }, icon("agent")), h("span", { class: "lit " + lamp[0], "aria-hidden": "true" }), h("span", { class: "barchip-w", text: name })),
     UI.agentPop ? h("div", { class: "pop", role: "dialog", "aria-label": t("AI agent") }, agentPanel()) : null);
 }
@@ -194,6 +194,14 @@ async function openDesktop() {                                                  
 
 // ---------------------------------------------------------------- drawing
 
+function kitFramed() {                                                              // a kit's scripts (kit.js), its deck or its practice (interview.js) stand on the canvas: a redraw for nothing they show would cost the board its place
+  return UI.view === "jobs" && !!document.querySelector("#canvas :is(.kit, .ivdeck, .ivprac)");
+}
+function kitFrameDocs() {                                                           // what the canvas reads from fetched documents while one is up: the job's fit, its board, and an opened material's preview
+  const has = (k) => (UI.docs[k] ? 1 : 0);                                           // arrived or not: a key holds one answer for good
+  const jid = (openJob() || {}).id;                                                 // the application drawn (with an edition in view, not S.job)
+  return ["framed", has(`fit|${jid}|${rev()}`), has(`iv|${jid}|${docLang()}|${rev()}`), has(`ivv|${jid}|${LANG}|${rev()}`), has(`ivd|${jid}|${LANG}|${rev()}`), UI.matOpen ? UI.docsVer : 0];   // the scripts' and the deck's own data too
+}
 function paneKey(name) {                                                            // what a pane shows; it is drawn again only when this changes
   const look = [LANG, document.documentElement.dataset.theme, document.documentElement.dataset.themeChoice, UI.offline];   // the page's language and look
   const base = [...look, rev()];                                                    // shared by the panes that show the workspace
@@ -204,10 +212,14 @@ function paneKey(name) {                                                        
   if (name === "setup") return JSON.stringify([...look, UI.setup, S.agent, S.settings, S.engine, S.engine_needs, S.renderer, task("setup").state, task("setup").error, task("autopilot").state, (S.materials || []).length, langPicked()]);
   if (name === "insp") return JSON.stringify([...base, UI.view, UI.tab, UI.sel, UI.editing, UI.drawer, UI.docLang, UI.theme, S.settings, UI.maxPages, UI.cover, UI.typeset, S.job,
     UI.docsVer, S.engine, S.english, S.styles, task("regen:" + UI.sel)]);
-  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.nextEdit, UI.jobTab, UI.ivPart, JSON.stringify(UI.ivStarted || {}), UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen,
+  const framed = kitFramed();                                                       // a kit's page is in its frame
+  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.nextEdit, UI.jobTab, UI.ivPart, UI.ivWide, UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen,
     UI.matOpen, UI.matSending, UI.libGroup, UI.libOwner, UI.libQuery, UI.libPage, (S.jobs || []).map((j) => (j.materials || []).map((m) => m.id).join()),
     (S.jobs || []).map((j) => [j.id, j.stage, j.result, j.next]),                     // a card moved on the board, or its next step changed: drawn at once   // a job's materials: one added or taken off, one opened, an upload going
-    UI.docsVer, S.materials, S.photo, S.engine, S.engine_needs, S.due, typeof Notification === "undefined" ? "" : Notification.permission, PHONE.matches, Math.round(($("canvas").clientWidth || 0) / 40), taskMarks(), S.runs, S.agent, S.agent_calls,
+    // with a kit's frame up, a document fetched for another view (Insights arrives three seconds after the page) and a window
+    // dragged 40 px wider no longer count: each drew the canvas again, and the frame's page with it, emptying its search box
+    framed ? kitFrameDocs() : UI.docsVer, S.materials, S.photo, S.engine, S.engine_needs, S.due, typeof Notification === "undefined" ? "" : Notification.permission, PHONE.matches,
+    framed ? 0 : Math.round(($("canvas").clientWidth || 0) / 40), taskMarks(), S.runs, S.agent, S.agent_calls,
     UI.sending]);                                                                   // a run's clock moves in place (make.js data-since), not by a redraw
 }
 function drawPane(el, name, fn) {                                                   // one pane, kept when nothing changed
@@ -225,7 +237,7 @@ function drawPane(el, name, fn) {                                               
   if (same) el.style.minHeight = `${el.offsetHeight}px`;                            // held until the pages land
   fn(el);                                                                           // drawn
   if (window.comboDress) window.comboDress(el);                                     // its dropdowns dressed now (combo.js), so the keyboard can go back to one
-  el._key = key;                                                                    // remembered
+  el._key = el.id === "canvas" && kitFramed() ? paneKey(name) : key;                // remembered; with a kit's frame just placed, as the key reads with the frame up, so the next poll finds nothing changed
   if (el.id === "canvas") el._at = `${UI.view}|${UI.doc}`;                          // what it shows, for the next draw
   afterDraw(el, name);                                                              // what is new in it moves, once (motion.js)
   el.scrollTop = scroll;                                                            // the pane stays where it was
@@ -290,6 +302,7 @@ document.addEventListener("keydown", (e) => {                                   
     if (UI.sel) { UI.sel = null; render(); return; }                                // the selection
   }
   if (UI.setup != null) return;                                                     // the guide is modal: no undo or view change behind it, unseen
+  if (e.defaultPrevented) return;                                                   // a part of the page took the key as its own (the scripts' Alt+1 to Alt+3 choose their language)
   if (!field && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }  // undo outside a field
   if (!field && e.altKey && /^[1-9]$/.test(e.key) && Number(e.key) <= VIEWS.length) { e.preventDefault(); go(VIEWS[Number(e.key) - 1][0]); }  // Alt+1 and on: the views
 });
@@ -378,5 +391,19 @@ document.addEventListener("drop", async (e) => {                                
 
 document.addEventListener("compositionstart", () => { UI.composing = true; }, true);   // an input method starts a syllable
 document.addEventListener("compositionend", () => { UI.composing = false; setTimeout(render, 0); }, true);   // done: what waited is drawn
-function redrawAll() { for (const id of ["top", "canvas", "inspector"]) $(id)._key = null; render(); }  // every pane again (a new size or look)
+let addressRead = false;                                                            // the window's own address is read once, with the first state
+function fromAddress() {                                                            // /?job=<id>&show=scripts: a window opened from an application's Interview tab, on its scripts over the whole width
+  if (addressRead) return;
+  addressRead = true;
+  const q = new URLSearchParams(location.search), jid = q.get("job");
+  if (!jid || q.get("show") !== "scripts") return;                                  // any other address: the view this browser was on
+  history.replaceState(null, "", location.pathname);                                // read once: a reload stays where the person is by then
+  if (!(S.jobs || []).some((j) => j.id === jid)) return;                            // an application that is gone
+  UI.ivWide = true; UI.ivPart = "search"; UI.jobsMode = "list";                     // its scripts, the list folded away (this window only: the choice kept in the browser is the other window's)
+  (S.job === jid ? Promise.resolve() : act("/api/v1/jobs/select", { job: jid })).then(() => go("interview"));
+}
+function redrawAll() {                                                              // every pane again (a new size or look)
+  for (const id of ["top", "canvas", "inspector"]) if (!(id === "canvas" && kitFramed())) $(id)._key = null;   // but a canvas that holds a kit's frame: the frame's page lays itself out, and a new look still redraws it by its key
+  render();
+}
 refresh();                                                                          // the first state, then polling

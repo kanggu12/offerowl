@@ -89,7 +89,7 @@ RUN mkdir -p /work/output /data \
 # - OFFEROWL_VERSION is the release this image is, for `offerowl-doctor` (an image has no package metadata to read).
 # - No bytecode files (the root filesystem may be read-only) and no buffered output (logs show at once).
 ENV HOME=/tmp \
-    OFFEROWL_VERSION=0.7.0 \
+    OFFEROWL_VERSION=0.8.0 \
     OFFEROWL_DATA_DIR=/data \
     OFFEROWL_PANEL_PORT=8797 \
     OFFEROWL_DESKTOP=/data/export \
@@ -100,7 +100,7 @@ ENV HOME=/tmp \
 # (tests/packaging keeps them equal).
 LABEL org.opencontainers.image.title="offerowl-app" \
       org.opencontainers.image.description="Offerowl: from one evidence-backed profile to a resume, a portfolio, a cover letter and an interview kit" \
-      org.opencontainers.image.version="0.7.0"
+      org.opencontainers.image.version="0.8.0"
 
 # Run as the app user from here on.
 USER 10001:10001

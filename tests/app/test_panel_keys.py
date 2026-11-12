@@ -165,6 +165,46 @@ class PanelKeys(unittest.TestCase):
         p.wait_for_timeout(1200)
         self.assertNotIn("/api/v1/tracker/edit", p.evaluate("window.__calls"))  # no card moved with an empty name
 
+    def test_7b_the_interview_tab_draws_its_parts_and_keeps_the_question_typed(self):
+        # the contents, the search and the script cards (kit.js), the deck and practice (interview.js) are drawn by the panel:
+        # no frame on the tab, and the view itself is kept through a document fetched for another view (Insights, three seconds
+        # after the page), a window dragged narrower and a visit to another part, with the question typed into it
+        p = self.page
+        p.evaluate("UI.jobsMode = 'list'; render()")
+        p.evaluate("act('/api/v1/interview/kit', { job: S.job, lang: 'ko' })")  # the question map and the kit's files, no model
+        p.wait_for_function("boardOf(S.job) && boardOf(S.job).ready", timeout=60000)
+        scripts = (ROOT / "examples" / "interview" / "jobs" / "gamma-platform" / "interview" / "qa.md").read_text(encoding="utf-8")  # the fictional example's scripts
+        sent = p.evaluate("""async (text) => (await fetch('/api/v1/interview/scenes?job=' + encodeURIComponent(S.job), { method: 'POST', body: new Blob([text]),
+            headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': 'qa.md' } })).status""", scripts)   # as the "Add scenes you wrote" key sends a file
+        self.assertEqual(200, sent)
+        p.evaluate("go('interview'); UI.ivPart = 'search'; render()")
+        p.wait_for_selector("#canvas .kit .kit-q", timeout=120000)
+        self.assertEqual(0, p.evaluate("document.querySelectorAll('#canvas iframe').length"))  # the panel's own parts, no page in a frame
+        p.evaluate("document.querySelector('#canvas .kit').__mark = 'kept'")  # a view made again loses this
+        p.fill("#canvas .kit .kit-q", "argo cd")
+        p.wait_for_timeout(700)
+        self.assertGreater(p.evaluate("document.querySelectorAll('#canvas .kit .kit-card').length"), 0)  # the answers on the board
+        held = "() => [document.querySelector('#canvas .kit').__mark, document.querySelector('#canvas .kit .kit-q').value]"  # the view and its question
+        p.evaluate("UI.docsVer++; render()")  # a document for another view arrived
+        p.wait_for_timeout(500)
+        self.assertEqual(["kept", "argo cd"], p.evaluate(held))
+        p.set_viewport_size({"width": 1300, "height": 900})  # the window dragged narrower
+        p.wait_for_timeout(700)
+        self.assertEqual(["kept", "argo cd"], p.evaluate(held))
+        p.set_viewport_size({"width": 1440, "height": 900})
+        p.wait_for_timeout(700)
+        p.evaluate("UI.ivPart = 'deck'; render()")  # the deck, drawn by the panel too
+        p.wait_for_selector("#canvas .ivdeck .deck-scene", timeout=60000)
+        self.assertEqual(0, p.evaluate("document.querySelectorAll('#canvas iframe').length"))
+        p.evaluate("UI.ivPart = 'search'; render()")  # back to the scripts: the same view, the question still in its box
+        p.wait_for_selector("#canvas .kit .kit-q", timeout=20000)
+        self.assertEqual(["kept", "argo cd"], p.evaluate(held))
+        p.evaluate("UI.ivPart = 'map'; render()")  # and a part with no view of its own draws on every change again
+        p.wait_for_timeout(500)
+        before = p.evaluate("$('canvas')._key")
+        p.evaluate("UI.docsVer++; render()")
+        self.assertNotEqual(before, p.evaluate("$('canvas')._key"))
+
     def test_8_no_page_errors(self):
         self.assertEqual([], self.errors)
 

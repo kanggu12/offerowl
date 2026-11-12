@@ -5,4 +5,4 @@ license and the third-party notices) is installed beside it as data, in the fold
 launcher from there. See docs/INSTALL.md, "4. The Python package".
 """
 
-__version__ = "0.7.0"  # the one place the package version is written; pyproject.toml reads it, and tests/packaging keeps the chart and the image label equal to it
+__version__ = "0.8.0"  # the one place the package version is written; pyproject.toml reads it, and tests/packaging keeps the chart and the image label equal to it

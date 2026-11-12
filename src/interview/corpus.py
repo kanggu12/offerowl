@@ -215,6 +215,5 @@ def stamp(job):
     paths = [p for p, _, _, _ in job.sources()]  # the markdown sources
     if job.alts_path():  # and the phrasings
         paths.append(job.alts_path())  # watched for changes too
-    if job.kit_path:  # and the kit itself (section names, synonyms)
-        paths.append(job.kit_path)  # watched as well
+    paths.append(job.kit_path or job.interview / "kit.json")  # and the kit itself (section names, roles, synonyms), watched even before it exists
     return [(str(p), p.stat().st_mtime_ns, p.stat().st_size) for p in paths if p.is_file()]  # a missing file drops out of the stamp

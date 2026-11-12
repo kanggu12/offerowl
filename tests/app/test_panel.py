@@ -23,6 +23,7 @@ import urllib.error  # refused requests
 import urllib.parse  # upload names
 import urllib.request  # requests
 import zipfile  # a backup's entries
+from unittest import mock  # an environment for one check
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ and core/ are found from here
@@ -661,9 +662,64 @@ class TestOwnPortOnWindows(unittest.TestCase):
 
 class TestServingLimit(unittest.TestCase):
     """Every server binds through src/ownport.py, which serves at most max_threads requests at once: one more connection
-    waits for a free slot, and past slot_wait it is closed unanswered; a slot that frees serves the next."""
+    waits for a free slot, and past slot_wait it is answered 503 with Retry-After at once, without a thread; a slot that
+    frees serves the next."""
 
-    def test_past_the_limit_a_connection_waits_then_closes(self):
+    def test_the_cap_comes_from_the_environment_within_its_bounds(self):
+        sys.path.insert(0, str(ROOT / "src"))  # the engine's flat modules
+        import ownport  # the cap's rule
+        for value, want in (("", 64), ("16", 16), ("4", 4), ("3", 64), ("2000", 64), ("many", 64)):
+            with mock.patch.dict(os.environ, {"OFFEROWL_MAX_REQUESTS": value}):
+                self.assertEqual(want, ownport.cap_from_env(), value)
+        answer = ownport.busy_answer(2)
+        head, body = answer.split(b"\r\n\r\n", 1)
+        self.assertTrue(head.startswith(b"HTTP/1.1 503 "))
+        self.assertIn(b"Retry-After: 2", head)
+        self.assertIn(b"Content-Length: %d" % len(body), head)  # the length said is the length sent
+        self.assertEqual({"error": "busy"}, json.loads(body))
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "measured on Linux, whose system queue the burst waits in")
+    def test_a_burst_waits_in_the_system_s_queue_instead_of_being_dropped(self):
+        """200 clients at once against a server that answers in no time: with Python's own queue of 5 most of them were
+        dropped and asked again a second, then 3, 7 and 15 seconds later (300 at once took 27 s); with the server's queue
+        every one is answered at once."""
+        import concurrent.futures  # the clients
+        sys.path.insert(0, str(ROOT / "src"))
+        from ownport import Server  # the class every server binds with
+        self.assertGreaterEqual(Server.request_queue_size, 128)
+
+        class Quick(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("Content-Length", "2")
+                self.end_headers()
+                self.wfile.write(b"ok")
+
+            def log_message(self, *a):  # quiet
+                pass
+
+        srv = Server(("127.0.0.1", 0), Quick)
+        threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.1}, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        url = f"http://127.0.0.1:{srv.server_address[1]}/"
+        go = threading.Event()
+
+        def one(_):
+            go.wait()
+            with urllib.request.urlopen(url, timeout=30) as r:
+                return r.status
+        with concurrent.futures.ThreadPoolExecutor(200) as pool:
+            futures = [pool.submit(one, i) for i in range(200)]
+            time.sleep(0.5)  # every client waiting at the start line
+            t0 = time.monotonic()
+            go.set()
+            codes = [f.result() for f in futures]
+        self.assertEqual([200] * 200, codes)  # every one answered
+        # measured on this burst: 0.2 s with the server's queue, 7.4 s with Python's 5 (the clients' retries after 1 and 3 s)
+        self.assertLess(time.monotonic() - t0, 3)
+
+    def test_past_the_limit_a_connection_waits_then_is_told_to_try_again(self):
         import socket  # requests by hand
         import threading  # the server beside the test
         import time  # how long it waited
@@ -700,16 +756,156 @@ class TestServingLimit(unittest.TestCase):
         self.addCleanup(second.close)
         second.sendall(b"GET / HTTP/1.0\r\n\r\n")
         t0 = time.monotonic()
-        try:
-            got = second.recv(100)  # closed unanswered once its wait is over
-        except ConnectionResetError:  # some systems reset rather than close
-            got = b""
-        self.assertEqual(b"", got)
+        got = b""
+        while True:  # the whole answer, until the server closes
+            part = second.recv(1000)
+            if not part:
+                break
+            got += part
+        self.assertTrue(got.startswith(b"HTTP/1.1 503 "), got)  # answered, not dropped: the page tries again
+        self.assertIn(b"Retry-After: 2", got)
+        self.assertTrue(got.endswith(b'{"error": "busy"}'), got)
         self.assertLess(time.monotonic() - t0, 5)  # after slot_wait, not when the held one ends
         go.set()  # the held request ends
         self.assertIn(b" 200 ", first.recv(100))  # and was answered
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=10) as r:  # its slot serves the next
             self.assertEqual(b"ok", r.read())
+
+
+class TestPageFiles(unittest.TestCase):
+    """The page's own files (index.html, its scripts and styles) come with an ETag and `no-cache`, compressed for a browser
+    that takes gzip: a load fetches 260 KB instead of 932, and a reload gets 304 with no body for every file it holds,
+    while a changed file comes again at once (the page and its scripts stay in step)."""
+
+    def setUp(self):
+        import gzip  # the compressed bytes
+        self.gzip = gzip
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-static-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.static = self.tmp / "static"  # a copy of the page's files, one of which this test changes
+        shutil.copytree(server.STATIC, self.static)
+        patch = mock.patch.object(server, "STATIC", self.static)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.srv = server.serve(0, data=self.tmp / "data")
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        self.addCleanup(self.srv.server_close)
+        self.addCleanup(self.srv.shutdown)
+        self.base = f"http://127.0.0.1:{self.srv.server_address[1]}"
+
+    def fetch(self, path, **headers):
+        """(status, headers, body) of one GET"""
+        try:
+            with urllib.request.urlopen(urllib.request.Request(self.base + path, headers=headers), timeout=20) as r:
+                return r.status, r.headers, r.read()
+        except urllib.error.HTTPError as e:
+            return e.code, e.headers, e.read()
+
+    def test_a_file_comes_compressed_then_as_304_and_again_when_it_changed(self):
+        want = (self.static / "core.js").read_bytes()
+        code, head, body = self.fetch("/static/core.js", **{"Accept-Encoding": "gzip"})
+        self.assertEqual(200, code)
+        self.assertEqual("gzip", head["Content-Encoding"])
+        self.assertEqual(want, self.gzip.decompress(body))  # the file itself
+        self.assertLess(len(body), len(want) / 2)
+        self.assertEqual("no-cache", head["Cache-Control"])  # asked about every time
+        self.assertTrue(head["Content-Security-Policy"])  # the page's policy, as on every answer
+        tag = head["ETag"]
+        code, head, body = self.fetch("/static/core.js", **{"If-None-Match": tag})
+        self.assertEqual((304, b""), (code, body))  # nothing to fetch again
+        code, head, body = self.fetch("/static/core.js")  # a client that takes no gzip
+        self.assertEqual((200, want), (code, body))
+        self.assertNotIn("Content-Encoding", head)
+        (self.static / "core.js").write_bytes(want + b"\n// changed\n")  # an update
+        code, head, body = self.fetch("/static/core.js", **{"If-None-Match": tag})
+        self.assertEqual(200, code)  # the new file at once, never the one the browser held
+        self.assertNotEqual(tag, head["ETag"])
+        self.assertTrue(body.endswith(b"// changed\n"))
+
+    def test_the_page_itself_is_sent_the_same_way(self):
+        code, head, body = self.fetch("/", **{"Accept-Encoding": "gzip"})
+        self.assertEqual(200, code)
+        self.assertEqual((self.static / "index.html").read_bytes(), self.gzip.decompress(body) if head["Content-Encoding"] == "gzip" else body)
+        self.assertEqual((304, b""), self.fetch("/", **{"If-None-Match": head["ETag"]})[0::2])
+
+
+class TestUnderLoadAndStop(unittest.TestCase):
+    """What keeps the panel whole when much is asked at once or it is stopped: a task that waits its turn says so, a stop
+    from outside ends it cleanly, and the stop names what was cut short."""
+
+    def test_a_task_that_waits_its_turn_says_so_and_then_shows_its_own_step(self):
+        from apps.api.client import Client  # the API in this process
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-turn-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        c = Client(tmp)
+        self.addCleanup(c.settle, 30)  # cleanups run last first: its tasks end before the folder goes
+        t = c.api.tasks
+        other = threading.Lock()  # held by another task, as render_lock is during a build
+        other.acquire()
+        t._set("build:x", state="running", step="queued")
+        inside = []  # the step the task showed once its turn came
+
+        def work():
+            with t.turn("build:x", other):
+                inside.append(t.tasks["build:x"]["step"])
+        th = threading.Thread(target=work)
+        th.start()
+        end = time.monotonic() + 5
+        while t.tasks["build:x"].get("step") != "waiting_turn" and time.monotonic() < end:  # waiting, and saying so
+            time.sleep(0.02)
+        self.assertEqual("waiting_turn", t.tasks["build:x"]["step"])
+        other.release()  # the other task ends
+        th.join(5)
+        self.assertEqual(["queued"], inside)  # its own step again once it runs
+        free = threading.Lock()
+        with t.turn("build:y", free):  # a free lock: taken at once, nothing said
+            self.assertNotIn("build:y", t.tasks)
+        self.assertFalse(free.locked())  # given back
+        t._set("build:x", state="done")  # the task the test marked running ends, so the cleanup's wait does not
+
+    def test_the_stop_names_what_was_cut_short_and_waits_for_the_answers_being_sent(self):
+        sys.path.insert(0, str(ROOT / "src"))
+        import ownport  # the request slots
+        held = ownport.Server.__new__(ownport.Server)  # the two fields wind_down reads, without a port
+        held.cap, held._slots = 2, threading.BoundedSemaphore(2)
+        held.server_close = lambda: None
+        held._slots.acquire()  # a request being answered
+        threading.Timer(0.3, held._slots.release).start()  # answered a moment later
+
+        class Tasks:
+            state_lock = threading.Lock()
+            tasks = {"build:alpha": {"state": "running"}, "analyze:alpha": {"state": "done"}}
+
+        class Panel:
+            tasks = Tasks()
+        before = server.Handler.panel
+        server.Handler.panel = Panel()
+        self.addCleanup(setattr, server.Handler, "panel", before)
+        t0 = time.monotonic()
+        with self.assertLogs("offerowl.panel", level="INFO") as said:
+            server.wind_down(held, grace=5)
+        self.assertLess(time.monotonic() - t0, 3)  # it waited for the answer, not for the whole grace
+        lines = "\n".join(said.output)
+        self.assertIn("build:alpha", lines)  # the running task is named
+        self.assertNotIn("analyze:alpha", lines)  # a finished one is not
+        self.assertIn("panel stopped", lines)
+
+    @unittest.skipIf(os.name == "nt", "SIGTERM is a POSIX stop")
+    def test_a_stop_from_outside_ends_the_panel_cleanly(self):
+        import signal  # the container's stop
+        import subprocess  # the panel as its own process
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-stop-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        p = subprocess.Popen([sys.executable, str(ROOT / "apps" / "panel" / "server.py"), "--port", "0", "--data", str(tmp)],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+        self.addCleanup(p.stdout.close)  # cleanups run last first: the pipe goes after the process is reaped
+        self.addCleanup(lambda: p.poll() is None and p.kill())
+        self.assertTrue(p.stdout.readline().startswith("http://127.0.0.1:"))  # serving
+        p.send_signal(signal.SIGTERM)  # docker stop, a pod's end, the desktop app's quit
+        self.assertEqual(0, p.wait(15))  # a clean exit, well inside Docker's ten seconds
+        log = (tmp / "logs" / "panel.log").read_text(encoding="utf-8")
+        self.assertIn("stopping: signal", log)
+        self.assertIn("panel stopped", log)
 
 
 class TestStandinAsAProgram(unittest.TestCase):
@@ -763,7 +959,7 @@ class TestKoreanTable(unittest.TestCase):
             m = re.search(r"const L = \{(.*?)\};", js, re.S)  # the history's words
             if m:  # in this file
                 used |= set(re.findall(r'"([^"]+)"', m.group(1)))  # its values: each step's words with a name and without one
-        used -= {"한국어", "English", "Claude Code", "Codex", "Stand-in"}  # names that stay as they are
+        used -= {"한국어", "English", "Claude Code", "Codex", "Stand-in", "KO", "EN"}  # names that stay as they are (the script view's language keys among them)
         missing = sorted(k for k in used if k and k not in table and not re.fullmatch(r"[\s·,→+/]*", k))  # punctuation alone needs none
         self.assertEqual([], missing)  # every text has its Korean
         for en, kr in table.items():  # placeholders kept

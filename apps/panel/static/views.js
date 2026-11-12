@@ -245,11 +245,17 @@ function fitOf(jid) {                                                           
   if (!UI.docs[key]) getDoc(key, `/api/v1/jobs/${enc(jid)}/fit`);                   // fetched once
   return UI.docs[key] || null;                                                      // null while it loads
 }
+function openJob() {                                                                // the application the applications view draws: the one in view, or while an edition is in view the first one still going
+  const jobs = S.jobs || [];                                                        // the jobs, oldest first
+  return jobs.find((j) => j.id === S.job) || jobs.find((j) => j.stage !== "result") || jobs[0] || null;
+}
 function viewJobs(host) {                                                           // every application: the list beside the one open, or all of them by stage or by date
   const jobs = S.jobs || [];                                                        // the jobs, oldest first
-  const open = jobs.find((j) => j.id === S.job) || jobs.find((j) => j.stage !== "result") || jobs[0] || null;   // the one in view; while the general edition is in view, the first one still going
+  const open = openJob();                                                           // the one in view
   const mode = ["list", "board", "timeline"].includes(UI.jobsMode) ? UI.jobsMode : "list";   // how they are shown
-  const phone = PHONE.matches, alone = phone && UI.jobPhone && !!open;              // a phone shows the list or one application, never both squeezed
+  const phone = PHONE.matches;                                                      // a phone shows the list or one application, never both squeezed
+  const wide = !phone && !!open && mode === "list" && UI.jobTab === "interview" && ivWide();   // the interview over the whole width, by its own key: the list comes back with the back key
+  const alone = (phone && UI.jobPhone && !!open) || wide;
   const modes = jobs.length ? h("div", { class: "seg modes", "aria-label": t("View") }, [["list", "List", "list"], ["board", "Board", "columns"], ["timeline", "Timeline", "clock"]].map(([k, w, ic]) =>
     h("button", { "aria-pressed": mode === k ? "true" : "false", onclick: () => { UI.jobsMode = k; UI.jobPhone = false; render(); } }, icon(ic), t(w)))) : null;
   const list = !jobs.length || mode !== "list" || alone ? null : h("nav", { class: "joblist paper", "aria-label": t("Applications"),   // the list beside the open one
@@ -267,8 +273,8 @@ function viewJobs(host) {                                                       
     (S.due || []).length ? h("div", { class: "band info", role: "status" }, h("p", {}, h("b", { text: t("Due now") }), " ",   // the reminders whose time has come: whose, then what
       S.due.map((d, i) => [i ? " · " : "", h("b", { text: d.name }), " " + d.text]))) : null,
     (UI.adding || !jobs.length) ? jobForm() : null,
-    !jobs.length ? null : mode === "board" ? trackBoard(jobs) : mode === "timeline" ? trackTimeline() : h("div", { class: "jobsplit" },   // the jobs on the left, the one open on the right
-      list, phone && !alone ? null : jobDetail(open, phone)));
+    !jobs.length ? null : mode === "board" ? trackBoard(jobs) : mode === "timeline" ? trackTimeline() : h("div", { class: "jobsplit" + (list ? "" : " alone") },   // the jobs on the left, the one open on the right; alone, the whole width
+      list, phone && !alone ? null : jobDetail(open, phone || wide)));
   if (list) keepListPlace(list, open);                                              // where the person left the list, with the open one in sight
 }
 function keepListPlace(list, open) {                                                // a redraw builds the list anew, at its top
@@ -407,7 +413,7 @@ function jobDetail(j, phone) {                                                  
       k === "questions" ? [h("span", { class: "w-l", text: t(w) }), h("span", { class: "w-s", text: t("Questions") })] : t(w),   // a phone shows the short name: five tabs on one row
       n ? h("span", { class: "chip count", text: String(n) }) : null)));
   return h("section", { class: "jobdetail paper", "aria-label": t("Fit to {job}", { job: j.company || j.id }) },
-    phone ? h("div", { class: "jd-back" }, h("button", { class: "btn sm quiet", type: "button", onclick: () => { UI.jobPhone = false; render(); } }, icon("back"), t("All applications"))) : null,
+    phone ? h("div", { class: "jd-back" }, h("button", { class: "btn sm quiet", type: "button", onclick: () => { UI.jobPhone = false; UI.ivWide = false; localStore("offerowl-ivwide", ""); render(); } }, icon("back"), t("All applications"))) : null,   // back to the list: a phone's, or the wide view's
     h("header", { class: "jd-head" },
       mono(j.company || j.role || j.id, "lg", j.stage),                             // the company's mark, in its stage's colour
       h("div", { class: "jd-title" },
@@ -496,7 +502,7 @@ function docsPart(j, tk) {                                                      
     tk.state === "error" ? band(tk.error.code, { retry: () => tailorJob(j.id) }) : null,
     tk.state === "done" && tk.result && (tk.result.stopped || []).length ? band("agent_stopped", { retry: () => tailorJob(j.id) }) : null);  // part of it did not come back: the same band, with a retry
 }
-const STEP_WORDS = { queued: "Starting", writing_resume: "Writing the resume from your evidence", drawing_figures: "Drawing the figures from your evidence", analysis: "Ordering the resume for this job", asking_agent: "Asking the agent", matching_words: "Matching the posting by its words",  // what a running task is doing now
+const STEP_WORDS = { queued: "Starting", waiting_turn: "Waiting for the task before it to finish", writing_resume: "Writing the resume from your evidence", drawing_figures: "Drawing the figures from your evidence", analysis: "Ordering the resume for this job", asking_agent: "Asking the agent", matching_words: "Matching the posting by its words",  // what a running task is doing now
   typesetting_resume: "Typesetting the resume", writing_cover: "Writing the cover letter", typesetting_cover: "Typesetting the cover letter", interview_kit: "Making the interview questions" };
 function tailorJob(jid) {                                                           // one action for all three documents
   return act("/api/v1/jobs/tailor", { job: jid, lang: docLang(), theme: UI.theme, maxPages: UI.maxPages, cover: UI.cover, typeset: UI.typeset && !S.engine });
@@ -504,18 +510,25 @@ function tailorJob(jid) {                                                       
 
 // ---------------------------------------------------------------- the interview studio's entry
 
-function boardOf(jid) {                                                             // the studio's board of a job, per revision
-  const key = `iv|${jid}|${docLang()}|${rev()}`;                                    // per revision
-  if (!UI.docs[key]) getDoc(key, `/api/v1/jobs/${enc(jid)}/interview?lang=${docLang()}`);  // fetched once
-  return UI.docs[key] || null;                                                      // null while it loads
+function boardOf(jid) {                                                             // the studio's board of a job, per revision; the last one stands while a newer one loads
+  const fam = `iv|${jid}|${docLang()}`, key = `${fam}|${rev()}`;                    // per revision: any task's step or autosave makes a new one
+  UI.boards = UI.boards || {};                                                      // the last board of each job and language
+  if (UI.docs[key] && !UI.docs[key].error) UI.boards[fam] = UI.docs[key];           // kept as the one to show next time
+  if (!UI.docs[key]) {                                                              // fetched once per revision; the older revisions' copies go
+    for (const k of Object.keys(UI.docs)) if (k.startsWith(fam + "|") && k !== key) delete UI.docs[k];
+    getDoc(key, `/api/v1/jobs/${enc(jid)}/interview?lang=${docLang()}`);
+  }
+  return UI.docs[key] || UI.boards[fam] || null;                                    // null only the first time: a part on screen never gives way to "Reading…" for a newer board
 }
 function speech(text) {                                                             // a scripted line with its speech marks drawn as the interview view draws them
   const thought = (part) => {                                                       // one thought: stress, the key phrase and breaths
     const out = [];                                                                 // nodes
-    part.split(/(\s\/\s|==[^=]+==|\*\*[^*]+\*\*)/).forEach((p) => {                  // breath, key phrase, stress
+    part.split(/(\s\/\s|==[^=]+==|\*\*[^*]+\*\*|`[^`]+`|\([^()]*[\uac00-\ud7a3][^()]*\))/).forEach((p) => {   // breath, key phrase, stress, code, a stage note
       if (p === " / ") out.push(" ", h("span", { class: "br", "aria-hidden": "true", text: "/" }), " ");  // a short breath: a faint slash
       else if (/^==[^=]+==$/.test(p)) out.push(h("mark", { class: "hl" }, thought(p.slice(2, -2))));   // the key phrase: its stress and breaths drawn too, never its marks
       else if (/^\*\*[^*]+\*\*$/.test(p)) out.push(h("strong", { text: p.slice(2, -2) }));         // stress
+      else if (/^`[^`]+`$/.test(p)) out.push(h("code", { text: p.slice(1, -1) }));                  // a command or a file name, in its own letters
+      else if (/^\([^()]*[\uac00-\ud7a3][^()]*\)$/.test(p)) out.push(h("span", { class: "dir", text: p }));   // a stage note in Korean brackets: not spoken, in grey as the kit draws it
       else if (p) out.push(document.createTextNode(p));                             // plain words
     });
     return out;                                                                     // for the thought's line
@@ -531,15 +544,18 @@ const COVERAGE_CLS = { strong: "ok", weak: "warn", none: "off", draft: "ai" };  
 function interviewPart(j) {                                                         // an application's interview: its question board, then its scripts beside the one read, then the person's own materials
   const b = boardOf(j.id);                                                          // its board
   const practice = !!(b && b.ready && b.practice && b.practice.available);       // practice can start: the tab's main key
-  // the keys of the part in view only: the search view's own window beside the search, the deck's print beside the deck,
-  // the cue cards and scenes beside the scripts (each was on every part, beside a tab that already showed the same page);
-  // Practice, the tab's main key, on every part but the talk, which has its own
+  // the keys of the part in view only: the wide view and a window beside the search, the deck's print beside the deck, the
+  // cue cards and scenes beside the scripts; Practice, the tab's main key, on every part but the practice and the talk.
+  // Every part is drawn in the panel (kit.js, interview.js); only the print keys open the kit's printable pages
+  const wideKeys = PHONE.matches ? null : [                                            // a phone shows one application alone already
+    h("button", { class: "btn", type: "button", "data-key": "iv-wide", "aria-pressed": ivWide() ? "true" : "false", onclick: () => { UI.ivWide = !ivWide(); localStore("offerowl-ivwide", UI.ivWide ? "1" : ""); render(); } }, icon("wide"), t("Wide view")),
+    h("button", { class: "btn", type: "button", onclick: () => window.open(`/?job=${enc(j.id)}&show=scripts`, "_blank", "noopener") }, icon("open"), t("Open in a window"))];   // the panel itself, on the scripts
   const keysFor = (part) => h("div", { class: "part-keys" },
-    b && b.ready && part === "search" ? h("button", { class: "btn", onclick: () => openKit(j.id, "") }, icon("open"), t("Open in a window")) : null,
-    b && b.ready && part === "deck" && b.deck && b.deck.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "deck?lang=" + LANG) }, icon("slides"), t("Interview deck to print")) : null,   // the deck's own words in the panel's language
+    b && b.ready && part === "search" ? wideKeys : null,                              // the scripts over the whole width, and in a window of their own: both stay in the panel
+    b && b.ready && part === "deck" && b.deck && b.deck.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "deck?lang=" + LANG) }, icon("slides"), t("Interview deck to print")) : null,   // the deck's printable pages in the panel's language
     b && b.ready && part === "map" && b.cue && b.cue.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "cue") }, icon("copy"), t("Cue cards to print")) : null,
     !(b && b.ready) || part === "map" ? h("button", { class: "btn", onclick: () => { UI.scenesFor = j.id; $("scenepick").click(); } }, icon("upload"), t("Add scenes you wrote")) : null,   // scripts written before, in the kit's markdown
-    practice && part !== "talk" ? h("button", { class: "btn primary", onclick: () => openKit(j.id, "#practice") }, icon("mic"), t("Practice")) : null);   // the main key, last
+    practice && part !== "talk" && part !== "practice" ? h("button", { class: "btn primary", onclick: () => { UI.ivPart = "practice"; render(); } }, icon("mic"), t("Practice")) : null);   // the main key, last: the practice part
   const keys = keysFor(null);                                                        // before the kit: what can be added already
   if (!b) return h("div", { class: "ivpart" }, keys, h("p", { class: "hint", text: t("Reading the interview kit…") }), materialsPart(j));   // loading; the materials need no kit
   if (!b.ready && UI.ivPart === "talk") return h("div", { class: "ivpart" }, keys, talkPart(j), materialsPart(j));   // a talk needs no question map
@@ -551,12 +567,14 @@ function interviewPart(j) {                                                     
       h("button", { class: "btn primary", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }), text: t("Make the question map") }))), materialsPart(j));
   const tk = task("scripts:" + j.id);                                                // the writing task, when one runs
   const writing = tk.state === "running";                                           // writing now
-  const part = ["search", "deck", "map", "talk"].includes(UI.ivPart) ? UI.ivPart : "search"; // what the tab shows: the search view, the deck, the map and its scripts, or the talk
+  const parts = [["search", t("Search the scripts"), "search"], ["deck", t("Interview deck"), "slides"], practice ? ["practice", t("Practice"), "mic"] : null,
+    ["map", t("Question map and scripts"), "map"], ["talk", t("Presentation"), "chart"]].filter(Boolean);   // practice when the kit has it
+  const part = parts.some(([k]) => k === UI.ivPart) ? UI.ivPart : "search";         // what the tab shows: the search view, the deck, practice, the map and its scripts, or the talk
   const switcher = h("div", { class: "seg ivseg", role: "tablist", "aria-label": t("Interview") },
-    [["search", t("Search the scripts"), "search"], ["deck", t("Interview deck"), "slides"], ["map", t("Question map and scripts"), "map"], ["talk", t("Presentation"), "chart"]].map(([k, w, ic]) =>
-      h("button", { type: "button", role: "tab", "aria-selected": part === k ? "true" : "false", onclick: () => { UI.ivPart = k; render(); } }, icon(ic), w)));
+    parts.map(([k, w, ic]) => h("button", { type: "button", role: "tab", "aria-selected": part === k ? "true" : "false", onclick: () => { UI.ivPart = k; render(); } }, icon(ic), w)));
   if (part === "talk") return h("div", { class: "ivpart" }, h("div", { class: "ivtop" }, switcher, keysFor(part)), talkPart(j), materialsPart(j));   // the presentation interview
-  if (part !== "map") return h("div", { class: "ivpart" }, h("div", { class: "ivtop" }, switcher, keysFor(part)), ivFrame(j, b, part === "deck" ? "deck?lang=" + LANG : ""),   // the kit's own pages, inside the panel
+  if (part !== "map") return h("div", { class: "ivpart" }, h("div", { class: "ivtop" }, switcher, keysFor(part)),
+    part === "deck" ? ivDeck(j) : part === "practice" ? ivPractice(j) : ivKit(j),   // each drawn by the panel itself: the deck and practice (interview.js), the contents, the search and the scripts (kit.js)
     materialsPart(j));                                                              // and the person's own files for this job under them, as on every part
   return h("div", { class: "ivpart" }, h("div", { class: "ivtop" }, switcher, keysFor(part)),
     h("p", { class: "hint", text: t("{q} likely questions, {u} without a script yet, {s} scripts.", { q: b.counts.questions, u: b.counts.uncovered, s: b.counts.scripts }) +
@@ -769,26 +787,16 @@ function talkPart(j) {                                                          
       h("button", { class: "btn", onclick: () => openKit(j.id, "talk/deck.pdf") }, icon("slides"), t("Slides (PDF)")),
       h("button", { class: "btn", onclick: () => openKit(j.id, "talk/script.pdf") }, icon("file"), t("Script (PDF)")),
       h("button", { class: "btn", onclick: () => act("/api/v1/interview/talk/deliver", { job: j.id }).then((r) => { if (r && r.files) toast(t("On the Desktop: {names}", { names: r.files.join(", ") }), null, "done"); }) }, icon("desktop"), t("Save to the Desktop"))),
-    ivFrame(j, null, `talk?v=${st.at || 0}`), form);
+    ivTalkScript(j, st), form);                                                       // the script, drawn by the panel (interview.js)
 }
 
-function ivFrame(j, b, path) {                                                      // the kit's search view or deck in a frame: started for this job once, then shown
-  UI.ivStarted = UI.ivStarted || {};                                                 // jobs whose kit this page asked to serve
-  if (UI.ivStarted[j.id] !== "up") {                                                 // not asked yet, or on its way
-    if (!UI.ivStarted[j.id]) {                                                       // ask once
-      UI.ivStarted[j.id] = "starting";
-      act("/api/v1/interview/start", { job: j.id }).then((r) => {                   // the kit server now serves this job
-        UI.ivStarted[j.id] = r && r.started ? "up" : "failed";                       // remembered for this page
-        delete UI.docs[`iv|${j.id}|${docLang()}|${rev()}`]; render();                // its board again, with the address up
-      });
-    }
-    return h("div", { class: "ivframe-wait card" }, h("p", { class: "hint", role: "status",
-      text: UI.ivStarted[j.id] === "failed" ? t("The interview kit could not start.") : t("Opening the interview kit…") }));
-  }
-  const look = `embed=1&theme=${document.documentElement.dataset.theme === "dark" ? "dark" : "light"}`;   // inside the panel, in the panel's theme
-  const url = `/kit/${enc(j.id)}/` + path + (path.includes("?") ? "&" : "?") + look;   // the kit, at the panel's own address (web.py kit_proxy)
-  const name = path.startsWith("deck") ? t("Interview deck") : path.startsWith("talk") ? t("Presentation script") : t("Search the scripts");   // what a screen reader names the frame
-  return h("iframe", { class: "ivframe" + (path.startsWith("talk") ? " ivsheet" : ""), src: url, title: name, "data-key": "ivframe-" + j.id + "-" + path });
+const ivWide = () => { if (UI.ivWide === undefined) UI.ivWide = localStore("offerowl-ivwide") === "1"; return UI.ivWide; };   // the interview over the whole width, as last chosen in this browser
+function ivKit(j) {                                                                 // the kit's contents, search and script cards, drawn by the panel itself (kit.js): no page of the kit's own in a frame
+  const k = ivKitView(j);                                                           // made once per kit (interview.js)
+  if (!k) return ivWait(ivKitData(j), t("Opening the interview kit…"));             // the scripts on their way, or why they could not come
+  if (UI.kitAsk) { const q = UI.kitAsk; UI.kitAsk = null; requestAnimationFrame(() => { if (UI.kit === k) k.view.search(q); }); }   // a script asked for from the deck
+  requestAnimationFrame(() => { if (UI.kit === k) k.view.attached(); });           // once it stands in the page: fitted to its room, its board where it stood
+  return k.view.el;
 }
 async function openKit(jid, hash) {                                                 // the kit's own page, started when nothing answers there
   const tab = window.open("", "_blank");                                            // opened in the click itself: after the waits below the browser would block it

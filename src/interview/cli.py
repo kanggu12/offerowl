@@ -4,7 +4,7 @@
     python3 src/interview/cli.py serve --job <dir> [--port 8796]       the search view
     python3 src/interview/cli.py check --job <dir> [--grow 1.6 --base <dir>] [--strict]   scene checks
     python3 src/interview/cli.py cards --job <dir> [--size 2560x1300] [--ids A1,B2]      card defects in the real page
-    python3 src/interview/cli.py eval  --job <dir>                       search hit rate on the job's eval set
+    python3 src/interview/cli.py eval  --job <dir> [--questions FILE]    search hit rate on the job's eval set, or on another set
     python3 src/interview/cli.py plan  --job <dir> [--phrase]            question map from the posting, resume and portfolio
     python3 src/interview/cli.py draft --job <dir> [--ids P1,P2] [--limit N]   new scenes for planned questions
     python3 src/interview/cli.py audit --job <dir> [--consistency]       posting coverage and consistency with what was sent
@@ -42,19 +42,28 @@ def open_job(a):  # every command starts here
     return job
 
 
+def dense_setting():  # the similarity model a person named once for every kit
+    """(folder, problem) of OFFEROWL_SEARCH_MODEL (src/interview/dense.py from_setting)."""
+    from interview import dense  # standard library only until the model is switched on
+    return dense.from_setting()
+
+
 def cmd_serve(a):  # the serve subcommand
     """Serve the search view until Ctrl+C."""
     from interview import server  # the HTTP server
     job = open_job(a)  # the job, with the message language set
-    cache = job.out_dir(a.out) / "vectors" if a.model else None  # the model's vector cache goes with the outputs
+    model, problem = (a.model, "") if a.model else dense_setting()  # --model, else the folder OFFEROWL_SEARCH_MODEL names
+    if problem:  # the setting names a folder without the model's files: say so, and serve by keywords
+        print(i18n.t("search_model_missing", missing=problem), flush=True)
+    cache = job.out_dir(a.out) / "vectors" if model else None  # the model's vector cache goes with the outputs
     # build the server and the index now, so the counts printed below are real
-    srv, index = server.make_server(job, port=a.port, host=a.host, model_dir=a.model, threads=a.threads, public_port=a.public_port, cache_dir=cache,
+    srv, index = server.make_server(job, port=a.port, host=a.host, model_dir=model, threads=a.threads, public_port=a.public_port, cache_dir=cache,
                                     out_dir=job.out_path(a.out), backend=a.backend)  # practice sessions go to the output folder, written on the first session
     if not index.items:  # an empty folder is almost always a wrong path
         print(i18n.t("no_items", dir=job.interview))  # say where it looked, so a wrong --job is easy to spot
     # the address to open; behind a port mapping the browser's port, not the bound one
     print(i18n.t("serving", host="127.0.0.1", port=a.public_port or srv.server_address[1], items=len(index.items), job=job.name), flush=True)
-    print(i18n.t("serving_model", model=a.model) if a.model else i18n.t("serving_keywords"), flush=True)  # say which search is on: keywords only, or with the model
+    print(i18n.t("serving_model", model=model) if model else i18n.t("serving_keywords"), flush=True)  # say which search is on: keywords only, or with the model
     print(i18n.t("stop_hint"), flush=True)  # how to stop, since the command blocks
     try:
         srv.serve_forever(poll_interval=0.5)  # until interrupted
@@ -87,7 +96,8 @@ def cmd_eval(a):  # the eval subcommand
     """Search hit rate on the job's eval set, measured in the real page."""
     from interview import evalset  # the eval
     job = open_job(a)  # the job, with the message language set
-    return evalset.main(job, url=a.url, port=a.port, size=a.size, out=a.out)  # the page to type into and the window size that fixes the board layout
+    return evalset.main(job, url=a.url, port=a.port, size=a.size, out=a.out,  # the page to type into and the window size that fixes the board layout
+                        questions_file=a.questions)  # another question set, or the job's own
 
 
 def cmd_plan(a):  # the plan subcommand
@@ -162,7 +172,8 @@ def main(argv=None):  # the entry point, also called by the tests
     # the Host check and the printed address must use the mapped port
     p.add_argument("--public-port", type=int, help="the port the browser uses, when a container maps another one")
     # without it the server stays keyword-only and needs no third-party packages
-    p.add_argument("--model", help="bge-m3 folder (tokenizer.json, onnx/model_int8.onnx): turns on the optional similarity switch")
+    p.add_argument("--model", help="bge-m3 folder (tokenizer.json, onnx/model_int8.onnx): turns on the optional similarity switch "
+                                   "(default: the folder OFFEROWL_SEARCH_MODEL names)")
     p.add_argument("--threads", type=int, default=6, help="model threads")  # caps the model's CPU use so the machine stays responsive
     p.add_argument("--backend", help="model backend for practice mode (claude-code, codex, openai-compat, none)")  # none: the fixed list
     p.set_defaults(fn=cmd_serve)  # main runs cmd_serve for this command
@@ -200,6 +211,8 @@ def main(argv=None):  # the entry point, also called by the tests
     p.add_argument("--port", type=int, default=0, help="port for the page this command starts (default: a free one)")
     # one fixed default, so hit rates from different runs compare
     p.add_argument("--size", default="1920x1080", help="window size (the board's layout decides which three cards come first)")
+    # questions in other words than the cards use, kept apart from the job's own set, which aims at full marks
+    p.add_argument("--questions", help="another question set of the same form (default: the job's eval_questions.json)")
     p.set_defaults(fn=cmd_eval)  # main runs cmd_eval for this command
 
     p = sub.add_parser("plan", help="make the question map")  # the question map from the posting and what was sent

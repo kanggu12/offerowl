@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href=".github/workflows/ci.yml"><img alt="CI: GitHub Actions" src="docs/assets/badges/ci.svg"></a>
-  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.7.0" src="docs/assets/badges/release.svg"></a>
+  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.8.0" src="docs/assets/badges/release.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="docs/assets/badges/license.svg"></a>
   <img alt="Runs on Windows, macOS and Linux" src="docs/assets/badges/runs-on.svg">
 </p>
@@ -73,7 +73,7 @@ docker compose -f deploy/docker/compose.yaml up -d --build
 **Python** 3.10 or newer
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.7.0/offerowl-0.7.0-py3-none-any.whl
+pipx install https://github.com/kanggu12/offerowl/releases/download/v0.8.0/offerowl-0.8.0-py3-none-any.whl
 offerowl panel --open
 ```
 
@@ -100,7 +100,7 @@ to print the PDFs.
 - **Blind editions.** The names you choose under bars of their own width, and an export that refuses a PDF where one still shows.
 - **Ready for Word and PowerPoint.** Word files with their fonts inside and the PDF's line heights, the deck as slides; where
   this PC has Office, each is opened there first and must come out with the same pages.
-- **Ask in your own words.** The command bar (Ctrl+K) takes a request as Claude Code would, "the first call is done, write
+- **Ask in your own words.** **Ask the AI** in the top bar (Ctrl+K) takes a request as Claude Code would, "the first call is done, write
   it down" or "a resume for this posting", and the agent carries it out through Offerowl's own tools only.
 - **On your PC.** Your files, facts and documents stay in one folder; the agent sees only what the step in progress needs.
 

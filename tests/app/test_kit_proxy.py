@@ -5,10 +5,15 @@ frame and connection policy. No model is called.
 
     python3 -m unittest tests/app/test_kit_proxy.py -v
 """
+import json  # the kit's health answer
+import os  # the model's setting
 import pathlib  # paths
+import shutil  # the stand-in model folder, removed
 import socket  # a request no client library would send
 import sys  # the import path
+import tempfile  # the stand-in model folder
 import unittest  # the runner
+import unittest.mock  # the setting, for one test
 import urllib.error  # a refused read
 import urllib.request  # reads with their headers
 
@@ -64,6 +69,39 @@ class TestKitProxy(PanelCase):
         self.assertEqual(200, self.page(f"/kit/{q(jid)}/api/health")[0])  # the next open starts a new one
         self.assertIsNot(srv, api.tasks.kit_srvs[jid][0])  # not the stopped one
         srv.server_close()  # its port, freed
+
+    def test_the_kit_takes_the_similarity_model_named_in_the_setting(self):
+        """OFFEROWL_SEARCH_MODEL names the model's folder: the job's kit then has the model (off until its page's switch
+        loads it) and the page shows the switch; a folder without the model's files gives no switch, and the log says why."""
+        jid = self.jobs[1][0]
+        api = self.server_api()
+
+        def fresh():  # this job's kit server let go, so the next open makes one with the setting as it is now
+            got = api.tasks.kit_srvs.pop(jid, None)
+            if got:
+                got[0].shutdown()
+                got[0].loop.join(5)
+                got[0].server_close()
+
+        def health():
+            return json.loads(self.page(f"/kit/{q(jid)}/api/health")[2])
+
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-kit-model-"))  # a folder that only looks like the model's
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.addCleanup(fresh)  # the next test gets a kit without it
+        fresh()
+        with unittest.mock.patch.dict(os.environ, {"OFFEROWL_SEARCH_MODEL": str(tmp)}), self.assertLogs("offerowl.panel", "WARNING") as logs:
+            self.assertIsNone(health()["model"])  # no files there: keywords only
+            self.assertIn(" hidden>", self.page(f"/kit/{q(jid)}/")[2].decode("utf-8").split('id="engine"', 1)[1].split("</button>", 1)[0])  # no switch
+        self.assertIn("tokenizer.json, onnx/model_int8.onnx", logs.output[0])  # said in the panel's log
+        (tmp / "onnx").mkdir()
+        for name in ("tokenizer.json", "onnx/model_int8.onnx"):  # stand-ins: nothing loads until the switch
+            (tmp / name).write_bytes(b"")
+        fresh()
+        with unittest.mock.patch.dict(os.environ, {"OFFEROWL_SEARCH_MODEL": str(tmp)}):
+            got = health()
+            self.assertEqual(("bge-m3-int8", "off"), (got["model"], got["state"]))  # there, and off
+            self.assertNotIn(" hidden>", self.page(f"/kit/{q(jid)}/")[2].decode("utf-8").split('id="engine"', 1)[1].split("</button>", 1)[0])  # the switch shows
 
     def test_a_kit_json_that_points_out_of_the_workspace_shows_nothing_from_there(self):
         # kit.json can come with a restored backup: a source it names outside the workspace must never reach the kit's page,

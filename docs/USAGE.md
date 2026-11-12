@@ -150,8 +150,11 @@ Settings are environment variables.
 | `OFFEROWL_OFFICE` | `0` never opens a Word or PowerPoint file in this PC's Office before it goes (below) | opened where Office is reachable |
 
 The panel's own settings are with it: `OFFEROWL_PANEL_PORT` in [Start it](APP.md#start-it), `OFFEROWL_DATA_DIR` in
-[The data folder](APP.md#the-data-folder) and `OFFEROWL_LLM_LOG` in [The agent's panel](APP.md#the-agents-panel); the
-container's are in [INSTALL.md](INSTALL.md#2-a-container-docker-compose).
+[The data folder](APP.md#the-data-folder), `OFFEROWL_LLM_LOG` in [The agent's panel](APP.md#the-agents-panel), and
+`OFFEROWL_MAX_REQUESTS` (requests served at once) and `OFFEROWL_STOP_GRACE` (seconds a stop waits) in
+[Load and stops](ARCHITECTURE.md#load-and-stops), and `OFFEROWL_SEARCH_MODEL` (the similarity model of the interview
+kit's search) in [The search view](INTERVIEW.md#the-search-view-serve); the container's are in
+[INSTALL.md](INSTALL.md#2-a-container-docker-compose).
 
 `render/run.sh` hands `OFFEROWL_THEME`, `OFFEROWL_THEME_FILE`, `OFFEROWL_RENDERER`, `OFFEROWL_PDF_READER` and
 `OFFEROWL_BLIND` to the scripts in the container, along with `OFFEROWL_FRESH`, `OFFEROWL_NOLOGOS`, `OFFEROWL_PROFILE`,

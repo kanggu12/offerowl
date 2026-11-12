@@ -35,7 +35,8 @@ GZIP_MIN = 1024  # bytes below which compressing costs more than it saves
 GZIP_LEVEL = 6  # zlib's usual trade: a few milliseconds for a 100 KB state, a quarter of its bytes
 log = logging.getLogger("offerowl.api")  # the API's log
 CSP = ("default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; "
-       "frame-src 'self'; "  # the kit's search view and deck, framed in the interview tab from the panel's own /kit/<job>/; nothing else
+       "media-src 'self' blob:; "  # a practice answer played back from its recording in the page (interview.js), nothing from elsewhere
+       "frame-src 'none'; "  # no page in a frame, of this address or another: the previews (a deck, a saved web page) are written into theirs (srcdoc)
        "frame-ancestors 'none'; base-uri 'none'; form-action 'none'")  # nothing loads from elsewhere, nothing frames the page
 
 
@@ -99,6 +100,50 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()  # a 304 has no body
             return
         return self.send(200, data, etag=tag)  # the state itself, compressed by send when the client takes it
+
+    _files: dict = {}  # a page file's path -> (mtime_ns, size, tag, bytes, gzipped bytes or None): read once per change
+    _files_lock = threading.Lock()  # request threads ask for the page's files at the same time
+
+    def send_file(self, path: Path, ctype: str) -> None:
+        """A file of the page (index.html, a script, a style) with an ETag and `no-cache`: the browser asks every time, so
+        the page and its scripts stay in step after an update, and a file it already holds comes back as 304 with no body.
+        Compressed for a client that takes gzip (the page's files are 932 KB, 248 KB compressed, which a phone or a panel
+        behind an Ingress fetched whole at every load). Read, hashed and compressed once per change of the file."""
+        st = path.stat()  # its size and time: a changed file is read again
+        key = str(path)
+        with self._files_lock:
+            hit = self._files.get(key)
+        if not hit or hit[0] != st.st_mtime_ns or hit[1] != st.st_size:  # new, or changed since
+            raw = path.read_bytes()
+            tag = 'W/"' + hashlib.sha1(raw).hexdigest()[:20] + '"'  # weak: the same file is the same tag compressed or not
+            zipped = gzip.compress(raw, GZIP_LEVEL, mtime=0) if len(raw) >= GZIP_MIN else None  # a small file goes as it is
+            hit = (st.st_mtime_ns, st.st_size, tag, raw, zipped)
+            with self._files_lock:
+                self._files[key] = hit
+        _, _, tag, raw, zipped = hit
+        asked = [t.strip() for t in (self.headers.get("If-None-Match") or "").split(",")]  # the tags the browser holds
+        same = tag in asked or tag[2:] in asked or "*" in asked  # it holds this very file
+        use_zip = not same and zipped is not None and self.takes_gzip()
+        data = b"" if same else zipped if use_zip else raw
+        self.send_response(304 if same else 200)
+        if not same:
+            self.send_header("Content-Type", ctype)
+        self.send_header("ETag", tag)  # sent back as If-None-Match at the next load
+        self.send_header("Vary", "Accept-Encoding")  # the bytes depend on the coding asked for
+        if use_zip:
+            self.send_header("Content-Encoding", "gzip")
+        if not same:
+            self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")  # kept, but asked about every time: never a stale script
+        self.send_header("X-Content-Type-Options", "nosniff")  # the browser keeps the type, never guesses one
+        self.send_header("Referrer-Policy", "no-referrer")  # links to elsewhere carry no address of this PC
+        self.send_header("Content-Security-Policy", CSP)  # nothing loads from elsewhere
+        try:
+            self.end_headers()
+            if data and self.command != "HEAD":  # a 304 and a HEAD have no body
+                self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):  # the browser went away first
+            pass
 
     def send(self, code: int, body, ctype: str = JSON, cache: bool = False, name: str | None = None, etag: str | None = None) -> None:
         """Send one answer. An answer with an ETag (the state) is compressed for a client that takes gzip."""
@@ -215,7 +260,7 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         if not path.startswith("/api/") and path != "/health":  # not the API's
             return self.send(404, {"error": "not_found"})  # nothing here
         code, body, ctype = self.router.handle("GET", path, self.query())  # the API answers
-        if path == "/api/v1/state":  # polled every few seconds: a 304 when unchanged, compressed when not
+        if path == "/api/v1/state" or path.endswith(("/interview/view", "/interview/deck")):  # the state, polled every few seconds, and a kit's scripts (megabytes): a 304 when unchanged, compressed when not
             return self.send_state(code, body)
         name = "offerowl-reminders.ics" if ctype.startswith("text/calendar") else None  # the calendar is a file to save
         name = f"offerowl-backup-{time.strftime('%Y-%m-%d')}.zip" if ctype == "application/zip" else name  # and so is a backup

@@ -5,9 +5,11 @@ labelled fixtures. No model, no download, no network beyond a stand-in server on
 Run: python3 -m unittest discover -s tests/decide -v
 """
 import http.server  # the stand-in for a Jev gateway
+import importlib.machinery  # where a package name resolves, without importing it
 import json  # fixtures and answers
 import os  # settings
 import pathlib  # paths
+import shutil  # the stand-in package's folder goes away
 import subprocess  # the command line
 import sys  # the import path
 import tempfile  # folders that vanish
@@ -19,11 +21,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]  # repository root
 sys.path.insert(0, str(ROOT / "src"))  # the modules under test
 sys.path.insert(0, str(ROOT / "tests" / "decide"))  # the evaluation script
 import decide as D  # noqa: E402  the interface
-from decide import agent, jev, laya, rules  # noqa: E402  the backends
+from decide import agent, jev, laya, rules, vega  # noqa: E402  the backends
 import evaluate as E  # noqa: E402  the evaluation's builders and scoring
 
 FIX = ROOT / "tests" / "decide" / "fixtures"  # the labelled fictional sets
-CLEAN = {k: v for k, v in os.environ.items() if not k.startswith(("OFFEROWL_DECIDE", "OFFEROWL_JEV", "OFFEROWL_LAYA"))}  # no setting of the person leaks in
+CLEAN = {k: v for k, v in os.environ.items() if not k.startswith(("OFFEROWL_DECIDE", "OFFEROWL_JEV", "OFFEROWL_LAYA", "OFFEROWL_VEGA"))}  # no setting of the person leaks in
 
 
 class Interface(unittest.TestCase):
@@ -204,20 +206,36 @@ class Laya(unittest.TestCase):
 
 
 class Gateway(http.server.BaseHTTPRequestHandler):
-    """A stand-in for a Jev gateway: records the request, answers in the documented shape."""
+    """A stand-in for a Jev gateway: records the request and answers in the shape of the gateway's API reference (its
+    example: the choice, the model's own confidence, a probability per option that need not equal it, the served model
+    and the usage). `mode` changes the answer: "full", "no_probs" (only the confidence, as the reference allows),
+    "refusal" (the model declines the question), "busy_once" (a 429 with Retry-After first, then the answer)."""
     seen = []  # requests received
+    mode = "full"  # the answer to give
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         Gateway.seen.append({"path": self.path, "auth": self.headers.get("Authorization"), "body": body})
+        if Gateway.mode == "busy_once" and len(Gateway.seen) == 1:  # the first request finds the gateway busy
+            return self.answer(429, {"error": {"code": 429, "message": "Rate limit exceeded"}}, {"Retry-After": "0"})
         q = body["questions"]["decision"]
         first = list(q["criteria"])[0]  # always the first option
-        data = json.dumps({"model": body["model"], "answers": {"decision": {"type": "choice", "choice": first,
-                           "probabilities": {k: (0.9 if k == first else 0.1 / (len(q["criteria"]) - 1)) for k in q["criteria"]}, "confidence": 0.8}},
-                           "usage": {"input_tokens": 10, "output_tokens": 0}}).encode()
-        self.send_response(200)
+        ans = {"type": "choice", "choice": first, "confidence": 0.75,  # the reference's own numbers: 0.75 stated, 0.84 as the probability
+               "probabilities": {k: (0.84 if k == first else round(0.16 / (len(q["criteria"]) - 1), 4)) for k in q["criteria"]}}
+        if Gateway.mode == "no_probs":  # probabilities are optional in the reference
+            del ans["probabilities"]
+        if Gateway.mode == "refusal":  # the reference's refusal answer: a type and nothing else
+            ans = {"type": "refusal"}
+        self.answer(200, {"answers": {"decision": ans}, "id": "gen-dec-test", "model": body["model"] + "-20261101", "provider": "TypeSafe",
+                          "usage": {"cost": 0.00002, "input_tokens": 40, "output_tokens": 0}})
+
+    def answer(self, code, obj, headers=None):
+        data = json.dumps(obj).encode()
+        self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         self.end_headers()
         self.wfile.write(data)
 
@@ -235,25 +253,149 @@ class Jev(unittest.TestCase):
                 D.decide("claim", [{"claim": "a", "evidence": "b"}], backend="jev")
             self.assertIn("OFFEROWL_JEV_SEND", jev.status()["why"])
 
-    def test_the_request_has_the_documented_shape(self):  # model, state as a list, typed questions, bearer key
+    def ask(self, task, items, mode="full"):
+        """The decisions of a stand-in gateway answering in `mode`, and the requests it received."""
         srv = http.server.HTTPServer(("127.0.0.1", 0), Gateway)  # a free port
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         self.addCleanup(srv.server_close)  # cleanups run last first: stop serving, then close the socket
         self.addCleanup(srv.shutdown)
         Gateway.seen.clear()
+        Gateway.mode = mode
+        self.addCleanup(setattr, Gateway, "mode", "full")
         env = dict(CLEAN, OFFEROWL_JEV_KEY="test-key", OFFEROWL_JEV_SEND="1", OFFEROWL_JEV_URL=f"http://127.0.0.1:{srv.server_address[1]}")
         with mock.patch.dict(os.environ, env, clear=True):
-            out = D.decide("contradiction", [{"a": "It took 5 minutes.", "b": "It took 4 minutes.", "id": "private"}], backend="jev")
-        req = Gateway.seen[0]
+            return D.decide(task, items, backend="jev"), Gateway.seen
+
+    def test_the_request_has_the_documented_shape(self):  # model, state as an object, typed questions, bearer key
+        out, seen = self.ask("contradiction", [{"a": "It took 5 minutes.", "b": "It took 4 minutes.", "id": "private"}])
+        req = seen[0]
         self.assertEqual(req["path"], "/v1/systemone")
         self.assertEqual(req["auth"], "Bearer test-key")
         self.assertEqual(req["body"]["model"], jev.DEFAULT_MODEL)
-        self.assertIsInstance(req["body"]["state"], list)
+        self.assertEqual(req["body"]["state"], {"statement A": "It took 5 minutes.", "statement B": "It took 4 minutes."})  # readable names
         self.assertNotIn("private", json.dumps(req["body"]))  # only the task's fields leave the PC
         self.assertEqual(req["body"]["questions"]["decision"]["type"], "choice")
         self.assertEqual(out[0]["label"], "contradiction")
         self.assertEqual(out[0]["backend"], "jev")
-        self.assertAlmostEqual(out[0]["confidence"], 0.9)
+        self.assertAlmostEqual(out[0]["confidence"], 0.75)  # the confidence Jev states, never the choice's probability (0.84)
+        self.assertAlmostEqual(out[0]["scores"]["contradiction"], 0.84)
+        self.assertEqual(out[0]["model"], jev.DEFAULT_MODEL + "-20261101")  # the version that answered, for the record
+
+    def test_a_posting_line_goes_as_text_and_coverage_with_all_its_evidence(self):
+        _, seen = self.ask("line_kind", [{"text": "5+ years of Go."}])
+        self.assertEqual(seen[0]["body"]["state"], "5+ years of Go.")
+        _, seen = self.ask("coverage", [{"line": "Run Kubernetes", "evidence": ["Ran EKS clusters", "Wrote Helm charts"]}])
+        self.assertEqual(seen[0]["body"]["state"], {"posting line": "Run Kubernetes", "evidence": ["Ran EKS clusters", "Wrote Helm charts"]})
+
+    def test_an_answer_without_probabilities_keeps_its_confidence(self):  # the reference marks probabilities optional
+        out, _ = self.ask("claim", [{"claim": "Built it.", "evidence": "I helped build it."}], mode="no_probs")
+        self.assertEqual(out[0]["label"], "overclaim")
+        self.assertAlmostEqual(out[0]["confidence"], 0.75)
+        self.assertEqual(out[0]["scores"], {})
+
+    def test_a_refusal_is_said_plainly(self):
+        with self.assertRaisesRegex(D.DecideUnavailable, "declined to answer claim item 1"):
+            self.ask("claim", [{"claim": "Built it.", "evidence": "I helped build it."}], mode="refusal")
+
+    def test_a_busy_gateway_is_asked_again(self):  # a rate limit in the middle of a measurement does not end it
+        out, seen = self.ask("claim", [{"claim": "Built it.", "evidence": "I helped build it."}], mode="busy_once")
+        self.assertEqual(len(seen), 2)  # asked again after the wait
+        self.assertEqual(out[0]["label"], "overclaim")
+        self.assertEqual(jev.wait_of("0"), jev.WAIT[0])  # never a busy loop
+        self.assertEqual(jev.wait_of("3600"), jev.WAIT[1])  # never a long stall
+        self.assertEqual(jev.wait_of("Wed, 21 Oct 2026 07:28:00 GMT"), 2.0)  # a date: the usual wait
+
+
+# A stand-in for the maker's package and the libraries Vega's loader imports, written to a folder put first on the path:
+# the real reader is 1.7 GB, and the shape it answers in was read from the package itself (laya 0.4.31, vegaml 0.16.1).
+FAKE = {
+    "laya/__init__.py": (
+        "CALLS = []\n"
+        "class Agent:\n"
+        "    def __init__(self, **kw):\n"
+        "        CALLS.append(('init', kw))\n"
+        "    def predict(self, state, questions):\n"
+        "        CALLS.append(('predict', state, questions))\n"
+        "        keys = list(questions['decision']['criteria'])\n"
+        "        p = {k: (0.6 if i == 1 else round(0.4 / (len(keys) - 1), 4)) for i, k in enumerate(keys)}\n"
+        "        return {'answers': {'decision': {'type': 'choice', 'probabilities': p, 'answer_confidence': 0.6, 'confidence': 0.2,\n"
+        "                'prediction_set': keys[:2], 'abstain': True, 'unbound': False, 'readout': 'engine', 'choice': keys[1],\n"
+        "                'route': 'review', 'route_reason': 'conformal set at alpha 0.1 holds 2 options'}}, 'calibrated': False}\n"),
+    "vegaml/__init__.py": "",
+    "torch/__init__.py": "THREADS = []\ndef set_num_threads(n):\n    THREADS.append(n)\n",
+    "transformers/__init__.py": "",
+    "huggingface_hub/__init__.py": ("CACHED = {'yes': True}\n"
+                                    "def try_to_load_from_cache(repo, filename, revision=None):\n"
+                                    "    return f'/cache/{repo}/{filename}' if CACHED['yes'] else None\n"),
+    "huggingface_hub/constants.py": "HF_HUB_OFFLINE = False\n",
+}
+
+
+class Vega(unittest.TestCase):
+    """The Vega backend against the stand-in package: what it hands the maker's loader, the state and question each
+    item becomes, and how an answer is read."""
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-vega-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        for rel, text in FAKE.items():  # the stand-in packages
+            (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.tmp / rel).write_text(text, encoding="utf-8")
+        modules = mock.patch.dict(sys.modules)  # every module imported here goes away afterwards, and the real ones come back
+        modules.start()
+        self.addCleanup(modules.stop)
+        for n in [n for n in sys.modules if n.split(".")[0] in ("laya", "vegaml", "torch", "transformers", "huggingface_hub")]:
+            del sys.modules[n]  # the stand-ins import instead
+        path = mock.patch.object(sys, "path", [str(self.tmp)] + sys.path)  # the stand-ins first
+        path.start()
+        self.addCleanup(path.stop)
+        vega._LOADED.clear()  # no reader from another test
+        self.addCleanup(vega._LOADED.clear)
+
+    def test_an_item_becomes_one_state_and_the_answer_keeps_its_route(self):
+        with mock.patch.dict(os.environ, dict(CLEAN, OFFEROWL_VEGA_THREADS="3"), clear=True):
+            self.assertTrue(vega.status()["ready"])
+            out = D.decide("claim", [{"claim": "Built it.", "evidence": "I helped build it.", "id": "private"}], backend="vega")
+        import huggingface_hub.constants as hf
+        import laya as maker
+        import torch
+        init, (state, questions) = maker.CALLS[0][1], maker.CALLS[1][1:]  # ('init', kwargs), ('predict', state, questions)
+        self.assertEqual(init["revision"], vega.ENGINE[1])  # the engine measured, never whatever is newest
+        self.assertEqual(init["device"], "cpu")
+        self.assertIs(init["vegaml"], True)  # the default reader
+        self.assertEqual(torch.THREADS, [3])
+        self.assertTrue(hf.HF_HUB_OFFLINE)  # files on this PC only: not even an update check leaves it
+        self.assertEqual(state, {"claim": "Built it.", "evidence": "I helped build it."})  # never the id
+        self.assertEqual(questions["decision"], laya.question("claim"))  # the question Laya gets
+        r = out[0]
+        self.assertEqual((r["label"], r["backend"]), ("supported", "vega:0.8b"))
+        self.assertAlmostEqual(r["confidence"], 0.6)  # the chosen option's probability, as for Laya
+        self.assertEqual((r["route"], r["abstain"], r["prediction_set"]), ("review", True, ["overclaim", "supported"]))
+
+    def test_a_reader_that_is_not_on_this_pc_is_named_with_the_command_to_fetch_it(self):
+        import huggingface_hub
+        huggingface_hub.CACHED["yes"] = False
+        with mock.patch.dict(os.environ, CLEAN, clear=True):
+            self.assertIn("cli.py fetch vega", vega.status()["why"])
+            with self.assertRaisesRegex(D.DecideUnavailable, "fetch vega"):
+                D.decide("line_kind", [{"text": "Run the deploy platform"}], backend="vega")
+            with mock.patch.dict(os.environ, {"OFFEROWL_VEGA_DOWNLOAD": "1"}):
+                out = D.decide("line_kind", [{"text": "Run the deploy platform"}], backend="vega", reader_name="4b")
+        import huggingface_hub.constants as hf
+        import laya as maker
+        self.assertFalse(hf.HF_HUB_OFFLINE)  # a download was asked for
+        self.assertEqual(maker.CALLS[0][1]["vegaml"], "4b")
+        self.assertEqual(maker.CALLS[1][1], "Run the deploy platform")  # a posting line as plain text
+        self.assertEqual(out[0]["backend"], "vega:4b")
+
+    def test_offerowls_own_laya_py_never_passes_for_the_makers_package(self):  # src/decide is on the path when cli.py runs
+        shutil.rmtree(self.tmp / "laya")  # no maker's package at all
+        with mock.patch.object(sys, "path", [vega.HERE] + sys.path):
+            spec = importlib.machinery.PathFinder.find_spec("laya", vega.outside_path())
+            self.assertTrue(spec is None or os.path.dirname(spec.origin) != vega.HERE)  # the maker's, or nothing
+            if spec is None:  # no maker's package on this machine: the row says it is missing
+                with mock.patch.dict(os.environ, CLEAN, clear=True):
+                    self.assertIn("laya", vega.status()["why"])
 
 
 class Fixtures(unittest.TestCase):

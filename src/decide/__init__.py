@@ -11,6 +11,7 @@ Backends:
   rules   the rule-based checks Offerowl already has (default; no model, always available)
   agent   the chosen AI backend of src/llm.py, asked for typed JSON under a schema, many items per call
   laya    a small decision model on this PC (src/decide/laya.py), on the CPU
+  vega    the decision engine Laya's maker published next, on this PC through the maker's package (src/decide/vega.py)
   jev     a hosted decision model reached through a gateway key; off unless switched on, and its inputs leave this PC
 
 The backend comes from the argument, else OFFEROWL_DECIDE, else rules. Writing never goes through this package, so the
@@ -20,7 +21,7 @@ pipeline calls it, because no decision model has passed the measurement (the ver
 import os  # settings
 
 # The decision tasks. Each has its labels in a fixed order, the fields an item carries, and one question with a
-# description per label. The rules, the agent, Laya and Jev all answer the same question.
+# description per label. The rules, the agent, Laya, Vega and Jev all answer the same question.
 TASKS = {
     "line_kind": {
         "labels": ("duty", "requirement", "preferred"),  # what a posting line is
@@ -55,8 +56,8 @@ TASKS = {
                     "consistent": "no, both can be true"},
     },
 }
-BACKENDS = ("rules", "agent", "laya", "jev")  # the names a person can choose
-LOCAL = {"rules": True, "agent": None, "laya": True, "jev": False}  # does the input stay on this PC (None: it follows src/llm.py's backend)
+BACKENDS = ("rules", "agent", "laya", "vega", "jev")  # the names a person can choose
+LOCAL = {"rules": True, "agent": None, "laya": True, "vega": True, "jev": False}  # does the input stay on this PC (None: it follows src/llm.py's backend)
 
 
 class DecideUnavailable(RuntimeError):
@@ -94,7 +95,7 @@ def result(task: str, label: str, scores: dict | None, backend: str, ms: float, 
 
 def decide(task: str, items: list, *, backend: str | None = None, **opts) -> list:
     """One typed decision per item, in order. opts go to the backend (agent: cache, llm_backend, batch_chars;
-    laya: variant, batch; jev: none). Raises DecideUnavailable when the backend cannot answer."""
+    laya: variant, batch; vega: reader_name; jev: none). Raises DecideUnavailable when the backend cannot answer."""
     items = check_items(task, items)  # the shape first, so every backend gets the same input
     name = chosen(backend)  # which backend
     if not items:  # nothing to decide
@@ -108,13 +109,16 @@ def decide(task: str, items: list, *, backend: str | None = None, **opts) -> lis
     if name == "laya":  # the local decision model
         from decide import laya  # imported on use; it imports numpy and the runtimes only when a model loads
         return laya.decide(task, items, **opts)
+    if name == "vega":  # the maker's next engine, through its own package
+        from decide import vega  # imported on use; the package and the reader load only when a decision needs them
+        return vega.decide(task, items, **opts)
     from decide import jev  # the hosted decision model, only with a key and consent
     return jev.decide(task, items, **opts)
 
 
 def backend_info(lang: str = "en") -> list:
     """For the panel and the command line: each backend, whether it can answer now, and whether its input leaves this PC."""
-    from decide import jev, laya  # the two that need a check
+    from decide import jev, laya, vega  # the ones that need a check
     rows = [{"name": "rules", "ready": True, "local": True, "why": ""}]  # always there
     try:
         import llm  # the one door to a model
@@ -124,5 +128,6 @@ def backend_info(lang: str = "en") -> list:
     except Exception as e:  # noqa: BLE001  a broken setting must not hide the other rows
         rows.append({"name": "agent", "ready": False, "local": None, "why": str(e)})
     rows.append(dict({"name": "laya", "local": True}, **laya.status()))  # files and libraries on this PC
+    rows.append(dict({"name": "vega", "local": True}, **vega.status()))  # the maker's package and the reader on this PC
     rows.append(dict({"name": "jev", "local": False}, **jev.status(lang)))  # key, consent, and where the inputs go
     return rows

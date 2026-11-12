@@ -191,8 +191,10 @@ document (the resume as the canvas draws it, the cover letter, the interview boa
 
 - The server listens on 127.0.0.1 only, and holds its port alone (`src/ownport.py`): on Windows, Python's HTTP server would
   let a second server bind a port one is already listening on, and the two would share its requests.
-- Each server (the panel, the API alone, each kit's view) serves at most 64 requests at once; a connection that finds none
-  free for 10 seconds is closed unanswered (`src/ownport.py`).
+- Each server (the panel, the API alone, each kit's view) serves at most 64 requests at once (`OFFEROWL_MAX_REQUESTS`, 4 to
+  1024); a connection that finds none free for a second is answered 503 `busy` with `Retry-After: 2` at once, without a
+  thread of its own (`src/ownport.py`). The page sends that request again after the seconds asked, twice at most: it
+  never reached the API, so nothing of it was done.
 - A JSON body is at most 2 MB (else 403 `length`); a file upload is at most 60 MB, a photo 10 MB and a backup 500 MB (else
   413 `too_large`), each refused before its body is read. A job's material has a cap of its own ([Writes](#writes-post)).
 - It answers only when the `Host` header names this PC and its port, which stops DNS rebinding.
@@ -213,6 +215,12 @@ document (the resume as the canvas draws it, the cover letter, the interview boa
   address for the check and another for the connection; through a proxy of the person's settings (`HTTP_PROXY`,
   `HTTPS_PROXY`) the name is checked first and the proxy resolves it. Every redirect is checked the same way. One time
   limit covers the whole fetch, the size is capped, and only the page's text is kept.
+- The panel's page loads nothing from elsewhere and frames no address at all: its policy allows its own scripts and
+  styles, pictures from itself or written into the page (`data:`), media from itself and from `blob:` (a practice answer
+  played back from its recording, which never leaves the page except to the kit's transcriber), no frame source
+  (`frame-src 'none'`: a deck's or a saved web page's preview is written into its frame), and no page may frame it. The
+  interview tab draws every part itself from the API's data; script text is set as text, and the kit's cards go through
+  the kit's own escaping.
 - The interview kit's pages, served at the panel's address (`/kit/<job>/`), run only the scripts they were built with:
   each page names its scripts by their hashes in its own policy, its data block has no `<` at all, and its print keys
   carry no handler in an attribute. In the panel every path a kit's `kit.json` names stays inside the workspace (a
@@ -220,6 +228,33 @@ document (the resume as the canvas draws it, the cover letter, the interview boa
 - The command bar's agent fetches only the links written in the person's own words (`OFFEROWL_MCP_LINKS`), and is told
   that what it reads through the tools is material, never instructions: a posting cannot send what the agent read to a
   server of its own in a link's query. Offerowl never opens a CLI's own files, its settings included.
+
+### Load and stops
+
+What keeps the panel whole when much is asked at once, when it is stopped, and when it crashes:
+
+- **Many requests at once.** The request slots above: past them a client is told `busy` and when to try again, where a
+  thread each would grow without end. A request's body has its cap and a socket its time limit (Safety). The system holds
+  512 connections for the accept loop: with Python's own 5 the rest of a burst was dropped and its clients asked again a
+  second, then 3, 7 and 15 seconds later. Measured on a 32-core PC, 1,000 requests for the state at once: 100 timed out
+  after 30 seconds with 5, and all were answered within 7 seconds with 512.
+- **What a load costs.** The state is a few milliseconds of work and a poll that finds nothing changed gets 304; the page's
+  own files (index.html, its scripts and styles) come with an ETag and `no-cache`, compressed for a browser that takes
+  gzip: a first load fetches 260 KB instead of 932, and a reload gets 304 for each file it holds, while a changed file
+  comes again at once.
+- **Heavy work at once.** One model task runs at a time (`model_lock`) and one rendering (`render_lock`: LibreOffice and
+  Chromium), so documents asked for together are made one after the other within the memory one of them needs, never all
+  at once past it. A task that waits its turn says so on the page (step `waiting_turn`) and shows its own step again once
+  it runs. One task per key: a second click on a running task starts nothing.
+- **A stop.** SIGTERM or SIGHUP (`docker stop`, a pod's end, the desktop app's quit) ends the panel as Ctrl+C does: no new
+  request is taken, the ones being answered finish (up to `OFFEROWL_STOP_GRACE` seconds, 5), the tasks still running are
+  named in `logs/panel.log`, and the port is let go. A running task ends with the panel; the page starts it again.
+- **A crash.** Every file is written to a file of its own beside its place and moved there whole, so a kill at any moment
+  leaves the last finished write, and the next start sweeps what a stopped write left. Compose starts a crashed panel
+  again three times at most (`restart: on-failure:3`), Kubernetes replaces its pod (the probes ask `/health`), and the
+  desktop app restarts its server within a limit.
+- **Several people.** With the chart's `tenants` each person has a pod, limits and a claim of their own, so one person's
+  load or crash never reaches another's panel.
 
 ### Reads (GET)
 
@@ -238,6 +273,10 @@ document (the resume as the canvas draws it, the cover letter, the interview boa
 | `/api/v1/jobs/<job>` | One job with its posting |
 | `/api/v1/jobs/<job>/fit` | The fit (`job.schema.json#/$defs/fit`): a score from 0 to 100, each posting line rated strong, weak or none with the evidence that covers it, and the gaps. Worked out by words, with no model |
 | `/api/v1/jobs/<job>/interview?lang=ko` | The interview board (`documents/interview.schema.json`): the question map by category, the script cards with the dialogue first and its translation as one note below, and the links to the kit's search view, practice mode, cue cards and interview deck |
+| `/api/v1/jobs/<job>/interview/view?lang=ko` | What the Interview tab's contents, search and script cards read (`apps/panel/static/kit.js`): every item with its script, the other phrasings, the kit's settings, the synonym groups and the view's words in the panel's language (`src/interview/server.py` view_data), with `model` (a similarity model can be switched on), `api` (`/kit/<job>/`, where its similarity questions go) and `stamp` (changes when a kit file does). With an ETag: asked again with `If-None-Match`, an unchanged kit is a 304 with no body. 404 `no_kit` with no kit |
+| `/api/v1/jobs/<job>/interview/deck?lang=ko` | The interview deck as data, for the tab's Deck part (`src/interview/deck.py` data): `{company, role, english, words, counts, posting, scenes, stall}`, the same scripts in the same order as the printed deck, each line as written with its speech marks, the deck's words in the language asked. With an ETag, as the view. 404 `no_kit` with no kit |
+| `/api/v1/jobs/<job>/talk/script` | The talk's speaker script as data, for the Presentation part (`src/interview/talk_page.py` script_data): `{title, sub, notes, parts, slides, qa, words, at}`, each slide with its time, the running total, whether it has a picture, where to point, its lines, the line when late, the questions to expect and whether its words are a draft. 404 `no_talk` before a talk is made |
+| `/api/v1/jobs/<job>/talk/slides/<n>.png` | The picture of the talk's n-th slide (1 for the first), by its place only; 404 when there is none |
 | `/api/v1/jobs/<job>/talk` | The presentation interview: the brief as kept (`jobs/<job>/interview/talk.json`), whether the talk is made, and when it is, its slides, its scripted seconds against the brief's minutes, and the checks' counts (layout defects, slides whose words do not fit their time, texts the checks dropped) |
 | `/api/v1/workspace/backup` | The whole workspace as one zip file to save |
 | `/api/v1/jobs/<job>/deck/<lang>?theme=` | The deck as it will print, for the canvas's frame: `{html, slides}`, or `{missing}` when it cannot be drawn yet. The page holds its pictures and runs no script. Nothing stays in the engine's folder |

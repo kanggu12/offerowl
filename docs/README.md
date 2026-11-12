@@ -231,10 +231,24 @@ hashes, so you can always see what you sent; the export of a submitted applicati
 
 ## 6. Prepare for the interview
 
-Open an application's **Interview** tab. It has four parts: **Search the scripts**, where it opens, **Interview deck**,
-**Question map and scripts** and **Presentation**; before the kit is made it offers **Make the question map**, made on your PC
-with no agent, and **Prepare a presentation**. On **Question map and scripts**, the question map comes from the posting, your
-resume, your deck once its PDF is made, and the terms you used, by category, with a lamp for whether a script answers each question.
+Open an application's **Interview** tab. It has five parts: **Search the scripts**, where it opens, **Interview deck**,
+**Practice**, **Question map and scripts** and **Presentation**, each drawn in the panel's own look; before the kit is made it
+offers **Make the question map**, made on your PC with no agent, and **Prepare a presentation**.
+
+**Search the scripts** opens on the contents: every section of your scripts with each script's title, a key per section
+above them, and the box for the question. Type the question as the interviewer asks it, or a word from it: the closest
+scripts come up on a board of columns, the best first, English first with the translation in a note under it, and the
+answers on the board listed beside it. Escape once keeps the answers and selects the question for the next one; twice goes
+back to the contents. **Wide view** gives the scripts the whole width, and **Open in a window** puts them in a window of
+their own.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/guide-interview-contents-dark.png">
+  <img alt="An application's Interview tab on Search the scripts: the question box and a key for each section above the contents, every section a sheet with its scripts' numbers and titles" src="assets/guide-interview-contents-light.png">
+</picture>
+
+On **Question map and scripts**, the question map comes from the posting, your resume, your deck once its PDF is made, and
+the terms you used, by category, with a lamp for whether a script answers each question.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/guide-interview-board-dark.png">
@@ -251,13 +265,14 @@ posting, resume and deck. Each script joins the search view and practice as soon
 English first, the translation under it, the interviewer dimmed. Each answer marks breaths, sentence ends, stress and one key phrase. What a
 draft says you did is checked against your documents; what it says about how a tool works comes from the agent's own knowledge.
 
-- **Open the search view**: type a word from the question and the scene comes up.
-- **Practice**: the app asks, you answer aloud, and it shows your length and pauses, and where you left your facts. A transcript needs
-  faster-whisper and its speech model on this PC (`OFFEROWL_WHISPER_DOWNLOAD=1` lets it download the model once); without them you type
-  what you said.
+- **Interview deck**: the posting line by line with the script for each line, then one script per likely question in the
+  order an interview runs, each with its translation and notes beside it. **Interview deck to print** gives the same on 16:9
+  pages to read before the day.
+- **Practice**: the app asks, you answer aloud or type, and it shows your length and pauses, your fillers, where you left
+  your facts and whether the key phrase landed, then the script itself. A transcript needs faster-whisper and its speech
+  model on this PC (`OFFEROWL_WHISPER_DOWNLOAD=1` lets it download the model once); without them you type what you said.
+  The microphone is on only between Record and Stop.
 - **Cue cards to print**: one scene per card.
-- **Interview deck to print**: the posting line by line with its scripts, then one script per likely question in the
-  order an interview runs, on 16:9 pages to read before the day.
 
 **Your materials**, under the scripts, keeps what you prepared for this interview with other tools: explainer decks and their
 PDFs, study notes and company briefs, form answers, live-coding solutions and pictures (PDF, PowerPoint, Word, Markdown, HTML,
@@ -327,12 +342,12 @@ Offerowl never opens the CLI's login files.
 | A local model | Start Ollama, vLLM or LM Studio. In **Settings**, set **AI agent** to **Local model** and type the server's address. `OFFEROWL_LLM=openai-compat` and `OFFEROWL_LLM_URL`, set before starting, do the same and win over a saved choice ([USAGE.md](USAGE.md#the-ai-backend)) |
 | No AI | Leave the switch off. You still get the canvas, the fit by words, typesetting, every check, search, practice and the tracker |
 
-**The command bar.** The key at the bottom right of every view (on a phone or a tablet, the bar along the foot of the screen),
-or Ctrl+K (Cmd+K on a Mac), opens a bar where you write to the
-agent as you would to Claude Code: an interview's result to record, a posting to make a resume for, a question about your
-applications. It acts through Offerowl's own tools only, the answer names the tools that ran, and undo takes back what it changed.
-Enter sends, Shift+Enter starts a new line, and Escape closes the bar. It needs Claude Code or Codex
-([how it runs](APP.md#the-command-bar)).
+**Ask the AI.** The box in the top bar, **Ask the AI** (on a phone or a tablet, the bar along the foot of the screen), or
+Ctrl+K (Cmd+K on a Mac), opens a sheet at the window's right edge where you write to the agent as you would to Claude Code:
+an interview's result to record, a posting to make a resume for, a question about your applications. It acts through
+Offerowl's own tools only, the answer names the tools that ran, and undo takes back what it changed. Enter sends,
+Shift+Enter starts a new line, and Escape closes the sheet. It needs Claude Code or Codex, switched on and signed in; until
+then the sheet says so and opens the agent's panel ([how it runs](APP.md#the-command-bar)).
 
 With an agent on, each action that sends something says so in orange, **Goes to the agent**, and says what it sends. The rest say **Stays on
 this PC** in blue. Practice says so beside its agent switch.
@@ -389,7 +404,7 @@ you no longer need it. A backup holds everything you added, including what waits
 | Arrows, Home, End | Move between the inspector's tabs and an application's tabs; the left and right arrows also move between the setup guide's steps |
 | F2 | Type over the sentence in view on the canvas |
 | Escape | Close what is open |
-| Ctrl+K (Cmd+K on a Mac) | Open or close the command bar |
+| Ctrl+K (Cmd+K on a Mac) | Open or close **Ask the AI** |
 | Ctrl+Z, outside a field | Undo |
 
 The panel runs from a phone to a 2560-pixel screen. Make's three columns become two below 1280 pixels and one on a phone, the inspector

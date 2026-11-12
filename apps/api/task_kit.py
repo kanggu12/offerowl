@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from pathlib import Path  # paths
+import hashlib  # a short stamp of the kit's files
 import logging  # the panel's log
 import re  # names and patterns
 import threading  # threads and locks
+import urllib.parse  # a job's name in an address
 
 from .workspace import read_json, write_json  # noqa: E402
 
@@ -32,7 +34,7 @@ class Kits:
         built and stopped outside the lock, so one job's first open never holds another job's request, and a server let go
         stops after KIT_GRACE seconds, so a request already on its way to it is answered. None when src/interview/ is
         missing, the job has no kit yet, or it would not start."""
-        if not self.interview_available() or not (self.ws.job_dir(job_id) / "interview").is_dir():  # nothing to serve
+        if not self.interview_available() or not (self.ws.job_dir(job_id) / "interview").is_dir():  # nothing to serve (a talk alone has the folder: its PDFs come from this server)
             return None
         backend = self.backend()  # the agent practice would talk to now
         with self.kit_lock:
@@ -43,10 +45,15 @@ class Kits:
                 return f"http://127.0.0.1:{got[0].server_address[1]}/"
         if got:  # made with another agent: let go, a new one below
             self._stop_kit_later(got[0])
+        from interview import dense  # the optional similarity model's setting; standard library only until it is switched on
         from interview import server as iv  # src/interview/server.py
         from interview.job import Job  # the kit's job folder
+        model, problem = dense.from_setting()  # the folder OFFEROWL_SEARCH_MODEL names: the kit's page then has its similarity switch
+        if problem:  # a folder without the model's files: no switch, and the log says why
+            log.warning("%s: no %s in that folder; the kit searches by keywords only", dense.SETTING, problem)
         try:
-            srv, _ = iv.make_server(Job(self.ws.job_dir(job_id), confined=True), port=0, host="127.0.0.1", backend=backend)  # a free port; only this process reaches it
+            srv, _ = iv.make_server(Job(self.ws.job_dir(job_id), confined=True), port=0, host="127.0.0.1", backend=backend,  # a free port; only this process reaches it
+                                    model_dir=model)  # off until the page's switch loads it; each job's kit holds its own copy while on
         except (OSError, SystemExit) as exc:  # the kit is unreadable
             log.warning("interview kit for %s did not start: %s", job_id, exc)
             return None
@@ -62,6 +69,40 @@ class Kits:
             while len(self.kit_srvs) > KIT_KEEP:  # the oldest beyond the few kept
                 self._stop_kit_later(self.kit_srvs.pop(next(iter(self.kit_srvs)))[0])
         return f"http://127.0.0.1:{srv.server_address[1]}/"
+
+    def kit_view(self, job_id: str, lang: str = "ko") -> dict | None:
+        """What the panel's own script view reads (src/interview/server.py view_data): the job's items with their scripts,
+        the phrasings, the kit's settings, the synonym groups and the view's words in the panel's language, with whether a
+        similarity model can be switched on and the address its questions go to. Read from the job's own kit server, which
+        keeps the parsed files until one changes. None when the job has no kit or it would not start."""
+        if not (self.ws.job_dir(job_id) / "interview" / "kit.json").is_file():  # no kit: a talk's brief alone makes the folder, not the scripts (the board and the deck say the same)
+            return None
+        base = self.kit_url(job_id)  # this job's kit server, started when it is not up
+        with self.kit_lock:
+            got = self.kit_srvs.get(job_id)
+        if not base or not got:
+            return None
+        from interview import server as iv  # src/interview/server.py
+        handler = got[0].RequestHandlerClass  # the server's own index and model
+        index = handler.index
+        index.ensure()  # the files read again when one changed
+        data = iv.view_data(index.job, index.items, index.alts, lang=lang, model=handler.dense is not None)
+        data["api"] = "/kit/" + urllib.parse.quote(job_id, safe="") + "/"  # where the view asks for similarity (web.py kit_proxy)
+        data["stamp"] = hashlib.sha1(repr(index.stamp).encode("utf-8")).hexdigest()[:12]  # changes when a kit file does
+        return data
+
+    def kit_deck(self, job_id: str, lang: str = "ko") -> dict | None:
+        """What the panel's own interview deck draws (src/interview/deck.py data): the same scripts in the same order as the
+        printed deck, each line as written, with the deck's words in the panel's language. None when the job has no kit."""
+        if not self.interview_available() or not (self.ws.job_dir(job_id) / "interview" / "kit.json").is_file():  # nothing to draw
+            return None
+        from interview import deck as ivdeck  # src/interview/deck.py
+        from interview.job import Job  # the kit's job folder
+        try:
+            return ivdeck.data(Job(self.ws.job_dir(job_id), confined=True), lang=lang)  # read from the files as they are now
+        except (OSError, SystemExit) as exc:  # the kit is unreadable: said in the log, the panel says the deck could not be read
+            log.warning("interview deck for %s could not be read: %s", job_id, exc)
+            return None
 
     @staticmethod
     def _stop_kit_later(srv) -> None:
@@ -145,9 +186,14 @@ class Kits:
     # ---- the presentation interview (src/interview/talk.py)
 
     def talk_folder(self, job_id: str) -> Path:
-        """Where a job's talk is written: the kit's output folder, as the command line writes it."""
+        """Where a job's talk is written: the kit's output folder, as the command line writes it. A job with no interview
+        folder at all (the general edition, a job never tailored) has none: a folder that does not exist then, so its talk
+        reads as not made instead of ending the request (the kit's Job stops a command with SystemExit)."""
         from interview.job import Job  # noqa: E402
-        return Job(self.ws.job_dir(job_id), confined=True).out_path() / "talk"
+        try:
+            return Job(self.ws.job_dir(job_id), confined=True).out_path() / "talk"
+        except SystemExit:  # no interview folder
+            return self.ws.job_dir(job_id) / "interview" / "out" / "talk"  # nothing is there
 
     def talk_brief(self, job_id: str) -> dict:
         """The person's brief for the job's talk, as written (jobs/<job>/interview/talk.json), {} when none."""
@@ -189,6 +235,29 @@ class Kits:
                        at=int(f.stat().st_mtime), pdf=(self.talk_folder(job_id) / "deck.pdf").is_file(), script=(self.talk_folder(job_id) / "script.pdf").is_file())
         return out
 
+    def talk_script(self, job_id: str) -> dict | None:
+        """The talk's speaker script as the panel draws it (src/interview/talk_page.py script_data): every slide with its time,
+        what to say, where to point and the questions to expect, then the questions with what backs each answer. None when
+        no talk is made."""
+        from interview import talk_page  # noqa: E402
+        folder = self.talk_folder(job_id)  # where the talk was written
+        made = read_json(folder / "talk.json", None)  # as make() wrote it
+        if not isinstance(made, dict) or not made.get("slides"):  # not made yet, or being written
+            return None
+        try:
+            out = talk_page.script_data(made, folder)  # what the printed script holds
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:  # a file from an older version, an edited or a planted one: said in the log
+            log.warning("the talk's script for %s could not be read: %s", job_id, exc)
+            return None
+        out["at"] = int((folder / "talk.json").stat().st_mtime)  # the pictures' addresses change with each new talk
+        return out
+
+    def talk_slide(self, job_id: str, n: int) -> Path | None:
+        """The picture of the talk's n-th slide (1 for the first), or None."""
+        from interview import talk_page  # noqa: E402
+        pics = talk_page.pictures(self.talk_folder(job_id))  # one per slide, in order
+        return pics[n - 1] if 1 <= n <= len(pics) else None
+
     def make_talk(self, job_id: str, lang: str = "ko") -> bool:
         """The presentation interview's deck and script (task "talk:<job>")."""
         return self.start(f"talk:{job_id}", self._make_talk, job_id, lang)
@@ -199,7 +268,7 @@ class Kits:
         from interview.job import Job  # noqa: E402
         self._set(key, step="talk")  # the page says what runs
         job = Job(self.ws.job_dir(job_id), confined=True)  # the kit, kept inside the workspace: its files go into the agent's prompts
-        with self.model_lock, self.render_lock:  # the agent's words, then the deck's printing
+        with self.turn(key, self.model_lock, self.render_lock):  # the agent's words, then the deck's printing; said while it waits
             backend = self.backend()  # which agent, 'none' when off
             try:
                 summary = ivtalk.make(job, lang=lang, backend=backend, log=log.info)  # plan, write, draw, check

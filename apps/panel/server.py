@@ -22,7 +22,10 @@ import logging.handlers  # a capped log file
 import mimetypes  # content types of the page's files
 import os  # environment
 import re  # routes and names
+import signal  # a stop asked by the container, Kubernetes or the desktop app
 import sys  # paths
+import threading  # the stop runs beside the loop it ends
+import time  # how long a stop waits
 from pathlib import Path  # paths
 
 if __package__ in (None, ""):  # started as a file (python3 apps/panel/server.py): make the relative imports work
@@ -49,13 +52,13 @@ class Handler(ApiHandler):
     def extra_get(self, path: str) -> bool:
         """The page's own GET paths. True when answered."""
         if path in ("/", "/index.html"):  # the page itself
-            self.send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")  # never cached
+            self.send_file(STATIC / "index.html", "text/html; charset=utf-8")  # asked about every time, 304 when unchanged
             return True  # answered
         m = re.fullmatch(r"/static/([\w.\-]+(?:/[\w.\-]+)?)", path)  # the page's files
         if m and ".." not in m.group(1) and (STATIC / m.group(1)).is_file():  # never a file outside static/
             ctype = mimetypes.guess_type(m.group(1))[0] or "application/octet-stream"  # by the file's extension
             ctype += "; charset=utf-8" if ctype.startswith(("text/", "application/javascript")) else ""  # Korean text decodes right
-            self.send(200, (STATIC / m.group(1)).read_bytes(), ctype)  # not cached: page and scripts stay in step
+            self.send_file(STATIC / m.group(1), ctype)  # page and scripts stay in step: asked about every time, 304 when unchanged
             return True  # answered
         m = re.fullmatch(r"/fonts/(Pretendard-(?:Regular|SemiBold|Bold)\.ttf)", path)  # the repository's own fonts
         if m and (ROOT / "fonts" / m.group(1)).is_file():  # a copy without the fonts answers 404
@@ -126,6 +129,57 @@ def serve(port: int = PORT, host: str = "127.0.0.1", data: Path | None = None, w
     return srv  # the caller runs serve_forever()
 
 
+STOP_GRACE = 5.0  # seconds a stop waits for the requests being answered (OFFEROWL_STOP_GRACE): under Docker's 10 and Kubernetes' 30
+
+
+def stop_on_signal(srv) -> None:
+    """SIGTERM (a container's stop, Kubernetes', the desktop app's) and SIGHUP end serve_forever as Ctrl+C does. shutdown()
+    waits for the loop, which the signal interrupted on this very thread, so it runs on a thread of its own."""
+    def stop(signum, _frame):
+        log.info("stopping: signal %s", signum)  # why it ended, for the log
+        threading.Thread(target=srv.shutdown, name="stop", daemon=True).start()  # serve_forever returns, then main winds down
+    for name in ("SIGTERM", "SIGHUP"):  # SIGHUP is not on Windows
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:  # only the main thread may set a handler; a caller on another thread keeps the default
+            signal.signal(sig, stop)
+        except (ValueError, OSError):
+            pass
+
+
+def wind_down(srv, grace: float | None = None) -> None:
+    """After the last request was accepted: the requests being answered finish (up to grace seconds, OFFEROWL_STOP_GRACE),
+    the tasks still running are named in the log (they end with the panel; the page starts them again, and every file
+    they write is written whole or not at all), and the port is let go."""
+    if grace is None:  # the setting, else the default
+        try:
+            grace = float(os.environ.get("OFFEROWL_STOP_GRACE") or STOP_GRACE)
+        except ValueError:
+            grace = STOP_GRACE
+    api = Handler.panel  # the state of the tasks
+    running = []
+    if api is not None:
+        with api.tasks.state_lock:  # read under the lock
+            running = sorted(k for k, v in api.tasks.tasks.items() if (v or {}).get("state") == "running")
+    if running:
+        log.warning("stopping while these run; they end with the panel and are started again from the page: %s", ", ".join(running))
+    slots, cap = getattr(srv, "_slots", None), getattr(srv, "cap", 0)  # src/ownport.py's request slots
+    end = time.monotonic() + max(0.0, grace)
+    got = 0  # slots free again: each one's request was answered
+    while slots is not None and got < cap:
+        left = end - time.monotonic()
+        if left <= 0 or not slots.acquire(timeout=left):  # the grace is over
+            break
+        got += 1
+    for _ in range(got):  # given back: nothing else waits for them, but the server stays as it was
+        slots.release()
+    if slots is not None and got < cap:
+        log.warning("stopping with %d request(s) still being answered", cap - got)
+    srv.server_close()  # the port is free again
+    log.info("panel stopped")
+
+
 def main(argv: list | None = None) -> int:  # the command line; argv lets a caller pass its own
     for stream in (sys.stdout, sys.stderr):  # what the engine's steps print holds Korean names and paths: UTF-8 whatever the console
         if hasattr(stream, "reconfigure"):
@@ -149,10 +203,12 @@ def main(argv: list | None = None) -> int:  # the command line; argv lets a call
         print(f"offerowl panel: {exc.strerror}. `offerowl open` shows a panel that is running; `offerowl panel --port <number>` starts one on another port.",
               file=sys.stderr, flush=True)
         return 2  # the start failed
+    # set before the address is printed: whoever starts the panel may stop it the moment it reads the address, and a stop
+    # that comes before serve_forever ends it as soon as it starts
+    stop_on_signal(srv)
     url = f"http://127.0.0.1:{srv.server_address[1]}/"  # its address
     print(url, flush=True)  # for whoever started it
-    if a.open:  # --open was given
-        import threading  # the browser is asked once the server below is serving
+    if a.open:  # --open was given: the browser is asked once the server below is serving
         sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))  # the engine's flat modules
         from open_page import open_page  # never a terminal browser, which waited here before the server served (w3m under WSL)
         later = threading.Timer(0.3, open_page, args=(url,))  # a moment after serve_forever starts
@@ -162,6 +218,8 @@ def main(argv: list | None = None) -> int:  # the command line; argv lets a call
         srv.serve_forever()  # until stopped
     except KeyboardInterrupt:  # Ctrl+C in the terminal
         pass  # a normal stop, no traceback
+    finally:  # however it ended: the requests being answered finish, and the running tasks are named in the log
+        wind_down(srv)
     return 0  # a clean exit
 
 

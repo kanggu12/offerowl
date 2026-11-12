@@ -38,15 +38,15 @@ Copy the file and start it ([installing](INSTALL.md#1-the-desktop-app)). Turn th
 On a connected PC:
 
 ```bash
-docker pull ghcr.io/kanggu12/offerowl-app:0.7.0
-docker save ghcr.io/kanggu12/offerowl-app:0.7.0 | gzip > offerowl-app-0.7.0.tar.gz
+docker pull ghcr.io/kanggu12/offerowl-app:0.8.0
+docker save ghcr.io/kanggu12/offerowl-app:0.8.0 | gzip > offerowl-app-0.8.0.tar.gz
 ```
 
 Carry that file and `deploy/docker/compose.yaml`. On the closed side:
 
 ```bash
-docker load -i offerowl-app-0.7.0.tar.gz
-OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.7.0 \
+docker load -i offerowl-app-0.8.0.tar.gz
+OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.8.0 \
   docker compose -f compose.yaml up -d --no-build --pull never
 ```
 
@@ -57,18 +57,18 @@ Then open http://127.0.0.1:8797 in a browser on that PC.
 On a connected PC, save the image as above and fetch the chart:
 
 ```bash
-helm pull oci://ghcr.io/kanggu12/charts/offerowl --version 0.7.0
+helm pull oci://ghcr.io/kanggu12/charts/offerowl --version 0.8.0
 ```
 
 On the closed side, push the image to your registry and install from the file:
 
 ```bash
-docker load -i offerowl-app-0.7.0.tar.gz
-docker tag ghcr.io/kanggu12/offerowl-app:0.7.0 registry.internal/offerowl-app:0.7.0
-docker push registry.internal/offerowl-app:0.7.0
+docker load -i offerowl-app-0.8.0.tar.gz
+docker tag ghcr.io/kanggu12/offerowl-app:0.8.0 registry.internal/offerowl-app:0.8.0
+docker push registry.internal/offerowl-app:0.8.0
 
-helm install offerowl ./offerowl-0.7.0.tgz --namespace offerowl --create-namespace \
-  --set image.repository=registry.internal/offerowl-app --set image.tag=0.7.0 \
+helm install offerowl ./offerowl-0.8.0.tgz --namespace offerowl --create-namespace \
+  --set image.repository=registry.internal/offerowl-app --set image.tag=0.8.0 \
   --set ai.backend=openai-compat --set ai.url=http://models.internal:11434 --set ai.model=<model name>
 ```
 
@@ -81,7 +81,7 @@ checkout of the release's tag:
 
 ```bash
 mkdir carry
-cp offerowl-0.7.0-py3-none-any.whl carry/       # from the Releases page
+cp offerowl-0.8.0-py3-none-any.whl carry/       # from the Releases page
 pip download "pillow==13.0.0; python_version >= '3.11'" "pillow==12.3.0; python_version < '3.11'" "pypdfium2==5.14.0" -d carry   # the versions the release was tested with
 npm ci --omit=dev && tar -czf carry/node_modules.tar.gz node_modules
 ```

@@ -41,9 +41,15 @@ def rich(text: str) -> str:
     return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
 
 
-def script_html(result: dict, folder: pathlib.Path, served: bool = False, keys: bool = True) -> str:
-    """The printable script of a talk (talk.json as make() writes it), with the slides' pictures from folder/thumbs. served: the
-    page the kit's server shows (its own font file, and the keys to the two PDFs) rather than the one printed here."""
+def pictures(folder: pathlib.Path) -> list:
+    """The slides' pictures (folder/thumbs), one per slide in its order: slide-10 after slide-9."""
+    return sorted((folder / "thumbs").glob("slide*.png"), key=lambda f: int(re.sub(r"\D", "", f.stem) or 0))
+
+
+def script_data(result: dict, folder: pathlib.Path) -> dict:
+    """The talk's script as data: what the printed script holds, for the page below and for the Offerowl panel, which draws it
+    with its own parts. Every line is as written (its **stress** and ==key phrase== are drawn by the reader); a slide's
+    picture is named by its place among pictures(folder); the words are the talk's own language's."""
     brief = result["brief"]
     lang = brief["lang"]
     W = WORDS[lang]
@@ -51,11 +57,11 @@ def script_html(result: dict, folder: pathlib.Path, served: bool = False, keys: 
     accent = accent if re.fullmatch(r"#[0-9a-fA-F]{6}", accent) else "#1B2E4B"  # only a colour: a planted talk.json must not reach the style
     num = lambda v: int(v) if isinstance(v, (int, float)) or (isinstance(v, str) and v.isdigit()) else 0  # noqa: E731  a page or a time, as a number only
     slides = result["slides"]
-    pics = sorted((folder / "thumbs").glob("slide*.png"), key=lambda f: int(re.sub(r"\D", "", f.stem) or 0))  # one per slide, by its number (slide-10 after slide-9)
+    pics = pictures(folder)  # one per slide
     total = sum(num(s.get("seconds")) for s in slides)
     when = (brief.get("when") + ", ") if brief.get("when") else ""
     who = " ".join(x for x in (result.get("company"), ) if x) or (slides[0].get("name") if slides else "")
-    rows, run = [], 0  # the parts' table
+    parts, run = [], 0  # the parts' table
     groups = [(W["start"], [s for s in slides if s["kind"] in ("cover", "agenda")])]
     for i, p in enumerate(result.get("parts") or []):
         groups.append((f"{p['no']} {p['title']}", [s for s in slides if s["part"] == i and s["kind"] not in ("cover", "agenda", "end")]))
@@ -66,21 +72,16 @@ def script_html(result: dict, folder: pathlib.Path, served: bool = False, keys: 
         sec = sum(num(s.get("seconds")) for s in mine)
         run += sec
         a, b = num(mine[0].get("page")), num(mine[-1].get("page"))
-        rows.append(f"<tr><td>{H.escape(name)}</td><td>{W['page'].format(n=a) if a == b else W['range'].format(a=a, b=b)}</td><td>{clock(sec)}</td><td>{clock(run)}</td></tr>")
-    blocks, run, qa = [], 0, []
+        parts.append({"name": name, "pages": W["page"].format(n=a) if a == b else W["range"].format(a=a, b=b), "time": clock(sec), "run": clock(run)})
+    out, run, qa = [], 0, []
     for i, s in enumerate(slides):
         run += num(s.get("seconds"))
         sc = s.get("script") or {}
-        img = f'<img src="data:image/png;base64,{base64.b64encode(pics[i].read_bytes()).decode()}" alt="">' if i < len(pics) else '<div class="noimg"></div>'
-        body = (f'<p class="pt"><i>{W["point"]}</i>{rich(sc["cue"])}</p>' if sc.get("cue") else "") + \
-            "".join(f"<p>{rich(x)}</p>" for x in sc.get("lines") or []) + \
-            (f'<p class="sh"><i>{W["short"]}</i>{rich(sc["short"])}</p>' if sc.get("short") else "") + \
-            "".join(f'<p class="ak"><i>{W["ask"]}</i>{rich(q["q"])}</p>' for q in sc.get("questions") or []) + \
-            (f'<p class="dr"><i>{W["draft"]}</i>{W["draft_tip"]}</p>' if sc.get("rule") else "")
-        qa += [(q, num(s.get("page"))) for q in sc.get("questions") or [] if isinstance(q, dict) and q.get("q")]
-        title = s.get("title") or s.get("name") or ""  # a divider is named by its part
-        blocks.append(f'<section class="b"><div class="l">{img}<div class="tm"><b>{clock(num(s.get("seconds")))}</b><span>{W["run"]} {clock(run)}</span></div></div>'
-                      f'<div class="r"><h2><i>{num(s.get("page"))}</i>{H.escape(str(title))}</h2>{body}</div></section>')
+        out.append({"page": num(s.get("page")), "title": str(s.get("title") or s.get("name") or ""),  # a divider is named by its part
+                    "time": clock(num(s.get("seconds"))), "run": clock(run), "picture": i < len(pics),  # its time, the running total, whether it has a picture
+                    "cue": str(sc.get("cue") or ""), "lines": [str(x or "") for x in sc.get("lines") or []], "short": str(sc.get("short") or ""),  # where to point, what to say, the line when late
+                    "ask": [str(q["q"] or "") for q in sc.get("questions") or []], "draft": bool(sc.get("rule"))})  # empty values print nothing, as rich() prints them  # the questions to expect; words made from the slide itself
+        qa += [{"q": str(q["q"]), "a": str(q.get("a") or ""), "page": num(s.get("page"))} for q in sc.get("questions") or [] if isinstance(q, dict) and q.get("q")]
     checks = result.get("checks") or {}
     notes = []
     if checks.get("pace"):
@@ -88,10 +89,34 @@ def script_html(result: dict, folder: pathlib.Path, served: bool = False, keys: 
     lay = sum(len(x.get("issues") or []) for x in checks.get("layout") or [])
     if lay:
         notes.append(W["layout"].format(n=lay))
+    return {"lang": lang, "accent": accent, "title": W["title"].format(who=who).strip(" ,"),
+            "sub": W["sub"].format(when=when, n=len(slides), m=round(total / 60), t=brief["minutes"]), "notes": notes, "parts": parts, "slides": out, "qa": qa,
+            "words": {k: W[k] for k in ("part", "pages", "time", "run", "point", "short", "ask", "qa", "late", "late_tip", "speak", "speak_tip", "draft", "draft_tip", "page")}}
+
+
+def script_html(result: dict, folder: pathlib.Path, served: bool = False, keys: bool = True) -> str:
+    """The printable script of a talk (talk.json as make() writes it), with the slides' pictures from folder/thumbs. served: the
+    page the kit's server shows (its own font file, and the keys to the two PDFs) rather than the one printed here."""
+    d = script_data(result, folder)  # what it holds
+    lang, accent, W = d["lang"], d["accent"], WORDS[d["lang"]]
+    pics = pictures(folder)  # one per slide
+    rows = [f"<tr><td>{H.escape(r['name'])}</td><td>{r['pages']}</td><td>{r['time']}</td><td>{r['run']}</td></tr>" for r in d["parts"]]
+    blocks = []
+    for i, s in enumerate(d["slides"]):
+        img = f'<img src="data:image/png;base64,{base64.b64encode(pics[i].read_bytes()).decode()}" alt="">' if s["picture"] else '<div class="noimg"></div>'
+        body = (f'<p class="pt"><i>{W["point"]}</i>{rich(s["cue"])}</p>' if s["cue"] else "") + \
+            "".join(f"<p>{rich(x)}</p>" for x in s["lines"]) + \
+            (f'<p class="sh"><i>{W["short"]}</i>{rich(s["short"])}</p>' if s["short"] else "") + \
+            "".join(f'<p class="ak"><i>{W["ask"]}</i>{rich(q)}</p>' for q in s["ask"]) + \
+            (f'<p class="dr"><i>{W["draft"]}</i>{W["draft_tip"]}</p>' if s["draft"] else "")
+        blocks.append(f'<section class="b"><div class="l">{img}<div class="tm"><b>{s["time"]}</b><span>{W["run"]} {s["run"]}</span></div></div>'
+                      f'<div class="r"><h2><i>{s["page"]}</i>{H.escape(s["title"])}</h2>{body}</div></section>')
+    qa = [(q, q["page"]) for q in d["qa"]]
+    notes = d["notes"]
     font = lambda w, f: ('@font-face { font-family: "Pretendard"; font-weight: 100 900; src: url("fonts/PretendardVariable.woff2") format("woff2"); }' if served  # noqa: E731
                          else f'@font-face {{ font-family: "Pretendard"; font-weight: {w}; src: url("{(ROOT / "fonts" / f).as_uri()}"); }}')  # the kit's font, or the deck's own files
     qa_html = "".join(f'<div class="q"><b>{rich(q["q"])}<span>{W["page"].format(n=pg)}</span></b><p>{rich(q.get("a", ""))}</p></div>' for q, pg in qa)
-    return f"""<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><title>{H.escape(W['title'].format(who=who).strip(" ,"))}</title><style>
+    return f"""<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><title>{H.escape(d['title'])}</title><style>
 {font(400, 'Pretendard-Regular.ttf')}
 {font(700, 'Pretendard-Bold.ttf')}
 @page {{ size: A4; margin: 13mm 13mm 14mm 13mm; }}
@@ -121,7 +146,7 @@ table {{ border-collapse: collapse; width: 100%; }} td, th {{ padding: 2px 6px; 
 @media print {{ .keys {{ display: none; }} }}
 </style></head><body>
 {f'<nav class="keys"><a href="talk/deck.pdf" target="_blank" rel="noopener">{W["deck_pdf"]}</a><a href="talk/script.pdf" target="_blank" rel="noopener">{W["script_pdf"]}</a></nav>' if served and keys else ''}
-<div class="hd"><h1>{H.escape(W['title'].format(who=who).strip(" ,"))}</h1><div>{H.escape(W['sub'].format(when=when, n=len(slides), m=round(total / 60), t=brief['minutes']))}</div>
+<div class="hd"><h1>{H.escape(d['title'])}</h1><div>{H.escape(d['sub'])}</div>
 {''.join(f'<div class="warn">{H.escape(n)}</div>' for n in notes)}</div>
 <div class="top"><table><tr><th>{W['part']}</th><th>{W['pages']}</th><th>{W['time']}</th><th>{W['run']}</th></tr>{''.join(rows)}</table>
 <div class="tips"><b>{W['late']}</b><p>{W['late_tip']}</p><b style="margin-top:4px">{W['speak']}</b><p>{W['speak_tip']}</p></div></div>

@@ -15,9 +15,9 @@ from interview.job import read_json  # optional files
 WAIT_MS = 1200  # after typing: the keyword draw comes after 80 ms, layout and a similarity answer within this
 
 
-def questions(job):  # also used by the cards check for its sample searches
-    """[(question, [ids])] from the job's eval set."""
-    data = read_json(job.eval_path(), {}) or {}  # missing file: no questions
+def questions(job, path=None):  # also used by the cards check for its sample searches
+    """[(question, [ids])] from the job's eval set, or from another file of the same form (`eval --questions`)."""
+    data = read_json(path or job.eval_path(), {}) or {}  # missing file: no questions
     return [(q, list(want)) for q, want in data.get("questions", [])]  # pairs of question and expected ids, the ids as a list
 
 
@@ -40,11 +40,12 @@ async def run(url, qs, size):  # the browser part of main
     return out
 
 
-def main(job, url=None, port=0, size="1920x1080", out=None):  # the eval command's work
-    """Print one line per question and the verdict; write eval.json to the output folder. Exit 1 below full marks."""
-    qs = questions(job)  # the eval set
+def main(job, url=None, port=0, size="1920x1080", out=None, questions_file=None):  # the eval command's work
+    """Print one line per question and the verdict; write eval.json to the output folder. Exit 1 below full marks.
+    questions_file measures another set of the same form instead of the job's own, such as questions in other words."""
+    qs = questions(job, questions_file)  # the eval set
     if not qs:  # nothing to measure
-        print(i18n.t("eval_none", path=job.eval_path()))  # say which file was expected
+        print(i18n.t("eval_none", path=questions_file or job.eval_path()))  # say which file was expected
         return 2  # 2 means nothing to run, unlike 1 for misses
     if browser.playwright_or_none() is None:  # optional dependency missing
         print(i18n.t("need_playwright"))  # say how to install it

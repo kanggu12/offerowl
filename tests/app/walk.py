@@ -48,15 +48,14 @@ NOTE = ("# 감마클라우드 면접 준비\n\n가상의 회사 **감마클라�
 VIEWS = [(2560, 1440), (1440, 900), (390, 844)]  # the window sizes measured: a wide screen, a laptop, a phone
 THEMES = ("light", "dark")  # both looks are measured
 LANGS = ("ko", "en")  # both languages are measured
-# A frame's page loads again after each switch of language, look and size (its address carries the look): wait for its
-# document to be whole, or eight seconds at most, before the screenshot.
-FRAME_LOADED = """new Promise((done) => {
-  const f = document.querySelector('iframe.ivframe');
-  const ready = () => f && f.contentDocument && f.contentDocument.readyState === 'complete' && f.contentDocument.body && f.contentDocument.body.childElementCount > 0;
-  const t0 = Date.now();
-  (function wait() { if (!f || ready() || Date.now() - t0 > 8000) setTimeout(done, 400); else setTimeout(wait, 100); })();
-})"""
 NAMES = [SAMPLE.name, NOTES.name]  # the person's own file names, allowed on screen
+
+
+def drawn(sel: str) -> str:
+    """A wait run after each switch of language, look and size: the interview tab's parts read their data again in a new
+    language (kit.js, interview.js), so the screenshot waits until the part stands again (five seconds at most)."""
+    return ("new Promise((done) => { const t0 = Date.now(); (function wait() { if (document.querySelector(" + json.dumps(sel) + ") || Date.now() - t0 > 5000) "
+            "setTimeout(done, 300); else setTimeout(wait, 100); })(); })")
 KINDS = ("overflow", "truncated", "overlap", "markup", "paths", "contrast", "align", "center")  # what the audit counts
 # the user guide's screenshots: a state of the walk -> (file, window, themes, the part to keep or None for the window).
 # One theme writes FILE.png, two write FILE-light.png and FILE-dark.png (a <picture> picks one by the reader's theme).
@@ -65,6 +64,7 @@ GUIDE = {"profile_facts": [("guide-profile", (1600, 1000), ("light", "dark"), No
          "evidence_selected": [("guide-documents", (1600, 1000), ("light", "dark"), None)],   # the documents with a sentence's evidence
          "inspector_theme": [("guide-inspector-theme", (1600, 1000), ("light", "dark"), None)],
          "interview_board": [("guide-interview-board", (1600, 1000), ("light", "dark"), None)],
+         "interview_search": [("guide-interview-contents", (1600, 1000), ("light", "dark"), None)],   # the scripts' contents, drawn by the panel
          "tracker_board": [("guide-tracker", (1600, 1000), ("light", "dark"), None)],
          "agent_panel": [("guide-agent", (1600, 1000), ("light", "dark"), ".pop")],
          "setup_agent_ready": [("guide-setup", (1600, 1000), ("light", "dark"), ".setup")],
@@ -177,7 +177,6 @@ class Walk:
                     self.landed()  # the scroll's event has reached the page (a resized window moves a scrolled page too)
                     self.page.evaluate(SETTLED)  # what moves has come to rest
                     found = self.page.evaluate(AUDIT, NAMES)  # the in-page measure
-                    self.audit_frames(found)  # and inside the kit's pages that the panel shows in frames
                     file = self.out / f"{self.n:02d}_{name}_{lang}_{theme}_{w}x{h}.png"  # numbered, so the files sort in walk order
                     self.page.screenshot(path=str(file))  # kept for the eye's check
                     counts = {k: len(found[k]) for k in KINDS}  # one number per kind
@@ -186,33 +185,20 @@ class Walk:
                     bad = {k: v for k, v in counts.items() if v}  # only the kinds found
                     print(f"{self.n:02d} {name:24} {lang} {theme:5} {w}x{h}  texts {found['texts']:4}  keys {found['keys']:3}  " +  # one line per view as it runs
                           (" ".join(f"{k} {v}" for k, v in bad.items()) or "clean"), flush=True)
-        self.guide_shots(name, drawer, scroll)  # the guide's pictures of this state, when asked for
+        self.guide_shots(name, drawer, scroll, prep)  # the guide's pictures of this state, when asked for
         self.view("ko", "light", 1440, 900, False)  # back to the walk's own view
 
-    def audit_frames(self, found: dict) -> None:
-        """The same measure inside each frame of the kit's own pages (served at the panel's address under /kit/, so the
-        walk can read them): what it finds there counts with the panel's, named by the frame's page."""
-        for frame in self.page.frames[1:]:  # the panel's own document is the first
-            if "/kit/" not in frame.url:  # only the kit's pages; nothing else is framed from this origin
-                continue
-            try:
-                inner = frame.evaluate(AUDIT, NAMES)  # the kit's page, measured as the panel is
-            except Exception as e:  # a frame torn down by a redraw between the listing and the measure
-                print(f"   frame {frame.url} not measured: {e}"[:200], flush=True)
-                continue
-            where = "kit " + frame.url.split("/kit/", 1)[1].split("?", 1)[0]  # which page: its path under the job
-            for k in KINDS:  # each finding marked with the page it was found on
-                found[k] += [{**x, "frame": where} if isinstance(x, dict) else f"[{where}] {x}" for x in inner[k]]
-            found["texts"] += inner["texts"]  # what was read, all together
-            found["keys"] += inner["keys"]
-
-    def guide_shots(self, name: str, drawer: bool, scroll: str | None):
-        """The user guide's screenshots of a state (GUIDE), in English as the guide is, into the guide's folder."""
+    def guide_shots(self, name: str, drawer: bool, scroll: str | None, prep: str | None = None):
+        """The user guide's screenshots of a state (GUIDE), in English as the guide is, into the guide's folder. prep: as for
+        shoot, run after each switch (a part that reads its data again in English stands again first)."""
         if not self.guide or name not in GUIDE:  # not asked for, or not one of the guide's states
             return
         for file, (w, h), themes, part in GUIDE[name]:  # each picture of this state
             for theme in themes:  # one per look
                 self.view("en", theme, w, h, drawer)  # as the guide's reader sees it: its words name these keys
+                if prep:  # what the switch took away, drawn again in English
+                    self.page.evaluate(prep)
+                    self.page.wait_for_timeout(250)  # drawn
                 if scroll:  # the same part in view as the walk's own picture
                     self.page.evaluate("(s) => { const e = document.querySelector(s); if (e) e.scrollIntoView({ block: 'start' }); }", scroll)
                 self.landed()  # the scroll's event has reached the page
@@ -374,7 +360,7 @@ def main() -> int:  # 0 only when nothing was found
             w.api("/api/v1/jobs/select", {"job": page.evaluate("S.jobs[0].id")})  # back to the job
 
             # ---- the application's interview tab: the board, then scripts from the fictional kit
-            page.evaluate("go('interview'); UI.ivPart = 'map'; render()"); w.wait("boardOf(S.job) && boardOf(S.job).ready")  # the board, on the application's Interview tab (its map part: the walk has no kit server for the search view's frame)
+            page.evaluate("go('interview'); UI.ivPart = 'map'; render()"); w.wait("boardOf(S.job) && boardOf(S.job).ready")  # the board, on the application's Interview tab (its map part, before any script)
             w.shoot("interview_board")  # questions by category, no scripts yet
             jid = w.state()["job"]  # the job's folder name
             ivdir = data / "workspace" / "jobs" / jid / "interview"  # its kit folder
@@ -383,11 +369,25 @@ def main() -> int:  # 0 only when nothing was found
             w.api("/api/v1/interview/kit", {"job": jid, "lang": "ko"})  # the map again, now covered by the scenes
             w.wait("boardOf(S.job) && boardOf(S.job).scripts.length > 0")  # scripts on the board
             w.shoot("interview_scripts", scroll=".scripts")  # the script cards
-            # the kit's own pages in the panel's frame: its search view and its deck, each drawn again in every look and size
-            for part in ("search", "deck"):
+            # the kit's contents and search, its deck and practice, each drawn by the panel itself (kit.js, interview.js) in every look and size
+            for part, ready in (("search", "#canvas .kit .kit-tg"), ("deck", "#canvas .ivdeck .deck-scene"), ("practice", "#canvas .ivprac .pr-setup")):
                 page.evaluate(f"UI.ivPart = '{part}'; render()")  # the sub-tab, as its key sets it
-                w.wait("document.querySelector('iframe.ivframe')", timeout=120)  # the kit started and its frame placed
-                w.shoot("interview_" + part, prep=FRAME_LOADED)  # the frame's page, read in after each switch
+                w.wait(f"!!document.querySelector('{ready}')", timeout=120)  # its data read and drawn
+                w.shoot("interview_" + part, prep=drawn(ready))  # the part in the panel's own parts
+                if part == "search":  # a question asked: the answers on the board, the side list beside them
+                    page.fill("#canvas .kit .kit-q", "Argo CD 배포 경로는 어떻게 나눴나요?")
+                    w.wait("document.querySelectorAll('#canvas .kit .kit-card').length > 0", timeout=30)
+                    w.shoot("interview_search_answers", prep=drawn("#canvas .kit .kit-card"))  # the question stays in its box through every switch
+                    page.evaluate("document.querySelector('#canvas .kit .kit-home').click()")  # back to the contents
+            page.evaluate("document.querySelector('#canvas .ivprac .pr-setup .btn.primary').click()")  # a practice session: its first question
+            w.wait("!!document.querySelector('#canvas .ivprac .pr-ask textarea:not([disabled])')", timeout=60)
+            w.shoot("interview_practice_ask", prep=drawn("#canvas .ivprac .pr-ask textarea"))  # the question, the record key, the answer box
+            page.fill("#canvas .ivprac .pr-ask textarea", "I moved our payment services onto one shared deploy path, um, with Argo CD and Helm, and releases went from two hours to fifteen minutes.")
+            page.evaluate("document.querySelector('#canvas .ivprac .pr-ask .part-keys:last-child .btn.primary').click()")  # sent
+            w.wait("!!document.querySelector('#canvas .ivprac .pr-fb') && !document.querySelector('#canvas .ivprac .pr-fb [role=status]')", timeout=60)  # the feedback and its follow-up
+            w.shoot("interview_practice_feedback", scroll=".ivprac", prep=drawn("#canvas .ivprac .pr-scene .kit-card"))  # the rows, then the script as the search view's card
+            page.evaluate("[...document.querySelectorAll('#canvas .ivprac .pr-fb .btn')].pop().click()")  # finished
+            w.wait("!!document.querySelector('#canvas .ivprac .pr-sum')", timeout=60)  # its summary, kept with the earlier sessions
             page.evaluate("""async ([jid, text]) => { await fetch(`/api/v1/jobs/materials?job=${encodeURIComponent(jid)}`, { method: 'POST', body: new Blob([text]),
                 headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent('면접 준비 노트.md') } }); }""", [jid, NOTE])  # a note of the person's own, sent as the page sends a file
             page.evaluate("refresh()"); w.wait("job() && (job().materials || []).length === 1")  # listed with the job
@@ -401,8 +401,8 @@ def main() -> int:  # 0 only when nothing was found
                   {"title": "가장 도전적이었던 문제"}, {"title": "지원 계기와 커리어 계획"}], "minutes": 30, "when": "2026-11-20 14:00", "format": "발표와 질의응답"}})  # a fictional brief
             w.api("/api/v1/interview/talk", {"job": jid, "lang": "ko"})  # made: the portfolio's pages and the talk's own slides, then its script
             w.wait("(S.tasks['talk:' + S.job] || {}).state === 'done'", timeout=600)  # drawn and printed
-            page.evaluate("UI.talkDraft = {}; refresh()"); w.wait("document.querySelector('.talk iframe.ivframe')", timeout=120)  # the script in the kit's frame
-            w.settle(1500)  # the frame's page loaded
+            page.evaluate("UI.talkDraft = {}; refresh()"); w.wait("!!document.querySelector('.talk .talkscript .ts-slide')", timeout=120)  # the script, drawn by the panel
+            w.settle(800)  # the slides' pictures read in
             w.shoot("interview_talk")  # the talk's keys, its script and the brief under it
             errors += [] if (data / "workspace" / "out" / "interview" / jid / "talk" / "deck.pdf").is_file() else ["the talk made no deck"]  # the deck itself, not only the page
 
@@ -554,7 +554,7 @@ def main() -> int:  # 0 only when nothing was found
             page.click(".barchip"); w.settle()  # the agent's lamp opens its panel
             w.shoot("agent_panel")  # who, the model, what it takes on, the day's calls
             page.keyboard.press("Escape"); w.settle()  # closed
-            # ---- the command bar: its key opens the bar in its place, with two asks of a fictional day and their answers, written
+            # ---- the command bar: "Ask the AI" in the top bar opens its sheet, with two asks of a fictional day and their answers, written
             # the way apps/api/ask.py keeps them (a list, a table, the tools that ran)
             asked = [{"at": "2026-11-09 18:40", "text": "감마클라우드 1차 면접 끝났어. 결과는 다음 주에 알려 준대. 기록해 줘", "backend": "claude-code",
                       "answer": "감마클라우드 지원을 **1차 면접**으로 옮기고 오늘 회차를 남겼습니다.\n\n- 다음 단계: 결과 기다리기\n- 알림: 2026-11-16 결과 확인",
@@ -565,9 +565,9 @@ def main() -> int:  # 0 only when nothing was found
             (data / "workspace" / "ask").mkdir(parents=True, exist_ok=True)  # the history's folder, as the first ask makes it
             (data / "workspace" / "ask" / "history.json").write_text(json.dumps(asked, ensure_ascii=False), encoding="utf-8")
             page.evaluate("for (const k of Object.keys(UI.docs)) if (k.startsWith('ask|')) delete UI.docs[k]; UI.askKey = null; drawAsk()")  # read again on the next open
-            page.click(".ask-fab")  # opened from its key, as a person does: Escape gives the focus back to the key that stands again
+            page.click("#top .ask-fab")  # opened from its box in the top bar, as a person does: Escape gives the focus back to it
             w.wait("document.querySelectorAll('#askpanel .ask-item').length === 2")  # both asks drawn
-            w.shoot("ask_open")  # the bar where its key was: the agent, its lamp, the asks, the box
+            w.shoot("ask_open")  # the sheet at the window's right edge (a phone: from the foot): the agent, its lamp, the asks, the box
             page.keyboard.press("Escape"); w.settle()  # closed back into its key, which takes the focus
             w.wait("document.activeElement && document.activeElement.classList.contains('ask-fab')")  # the keyboard is where the bar was
             page.evaluate("document.activeElement.blur()")  # no ring in the next pictures

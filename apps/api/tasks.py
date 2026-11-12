@@ -224,6 +224,29 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         threading.Thread(target=body, name=f"task-{key}", daemon=True).start()  # in the background
         return True  # started
 
+    @contextlib.contextmanager
+    def turn(self, key: str, *locks):
+        """The locks, taken in order. One model task and one rendering run at a time, so a task started meanwhile waits;
+        while it does, the page says so (step "waiting_turn") instead of seeming stuck at its start, and its own step comes
+        back once the locks are its."""
+        held, waited, before = [], False, None  # the locks taken, whether it had to wait, and the step it showed then
+        try:
+            for lock in locks:
+                if not lock.acquire(blocking=False):  # another task has it now
+                    if not waited:  # said once, however many locks it waits for
+                        with self.state_lock:  # read under the lock
+                            before = (self.tasks.get(key) or {}).get("step")  # what the page showed
+                        self._set(key, step="waiting_turn")  # the page says it waits its turn
+                        waited = True
+                    lock.acquire()  # its turn
+                held.append(lock)
+            if waited:  # the page shows its own step again
+                self._set(key, step=before)
+            yield
+        finally:
+            for lock in reversed(held):  # given back, last taken first
+                lock.release()
+
     # ------------------------------------------------------------------ the agent
 
     def backend(self) -> str:
@@ -455,7 +478,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         prof = self.facts.profile()  # the profile as it is now
         self._set(key, step="asking_agent")  # the step the page shows
         cfg, by = None, "words"  # the agent's plan when it answers, else the words
-        with self.model_lock:  # one model task at a time
+        with self.turn(key, self.model_lock):  # one model task at a time, said on the page while it waits
             if agent and self.backend() != "none":  # an agent is on and may be asked: it picks what the job needs
                 try:
                     cfg, steps = draft.task_jd(prof, posting)  # skill groups first, strengths back, project order
@@ -857,7 +880,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         self._edition_profile(job_id, src, lang, out_dir)  # the profile it was made from (the lock freezes it too)
         left = []  # what a blind edition leaves out, for its notes
         from_source = False  # whether the deck was written from the person's deck source
-        with self.render_lock:  # one rendering at a time
+        with self.turn(key, self.render_lock):  # one rendering at a time, said on the page while it waits
             # this edition's own switches, never the server's environment. Made under the lock: the person's table is staged
             # under one name for every edition, and another build's clean-up (which takes the lock too) must not take it away mid-build
             env = self.blind_env(lang, blind)
@@ -1438,7 +1461,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
                   + (f"{self.REGEN_WAYS[way]}\n" if way else "")  # the direction the person picked
                   + f"Sentence now: {rec['text']}\n"
                   'Return JSON: {"text": "..."}')  # the answer's shape
-        with self.model_lock:  # one model task at a time
+        with self.turn(key, self.model_lock):  # one model task at a time, said on the page while it waits
             backend = self.backend()  # which agent
             if backend == "none":  # no agent: said plainly
                 self._set(key, state="error", error={"code": "agent_unavailable"})  # the band offers to turn the agent on

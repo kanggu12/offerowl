@@ -82,6 +82,9 @@ const ICONS = {                                                                 
   chart: '<path d="M4 20h16"/><path d="M7 16v-5M12 16V7M17 16v-8"/>',   // the Insights view: columns on a baseline
   trash: '<path d="M4 7h16M9.5 7V4.5h5V7"/><path d="M6.5 7l1 13h9l1-13"/><path d="M10 11v5.5M14 11v5.5"/>',   // deleted for good: a bin, its lid lifted
   restore: '<path d="M4 4v5h5"/><path d="M4.6 15a8 8 0 1 0 .9-7.7L4 9"/>',   // put back: an arrow coming round to where it was
+  grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1"/>',   // the contents: every section at once
+  sliders: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',   // how a view is shown: its type size and column width
+  wide: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',   // the part in view over the whole width
 };
 // a company's mark: its initials on a square of its own colour, so a list of applications reads by face as well as by name
 const MONO_HUES = ["#2f6eba", "#0f766e", "#7c3aed", "#b45309", "#be185d", "#4d7c0f", "#475569", "#9a3412"];   // dark enough for white letters (4.5:1); never the brand navy, which the list itself is
@@ -126,8 +129,9 @@ const UI = {                                                                    
   docs: {},                                                                         // fetched documents by key
   docsVer: 0,                                                                       // counts every document that arrived (the panes redraw on it)
   fits: {},                                                                         // fetched fits by job and revision
-  boards: {},                                                                       // fetched interview boards by job and revision
+  boards: {},                                                                       // the last interview board of each job and language, shown while a newer one loads (views.js boardOf)
   pending: {},                                                                      // keys being fetched now
+  tagged: {},                                                                       // large documents by kind, with the tag each came with: asked again per revision, a 304 keeps them
   notified: {},                                                                     // reminders already shown as notifications
   typed: {},                                                                        // words typed in forms not sent yet, by field key
 };
@@ -141,7 +145,7 @@ function forget(prefix) { for (const k of Object.keys(UI.typed)) if (k.startsWit
 // ---------------------------------------------------------------- the API
 
 const NOT_SAVED = /^\/api\/v1\/(interview\/start|jobs\/select|open|ask|agent\/[a-z_-]+)$/;   // writes that keep none of the person's work: the kit started, a job in view, a folder opened, an ask begun, the agent checked
-async function api(path, body) {                                                    // one request; writes return the new state
+async function api(path, body, tries = 2) {                                         // one request; writes return the new state
   let r;                                                                            // declared outside try so the checks below can read it
   try {                                                                             // only a network failure throws here, not an HTTP error
     r = await fetch(path, body === undefined ? { cache: "no-store" } :              // no body means a read, never served from the cache
@@ -152,6 +156,11 @@ async function api(path, body) {                                                
   }
   setOffline(false);                                                                // any answer at all means the server is back
   const j = await r.json().catch(() => ({ error: "unexpected" }));                  // the answer
+  if (r.status === 503 && j && j.error === "busy" && tries > 0) {                   // every slot of the server was taken (src/ownport.py): the request never reached the API
+    const wait = Math.min(5, Math.max(1, parseInt(r.headers.get("Retry-After") || "2", 10) || 2));   // the seconds it asked for, 1 to 5
+    await new Promise((done) => setTimeout(done, wait * 1000));                     // then the same request again, which is safe: nothing of it was done
+    return api(path, body, tries - 1);
+  }
   if (j && j.state) { S = j.state; render(); }                                      // every write sends the state back
   if (!r.ok) throw Object.assign(new Error(j.error || "unexpected"), { info: j });  // a refused request
   if (body !== undefined && !NOT_SAVED.test(path)) flashSaved();                   // autosave: say it was kept (a request that keeps nothing says nothing)
@@ -177,6 +186,7 @@ async function refresh() {                                                      
       S = await r.json();                                                           // unpacked by the browser when it came compressed
       stateTag = { tag: r.headers.get("ETag") || "", of: S };                       // for the next poll
       render();                                                                     // drawn
+      if (typeof fromAddress === "function") fromAddress();                         // a window opened on one application's scripts goes there once (app.js)
     }
   } catch (_) { setOffline(true); }                                                 // no server at all: the band says so
   schedule();                                                                       // and again later
@@ -200,10 +210,19 @@ function setOffline(off) {                                                      
   UI.offline = off;                                                                 // the views read this flag
   if (S) render();                                                                  // nothing to draw before the first state arrives
 }
-async function getDoc(key, path) {                                                  // a fetched document, cached by key
+async function getDoc(key, path, fam) {                                             // a fetched document, cached by key; fam: the same document under its other keys (interview.js)
   if (UI.docs[key] || UI.pending[key]) return UI.docs[key] || null;                 // cached, or on its way
   UI.pending[key] = true;                                                           // one fetch per key
-  try { const r = await fetch(path, { cache: "no-store" }); UI.docs[key] = await r.json(); }  // the answer, whatever its status
+  const held = fam ? UI.tagged[fam] : null;                                         // the copy held under an earlier key, with the tag the server gave it
+  try {
+    const r = await fetch(path, { cache: "no-store", headers: held ? { "If-None-Match": held.tag } : {} });   // no-store: the tag is ours, not the browser cache's
+    if (r.status === 304 && held) UI.docs[key] = held.doc;                          // unchanged: the copy held, not megabytes again
+    else {
+      UI.docs[key] = await r.json();                                                // the answer, whatever its status
+      const tag = r.headers.get("ETag");                                            // what the server named it
+      if (fam && r.ok && tag) UI.tagged[fam] = { tag, doc: UI.docs[key] };          // held for the next revision's question
+    }
+  }
   catch (_) { UI.docs[key] = { error: "offline" }; }                                // shown as an error
   delete UI.pending[key];                                                           // done
   UI.docsVer++;                                                                     // something new arrived
@@ -286,7 +305,8 @@ function errorText(e) {                                                         
   if (/^blind_leak:(\d+)/.test(what)) return tn(what.split(":")[1], "{n} pattern of your table still shows in the blind edition, so nothing was exported. Add it to what the table covers and make the PDFs again.",   // a covered name in a PDF's text, title or link
     "{n} patterns of your table still show in the blind edition, so nothing was exported. Add them to what the table covers and make the PDFs again.");
   if (/^blind_pattern:\w+:\d+$/.test(what)) { const [, list, n] = what.split(":"); return t("Pattern {n} of {list} in that table cannot be used. Fix it and pick the file again.", { n, list }); }   // the first pattern Python or JavaScript would read otherwise
-  const words = { posting: t("Paste the whole posting: it is too short to read."), bad_link: t("That link cannot be read. Paste the posting's text instead."),
+  const words = { busy: t("Offerowl is answering many requests at once. Try again in a moment."),   // still busy after two tries
+    posting: t("Paste the whole posting: it is too short to read."), bad_link: t("That link cannot be read. Paste the posting's text instead."),
     unreachable: t("The page did not answer. Paste the posting's text instead."), not_text: t("That link is not a web page. Paste the posting's text instead."),
     empty: t("That page has no text Offerowl can read. Paste the posting's text instead."), too_large: t("That page is too large. Paste the posting's text instead."),
     not_built: t("Make the PDFs first."), locked: t("This application was submitted and locked."), edit_in_korean: t("Edit the Korean sentence, then translate again."),
@@ -362,7 +382,7 @@ function placeToast(el) {                                                       
   const bar = document.querySelector("#top .bar-in");                              // the sticky bar
   if (!bar) return;
   if (!matchMedia("(min-width: 861px)").matches) return stepAside(el, bar, ".brand, .brand-ver, .bar-in > .barchip, .barpop, .actions, .views");   // a phone's bar scrolls away: its note is a band across the window's top (skin.css)
-  const keys = [...bar.children].filter((x) => x.matches(".barchip, .barpop, .actions") && x.getBoundingClientRect().width);   // the bar's own keys, at its right
+  const keys = [...bar.children].filter((x) => x.matches(".barchip, .ask-fab, .barpop, .actions") && x.getBoundingClientRect().width);   // the bar's own keys, at its right (the Ask the AI box among them)
   const mark = bar.querySelector(".brand-ver") || bar.querySelector(".brand");     // the wordmark and its version, at its left
   if (!keys.length || !mark) return;
   const k = keys[0].getBoundingClientRect(), m = mark.getBoundingClientRect();
@@ -385,7 +405,7 @@ function placeToast(el) {                                                       
   }
   el.style.setProperty("--toast-right", `${Math.round(document.documentElement.clientWidth - (room[0] + room[1]) / 2 - wid / 2)}px`);   // centred in its room, as Sidenote's notes stand
   el.style.setProperty("--toast-top", `${Math.max(4, Math.round(k.top + k.height / 2 - hgt / 2))}px`);   // its middle on the keys' row, never above the window
-  stepAside(el, bar, ".views, .jobpick, .saved, .bar-in > .barchip, .barpop");    // the views whole, and a run's chip: a note never lies across them
+  stepAside(el, bar, ".views, .jobpick, .saved, .bar-in > .barchip, .bar-in > .ask-fab, .barpop");   // the views whole, a run's chip, the Ask the AI box: a note never lies across them
 }
 function stepAside(el, bar, what) {                                                 // what of the bar the note lies over steps aside while it shows (its glass would show it blurred)
   const t = { left: el.offsetLeft, top: el.offsetTop, right: el.offsetLeft + el.offsetWidth, bottom: el.offsetTop + el.offsetHeight };   // where it comes to rest (laid out now), not where its slide in has it

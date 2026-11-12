@@ -65,7 +65,7 @@ def board(tasks, job_id: str, lang: str = "ko") -> dict:
     """The studio's board for one job. ready is False until the tailor step made the kit folder."""
     jd = tasks.ws.job_dir(job_id)  # the job's folder
     url = "/kit/" + urllib.parse.quote(job_id, safe="") + "/"  # the kit at the panel's own address (web.py kit_proxy), on any port the panel runs on
-    ready = tasks.interview_available() and (jd / "interview").is_dir()  # a kit to show: the tailor step made its folder
+    ready = tasks.interview_available() and (jd / "interview" / "kit.json").is_file()  # a kit to show: the tailor step wrote its settings (a talk's brief alone makes the folder, not a kit)
     up = ready and job_id in tasks.kit_srvs  # this job's own kit server runs (tasks.kit_url); a job without a kit never asks a port
     base = {"search": {"up": bool(up), "url": url},  # the search view
             "practice": {"available": (KIT / "practice.py").is_file(), "url": url + "#practice"},  # practice opens directly at #practice

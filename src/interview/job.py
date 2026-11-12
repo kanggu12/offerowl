@@ -86,6 +86,15 @@ class Job:
         # person's own kits, which may name files beside the workspace (the example's profile is ../sample_ko.json).
         self.confined = confined
 
+    def reload_kit(self):
+        """Read the settings again from where they came from (kit.json, or the file named on the command line): a kit server
+        keeps one Job for as long as it runs, and a kit.json written after it started (scenes added, the map made again)
+        changes the section names and each file's role."""
+        path = self.kit_path or (self.interview / "kit.json")  # where they came from, or where a new one would be written
+        raw = read_json(path, {}) if path.is_file() else {}  # the settings as written now
+        self.kit_path = path if path.is_file() else None  # still there, or gone
+        self.kit = {**DEFAULTS, **{k: v for k, v in (raw or {}).items() if not k.startswith("_")}}  # the same rule as at the start
+
     # ----- paths -----
 
     def kept(self, p):

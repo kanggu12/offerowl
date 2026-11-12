@@ -14,7 +14,7 @@ and the script ([The talk](#the-talk)). The code is the `src/interview/` package
 python3 src/interview/cli.py serve --job <workspace>/jobs/<job>          # the search view, at the address it prints
 python3 src/interview/cli.py check --job <workspace>/jobs/<job>          # scene checks
 python3 src/interview/cli.py cards --job <workspace>/jobs/<job>          # card defects in the real page
-python3 src/interview/cli.py eval  --job <workspace>/jobs/<job>          # search hit rate on the job's eval set
+python3 src/interview/cli.py eval  --job <workspace>/jobs/<job>          # search hit rate on the job's eval set (--questions FILE: another set)
 python3 src/interview/cli.py plan  --job <workspace>/jobs/<job>          # question map; --anticipate adds the job's scenario and technical questions (model, once)
 python3 src/interview/cli.py draft --job <workspace>/jobs/<job>          # new scenes for planned questions (model); --limit caps them, --jobs writes several at a time
 python3 src/interview/cli.py audit --job <workspace>/jobs/<job>          # posting coverage and portfolio claims; consistency with --consistency (model)
@@ -141,7 +141,10 @@ lines dimmed, the contents screen that folds the largest groups until it fits, t
 that places short answers in stacks and long ones across several columns, and the type size and column width settings.
 It ranks by keywords (BM25 over the title, key line, phrasings and text, with Korean particles stripped and synonym
 groups) in the browser, so it needs no model. Term entries come first for a "What is X?" question and step back for a
-scenario question. Edits to the scene files show on the next page load.
+scenario question. Edits to the scene files show on the next page load. In the panel, an application's Interview tab draws
+the same contents, board and cards with its own parts, ranked by the same code (the page's marked engine blocks, copied
+byte for byte into `apps/panel/static/kit.js` and checked by `tests/packaging/test_kit_engine.py`), so a question finds the
+same script in both.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot-interview-dark.png">
@@ -150,7 +153,17 @@ scenario question. Edits to the scene files show on the next page load.
 
 The similarity model is optional and off by default: `serve --model <bge-m3 folder>` (`tokenizer.json`,
 `onnx/model_int8.onnx`; needs numpy, onnxruntime and tokenizers) shows a switch on the page that loads the model and
-blends similarity into the ranking. Without `--model` there is no switch.
+blends similarity into the ranking. `OFFEROWL_SEARCH_MODEL=<that folder>` names it once instead: `serve` then takes it
+without `--model`, and so does the panel for the kit it shows in an application's Interview tab and at `/kit/<job>/`.
+Without either there is no switch, and a folder that lacks the two files is named (in `serve`'s output, or in the panel's
+log) and gives none.
+
+The switch loads the model in about ten seconds and holds 1.4 GB while it is on; in the panel each job's kit holds its
+own copy while its switch is on. Turning it off asks first, on a sheet under the switch, since a stray click in the
+middle of an interview would cost those seconds again. On a question asked in other words than the cards use, the
+model is what finds the card: of the 28 reworded questions about the example kit
+(`tests/decide/fixtures/kit_questions_reworded.json`) the keywords put the right card first for 16 and the model for
+24, and every right card is then among the first three ([DECISIONS.md](DECISIONS.md#the-kits-search)).
 
 The server listens on 127.0.0.1 only and refuses requests whose Host header names another address. In a container,
 use `--host 0.0.0.0` and publish the port to 127.0.0.1 only.
@@ -163,9 +176,10 @@ phone layout.
 
 ## Practice mode
 
-The 연습 (Practice) key in the bar, or the page's address with `#practice` (the panel links there), opens a mock
-interview. The microphone is used only between Record and Stop, and the feedback and your own script appear only
-after you answer.
+The 연습 (Practice) key in the bar, or the page's address with `#practice`, opens a mock interview. In the panel the same
+practice is the Interview tab's **Practice** part, drawn with the panel's own parts and talking to this API at the
+panel's `/kit/<job>/api/practice/` ([APP.md](APP.md#an-applications-interview)). The microphone is used only between
+Record and Stop, and the feedback and your own script appear only after you answer.
 
 - **Questions.** The question map (`plan`, built when practice first opens) gives the topics an interviewer has in
   front of them. Every topic a scene covers becomes one question, one per scene, the kinds taken in turn (posting,
@@ -236,7 +250,9 @@ before the day:
 Scripts run on from one page to the next, so no page ends half empty. `?kinds=posting,resume` keeps some parts,
 `?ids=A1,B2` prints those scripts, `?n=8` sets the scripts per part (a few of each by default, the likeliest first) and
 `?lang=ko` the deck's own words; the panel's Interview tab opens it in the panel's language. The browser's print dialog
-saves it as a PDF; `deck --pdf` writes `deck.pdf` with Playwright.
+saves it as a PDF; `deck --pdf` writes `deck.pdf` with Playwright. The panel's **Interview deck** part draws the same
+scripts in the same order with its own parts (`deck.data`, `GET /api/v1/jobs/<job>/interview/deck`), each line as written
+and its speech marks drawn by the panel.
 
 A kit written by hand for one call, with every script in the order you expect it, can set `"deck": {"order": "file"}`
 in kit.json. The deck then prints every question script once, in the file's order, under its file heading, with up to
@@ -324,16 +340,18 @@ dropped and why, the calls made). The command's exit code is 2 when the deck has
 script and the two PDFs ([The kit's address](#the-kits-address)).
 
 In the panel, the Interview tab's Presentation part saves the brief (`POST /api/v1/interview/talk/brief`), makes the talk
-(`POST /api/v1/interview/talk`, task `talk:<job>`) and shows it (`GET /api/v1/jobs/<job>/talk`), as
-[The HTTP API](ARCHITECTURE.md#the-http-api) lists them. **Save to the Desktop** copies both PDFs as
+(`POST /api/v1/interview/talk`, task `talk:<job>`), shows where it stands (`GET /api/v1/jobs/<job>/talk`) and draws the
+script itself from `GET /api/v1/jobs/<job>/talk/script` and the slides' pictures, as [The HTTP API](ARCHITECTURE.md#the-http-api)
+lists them. **Save to the Desktop** copies both PDFs as
 `<company> Talk slides.pdf` and `<company> Talk script.pdf`, or `<company> 발표 자료.pdf` and `<company> 발표 대본.pdf` for a
 Korean talk, never over another file (`POST /api/v1/interview/talk/deliver`).
 
 ## The kit's address
 
 `serve` answers these paths on its own port, and the panel answers them under `/kit/<job>/`
-([`/api/v1/interview/start`](ARCHITECTURE.md#writes-post)). The practice writes come from the page's own origin, each with
-a JSON body but the recording.
+([`/api/v1/interview/start`](ARCHITECTURE.md#writes-post)), where its interview tab reads the similarity and practice API
+and its print keys open the cue cards and the deck. The practice writes come from the page's own origin, each with a JSON
+body but the recording.
 
 | Method and path | What |
 |---|---|
@@ -374,7 +392,9 @@ without their note box, interviewer-only scenes and wrong first cards. `--sizes`
 searches at four window sizes in both themes. The verdict line per size is `W H cards N with problems M`.
 
 `eval` types every question of the eval set into the page at 1920x1080 and counts a hit when the first card (rank one)
-or one of the first three cards (top three) is one of the expected ids: `top-1 a/n, top-3 b/n`.
+or one of the first three cards (top three) is one of the expected ids: `top-1 a/n, top-3 b/n`. `--questions FILE`
+measures another set of the same form instead, such as the example kit's cards asked in other words
+(`tests/decide/fixtures/kit_questions_reworded.json`, measured in `docs/DECISIONS.md`).
 
 `cards` and `eval` start their own server on a free port, or use `--url` for one that is already running.
 

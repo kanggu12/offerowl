@@ -29,7 +29,7 @@ Options of `apps/panel/server.py`:
   is the data folder's `workspace/`.
 - `--open`: open the panel in the browser.
 
-The panel serves each job's interview kit at its own address, `/kit/<job>/` (the search view), `/kit/<job>/deck`, `/kit/<job>/cue` and `/kit/<job>/talk` (the talk's script and its two PDFs), so one address holds everything: each job's kit runs on a free port of its own inside the panel (the last four kept), so two tabs on two jobs never swap one kit under the other. The desktop app takes `--no-browser`,
+The panel serves each job's interview kit at its own address, `/kit/<job>/` (the kit's own search page), `/kit/<job>/deck`, `/kit/<job>/cue` and `/kit/<job>/talk` (the talk's script and its two PDFs), and its similarity and practice API under `/kit/<job>/api/`, so one address holds everything: the interview tab draws its parts itself and reads the kit there, the print keys open its printable pages, and each job's kit runs on a free port of its own inside the panel (the last four kept), so two tabs on two jobs never swap one kit under the other. The desktop app takes `--no-browser`,
 `--no-tray`, `--port N` and `--check`.
 
 ## The data folder
@@ -257,9 +257,27 @@ every dated step.
 
 ### An application's interview
 
-- The tab's four parts: **Search the scripts** (the kit's search view in a frame, where the tab opens), **Interview deck** (the
-  kit's deck in a frame), **Question map and scripts** and **Presentation**. With no kit yet it offers "Make the question map"
-  (no model) and "Prepare a presentation".
+- The tab's five parts: **Search the scripts** (where the tab opens), **Interview deck**, **Practice**, **Question map and
+  scripts** and **Presentation**. Every part is drawn by the panel itself, in its own menu, theme and layout, with its keys,
+  fields, cards and lamps (`kit.js` for the search, `interview.js` for the deck, practice and the talk's script); no page of
+  the kit's is framed in the tab. With no kit yet the tab offers "Make the question map" (no model) and "Prepare a presentation".
+- **Search the scripts**: the contents first, every section a sheet of paper with its scripts' titles, folded into one row
+  each when the window is small; a key per section above it; a box for the question as the interviewer asks it. The answers
+  come up on a board of columns, a long script across several, with the answers in reading order beside it, and a vertical
+  wheel turns the board a screen at a time; on a phone or a narrow column they run down one column and the sections become
+  one row to swipe. Both, KO and EN choose the scripts' language (Alt+1 to Alt+3 while the keyboard is in the view, where
+  they take the place of the panel's own Alt+1 and on); the settings key sets the type size and
+  the column width. The ranking is the kit's own (the same lines of code as its page, `tests/packaging/test_kit_engine.py`):
+  keywords with Korean stemming and synonym groups, and with `OFFEROWL_SEARCH_MODEL` set a similarity switch for bge-m3
+  ([INTERVIEW.md](INTERVIEW.md#the-search-view-serve)), which asks before it turns off. The view stays as it is while you
+  use it: a poll of the panel, a window dragged wider or a visit to another part keeps the question typed and the board
+  where it stood. **Wide view** gives the tab the whole width (the list of applications comes back with the back key) and
+  **Open in a window** opens the panel on the scripts alone (`/?job=<id>&show=scripts`).
+- **Interview deck**: the deck as it prints, in the panel's parts: who it is for with its figures, a key per part, the
+  posting line by line with the script that answers each line and a lamp for how well (a script's key goes to it in the
+  deck, or to the search view when the deck does not print it), then each script once with the question as the interviewer
+  asks it, the dialogue beside its translation, the notes and the other questions it answers, and for an English interview
+  the lines that ask again and buy time. "Interview deck to print" opens the 16:9 pages to print ([the interview deck](INTERVIEW.md#the-interview-deck)).
 - The question board, on **Question map and scripts**: the question map by category (posting lines, resume lines, portfolio
   pages, terms, behavioral, company, opening, scenarios, technical questions), each question with a lamp for whether a script
   answers it.
@@ -267,14 +285,21 @@ every dated step.
   translation as one note under the dialogue (never line by line between the spoken lines), and the speech
   marks drawn as the interview view draws them (a faint slash for a breath, a new line for a sentence end, stress in
   bold, the key phrase on the highlighter).
-- "Open the search view", "Practice" (the kit's practice mode at `#practice`), "Cue cards to print" and "Interview deck
-  to print" (the posting line by line, then one script per likely question, on 16:9 pages: [the interview deck](INTERVIEW.md#the-interview-deck))
-  open the kit's own pages on its own port; the API serves the kit for the job in its own process. A submitted
-  application still gets its scripts written: they go to the kit's own folder, and the submitted copies stay as they went.
+- **Practice**, also the tab's main key: a mock interview in the panel ([practice mode](INTERVIEW.md#practice-mode)). Choose the
+  number of questions and their kinds, and whether the agent asks; then each question large, with Record (the microphone
+  only between Record and Stop, written down when a speech model is installed) or a typed answer; the feedback as rows
+  (length against the script, long pauses, fillers, what departs from your facts, the key phrase), the follow-up, and the
+  script itself as the search view draws it; at the end the session's summary, kept with the earlier ones, and its scripts
+  as cue cards to print. A session waits through a visit to another part; leaving the part stops the microphone.
+- "Cue cards to print" and "Interview deck to print" open the kit's printable pages; the API serves the kit for the job in
+  its own process, at the panel's `/kit/<job>/`, and the parts above read it there. A submitted application still gets its
+  scripts written: they go to the kit's own folder, and the submitted copies stay as they went.
 - **Presentation**, the tab's fourth part: what the interviewers asked for (the topics, one a line in their order, the minutes,
   the day, the format and their words), kept with **Save the brief**, and **Make the talk**, which makes the deck from the job's
-  portfolio and the talk's own slides, and the script to say over it ([the talk](INTERVIEW.md#the-talk)). The script shows in
-  the part itself, with keys to the slides and the script as PDFs and **Save to the Desktop**. It needs no question map.
+  portfolio and the talk's own slides, and the script to say over it ([the talk](INTERVIEW.md#the-talk)). The script is drawn
+  in the part itself: the parts' times, then each slide's picture beside its time, the running total and its words (where
+  to point, what to say, the one line when time runs short, the questions to expect), then the questions with what backs
+  each answer; beside it the keys to the slides and the script as PDFs and **Save to the Desktop**. It needs no question map.
 - "Add scenes you wrote" takes scene files in the kit's markdown into the job's kit folder (`POST /api/v1/interview/scenes`):
   a file with no scene is refused, a name already there gets a number, and files named `deep…`, `terms…` or `notes…` keep
   those roles in kit.json.
@@ -337,9 +362,11 @@ phone, and the figures are drawn for the width they get.
 
 ### The command bar
 
-A key at the bottom right of every view (on a phone or a tablet, a frosted bar along the foot of the screen, so it
-never lies over a card), or Ctrl+K (Cmd+K), opens a bar where you write to the agent as you would in
-Claude Code: an interview's result to record, a posting to make a resume for, a question about your applications. The
+**Ask the AI**, a box in the top bar with its key at its end (on a phone or a tablet, a frosted bar along the foot of the
+screen, so it never lies over a card), or Ctrl+K (Cmd+K), opens a sheet flush with the window's right edge, from the top
+bar to the window's foot, where you write to the agent as you would in Claude Code: an interview's result to record, a
+posting to make a resume for, a question about your applications. With no agent that can use the tools (Claude Code or
+Codex, on and signed in) the sheet says so before anything is typed, with a key to the agent's panel. The
 agent runs once, in an empty scratch folder, with Offerowl's MCP server pointed at the panel the ask came through
 (`apps/api/ask.py`): Claude Code with `--strict-mcp-config` and no built-in tools, or Codex with that server as the only
 one for the run (Codex keeps its own read-only shell; it has no switch to turn it off). Whatever it does goes through the
@@ -424,7 +451,7 @@ its shadow following the fold. After dark on this PC (20:00 to 06:00, `data-hour
 set by core.js) the lamp burns brighter. The colours come from the logo: the owl's blue on the main key (its white
 brows in the dark theme), its eyes' yellow where the keyboard is, on the view in use and for selected text; the
 logo's eyes in the bar glow while something is being made (`data-working`). No picture or character is drawn. The light falls on the page and never fills
-a surface with colour. A rainbow rim marks what goes to the AI agent and nothing else: the command bar's key and its box,
+a surface with colour. A rainbow rim marks what goes to the AI agent and nothing else: the Ask the AI box and the sheet's box,
 and the places that take the files the agent reads (Make's and the profile's drop zones, the box for paths); every other
 field shows the focus colour while in use. Keys are flat panes of the same glass with a hairline rim, as Sidenote's
 keys are: no light along their top and no shadow, brighter under the pointer and a shade deeper when held; the main key
@@ -448,8 +475,8 @@ mouse and keyboard) and leaves the `<select>` hidden in place, so the views read
 `viz.js` draws the figures: a bar of parts with its legend (the applications by stage, the posting's lines by rating,
 the facts by kind, a kind of question by how much a script answers it) and the fit's score on its bar. Make's
 applications in progress are sticky notes (a square of paper in its stage's colour, its bottom right corner folded up),
-and so are the Board's cards; an application's interview tab frames the kit's search view and deck in the panel's theme
-(`?embed=1&theme=`).
+and so are the Board's cards; an application's interview tab draws the kit's contents, search, script cards, deck, practice
+and talk script with these same parts.
 
 - Rows and columns line up. Keys, fields, menus and segmented choices are one height (34 pixels; 28 for the small
   keys inside cards) and share a middle when they stand in one line. Cards that share a row end together: Make's three
@@ -507,6 +534,9 @@ python3 apps/desktop/app.py --check                  # the desktop app's own che
 - `test_mcp.py`: the MCP server of `offerowl mcp` against a real panel on the fictional example: the protocol over stdio through
   the launcher, every reading tool, tailoring, the kit and its search, board moves and reminders, read-only mode, the
   address check, and the error a missing panel gives ([MCP.md](MCP.md)).
+- `test_interview_views.py`: what the interview tab's own parts read, on the fictional example: every script with its words
+  in the panel's language, the deck's scripts in the printed deck's order, the talk's script and its slides' pictures (by
+  their place only), a 304 for an unchanged view or deck, and a 404 that says so for a job with no kit or no talk.
 - `test_panel.py`, with the agent off or the stand-in, and no model: the onboarding record; the resume model and its schema;
   the evidence of a sentence (file and quote); an edit with a number the evidence does not hold (marked, export
   refused, undone); locks and the history; a job's fit and its schema; tailoring (resume done, cover letter needs the
@@ -518,15 +548,16 @@ python3 apps/desktop/app.py --check                  # the desktop app's own che
   every state (Make with the example, the resume, a selected sentence, an edit and an
   unsupported sentence, the profile, a fact being edited and one being typed in, the job form, the fit, the tailored job, the resume for
   the job, the cover letter without an agent, the typeset view without a PDF, the interview board and its scripts, the
-  kit's search view and its deck in the interview tab's frame, the presentation's script, the job's materials with a note open,
+  kit's contents and a question's answers, its deck, practice's setup, a question and its feedback, the presentation's
+  script, the job's materials with a note open,
   the tracker's board and timeline, the Library and its Trash with the question before deleting for good and a removal's
   note with its Undo key (then one put back and one deleted through the keys), each inspector tab, the menu, the agent on
   through the stand-in, the agent's panel, the
   setup guide's four steps the first time and its agent step from the menu, and a
   whole run from a dropped file: Make while it runs and when it is done) at 2560x1440,
   1440x900 and 390x844, light and dark, Korean and English, with `tests/app/audit.js`:
-  - overflow: text outside its box, text cut by a box that does not scroll, a word broken across lines, the page
-    wider than the window;
+  - overflow: text outside its box, text cut by a box that does not scroll, a word broken across lines (a compound word
+    may break after its hyphen, as English is set), the page wider than the window;
   - truncated: text cut short with an ellipsis;
   - overlap: two lines of text on top of each other (text under a fixed layer that is opaque, or frosted past reading
     with half a fill over a blur of 12 px or more, is hidden, not overlapping; under clear glass it counts);
@@ -538,9 +569,6 @@ python3 apps/desktop/app.py --check                  # the desktop app's own che
   - center: a one-line key whose words or sign sit more than a pixel off its middle, up or down, and across when its
     contents are centred. The words' middle is their body from the font's own measure (Hangul syllables, or the
     capital's height for Latin letters and figures), not the text's box, which holds the font's whole ascent and descent.
-
-  The kit's own pages that the interview tab shows in frames are served at the panel's address (under `/kit/`), so the
-  same audit runs inside each of them too; what it finds there counts with the panel's and names the frame's page.
 
   The audit first runs on a page with one planted defect of each kind and stops when it misses one. The last lines
   read `first run: N s from the page to the example's resume (backend none)` and

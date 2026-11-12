@@ -24,7 +24,8 @@ DECK = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/deck/(ko|en)$")  # a j
 FIGURE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/figures/(ko|en)/(timeline|stack|logo_[A-Za-z0-9_-]{1,80})\.png$")  # a picture the printed resume carries, for the canvas
 JOBFILE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/(posting|sent/[A-Za-z0-9_.-]{1,80}|kit/(?:out/)?[A-Za-z0-9_.%()-]{1,240})$")  # a job's posting, a copy that went out, a file of its interview kit
 SOURCE = re.compile(r"^/api/v1/materials/(m\d{1,6})$")  # a file brought in for the profile, as it came
-JOBPART = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)(?:/(fit|interview|talk))?$")  # one job, its fit, its interview board or its talk
+JOBPART = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)(?:/(fit|interview|interview/view|interview/deck|talk|talk/script))?$")  # one job, its fit, its interview board, what the script view and the deck read, its talk or the talk's script
+TALKSLIDE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/talk/slides/(\d{1,3})\.png$")  # a picture of one of the talk's slides, by its place, for the script the panel draws
 MATERIAL = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/materials(?:/(m\d{1,6})(?:/(preview|pages/(\d{1,4})\.png))?)?$")  # a job's materials, one of them, its preview or a page picture of it
 
 
@@ -193,10 +194,31 @@ class Router:
                 return 200, a.fit(jid), JSON  # cached until something changes
             if m.group(2) == "interview":  # the studio's board
                 return 200, studio.board(a.tasks, jid, lang_of(q.get("lang"))), JSON  # questions and scripts
+            if m.group(2) == "interview/view":  # every script with its words, for the panel's own contents, search and cards
+                view = a.tasks.kit_view(jid, lang_of(q.get("lang")))  # in the panel's language
+                if view is None:  # no kit yet, or it would not start
+                    return 404, {"error": "no_kit"}, JSON
+                return 200, view, JSON
+            if m.group(2) == "interview/deck":  # the interview deck's scripts in its order, for the panel's own deck
+                got = a.tasks.kit_deck(jid, lang_of(q.get("lang")))  # in the panel's language
+                if got is None:  # no kit yet, or it could not be read
+                    return 404, {"error": "no_kit"}, JSON
+                return 200, got, JSON
+            if m.group(2) == "talk/script":  # the talk's speaker script, for the panel to draw: every slide with its time and its words
+                got = a.tasks.talk_script(jid)  # as the printed script holds it
+                if got is None:  # no talk made yet
+                    return 404, {"error": "no_talk"}, JSON
+                return 200, got, JSON
             if m.group(2) == "talk":  # the presentation interview: its brief, and the talk when it is made
                 return 200, a.tasks.talk_state(jid), JSON
             job = next(j for j in a.jobs_view() if j["id"] == jid)  # its card with the summary
             return 200, {**job, "posting": (a.ws.job_dir(jid) / "posting.md").read_text(encoding="utf-8")}, JSON  # and the posting
+        m = TALKSLIDE.match(path)  # one of the talk's slides as a picture
+        if m:  # by its place among the talk's pictures, never a name from the request
+            f = a.tasks.talk_slide(a.need_job({"job": urllib.parse.unquote(m.group(1))}), int(m.group(2)))  # the job exists, the place is a number
+            if f is None:  # no talk, or no picture there
+                raise NotFound(path)
+            return 200, f.read_bytes(), "image/png"
         m = FILE.match(path)  # an edition's PDF or page picture
         if m:  # fixed names only; the id is checked by job_dir()
             jid = urllib.parse.unquote(m.group(1))  # the job id (Hangul is percent-encoded)

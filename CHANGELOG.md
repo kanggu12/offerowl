@@ -6,6 +6,108 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-12
+
+The interview tab drawn by the panel itself; when many requests come at once, when the panel is stopped, when it crashes,
+and what a load of the page costs; the interview kit's similarity search in the panel; one more decision model measured.
+
+### Added
+
+- An application's Interview tab draws every part in the panel's own menu, theme and layout, with its keys, fields, cards
+  and lamps. It showed the kit's own pages in frames before, with their own bars, type and cards, which read as another
+  program inside the panel.
+  - **Search the scripts**: the contents with every section and its scripts' titles, a key per section, the question box,
+    and the answers on a board of columns with the answers in reading order beside it; one column on a phone. The ranking
+    is the kit's own code, the same lines as its page (`tests/packaging/test_kit_engine.py`), so a question finds the
+    same script in both. KO, EN or both, the type size and the column width are kept per browser.
+  - **Interview deck**: the printed deck's scripts in its order, in the panel's parts: who it is for with its figures, a
+    key per part, the posting line by line with the script for each line and how well it answers, then each script with
+    its dialogue beside the translation and the notes, and the lines that buy time. A script's key in the posting's table
+    goes to it.
+  - **Practice**, a part of its own and the tab's main key: the mock interview with its setup, the question, Record or a
+    typed answer, the feedback as rows, the follow-up and the script as the search draws it, then the summary. It opened
+    the kit's page in a new tab before. Leaving the part stops the microphone; the session waits for your return.
+  - **Presentation**: the talk's script with each slide's picture beside its time and its words, then the questions to
+    expect with what backs each answer.
+  - **Wide view** gives the tab the whole width, and **Open in a window** opens the panel on one application's scripts
+    (`/?job=<id>&show=scripts`).
+- What those parts read, in the API: `GET /api/v1/jobs/<job>/interview/view` (every script with its words),
+  `/interview/deck` (the deck as data, in the printed deck's order), `/talk/script` and `/talk/slides/<n>.png`. The two
+  large ones come with an ETag, and the page asks again with the copy it holds, so an unchanged kit costs a 304 and no
+  body.
+
+- A stop from outside (SIGTERM or SIGHUP: `docker stop`, a pod's end, the desktop app's quit) ends the panel as Ctrl+C
+  does: no new request is taken, the ones being answered finish (up to `OFFEROWL_STOP_GRACE` seconds, 5), the tasks still
+  running are named in `logs/panel.log`, and the port is let go. It ended at once before, without a word in the log.
+- A request no slot is free for is answered 503 `busy` with `Retry-After: 2`, and the page sends it again after the
+  seconds asked, twice at most (it never reached the API, so nothing of it was done twice). It was closed unanswered after
+  10 seconds before, and the page saw a network failure. `OFFEROWL_MAX_REQUESTS` sets the slots (4 to 1024, 64).
+- A task that waits for another to finish (one model task and one rendering run at a time) says so on the page, "Waiting
+  for the task before it to finish", and shows its own step again once it runs; it said "Starting" all along before.
+- A fifth decision backend, `vega`: Vega, the engine Laya's maker published on 2026-11-05, run on this PC through the
+  maker's own package, with its reader downloaded only on purpose (`python3 src/decide/cli.py fetch vega`) and its
+  engine pinned to the revision measured. Measured on the same labelled sets in a container with no network: below
+  Laya and far below the agent on every step, so, like Laya and Jev, no step of Offerowl takes it
+  (`docs/DECISIONS.md`).
+- `python3 src/interview/cli.py eval --questions FILE` measures the kit's search on another question set of the same
+  form. `tests/decide/fixtures/kit_questions_reworded.json` asks about the example kit's cards in other words than
+  theirs, 14 questions in English and 14 in Korean: the search puts the right card first for 16 of them with keywords
+  alone and for 24 with the similarity model switched on. Laya and Vega, asked to pick the card or to reorder the
+  search's first three, did worse than the search they were given (`tests/decide/kit_search.py`), so no decision
+  model goes into the search.
+- The panel's interview kit can use the similarity model. `OFFEROWL_SEARCH_MODEL=<bge-m3 folder>` names it once: the
+  search view in an application's Interview tab and at `/kit/<job>/` then has the similarity switch, and `serve` takes
+  the folder without `--model`. It could be switched on from `serve --model` only before, never in the panel. The 28
+  reworded questions typed into the kit at the panel's address score the same 24 and 28 with the switch on.
+
+### Fixed
+
+- The interview kit's search inside the panel lost the question typed into it three seconds after it opened, and
+  whenever the window was dragged wider or narrower: a document fetched for another view (Insights) and a new width each
+  drew the application's page again, and the kit's frame with it. The tab now draws the search itself and keeps the
+  view, its question and its board's place through any redraw of the page and a visit to another part.
+- Practice's summary in English read "1 answers"; it reads "answers 1", as its other figures do.
+- A kit's server read kit.json once, when it started: scripts added afterwards kept the role and section name it had
+  then (a terms file listed as scenes) until the panel was started again. It reads kit.json again when it changes.
+- A job whose interview folder held only a talk's brief counted as having a kit: its Interview tab showed an empty search
+  view. A kit is its settings file now, for the board, the scripts and the deck alike.
+- The talk of the general edition, which has no interview folder, ended the request with no answer; it reads as not made.
+- Space on a key of the kit's search page moved the keyboard to the search box instead of pressing the key.
+- A burst of connections was mostly dropped: the server let the system hold only 5 waiting connections, Python's own
+  number, and the clients past them asked again a second, then 3, 7 and 15 seconds later. It holds 512. Measured with
+  1,000 requests for the state at once: 100 timed out after 30 seconds before, all are answered within 7 seconds now;
+  300 at once took 27 seconds before and take 3.
+- The Jev decision backend read its answers in the shape of an earlier draft: it took the confidence from a
+  probability per option, which the gateway's API reference marks optional, so an answer without them had none. It now
+  keeps the confidence Jev states, says so when Jev declines a question, asks again when the gateway is busy (after the
+  wait it names, three tries in all), sends each item as one object of readable fields, and records the version of
+  the model that answered.
+
+### Changed
+
+- Turning the kit's similarity switch off asks on a sheet of the page, under the switch, with its two keys ("Turn off",
+  "Keep it on"); it opened the browser's own confirm box. Escape, a click elsewhere and "Keep it on" leave the model
+  loaded. In the panel the same switch asks with the panel's own question.
+- The scripts beside the question map draw a stage note in Korean brackets in grey and a command in its own letters, as
+  the kit's cards do; they showed both as plain words.
+- The panel's page frames no address at all (`frame-src 'none'`): its previews of a deck or a saved web page are written
+  into their frames, and the interview tab draws its parts itself.
+- The command bar is **Ask the AI** ("AI에게 요청하기" in Korean, where it read "에이전트에게 맡기기"): a box in the top bar
+  whose words say what it is for, its key (Ctrl K) at its end. It was a key in the page's bottom right corner, a 32-pixel
+  mark with no words on windows narrower than 2,560 pixels; a phone or a tablet keeps the bar along the foot. Its sheet
+  opens flush with the window's right edge, from the top bar to the window's foot; it stood at the page's edge before,
+  apart from the window's on a wide screen. With no agent that can use the tools, the sheet says so before anything is
+  typed, with a key to the agent's panel.
+- On a phone the similarity switch sits beside the search box. Among the keys it pushed the last one onto a row of its
+  own at 390 pixels and less.
+- The page's own files (index.html, its scripts and styles) come with an ETag and `no-cache`, compressed for a browser
+  that takes gzip: a load fetches 260 KB instead of 932, and a reload gets 304 with no body for each file it holds, where
+  every load fetched them whole before. A changed file still comes again at once, so the page and its scripts stay in
+  step. It counts on a phone, and with the panel behind an Ingress.
+- The container started with compose comes back when it crashes (it exits with an error, an out-of-memory kill
+  included), three times at most, so a fault that repeats stops instead of looping; one you stop stays stopped.
+  `docs/ARCHITECTURE.md` (Load and stops) sets out what keeps the panel whole under load, at a stop and after a crash.
+
 ## [0.7.0] - 2026-11-12
 
 Several people on one cluster, each with an Offerowl of their own.
@@ -181,7 +283,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/kanggu12/offerowl/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kanggu12/offerowl/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/kanggu12/offerowl/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/kanggu12/offerowl/compare/v0.6.0...v0.6.1

@@ -107,6 +107,61 @@ class ServerTest(unittest.TestCase):  # the server over real HTTP on localhost
         self.assertEqual(len(scores), 18)  # every item gets a score
         self.assertTrue(all(len(s) == 4 for s in scores))  # id, score, view label, view text
 
+    def test_the_model_s_folder_can_be_named_once_in_a_setting(self):
+        """OFFEROWL_SEARCH_MODEL names the model's folder for every kit: read when it holds the model's two files, and
+        otherwise the files not found there are named, so the caller can say why the page has no switch."""
+        from interview import dense  # standard library only until a model is switched on
+        tmp = tempfile.mkdtemp(prefix="offerowl-iv-model-")  # a folder that only looks like the model's
+        self.addCleanup(shutil.rmtree, tmp, True)
+        with unittest.mock.patch.dict(os.environ, {"OFFEROWL_SEARCH_MODEL": ""}):
+            self.assertEqual((None, ""), dense.from_setting())  # no setting: keywords, and nothing to say
+        with unittest.mock.patch.dict(os.environ, {"OFFEROWL_SEARCH_MODEL": tmp}):
+            self.assertEqual((None, "tokenizer.json, onnx/model_int8.onnx"), dense.from_setting())  # an empty folder: both named
+            os.makedirs(os.path.join(tmp, "onnx"))
+            for name in ("tokenizer.json", os.path.join("onnx", "model_int8.onnx")):  # stand-ins: the files are only looked for here
+                open(os.path.join(tmp, name), "wb").close()
+            folder, problem = dense.from_setting()
+            self.assertEqual((tmp, ""), (str(folder), problem))  # the folder, ready for make_server(model_dir=...)
+
+    def test_serve_takes_the_setting_where_no_model_is_named(self):
+        """`serve` without --model reads the setting: the model's line with the folder, or the files it lacks and keywords."""
+        import contextlib  # the printed lines
+        import io  # the printed lines
+        from interview import cli  # the serve command
+        made = {}  # what make_server was given
+
+        class Stop(Exception):  # ends the command before it serves
+            pass
+
+        def fake(job, **kw):
+            made.update(kw)
+            raise Stop
+
+        tmp = tempfile.mkdtemp(prefix="offerowl-iv-model-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.addCleanup(i18n.use)  # the language follows the environment again afterwards
+        args = ["serve", "--job", str(helpers.JOB), "--port", "0"]
+        for files, want_model in (((), None), (("tokenizer.json", "onnx/model_int8.onnx"), tmp)):  # a folder without the files, then with them
+            for name in files:
+                os.makedirs(os.path.dirname(os.path.join(tmp, name)), exist_ok=True)
+                open(os.path.join(tmp, name), "wb").close()
+            out = io.StringIO()
+            with unittest.mock.patch.dict(os.environ, {"OFFEROWL_SEARCH_MODEL": tmp, "OFFEROWL_LANG": "en"}), \
+                    unittest.mock.patch.object(server, "make_server", fake), contextlib.redirect_stdout(out), self.assertRaises(Stop):
+                cli.main(args)
+            self.assertEqual(want_model, made["model_dir"] and str(made["model_dir"]))
+            self.assertEqual(not files, "has no tokenizer.json, onnx/model_int8.onnx" in out.getvalue())  # said once, when the files are missing
+
+    def test_the_switch_asks_on_the_page_s_own_sheet(self):
+        """Dropping the model is asked on a sheet of the page, in its look and words, never in the browser's own box."""
+        base, _ = self.start(embedder=lambda text: [1.0])
+        html = self.get(base + "/")[1]
+        self.assertIn('id="engineAsk" role="alertdialog"', html)  # the sheet
+        self.assertIn(">끄기</button>", html)  # its two keys, in the page's language
+        self.assertIn(">켜 두기</button>", html)
+        for box in ("confirm(", "alert(", "prompt("):  # the browser's boxes
+            self.assertNotIn(box, html.replace("engine_confirm", ""))
+
     def test_started_as_a_script_with_the_panel_settings(self):
         """python3 src/interview/server.py with OFFEROWL_WORKSPACE, OFFEROWL_JOB and OFFEROWL_PORT serves that job."""
         import socket  # a free port
