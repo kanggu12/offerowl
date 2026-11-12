@@ -59,7 +59,7 @@ jobs:
           # runner they took 12 of its 15 minutes, the longest job of a release)
           - name: macOS (Intel)
             os: macos-15-intel
-            tests: false
+            skip_tests: true
           # Linux on an older runner than the newest: the file runs on the glibc it was built with and on newer ones, so a
           # build on Ubuntu 22.04 (glibc 2.35) also runs on Debian 12 and Ubuntu 22.04, which a 24.04 build would refuse.
           - name: Linux
@@ -81,7 +81,8 @@ jobs:
       - name: The typesetting libraries, which the tests draw the deck and its figures with, as a checkout on a PC has them
         run: npm ci
       - name: The panel's tests, from the checkout
-        if: matrix.tests != false
+        # a missing key is null, and null == false in Actions' loose comparison: "matrix.tests != false" skipped them everywhere
+        if: ${{ !matrix.skip_tests }}
         run: python -m unittest discover -s tests/app -v
       - name: Build, then start the build with --check
         run: python apps/desktop/build.py
