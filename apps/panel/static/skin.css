@@ -844,7 +844,8 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .active .active-h { margin: 0 0 12px; }
 .col.glass, :root[data-theme] .col.glass { background: var(--board); box-shadow: inset 0 0 0 1px var(--board-rim); border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
 @media (max-width: 1100px) { .active-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .active-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .active-card { padding: 10px; } .active-card .ac-role { display: none; } }
+@media (max-width: 640px) { .active-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .active-card { padding: 10px; }
+  .active-card .ac-role { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; } }   /* the role tells two cards of one company apart: two lines at most */
 
 /* ================================================================ each part in its own area: a head, then what belongs to it
    Words that only follow one another lose where one part ends. So each part of a view sits in an area of its own: a
@@ -1015,8 +1016,9 @@ html[data-motion="off"] .ask-fab-i { animation: none !important; }
    96 px past it; the open application's end is what has to scroll clear of the prompt */
 @media (min-width: 861px) { #work[data-view="jobs"] { padding-bottom: 0; } #work[data-view="jobs"] .jobsplit > :last-child { margin-bottom: 96px; } }
 @keyframes ask-in { from { transform: translateX(24px); opacity: .4; } to { transform: none; opacity: 1; } }
-html[data-motion="off"] #askpanel { animation: none !important; }
-.ask-panel { display: flex; flex-direction: column; width: min(540px, calc(100vw - 32px)); max-height: min(72vh, 680px); background: var(--surface); border: 1px solid var(--line-2);
+html[data-motion="off"] #askpanel, #askpanel.stay { animation: none !important; }   /* it slides in on opening only, never again at each redraw */
+.ask-panel { display: flex; flex-direction: column; width: min(540px, calc(100vw - 32px)); max-height: min(72vh, 680px); background: var(--solid); border: 1px solid var(--line-2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);   /* the settings' and the agent's sheets' glass: nearly opaque, frosted */
   border-radius: 2px; box-shadow: var(--float); overflow: hidden; }
 .ask-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 .ask-head > svg { width: 16px; height: 16px; color: var(--ink-2); }
@@ -1149,13 +1151,20 @@ body:has(#setup:not([hidden])) #askbar { display: none; }                       
 .asked-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 26px; }
 .asked-list .asked-q { overflow-wrap: anywhere; }                                   /* a long question wraps under itself, its key stays at the row's end */
 .asked-list .asked-by { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.asked-list .asked-none { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.asked-list .asked-none { font-size: 12px; color: var(--ink-3); white-space: nowrap; padding: 0 9px; }   /* its words end where a script key's do */
+:is(.asked-list, .qboard) .lit.ai::before { background: transparent; box-shadow: inset 0 0 0 2px var(--orange); }   /* a draft: a ring, never read as the amber "in part" or an error */
+@media (max-width: 640px), (pointer: coarse) {                                         /* a thumb: these keys 44 px too */
+  .today-band .xlink { min-height: 44px; display: inline-flex; align-items: center; }
+  .pr-setup .seg button { min-width: 44px; }
+  .deck-ref-key { min-height: 44px; }
+  .kit.narrow .kit-toc button { min-height: 44px; align-items: center; } }   /* the row's words in its middle */
 .round-kit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 4px; }
 .round-top { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr); gap: var(--gap-s); align-items: end; }
 @media (max-width: 859px) { .prow.nodate, .prow.nodate.with-result { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .round-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .round-top > :first-child { grid-column: 1 / -1; } }
 .rhead-facts .agenda { display: grid; gap: 2px; justify-items: start; }             /* the rounds ahead, one a line, the nearest first */
 .rhead-facts .agenda .next-line { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0 8px; }   /* a round of today and its time left on one line */
+.rhead-facts .until[data-state="on"] { color: var(--green); background: color-mix(in srgb, var(--green) var(--soft), var(--surface)); }   /* going on: green, as on the application's line */
 /* a round of today on its application's head (make.js todayBand): its lamp, its hour, the time left, the call's link, the
    scripts' search; once it ends, the key that writes down its questions. A note on the board, coloured by its lamp only */
 .today-band { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 var(--gap-m); padding: 8px 12px; border: 1px solid var(--board-rim);
@@ -1822,10 +1831,11 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
   .seg.stages button, :root[data-theme] .seg.stages button { padding-top: 2px; } .seg.stages button > .when { margin-bottom: 0; }   /* the word and its day stacked sit on the key's middle in both languages (Hangul's body and Latin capitals differ by a pixel) */
   .fit-tools .seg, :root[data-theme] .fit-tools .seg { display: flex; flex-wrap: nowrap; column-gap: 14px; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .fit-tools .seg button { flex: 0 0 auto; white-space: nowrap; } }
-.tl.day::before { left: calc(12px + 96px + var(--gap-m) + 10px); }
+@media (min-width: 721px) { .tl.day::before { left: calc(12px + 96px + var(--gap-m) + 10px); } }   /* the line through the dots beside the day's column; a phone keeps its own (above), or the line ran through the names */
 .tl.day i { box-shadow: none; }
 .tl.day:nth-child(odd), :root[data-theme] .tl.day:nth-child(odd) { background: none; }
 .tl-ev, :root[data-theme] .tl-ev { border-color: transparent; background: none; padding-inline: 4px; }
+.tl-wrap { display: grid; gap: var(--gap-s); } .tl-none { margin: 0 4px; }                 /* the applications with no day, said above the days */
 .tl-ev:hover { background: var(--hover); }
 .tl time { font-family: inherit; font-variant-numeric: tabular-nums; }
 .jobrow[data-stage="result"] { grid-template-columns: 30px minmax(0, 1fr) auto; column-gap: 10px; }
@@ -1970,7 +1980,7 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 .kit .lang-ko .kit-body .ko-note .fld.tr:first-child { margin-top: 0; }
 .kit .lang-ko .kit-body .ko-note .fld.tr p { color: var(--ink); font-weight: 500; line-height: 1.62; }
 .kit .lang-ko .kit-body .ko-note .fld.tr.iv p { color: var(--ink-3); font-weight: 400; }
-.kit .lang-ko .kit-body .ko-note .fld .lab { display: inline-block; margin-right: .5em; padding: 0 .45em; border-radius: 2px; line-height: 1.6; color: var(--ink-3); background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.kit .lang-ko .kit-body .ko-note .fld .lab { display: inline-block; margin-right: .5em; padding: 0 .45em; border-radius: 2px; line-height: 1.6; color: var(--ink-2); background: color-mix(in srgb, var(--ink) 9%, transparent); }
 .kit-cards.tocv { display: block; overflow-x: hidden; scroll-snap-type: none; }       /* the contents: one block of balanced columns */
 .kit-cards.measure { position: absolute; left: -30000px; top: 0; visibility: hidden; display: block; height: auto; overflow: visible; }   /* cards measured before they are placed */
 .kit-cards.measure .kit-block { height: var(--h); }
@@ -2019,7 +2029,7 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 .kit-body .ko-note .nh { display: inline-block; margin: 0 .55em 0 0; padding: 0 .45em; border-radius: 2px; font-size: .9em; font-weight: 600; line-height: 1.6; vertical-align: .06em; color: var(--ink-3); background: var(--press); }
 .kit-body .ko-note .fld.tr, .kit-body .ko-note .fld.tr.iv { margin: .3em 0 0; }
 .kit-body .ko-note .fld.tr:first-child { margin-top: 0; }
-.kit-body .ko-note .fld .lab { display: inline; margin-right: .45em; padding: 0; background: none; font-size: .9em; font-weight: 600; color: var(--ink-3); }
+.kit-body .ko-note .fld .lab { display: inline; margin-right: .45em; padding: 0; background: none; font-size: .9em; font-weight: 600; color: var(--ink-2); }   /* "주의" readable: ink-3 measured 2.6:1 */
 .kit-body .lead { font-weight: 650; }
 .kit-body p { margin: .45em 0; }
 .kit-body > p:first-child { margin-top: 0; }
@@ -2235,7 +2245,11 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 .dt-name .linkish { min-width: 0; overflow-wrap: anywhere; text-align: left; font-weight: 600; color: var(--ink); }
 .dt-none { color: var(--ink-3); padding-left: 12px; }
 .dt-cell { display: grid; gap: 3px; min-width: 0; } .dt-lab { display: none; font-size: 12px; color: var(--ink-3); }
-.dt-cell.off input:not(.pick) { border-color: var(--amber); }                          /* out of order: kept on the card, left out of the timeline and the charts */
+.dt-cell.off input:not(.pick) { border-color: var(--amber); }
+.dt-cell.batch input:not(.pick) { border-style: dashed; border-color: var(--amber); }   /* the batch's day, which the band's key clears */
+.dt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; margin: 4px 0 6px; } .dt-key { display: inline-flex; align-items: center; gap: 8px; }
+.dt-swatch { flex: none; width: 22px; height: 12px; border: 1.5px solid var(--amber); border-radius: 2px; }
+.dt-swatch.batch { border-style: dashed; }                          /* out of order: kept on the card, left out of the timeline and the charts */
 @media (max-width: 720px) {
   .dt-row.dt-head { display: none; }
   .dt-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }

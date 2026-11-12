@@ -213,7 +213,7 @@ BULLET = re.compile(r"^\s*(?:[-*•·ㆍ▪◦○●■□▶▷✓✔]|\d{1,2}[
 # Heading words, checked in this order: "Preferred Qualifications" must win over "Qualifications".
 HEADINGS = [
     ("preferred", r"preferred(?: qualifications?| skills?| experience| requirements?)?|nice[- ]to[- ]haves?|bonus(?: points)?|a plus|desired(?: skills| qualifications)?|우대(?: ?사항| ?조건| ?요건)?|이런 (?:분|경험)(?:이면|이라면) 더 좋"),
-    ("requirement", r"(?:minimum |basic |required |key )?(?:qualifications?|requirements?)|required skills|what (?:you(?:'|’)ll|you will) (?:need|bring)|what we(?:'|’)re looking for|must[- ]haves?|who you are|자격 ?요건|지원 ?자격|필수(?: ?요건| ?자격| ?사항)?|이런 분을 찾"),
+    ("requirement", r"(?:minimum |basic |required |key )?(?:qualifications?|requirements?)|required skills|what (?:you(?:'|’)ll|you will) (?:need|bring)|what we(?:'|’)re looking for|who we(?:'|’)re looking for|must[- ]haves?|who you are|about you|your profile|you have|what you bring|(?:the )?ideal candidate|skills (?:and|&) experience|experience (?:and|&) skills|자격 ?요건|지원 ?자격|필수(?: ?요건| ?자격| ?사항)?|이런 분을 찾"),
     ("duty", r"(?:key |main |primary )?(?:responsibilities|duties)|what (?:you(?:'|’)ll|you will) do|the role|about the role|day[- ]to[- ]day|주요 ?업무|담당 ?업무|하는 일|업무 ?내용|업무 ?소개|합류하면 함께 할 일"),
     ("other", r"job overview|overview|about (?:us|the company|the team|the job)|company(?: overview)?|benefits|perks|compensation|location|how to apply|hiring process|process|전형(?: ?절차)?|복지|혜택|근무 ?(?:조건|지|환경)|회사 ?소개|팀 ?소개|공고 ?개요"),
 ]

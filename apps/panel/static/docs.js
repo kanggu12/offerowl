@@ -606,8 +606,8 @@ function viewDocuments(host) {                                                  
   fill($("dochead"),                                                                // the head, over the document and its inspector
     h("div", { class: "viewhead" }, h("h1", { text: t("Documents") }),
       h("span", { class: "sub", text: j ? t("For {job}", { job: [j.company, j.role].filter(Boolean).join(", ") || j.id }) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it") }),
-      named() ? h("button", { class: "btn icon small quiet danger", type: "button", "data-key": "edition-remove", title: t("Remove this edition"), "aria-label": t("Remove the edition {name}", { name: named().name }),   // a named edition: off the list, into the Trash
-        onclick: () => removeAct("/api/v1/jobs/remove", { job: named().id }, t("Removed the edition {name}. It waits in the trash.", { name: named().name })) }, icon("trash")) : null,
+      named() ? h("button", { class: "btn small quiet danger", type: "button", "data-key": "edition-remove", "aria-label": t("Remove the edition {name}", { name: named().name }),   // said in words   // a named edition: off the list, into the Trash
+        onclick: () => removeAct("/api/v1/jobs/remove", { job: named().id }, t("Removed the edition {name}. It waits in the trash.", { name: named().name })) }, icon("trash"), t("Remove this edition")) : null,
       h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn))),   // the page's actions beside its title, as one group; Export and its lock on one row
     // what is shown; why export waits at the row's right (under the keys it came and went, and the head jumped 27 px); the
     // inspector's key at the row's end where it is a drawer

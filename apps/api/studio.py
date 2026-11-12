@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json  # the kit's health answer
 import re  # dialogue lines
-import threading  # one coverage build at a time
 import urllib.parse  # a job's id in the kit's address
 import urllib.request  # the kit's health
 
@@ -62,22 +61,6 @@ def health(url: str) -> dict | None:
         return None  # not up
 
 
-_COVERAGE: dict = {}  # (job folder, its files' stamp) -> cover.Coverage: 1.5 s to build for a kit of 600 scripts, so built once per change
-_COVERAGE_LOCK = threading.Lock()  # two requests at once build it once
-
-
-def coverage(job, items, alts):
-    """The kit's coverage rules (cover.Coverage) for rating questions, kept while the kit's files stay as they are."""
-    from interview import corpus, cover  # the stamp, the rules
-    key = (str(job.dir), repr(corpus.stamp(job)))  # a file changed, a draft written: another key
-    with _COVERAGE_LOCK:
-        if key not in _COVERAGE:
-            while len(_COVERAGE) >= 4:  # a few kits at a time
-                _COVERAGE.pop(next(iter(_COVERAGE)))
-            _COVERAGE[key] = cover.Coverage(items, alts, job.kit)
-        return _COVERAGE[key]
-
-
 def board(tasks, job_id: str, lang: str = "ko") -> dict:
     """The studio's board for one job. ready is False until the tailor step made the kit folder."""
     jd = tasks.ws.job_dir(job_id)  # the job's folder
@@ -101,9 +84,7 @@ def board(tasks, job_id: str, lang: str = "ko") -> dict:
     items, alts = corpus.load(job)  # the scenes, the agent's drafts among them
     # what the earlier rounds asked, read now from the rounds as they are (a round written, changed or undone a moment ago),
     # in place of the map's copy from when it was made; rated against the scenes only when there is a question to rate
-    lines = ivplan.asked_lines(job)
-    asked = ivplan.asked_rows(job, coverage(job, items, alts), lines) if lines else []
-    rows = asked + [r for r in rows if r.get("kind") != "asked"]
+    rows = ivplan.with_asked(job, rows, items, alts)
     cats = []  # by category
     for kind in KINDS:  # in the map's order
         qs = [{"id": r["id"], "text": r.get("text", ""), "ask_en": (r.get("ask") or {}).get("en", [""])[0],  # the line and its question
@@ -116,11 +97,14 @@ def board(tasks, job_id: str, lang: str = "ko") -> dict:
     for f in job.draft_files():  # each draft file
         answered.update(drafted_for(f.read_text(encoding="utf-8")))  # the questions they were written for
     was_none = 0  # questions with no script that a draft answers now
+    drafts = {it["id"] for it in items if it.get("draft")}  # the agent's scripts no person has taken over yet
     for c in cats:  # the map was made before the drafts: a question a draft answers says so
         for q in c["questions"]:  # each question
             if q["coverage"] in ("none", "weak") and q["id"] in answered:  # no scene, or one only in part (an earlier round's question), and a draft written for it now
                 was_none += q["coverage"] == "none"
                 q["coverage"], q["covered_by"] = "draft", [answered[q["id"]]]  # its lamp says a draft waits for review
+            elif q["coverage"] in ("strong", "weak") and q["covered_by"] and q["covered_by"][0] in drafts:  # the script that answers it best is a draft
+                q["coverage"] = "draft"  # never a finished script's green
     scripts = []  # the cards
     for it in items:  # each scene
         if it.get("role") not in ("scenes", "deep"):  # notes and term lists are not scripts
@@ -131,6 +115,6 @@ def board(tasks, job_id: str, lang: str = "ko") -> dict:
         scripts.append({"id": it["id"], "title_en": it.get("ten") or "", "title_ko": it.get("tko") or "",  # the card's head
                         "category": it.get("cat") or "", "key": it.get("key") or "", "note": it.get("note") or "",  # its core and caution
                         "turns": tt, "draft": bool(it.get("draft"))})  # the dialogue
-    drafted = sum(1 for c in cats for q in c["questions"] if q["coverage"] == "draft")  # questions a draft answers
+    drafted = sum(1 for s in scripts if s["draft"])  # the scripts that are the agent's drafts (the page says how many of the scripts)
     counts = {"questions": len(rows), "scripts": len(scripts), "uncovered": sum(1 for r in rows if r.get("coverage") == "none") - was_none, "drafted": drafted}  # the board's totals
     return {"ready": True, "categories": cats, "scripts": scripts, "counts": counts, **base}  # the board

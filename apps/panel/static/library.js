@@ -12,7 +12,7 @@ const LIB_KIND_ICON = { pdf: "file", md: "edit", txt: "edit", json: "list", png:
 const LIB_KIND_WORD = { md: "Markdown", txt: "Text", json: "JSON", html: "Web page", pdf: "PDF", pptx: "Slides", docx: "Word", png: "Picture", jpg: "Picture", py: "Code" };   // a file's kind in words
 // rows to a page: as many as the window holds under the Library's head (a row is 54 px), so a tall screen is not left two
 // thirds empty under 14 rows and a short one does not scroll; 8 at the least, 40 at the most
-const libPageSize = () => Math.max(8, Math.min(40, Math.floor((innerHeight - 464) / 54)));   // 464 px of head, filters, pager and the foot kept clear of the AI prompt (measured)
+const libPageSize = () => Math.max(8, Math.min(40, Math.floor((innerHeight - 400) / 54)));   // 54 px a row; 400 px of head, filters, the columns' row, the pager and the foot kept clear of the AI prompt (measured at 1440 x 900: 8 rows left a row's room)
 const TRASH_ICON = { source: "upload", photo: "person", job: "case", edition: "file", material: "file", aside: "folder" };   // a removed thing's mark, by what it was
 const trashKind = (k) => ({ source: t("Your file"), photo: t("Resume photo"), job: t("Application"), edition: t("Edition"), material: t("Application file"),
   aside: t("Workspace before a restore") }[k] || t("File"));                           // what it was, in words
@@ -88,6 +88,7 @@ function trashLine(n, words) {                                                  
 function trashName(r) { return r.kind === "photo" ? t("Resume photo") : r.name; }    // a removed thing's name as a person reads it
 function trashWhat(r) {                                                             // what it was, under its name
   const kind = trashKind(r.kind);
+  if (r.kind === "material" && (r.note || {}).copy) return kind + " · " + t("copy {n}", { n: r.note.copy });   // one of several files of one name: which one
   return r.kind === "job" && (r.note || {}).role ? kind + " · " + r.note.role : kind;   // an application says its role too
 }
 function trashWhose(r) {                                                            // whose it was: an application's file names it, a file of the profile says so

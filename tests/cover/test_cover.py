@@ -93,6 +93,13 @@ class PostingTests(unittest.TestCase):  # parse_posting: sections, bullets, fron
         self.assertEqual(C.parse_posting("Responsibilities\nRun things\n")["company"], "")  # an empty string, not a guessed word
 
 
+    def test_about_you_heads_the_requirements(self):  # "About you" and its kin open the requirements: their lines were read as duties
+        for head in ("About you", "Your profile", "Who we're looking for", "What you bring", "The ideal candidate", "Skills & experience"):
+            text = f"# Engineer\n\n## What you will do\n\n- Run the deploy path.\n\n## {head}\n\n- Fluent in Python.\n- Two years in an SRE role.\n"
+            items = C.parse_posting(text)["items"]
+            self.assertEqual([(i["kind"], i["section"]) for i in items],
+                             [("duty", "What you will do"), ("requirement", head), ("requirement", head)], head)
+
     def test_square_headings_and_a_company_named_in_a_we_are_sentence(self):
         p = C.parse_posting("■ 담당업무\n- 서비스 개발\n- 인프라 운영\n■ 자격요건\n- 컴퓨터공학 전공\n■ 우대사항\n- 클라우드 경험\n")  # a square in front of a heading is decoration
         self.assertEqual([(i["kind"], i["text"]) for i in p["items"]],

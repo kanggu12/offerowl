@@ -133,7 +133,8 @@ function heroCard() {                                                           
   const open = jobs.filter((j) => j.stage !== "result");                            // still going
   const next = open.find((j) => j.stage === "interview" && j.next) || open.find((j) => j.next);   // the next date the person wrote down, an interview's first
   const today = S.today || "";
-  const ahead = open.flatMap((j) => (j.rounds || []).filter((r) => String(r.at).slice(0, 10) >= today).map((r) => ({ j, r })))   // the interview rounds ahead,
+  const ahead = open.flatMap((j) => (j.rounds || []).filter((r) => { const d = String(r.at).slice(0, 10); return d > today || (d === today && (roundStart(r) === null || dayState(r).state !== "over")); })   // the interview rounds ahead (one of today that ended is behind),
+    .map((r) => ({ j, r })))
     .sort((a, b) => String(a.r.at).localeCompare(String(b.r.at))).slice(0, 3);     // the nearest first: the morning's agenda
   const made = editionsMade().sort((a, b) => b.at.localeCompare(a.at))[0];          // the newest edition with PDFs
   const goJob = (j, tab) => { S.job = j.id; UI.jobTab = tab; act("/api/v1/jobs/select", { job: j.id }); go("jobs"); };   // that application, on its tab
@@ -149,7 +150,7 @@ function heroCard() {                                                           
       jobs.length ? stageBar(jobs, { compact: true }) : h("span", { text: t("None yet") }),   // every application by stage, its words and numbers beside it
       ahead.length || next ? h("b", { text: t("Next") }) : null,
       ahead.length ? h("span", { class: "agenda" }, ahead.map(({ j, r }) => h("span", { class: "next-line" }, h("button", { class: "next", type: "button", onclick: () => goJob(j, "progress"),   // each round ahead opens its application
-        text: `${whenWords(r.at)} ${jobName(j)}, ${t(ROUND_KIND[r.kind] || "Other round")}` }),
+        text: `${String(r.at).slice(0, 10) === today ? `${t("Today")} ${String(r.at).slice(11, 16)}`.trim() : whenWords(r.at)} ${jobName(j)}, ${t(ROUND_KIND[r.kind] || "Other round")}` }),   // today's say so, as the application's line does
         String(r.at).slice(0, 10) === today && roundStart(r) !== null && dayState(r).state !== "over" ? h("span", { class: "until", "data-round-day": j.id + "|" + r.id, "data-state": dayState(r).state, text: dayWords(r) }) : null)))   // today's: the time left, kept current
       : next ? h("span", {}, linksIn(next.next).length                              // the next step's links open where they stand; its company opens the application
           ? h("span", { class: "next-line" }, h("button", { class: "next", type: "button", onclick: () => goJob(next, next.stage === "interview" ? "interview" : "progress"),
@@ -201,7 +202,7 @@ setInterval(() => {                                                             
     if (!r) continue;
     const st = dayState(r), w = dayWords(r);
     if (el.textContent !== w) el.textContent = w;
-    if (el.dataset.state !== st.state) turned = true;
+    if (el.dataset.state !== st.state) { turned = true; el.dataset.state = st.state; }   // drawn again once, not at every tick
   }
   if (turned) render();
 }, 15000);
@@ -212,13 +213,15 @@ function roundStart(r) {                                                        
   const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(String(r && r.at || ""));
   return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : null;
 }
-function roundMinutes(r) {                                                          // its length: "15:00~15:30" or "30분", "45 min" in its notes, else an hour
-  const n = String(r.notes || "");
+function roundMinutes(r) {                                                          // its length: "15:00~15:30", "1시간 30분", "90분", "2h" or "45 min" in its notes, else an hour
+  const n = String(r.notes || ""), ok = (m) => m >= 10 && m <= 240;
   const span = /(\d{1,2}):(\d{2})\s*[~\u2013-]\s*(\d{1,2}):(\d{2})/.exec(n);
   const m = span ? (+span[3] * 60 + +span[4]) - (+span[1] * 60 + +span[2]) : 0;
-  if (m >= 10 && m <= 240) return m;
-  const said = /(\d{2,3})\s*(?:분|min)/i.exec(n);
-  return said && +said[1] >= 10 && +said[1] <= 240 ? +said[1] : ROUND_MINUTES;
+  if (ok(m)) return m;
+  const hm = /(\d{1,2})\s*(?:시간|h(?:ours?|rs?)?\b)(?:\s*(\d{1,2})\s*(?:분|m(?:in(?:ute)?s?)?\b))?/i.exec(n);   // hours, and the minutes after them
+  if (hm && ok(+hm[1] * 60 + (+hm[2] || 0))) return +hm[1] * 60 + (+hm[2] || 0);
+  const said = /(\d{2,3})\s*(?:분|min(?:ute)?s?)(?!\s*(?:전|일찍|before|early|ahead))/i.exec(n);   // "10분 전 입장" is when to be there, not how long
+  return said && ok(+said[1]) ? +said[1] : ROUND_MINUTES;
 }
 function dayState(r) {                                                              // ahead, on or over, with the minutes to its start or since it
   const at = roundStart(r), now = Date.now();
@@ -228,7 +231,7 @@ function dayState(r) {                                                          
 }
 function dayWords(r) {                                                              // "in 32 min", "on, 12 min in", "ended"
   const st = dayState(r), hm = (n) => (n >= 60 ? t("{h}h {m}m", { h: Math.floor(n / 60), m: n % 60 }) : t("{m} min", { m: n }));
-  return st.state === "ahead" ? t("Starts in {w}", { w: hm(st.mins) }) : st.state === "on" ? t("Going on, {w} in", { w: hm(st.mins) }) : t("Ended");
+  return st.state === "ahead" ? t("Starts in {w}", { w: hm(st.mins) }) : st.state === "on" ? (st.mins ? t("Going on, {w} in", { w: hm(st.mins) }) : t("Just started")) : t("Ended");
 }
 function roundToday(j) {                                                            // the job's round of today at an hour: the one ahead or going on, else the last that ended
   const today = S.today || "";
@@ -236,7 +239,9 @@ function roundToday(j) {                                                        
   return rs.find((r) => dayState(r).state !== "over") || rs[rs.length - 1] || null;
 }
 function todayMarks() {                                                            // where each round of today stands, for the panes' keys: a round that begins or ends draws them again
-  return (S.jobs || []).map((j) => { const r = roundToday(j); return r ? j.id + ":" + r.id + ":" + dayState(r).state : ""; }).filter(Boolean).join();
+  const today = S.today || "";
+  return (S.jobs || []).flatMap((j) => (j.rounds || []).filter((r) => String(r.at || "").slice(0, 10) === today && roundStart(r) !== null)
+    .map((r) => j.id + ":" + r.id + ":" + dayState(r).state)).join();               // every one of them (Make's agenda shows each), not only the one on the application's head
 }
 function todayBand(j, where) {                                                      // one line on an application's head: today's round, its time left, its call's link
   const r = roundToday(j); if (!r) return null;
@@ -250,7 +255,7 @@ function todayBand(j, where) {                                                  
     st.state !== "over" ? linkKeys(links) : null,                                   // the call's link while it is ahead or going on
     st.state !== "over" && !(where === "interview" && UI.ivPart === "search") ? h("button", { class: "btn small", type: "button", onclick: toScripts }, icon("search"), t("Search the scripts")) : null,
     st.state === "over" && !String(r.asked || "").trim() ? h("button", { class: "btn small", type: "button", onclick: toWrite }, icon("edit"), t("Write down the questions asked")) : null,
-    st.state === "over" && !String(r.asked || "").trim() ? h("span", { class: "hint", text: t("They lead the question map: the next scripts answer them first.") }) : null);
+    st.state === "over" && !String(r.asked || "").trim() ? h("span", { class: "hint", text: t("The questions you write down lead the question map, and the next scripts answer them first.") }) : null);
 }
 const STAGE_ORDER = { interview: 0, submitted: 1, preparing: 2 };                  // what needs the person first
 function activeStrip() {                                                            // the applications still going, as cards: stage, company, role, next step

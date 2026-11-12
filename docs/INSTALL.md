@@ -82,7 +82,7 @@ gh attestation verify Offerowl-linux-x64 --repo kanggu12/offerowl
 
 On Windows, compare `Get-FileHash Offerowl.exe` with its line. The files are built and checked on Windows, on macOS (Apple
 silicon and Intel) and on Linux. The image has no line in `SHA256SUMS`; GitHub's record of where it was built is checked by
-name: `gh attestation verify oci://ghcr.io/kanggu12/offerowl-app:0.9.0 --repo kanggu12/offerowl`.
+name: `gh attestation verify oci://ghcr.io/kanggu12/offerowl-app:0.9.1 --repo kanggu12/offerowl`.
 
 **Options.** `--no-browser`, `--no-tray` (no notification area), `--port N`, and `--check` (a throwaway copy with a stand-in
 agent reads one file, makes the example's documents, and stops). [APP.md](APP.md) describes the panel.
@@ -115,7 +115,7 @@ first build takes several minutes; later starts take seconds. `./offerowl open` 
 A published image instead of a build (the version is on the Releases page):
 
 ```bash
-OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.9.0 docker compose -f deploy/docker/compose.yaml up -d
+OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.9.1 docker compose -f deploy/docker/compose.yaml up -d
 ```
 
 Settings come from your shell or from a `.env` file next to `deploy/docker/compose.yaml`:
@@ -152,7 +152,7 @@ The volume stays.
 ## 3. A Kubernetes cluster (Helm)
 
 ```bash
-helm install offerowl oci://ghcr.io/kanggu12/charts/offerowl --version 0.9.0 --namespace offerowl --create-namespace
+helm install offerowl oci://ghcr.io/kanggu12/charts/offerowl --version 0.9.1 --namespace offerowl --create-namespace
 kubectl --namespace offerowl port-forward svc/offerowl 8797:8797
 ```
 
@@ -163,8 +163,8 @@ port on both sides. `helm test offerowl --namespace offerowl` asks its health ch
 From a checkout, with an image you built and pushed where the cluster can pull it:
 
 ```bash
-docker build -f deploy/docker/Dockerfile -t registry.example.com/offerowl-app:0.9.0 .
-docker push registry.example.com/offerowl-app:0.9.0
+docker build -f deploy/docker/Dockerfile -t registry.example.com/offerowl-app:0.9.1 .
+docker push registry.example.com/offerowl-app:0.9.1
 helm install offerowl deploy/helm/offerowl --namespace offerowl --create-namespace --set image.repository=registry.example.com/offerowl-app
 ```
 
@@ -255,7 +255,7 @@ stays.
 ## 4. The Python package
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.9.0/offerowl-0.9.0-py3-none-any.whl
+pipx install https://github.com/kanggu12/offerowl/releases/download/v0.9.1/offerowl-0.9.1-py3-none-any.whl
 offerowl panel --open
 ```
 

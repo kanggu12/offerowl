@@ -454,7 +454,8 @@ class Practice:  # one per server
 
     def scenes(self):
         """{id: (item, turns)} of every scene, rebuilt when a source file changes."""
-        stamp = corpus.stamp(self.job)  # sizes and change times of the sources
+        status = self.job.dir / "status.json"  # the rounds' questions (plan.asked_lines) are kept there
+        stamp = corpus.stamp(self.job) + ([(str(status), status.stat().st_mtime_ns, status.stat().st_size)] if status.is_file() else [])  # sizes and change times of the sources
         with self.lock:  # one build at a time
             if stamp != self._stamp:  # a scene file changed, or the first call
                 from interview import plan  # the question map
@@ -490,7 +491,7 @@ class Practice:  # one per server
                     used.add(sid)  # taken
                     it, tt = scenes[sid]  # the scene and its turns
                     asked = r["text"] if r["kind"] == "asked" else tt[0]["q"]  # a question an earlier round asked comes in the words it was asked in
-                    out.append({"qid": f"q{len(out) + 1}", "kind": r["kind"], "topic": r["text"], "source": r["source"],
+                    out.append({"qid": f"q{len(out) + 1}", "kind": r["kind"], "topic": "" if r["kind"] == "asked" else r["text"], "source": r["source"],  # an asked question is its own topic
                                 "scene": sid, "title": it.get("ten") or it.get("tko"), "ask": asked, "ask_ko": tt[0]["q_ko"],
                                 "fixed": tt[0]["q"], "turns": len(tt)})  # the scene's own line asks the rest
                     break  # one per kind per round

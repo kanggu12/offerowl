@@ -48,7 +48,8 @@ def rows_of(job):
         data = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}  # the written map
     except (OSError, ValueError):  # unreadable: made again below
         data = {}
-    return data.get("questions") or ivplan.build(job)  # the map, made without a model when none was written
+    rows = data.get("questions")  # as written
+    return ivplan.with_asked(job, rows) if rows else ivplan.build(job)  # the rounds' questions read now; made without a model when none was written
 
 
 def kind_of(row):
@@ -61,6 +62,8 @@ def kind_of(row):
 def scenes_of(job):
     """{id: (item, [(speaker, line, translation)], notes)} for every item with a dialogue, the agent's drafts among them."""
     items, _ = corpus.load(job)  # every item of the kit
+    hidden = [re.escape(x) for x in job.kit.get("hidden_labels") or []]  # notes for the writer (근거: the question a draft was written for)
+    secret = re.compile(r"^\s*(?:-\s*)?\*\*(?:" + "|".join(hidden) + r")\*\*") if hidden else None
     cache, out = {}, {}  # file -> its blocks; id -> scene
     for it in items:  # in file order
         if it["path"] not in cache:  # each file is split once
@@ -72,6 +75,8 @@ def scenes_of(job):
                 pairs[-1] = (pairs[-1][0], pairs[-1][1], txt)  # kept with it
             elif who in ("면접관", "나"):  # a spoken line
                 pairs.append((who, txt, ""))  # its translation may follow
+        if secret:  # never on the page, as the search view leaves them out
+            notes = [ln for ln in notes if not secret.match(ln)]
         if pairs:  # only items with a dialogue are scripts
             out[it["id"]] = (it, pairs, notes)  # by id, as the map names them
     return out
@@ -344,6 +349,35 @@ def record(job):
     return st if isinstance(st, dict) else {}
 
 
+def asked_first(pages, rows, scenes, n=None):
+    """A deck in the file's order with what the earlier rounds asked right after its first part (the greeting): each such
+    question's script moves there from its place in the file, its page keeping the questions it had, so it prints once.
+    A file holds the call's own scripts in order, and the drafts written for asked questions come last in it."""
+    lead, moved = [], {}  # the asked part's pages; script id -> its page there
+    old = {sid: rs for _, rs, sid in pages}  # each printed script's questions
+    for r in rows:
+        if kind_of(r) != "asked":
+            continue
+        by = [str(x[0]) for x in r.get("covered_by") or [] if str(x[0]) in scenes]  # the map's match: its own script by title first
+        sid = by[0] if by else None
+        if not sid:  # no script answers it yet
+            continue
+        if sid in moved:  # a script that answers two asked questions: one page
+            moved[sid][1].insert(len([x for x in moved[sid][1] if kind_of(x) == "asked"]), r)
+            continue
+        if len(lead) >= (n or PER_KIND["asked"]):  # the part is full
+            continue
+        page = ["asked", [r] + [x for x in old.get(sid, []) if x is not r], sid]  # the asked question leads; what the script answered stays with it
+        moved[sid] = page
+        lead.append(page)
+    if not lead:
+        return pages
+    rest = [pg for pg in pages if pg[2] not in moved]  # each script once
+    first = rest[0][0] if rest else None  # the first part: the opening minutes in a kit for a call
+    cut = next((i for i, pg in enumerate(rest) if pg[0] != first), len(rest))
+    return rest[:cut] + lead + rest[cut:]
+
+
 def select(job, kinds=None, ids=None, n=None):
     """What a deck holds, for the printed page and for the panel alike: (pages, scenes, rows, kinds asked for, ids asked for).
     pages is [[part, [rows], scene id]] in the deck's order; kinds and ids are None when not asked for."""
@@ -358,6 +392,7 @@ def select(job, kinds=None, ids=None, n=None):
         if files:  # the kit's other scripts follow as the map ranks them, as in a deck made from the map alone
             printed = {sid for _, _, sid in pages}  # already in
             pages += [pg for pg in pick(rows, scenes, None, None, n) if pg[2] not in printed]  # the posting, the resume, the technical questions
+        pages = asked_first(pages, rows, scenes, n)  # what an earlier round asked, right after the greeting
     else:  # the map's likeliest questions, part by part
         pages = pick(rows, scenes, want_kinds, want_ids, n)  # what the deck prints
     return pages, scenes, rows, want_kinds, want_ids

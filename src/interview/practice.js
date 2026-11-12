@@ -95,7 +95,7 @@ function prSetupHtml() {  // the choices before a session
 function prAskHtml(busy) {  // the question being asked, with the answer controls
   const q = prQ(); const n = PR.session.questions.length;  // the question and how many there are
   const kind = PR.turn ? fmt("pr_followup") : fmt("kind_" + q.kind);  // what kind of question this is
-  const topic = PR.turn ? "" : `<p class="pr-topic">${esc(q.topic)}</p>`;  // where the question comes from (the posting line, the resume line)
+  const topic = PR.turn || !q.topic ? "" : `<p class="pr-topic">${esc(q.topic)}</p>`;  // where the question comes from (the posting line, the resume line; an earlier round's question is its own)
   const ko = PR.askKo ? `<details class="pr-ko"><summary>${esc(fmt("pr_show_ko"))}</summary><p>${esc(PR.askKo)}</p></details>` : "";  // the translation, folded
   const recording = !!PR.rec;  // the microphone is on
   const rec = recording ? `<button type="button" class="pr-key pr-stop" id="prStop"${busy ? " disabled" : ""}><span class="pr-dot"></span>${esc(fmt("pr_stop"))}</button><span class="pr-meter"><span id="prLevel"></span></span><span class="pr-dim">${esc(fmt("pr_recording"))}</span>`

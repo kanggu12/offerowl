@@ -246,6 +246,12 @@ class PanelKeys(unittest.TestCase):
         finally:
             p.set_viewport_size({"width": 1440, "height": 900})
 
+    def test_7d_a_round_s_length_comes_from_its_notes(self):
+        # the "today's interview" line ends a round when its length has passed: read from its notes as people write them
+        got = self.page.evaluate("""() => ["15:00~15:30, a call", "1시간 30분 기술 면접", "90분", "2h panel", "45 min",
+            "10분 전 입장, 60분", "10분 전 입장", ""].map((notes) => roundMinutes({ notes }))""")
+        self.assertEqual([30, 90, 90, 120, 45, 60, 60, 60], got)  # "10분 전 입장" is when to be there, not how long; none: an hour
+
     def test_8_no_page_errors(self):
         self.assertEqual([], self.errors)
 

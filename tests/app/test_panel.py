@@ -937,10 +937,14 @@ class TestDaysOfABatch(PanelCase):
         today = time.strftime("%Y-%m-%d")
         jobs = {j["id"]: j for j in self.get("/api/v1/state")["jobs"]}
         self.assertTrue(all(jobs[jid]["dates"].get("preparing") == today for jid in ids))  # the adding stamped today on them
+        self.assertEqual([], self.post("/api/v1/tracker/clear_day", {"day": today})["cleared"])  # added by hand: a true preparing day, never asked to go
+        for jid in ids:  # each was sent before the day it was added, as a list brought in says: the day of the adding is disproved
+            self.post("/api/v1/tracker/edit", {"job": jid, "stage": "submitted", "dates": {"submitted": "2026-10-20"}})
         self.assertEqual([], self.post("/api/v1/tracker/clear_day", {"day": "2001-01-01"})["cleared"])  # no batch on that day: nothing changes
         self.assertEqual(sorted(ids), sorted(self.post("/api/v1/tracker/clear_day", {"day": today})["cleared"]))
         jobs = {j["id"]: j for j in self.get("/api/v1/state")["jobs"]}
         self.assertTrue(all(not jobs[jid]["dates"].get("preparing") for jid in ids))  # that day, gone from each
+        self.assertTrue(all(jobs[jid]["dates"].get("submitted") == "2026-10-20" for jid in ids))  # the true days stay
         self.assertEqual("undo_board_days", self.get("/api/v1/history")["steps"][0]["label"]["code"])  # one step for all five
         self.post("/api/v1/undo", {})  # and back at once
         jobs = {j["id"]: j for j in self.get("/api/v1/state")["jobs"]}
