@@ -1,0 +1,221 @@
+{
+ "_comment": "Statement pairs written for the decision evaluation from the fictional example kit (examples/interview/jobs/gamma-platform: its scenes, resume and portfolio) and the fictional person of examples/sample_ko.json. a is what the person says in an interview, b what a submitted document says. Every contradiction is planted: the kit's own one (the rollback took about 5 minutes against 4) and others of each kind the consistency audit looks for (number, date, title, place, share of the work). The consistent pairs restate the documents. Twelve pairs in English, twelve in Korean.",
+ "items": [
+  {
+   "id": "e1",
+   "gold": "contradiction",
+   "kind": "number",
+   "input": {
+    "a": "In our example numbers, a deploy of the approval path went from 42 minutes to 9, and a rollback from 30 minutes to about 5.",
+    "b": "Deploy time went from 42 to 9 minutes and rollback from 30 to 4 minutes (fictional example values)."
+   }
+  },
+  {
+   "id": "e2",
+   "gold": "contradiction",
+   "kind": "date",
+   "input": {
+    "a": "I joined Alpha Pay in March 2021 as a backend engineer.",
+    "b": "Alpha Pay, Backend Engineer, Payments Platform team, Seoul (2022.03 - present)"
+   }
+  },
+  {
+   "id": "e3",
+   "gold": "contradiction",
+   "kind": "scope",
+   "input": {
+    "a": "The shared deploy path on Argo CD and Helm was already there when I joined, and I only moved my team onto it.",
+    "b": "Built the shared deploy path on Argo CD and Helm, with the values for each environment kept in one repository under review"
+   }
+  },
+  {
+   "id": "e4",
+   "gold": "contradiction",
+   "kind": "title",
+   "input": {
+    "a": "As the payments team lead at Alpha Pay, I set the review rule for merges.",
+    "b": "Alpha Pay, Backend Engineer, Payments Platform team, Seoul (2022.03 - present)"
+   }
+  },
+  {
+   "id": "e5",
+   "gold": "contradiction",
+   "kind": "number",
+   "input": {
+    "a": "We required three approvals before every merge.",
+    "b": "Made two approvals a rule before merge, with staging synced first and production synced only for an approved version"
+   }
+  },
+  {
+   "id": "e6",
+   "gold": "contradiction",
+   "kind": "place",
+   "input": {
+    "a": "The order team at Beta Commerce sat in Seoul, next to settlement.",
+    "b": "Beta Commerce, Software Engineer, Order team, Seongnam (2019.07 - 2022.02)"
+   }
+  },
+  {
+   "id": "e7",
+   "gold": "consistent",
+   "kind": "scope",
+   "input": {
+    "a": "I split the approval function into its own service, so approvals deploy and roll back on their own.",
+    "b": "Split payment approval out of the single application into its own deploy unit, so approvals deploy and roll back on their own"
+   }
+  },
+  {
+   "id": "e8",
+   "gold": "consistent",
+   "kind": "number",
+   "input": {
+    "a": "Two people approve before merge, then Argo CD syncs staging first and checks its state.",
+    "b": "Made two approvals a rule before merge, with staging synced first and production synced only for an approved version"
+   }
+  },
+  {
+   "id": "e9",
+   "gold": "consistent",
+   "kind": "claim",
+   "input": {
+    "a": "I published every order status change as a Kafka event.",
+    "b": "Published order status changes as Kafka events, so settlement and notifications read the same stream on their own"
+   }
+  },
+  {
+   "id": "e10",
+   "gold": "consistent",
+   "kind": "number",
+   "input": {
+    "a": "A deploy of the approval path went from 42 minutes to 9.",
+    "b": "Deploy time went from 42 to 9 minutes and rollback from 30 to 4 minutes (fictional example values)."
+   }
+  },
+  {
+   "id": "e11",
+   "gold": "consistent",
+   "kind": "date",
+   "input": {
+    "a": "I worked at Beta Commerce from July 2019 to February 2022.",
+    "b": "Beta Commerce, Software Engineer, Order team, Seongnam (2019.07 - 2022.02)"
+   }
+  },
+  {
+   "id": "e12",
+   "gold": "consistent",
+   "kind": "date",
+   "input": {
+    "a": "The deploy platform work ran from October 2023 to June 2024.",
+    "b": "Internal deploy platform, Alpha Pay, 2023.10 - 2024.06"
+   }
+  },
+  {
+   "id": "k1",
+   "gold": "contradiction",
+   "kind": "number",
+   "input": {
+    "a": "되돌리기가 30분에서 5분 정도로 줄었습니다.",
+    "b": "배포 시간은 42분에서 9분으로, 되돌리기는 30분에서 4분으로 줄었다(가상의 예제 값)."
+   }
+  },
+  {
+   "id": "k2",
+   "gold": "contradiction",
+   "kind": "date",
+   "input": {
+    "a": "2021년 3월에 알파페이에 백엔드 엔지니어로 입사했습니다.",
+    "b": "알파페이 결제플랫폼팀 백엔드 엔지니어, 서울 (2022.03 ~ 현재)"
+   }
+  },
+  {
+   "id": "k3",
+   "gold": "contradiction",
+   "kind": "scope",
+   "input": {
+    "a": "Argo CD와 Helm 배포 경로는 제가 오기 전부터 있었고, 저는 우리 팀을 거기로 옮기기만 했습니다.",
+    "b": "Argo CD 와 Helm 으로 팀 공용 배포 경로를 만들고, 환경별 설정을 저장소 한 곳으로 모았다."
+   }
+  },
+  {
+   "id": "k4",
+   "gold": "contradiction",
+   "kind": "number",
+   "input": {
+    "a": "병합 전에 세 사람이 승인하게 했습니다.",
+    "b": "병합 전에는 두 사람의 승인을 규칙으로 했다."
+   }
+  },
+  {
+   "id": "k5",
+   "gold": "contradiction",
+   "kind": "place",
+   "input": {
+    "a": "베타커머스 주문팀은 서울에 있었습니다.",
+    "b": "베타커머스 주문팀 소프트웨어 엔지니어, 성남 (2019.07 ~ 2022.02)"
+   }
+  },
+  {
+   "id": "k6",
+   "gold": "contradiction",
+   "kind": "title",
+   "input": {
+    "a": "알파페이에서 결제팀 팀장으로 리뷰 규칙을 정했습니다.",
+    "b": "알파페이 결제플랫폼팀 백엔드 엔지니어, 서울 (2022.03 ~ 현재)"
+   }
+  },
+  {
+   "id": "k7",
+   "gold": "consistent",
+   "kind": "scope",
+   "input": {
+    "a": "승인 기능을 별도 서비스로 떼어 승인 경로만 따로 배포하고 되돌릴 수 있게 했습니다.",
+    "b": "단일 애플리케이션에서 승인 기능을 분리해 승인 경로를 독립 배포 단위로 만들었다."
+   }
+  },
+  {
+   "id": "k8",
+   "gold": "consistent",
+   "kind": "claim",
+   "input": {
+    "a": "모든 주문 상태 변경을 Kafka 이벤트로 내보냈습니다.",
+    "b": "주문 상태 변경을 Kafka 이벤트로 내보내 정산과 알림이 같은 흐름을 읽게 했다."
+   }
+  },
+  {
+   "id": "k9",
+   "gold": "consistent",
+   "kind": "claim",
+   "input": {
+    "a": "자주 읽는 주문 조회에 Redis 캐시를 두었습니다.",
+    "b": "자주 읽는 주문 조회에 Redis 캐시를 두고 무효화 규칙을 정했다."
+   }
+  },
+  {
+   "id": "k10",
+   "gold": "consistent",
+   "kind": "date",
+   "input": {
+    "a": "베타커머스에서는 2019년 7월부터 2022년 2월까지 일했습니다.",
+    "b": "베타커머스 주문팀 소프트웨어 엔지니어, 성남 (2019.07 ~ 2022.02)"
+   }
+  },
+  {
+   "id": "k11",
+   "gold": "consistent",
+   "kind": "number",
+   "input": {
+    "a": "승인 경로 배포가 42분에서 9분으로 줄었습니다.",
+    "b": "배포 시간은 42분에서 9분으로, 되돌리기는 30분에서 4분으로 줄었다(가상의 예제 값)."
+   }
+  },
+  {
+   "id": "k12",
+   "gold": "consistent",
+   "kind": "claim",
+   "input": {
+    "a": "장애 유형별 대응 절차를 문서로 만들어 당번 교육에 썼습니다.",
+    "b": "주문 장애 유형별 대응 절차를 문서로 만들고 당번 교육에 썼다."
+   }
+  }
+ ]
+}

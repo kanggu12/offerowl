@@ -1,0 +1,21 @@
+{
+  "about": "What the one-file app leaves out of node_modules. The build runs npm ci --omit=dev in a scratch folder, then removes the files below. Everything the DOCX and deck writers load stays; the build loads every library once with the pinned Node.js before it packs them, and the app's own --check writes the example resume, deck and cover letter with them.",
+  "drop_packages": ["@types", "undici-types"],
+  "icons": {
+    "package": "lucide-static",
+    "keep_files": ["LICENSE", "package.json"],
+    "keep_icons_named_in": "src"
+  },
+  "drop_files": ["*.map", "*.d.ts", "*.d.cts", "*.d.mts", "*.md", "*.markdown", "*.yml", "*.yaml", ".*"],
+  "drop_dirs": ["test", "tests", "__tests__", "doc", "docs", "example", "examples"],
+  "keep_files": ["LICENSE*", "LICENCE*", "COPYING*", "NOTICE*", "package.json"],
+  "drop_in": {
+    "docx": ["dist/index.mjs", "dist/index.umd.cjs", "dist/index.iife.js"],
+    "opentype.js": ["src", "bin", "dist/opentype.min.js", "dist/opentype.module.js"],
+    "jszip": ["dist", "vendor"],
+    "pako": ["dist"],
+    "xml-js": ["dist", "types", "bin"],
+    "lie": ["dist", "polyfill.js"],
+    "immediate": ["dist"]
+  }
+}

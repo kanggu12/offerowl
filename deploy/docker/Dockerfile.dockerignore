@@ -1,0 +1,34 @@
+# What the app image's build may see (BuildKit reads this file because it sits next to deploy/docker/Dockerfile and has
+# its name plus .dockerignore). It is an allow-list: everything is left out first, then the folders the app needs are
+# let back in. A folder added to the repository later is NOT shipped until it is listed here; tests/packaging fails
+# and names it, so nothing is left out or put in by accident. Local, private or generated files (output/, node_modules/,
+# a workspace, .git) can never reach the image this way.
+*
+# The code and what it reads at run time
+!apps
+!core
+!src
+!examples
+!fonts
+!docs/assets/icon.svg
+!docs/assets/logo-light.svg
+!docs/assets/logo-dark.svg
+# The license, and the licenses of what Offerowl uses, in the image as in the package
+!LICENSE
+!docs/THIRD_PARTY_NOTICES.md
+# The typesetting libraries are installed from these two files
+!package.json
+!package-lock.json
+# The command line, started by the container as `offerowl`
+!offerowl
+# The render container: the self-test (offerowl selftest) fingerprints its recipe and its starter (src/resume.py:
+# SELFTEST_INPUTS). Inside this image they are only read.
+!render
+# The container's entrypoint
+!deploy/docker/entrypoint.py
+
+# Left out of the folders above: caches and generated files
+**/__pycache__
+**/*.pyc
+examples/interview/out
+fonts/.uuid

@@ -1,0 +1,424 @@
+/* Theme of the 16:9 portfolio. The values are carried over unchanged from the career-history resume (the navy set of THEMES and
+   the f* helpers in src/layout.js). The aim is for the deck to look like a set with the resume, so the look of colors, font,
+   bands, cards, tags and the yellow highlight is not redesigned here. A slide is 1280x720px (960x540pt). Font sizes are the
+   proportions of the resume's A4 page scaled up to the slide width. */
+
+@font-face { font-family: "Pretendard"; font-weight: 400; src: url("../fonts/Pretendard-Regular.ttf"); }
+@font-face { font-family: "Pretendard"; font-weight: 600; src: url("../fonts/Pretendard-SemiBold.ttf"); }
+@font-face { font-family: "Pretendard"; font-weight: 700; src: url("../fonts/Pretendard-Bold.ttf"); }
+
+:root {
+  --navy: #1B2E4B;        /* nameFill, sec, acc, head */
+  --blue: #2F6EBA;        /* acc2: section title bar, card title, bullet, tag text, badge */
+  --band: #EEF3F9;        /* band, card and tag background */
+  --paper: #F4F6FA;       /* figure frame background; the white panels inside a figure sit on it */
+  --key:  #F5F8FC;        /* first column of a table */
+  --rule: #C9D4E3;        /* line under a section title, vertical line beside the About me section */
+  --ink:  #1F1F1F;
+  --body: #333333;
+  --grey: #6B6B6B;
+  --faint:#9A9A9A;
+  --line: #D8D8D8;
+  --grid: #C8C8C8;
+  --hl:   #FFF0A0;        /* yellow highlight of ==phrase== */
+  --label:#8A94A3;        /* English label to the right of a section title */
+  /* Extra steps: five tints of one color plus neutral greys, mapped onto the resume navy.
+     deep is the background of header chips and of the cover, hair is the thin divider. */
+  --deep: #14233A;
+  --b2:   #6E9BD1;
+  --b3:   #A9C3E4;
+  --b4:   #D5E2F2;
+  --ink2: #10181F;
+  --g900: #3D4753;
+  --g700: #4B5563;
+  --g500: #8A939F;
+  --hair: #DDE0E5;
+}
+
+@page { size: 1280px 720px; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #fff; }
+body { font-family: "Pretendard", sans-serif; color: var(--body); font-size: 12.5px; line-height: 1.5;
+       -webkit-print-color-adjust: exact; print-color-adjust: exact; word-break: keep-all; overflow-wrap: anywhere; }
+
+.slide { position: relative; width: 1280px; height: 720px; overflow: hidden; page-break-after: always; break-after: page;
+         padding: 30px 40px 40px 40px; display: flex; flex-direction: column; background: #fff; }
+.slide:last-child { page-break-after: auto; break-after: auto; }
+@media screen { .slide { margin: 0 auto 24px auto; box-shadow: 0 0 0 1px #ddd; } body { background: #888; } }
+
+/* Slide header: the top line holds the chapter number and name, the project and the period on the right; below it come the large
+   title and the grey subtitle after it. deck_structure.js fills the header line. There is no navy icon chip before the title:
+   a rounded icon tile ahead of a heading is decoration that carries no meaning. */
+.sec { flex: none; margin: 0 0 6px 0; }
+.eyebrow { display: flex; align-items: center; gap: 10px; height: 16px; font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px;
+           color: var(--g500); white-space: nowrap; }
+.eyebrow::before { content: ""; width: 18px; height: 3px; border-radius: 2px; background: var(--blue); flex: none; }
+.eyebrow .no { color: var(--navy); }
+.eyebrow .pj { letter-spacing: 0.3px; font-weight: 600; color: var(--g700); padding-left: 10px; border-left: 1px solid var(--hair); }
+.eyebrow .en { margin-left: auto; letter-spacing: 1.2px; }
+.ttl { display: flex; align-items: center; gap: 12px; margin-top: 7px; }
+/* Logo plates at the end of a project title line (logoPlates in deck_structure.js): white plates of the same height as the
+   header chips, with a pale border */
+.ttl .logos { margin-left: auto; flex: none; display: flex; gap: 8px; align-items: center; }
+.ttl .logos .lg { height: 36px; padding: 0 12px; display: flex; align-items: center; background: #fff; border: 1px solid var(--rule); border-radius: 10px; }
+.ttl .logos img { display: block; width: auto; }
+.ttl .logos em { margin-left: 8px; font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 1.6px; color: var(--g500); }
+.sec h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; color: var(--ink2); letter-spacing: -0.4px; }
+.sec h1 .t2 { margin-left: 12px; font-size: 17px; font-weight: 400; color: var(--g700); letter-spacing: -0.2px; }
+.sec .note { font-size: 13px; color: var(--grey); }
+.lede { font-size: 14px; line-height: 1.55; color: var(--g900); margin: 2px 0 8px 0; flex: none; }
+
+/* Body area; it uses all the remaining height */
+.body { flex: 1 1 auto; min-height: 0; display: grid; gap: 12px; }
+.cols-2 { grid-template-columns: 1fr 1fr; }
+.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.cols-4 { grid-template-columns: repeat(4, 1fr); }
+/* The figure column is 674px, the width at which a 760 x 570 figure fits the frame height exactly. Split 6:4, the figure shrank to
+   the height and the margins inside the frame came out unequal, 6px above and below but 25px left and right. The spare width goes
+   into the gap between the columns, so the card column keeps the width it had at 6:4. Widening the cards changed the line breaks
+   and left a dozen lines with a single word. The main figure of every slide that uses this split is 760 x 570. */
+.split-64 { grid-template-columns: 674px 1fr; column-gap: calc((100% - 12px) * 0.6 + 12px - 674px); }
+.split-55 { grid-template-columns: 1fr 1fr; }
+.split-46 { grid-template-columns: 4fr 6fr; }
+.split-37 { grid-template-columns: 3fr 7fr; }
+.split-73 { grid-template-columns: 7fr 3fr; }
+.stack { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+/* A vertical stack in a body column spreads the spare height evenly between its items, so that its bottom lines up with the
+   neighboring column (the figure and its caption on the left). Without it the right column ended 24 to 63px above the figure and
+   looked empty at the bottom. */
+.body > .stack { justify-content: space-between; }
+.grow { flex: 1 1 auto; min-height: 0; }
+
+/* Footer, as on the resume: the name on the left, the page number on the right */
+.foot { position: absolute; left: 40px; right: 40px; bottom: 14px; display: flex; font-size: 10px; color: var(--faint); }
+.foot .n { margin-left: auto; }
+
+/* Company band, the same as the company header of the resume's detailed career section (fbandLogo) */
+.band { display: flex; align-items: center; gap: 10px; background: var(--band); height: 40px; padding: 0 14px; flex: none;
+        margin-bottom: 10px; }
+.band img.logo { width: 26px; height: 26px; object-fit: contain; }
+.band .name { font-size: 17px; font-weight: 700; color: var(--navy); }
+.band .badge { font-size: 11px; font-weight: 700; color: #fff; background: var(--blue); padding: 1px 6px; }
+.band .title { font-size: 13px; color: var(--ink); }
+.band .place { margin-left: auto; font-size: 12px; color: var(--grey); }
+.band .period { font-size: 13px; font-weight: 700; color: var(--ink); }
+
+/* Card: a row without a background, a thin line above it, a bold navy title and grey body text */
+.card { padding: 8px 0 0 0; border-top: 1px solid var(--hair); min-height: 0; overflow: hidden; }
+.card h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 4px 0; font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1.35; }
+.card h3 svg { width: 16px; height: 16px; flex: none; }
+/* Card text is kept short and set larger than the 12.5px body text so that it reads easily. */
+.card p, .card li { margin: 0; font-size: 14px; line-height: 1.6; color: var(--g900); }
+.card.dom p { font-size: 12.5px; }
+.card ul { margin: 0; padding: 0; list-style: none; }
+.card li { position: relative; padding-left: 12px; margin-top: 2px; }
+.card li::before { content: ""; position: absolute; left: 1px; top: 8px; width: 5px; height: 5px; border-radius: 3px; background: var(--blue); }
+.card.white { border: 1px solid var(--hair); border-radius: 8px; padding: 8px 12px; }
+
+/* Flagship project card (fhighlights): navy header, pale body, problem / what was done / result */
+.hcard { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+/* Each row has its label on the left and its text on the right, the same form as the header line of a project slide (role,
+   context, stack), instead of stacking the label on a line of its own. That leaves room for up to two lines of text per cell, and
+   the company and year of the header band sit at the right end of the title line. */
+.hcard .hd { background: var(--navy); color: #fff; padding: 7px 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.hcard .hd b { font-size: 13.5px; }
+.stack > .hcard { flex: 1 1 auto; }  /* the two cards stand at their text length and share the spare cell height; the spare height is absorbed by centering the body */
+.hcard .hd span { font-size: 11px; opacity: 0.95; white-space: nowrap; }
+.hcard .bd { background: var(--band); padding: 8px 12px; flex: 1 1 auto; display: grid; grid-template-columns: 40px 1fr;
+  column-gap: 10px; row-gap: 7px; align-content: center; }
+.hcard .k { padding-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--navy); letter-spacing: 0.6px; }
+.hcard .v { font-size: 12.5px; line-height: 1.45; color: var(--ink); }
+
+/* Bullet list (fbul) */
+.bul { margin: 0; padding: 0; list-style: none; }
+.bul li { position: relative; padding-left: 14px; margin: 0 0 6px 0; font-size: 12.5px; line-height: 1.55; color: var(--body);
+          text-align: justify; }
+.bul li::before { content: "\2022"; position: absolute; left: 1px; color: var(--blue); }
+.bul li b { color: var(--navy); }
+
+/* Technology tag: bold blue text on a pale fill */
+.tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.tags span { font-size: 10.5px; font-weight: 700; color: var(--blue); background: #fff; border: 1px solid var(--b4); border-radius: 10px;
+             padding: 0 8px; line-height: 17px; white-space: nowrap; }
+
+mark { background: var(--hl); color: var(--ink); padding: 0 1px; white-space: nowrap; }  /* a highlighted phrase moves to the next line whole, so it reads as one thing */
+
+/* Small heading (tcap), underlined department line (fsub) */
+.cap { font-size: 13px; font-weight: 700; color: var(--navy); margin: 0 0 5px 0; }
+.sub { font-size: 12.5px; font-weight: 700; color: var(--navy); text-decoration: underline; margin: 0 0 6px 0; }
+
+/* Context and result box: a band fill only. A blue bar on the left would make a plain box look like a warning notice, so there is
+   none. */
+.quote { background: var(--band); border-radius: 8px; padding: 7px 12px; }
+.quote b { display: block; font-size: 11.5px; color: var(--navy); margin-bottom: 2px; }
+.quote p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
+
+/* Figure: a frame with a grey caption below it; contain keeps the picture within the cell height */
+.fig { display: flex; flex-direction: column; min-height: 0; min-width: 0; margin: 0; }
+/* The frame has no line, only a pale fill and inner padding. With a line and no padding, the border of a white panel inside a
+   figure ran into the frame line. The panels of a figure sit on the frame as white cards, and the hierarchy comes from the
+   background tone. */
+.fig .frame { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
+              border: none; border-radius: 10px; background: var(--paper); padding: 6px; overflow: hidden; }
+.fig .frame img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+/* An SVG figure fills the cell and the viewBox keeps its proportions. If the cell has different proportions, space is left above
+   and below or left and right (the probe reports it as a fill ratio). */
+.fig .frame svg { width: 100%; height: 100%; display: block; overflow: visible; }
+/* A box or panel drawn on the figure's edge has half of its border outside the viewBox, and an SVG clips there: those borders
+   came out half as thick, and in print a natural-size figure's SVG was laid out a pixel or two shorter than its content, so a
+   box on its bottom edge lost its whole bottom border. The frame's inner padding (6px) takes what spills, and the frame clips
+   anything further. */
+/* A figure that fills its cell is placed absolutely inside the frame. Once the frame had inner padding, the SVG's height: 100%
+   resolved to the content height in print (PDF) layout only, which stretched the frame and pushed the caption down onto the
+   footer (screen measurement did not show it). The cell allocation decides the frame height and the figure fills it. */
+.fig:not(.natural) .frame:not(.bare) { position: relative; }
+.fig:not(.natural) .frame:not(.bare) svg { position: absolute; top: 6px; left: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
+/* Prose-check view (the page opened with ?prose): print without the labels inside figures, so that repeated labels are not flagged
+   as reused sentences */
+.prose-only svg text { display: none; }
+/* Text extraction from the PDF splits the English label beside a section title into single letters because of its letter
+   spacing, and the label repeats on every slide of the same company, so it would be flagged as reused text. The footer is hidden
+   for the same reason. */
+.prose-only .sec .en, .prose-only .eyebrow, .prose-only .foot { display: none; }
+/* The contents page only repeats the slide titles, so it is left out of the sentence check (reuse of word runs) */
+.prose-only .toc { display: none; }
+.fig .frame.bare { border: none; background: none; padding: 0; border-radius: 0; }
+.fig figcaption { flex: none; font-size: 10.5px; line-height: 1.4; color: var(--grey); margin-top: 4px; }
+.fig figcaption b { color: var(--navy); }
+
+/* Screen gallery */
+.gallery { display: grid; gap: 10px; min-height: 0; }
+
+/* Table (ftable): navy header row, grey grid, pale first column */
+table.t { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.45; }
+table.t th { background: var(--navy); color: #fff; font-weight: 700; padding: 4px 8px; border: 1px solid var(--grid); text-align: left; }
+table.t td { padding: 4px 8px; border: 1px solid var(--grid); vertical-align: top; color: var(--ink); }
+table.t td.k { background: var(--key); color: var(--navy); font-weight: 700; white-space: nowrap; }
+
+/* Cover: the resume header (fheader) at slide width. The name panel uses the same navy (--deep) and label form as the chapter
+   cover, the English name is pale blue, and the contacts sit at the vertical center of their panel. Layout and content are those
+   of the original cover. */
+.cover { padding: 0; }
+/* The proof row has two levels (a value, then two lines of context), which made the content of the name panel taller. The upper
+   section was raised by 18 and the lower one reduced by the same amount so that the name label clears the blind-edition band
+   (26px). A change of 12 left the label only 2.6pt below the band, which looked attached to it. */
+.cover .top { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); height: 268px; }   /* minmax: long text overflows its own column, never pushes the other */
+.cover .name { background: var(--deep); color: #fff; padding: 0 48px; display: flex; flex-direction: column; justify-content: center; }
+.cover .name .kind { font-size: 11px; font-weight: 700; letter-spacing: 2.4px; color: var(--b3); }
+.cover .name h1 { margin: 8px 0 0 0; font-size: 54px; font-weight: 700; letter-spacing: 2px; line-height: 1.1; }
+.cover .name h1 small { font-size: 22px; font-weight: 400; letter-spacing: 0; margin-left: 14px; color: var(--b3); }
+.cover .name .tag { margin-top: 14px; font-size: 14px; font-weight: 700; letter-spacing: 3px; }
+/* Proof row: four cells, each with one bold value line and two lines of context, separated by thin solid lines between the cells
+   and on top. The value and label form follows the name and value form of the contact panel on the right. */
+/* The cell styling applies to direct children only. A blind-edition mask bar (span.bm) inside a cell would pick up the same
+   styling (block, left line) and stretch into a bar as wide as the cell. */
+.cover .name .proof { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.16); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cover .name .proof > span { display: block; padding: 0 10px 0 14px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
+.cover .name .proof > span:first-child { padding-left: 0; border-left: none; }
+.cover .name .proof > span > b { display: block; font-size: 19px; line-height: 1.2; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; white-space: nowrap; }
+.cover .name .proof > span > i { display: block; margin-top: 5px; font-size: 12px; line-height: 1.45; font-style: normal; color: #C9D6EA; }
+.cover .contact { background: var(--band); padding: 0 36px; font-size: 13.5px; display: flex; flex-direction: column; justify-content: center; }
+/* The label (12.5px) and the value (13.5px) share one baseline; with top alignment the label floated 2px higher */
+.cover .contact div { display: grid; grid-template-columns: 92px 1fr; margin: 4px 0; align-items: baseline; }
+.cover .contact b { color: var(--navy); font-size: 12.5px; }
+.cover .contact a, .cover .contact span { color: var(--ink); text-decoration: none; }
+/* The lower panel uses the height down to the footer (slide height minus the name panel minus the 52px footer) and centers the
+   career journey vertically, so the four focus areas sit against the footer and no empty band collects on one side */
+.cover .rest { height: 400px; padding: 22px 48px 0 48px; display: flex; flex-direction: column; gap: 12px; flex: none; }
+.cover .headline { font-size: 25px; font-weight: 700; color: var(--ink2); margin: 0; letter-spacing: -0.3px; }
+/* Equal space above and below the path figure: the margin under the lede line plus the inner top margin of the figure made the
+   space above 14px larger */
+.cover .journey { margin: auto 0; padding-bottom: 14px; }
+/* Four focus areas: a thick navy line on top, then title and text */
+.cover .dom { padding-top: 12px; border-top: 2px solid var(--navy); }
+.cover .dom h3 { margin: 1px 0 4px 0; font-size: 14px; }
+.prose-only .cover .kind, .prose-only .cover .contact b { display: none; }
+
+/* End slide (EOD): a navy poster. The background pattern is the color of the chapter number (.chapter .cl .no) in a pale tone,
+   the name and job title take the size and form of the cover name panel (.cover .name), and the contact chips are rounded squares.
+   The chips stay because they mark the kind of contact, which is meaning and not decoration, even though icon chips were removed
+   from the titles. */
+.slide.eod { padding: 0; background: var(--deep); }
+/* The panel ends above the footer area (52px at the bottom). The background pattern (glyph outlines that the deck builder passes
+   in through a style attribute) is positioned so that it is cut off at the right edge. */
+.eod .end { position: relative; height: calc(100% - 52px); padding: 56px 64px 12px 64px; display: flex; flex-direction: column; color: #fff;
+            background-repeat: no-repeat; background-position: right -36px top 96px; background-size: auto 236px; }
+.eod .top { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 700; letter-spacing: 2.4px; color: var(--b3); }
+.eod .top::before { content: ""; width: 22px; height: 3px; border-radius: 2px; background: var(--b2); }
+.eod .top .r { margin-left: auto; }
+.eod .mid { margin-top: auto; }
+.eod h1 { margin: 0; font-size: 64px; font-weight: 700; letter-spacing: 2px; line-height: 1.1; }
+.eod h1 small { font-size: 26px; font-weight: 400; letter-spacing: 0; margin-left: 16px; color: var(--b3); }
+.eod .tag { margin-top: 18px; font-size: 15px; font-weight: 700; letter-spacing: 3px; color: var(--b3); }
+.eod .lead { margin-top: 22px; max-width: 900px; font-size: 17px; line-height: 1.6; color: #E8EEF6; }
+.eod .bot { margin-top: 44px; padding-top: 26px; border-top: 1px solid rgba(255, 255, 255, 0.16); display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; row-gap: 18px; }
+.eod .cc { display: grid; grid-template-columns: 40px 1fr; column-gap: 14px; align-items: center; }
+.eod .cc .ic { grid-row: span 2; width: 40px; height: 40px; border-radius: 10px; background: var(--b2); display: flex; align-items: center; justify-content: center; }
+.eod .cc b { font-size: 11px; letter-spacing: 1px; color: var(--b3); align-self: end; }
+.eod .cc a, .eod .cc .v { font-size: 14.5px; font-weight: 600; color: #fff; text-decoration: none; align-self: start; }
+.slide.eod .foot span { color: rgba(255, 255, 255, 0.5); }
+/* Prose-check view (?prose): only the name stays. The headline is the same sentence as on the cover, so it is hidden to avoid
+   counting it twice */
+.prose-only .eod .top, .prose-only .eod .tag, .prose-only .eod .lead, .prose-only .eod .bot { display: none; }
+
+/* Left guide rail (rails in deck_structure.js): index tabs like the edge of a book. There is one tab per chapter, with a height
+   proportional to its number of slides. The tab of the current chapter is navy and sticks out further, and a triangle points at
+   the position of the current slide. */
+.rail { position: absolute; left: 0; top: 0; bottom: 0; width: 34px; }
+/* Inactive tab text is --grey (contrast 4.78:1). The marker for the current slide sits outside
+   the tab, on its right, because inside the tab it came within 2 to 4px of the name text and read as one of its letters. */
+.rail .seg { position: absolute; left: 0; width: 22px; border-radius: 0 6px 6px 0; background: var(--band); color: var(--grey); overflow: hidden; }
+.rail .seg svg { display: block; }
+.rail .seg.on { width: 27px; background: var(--navy); color: #FFFFFF; }
+.rail .here { position: absolute; left: 28px; width: 0; height: 0; margin-top: -5px;
+              border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid var(--navy); }
+.rail.dark .seg { background: rgba(255, 255, 255, 0.10); color: rgba(255, 255, 255, 0.55); }
+/* On the navy cover the current tab is a pale white fill with white text (a large block of bright blue drew the eye before the
+   cover title). The marker triangle stays bright blue. */
+.rail.dark .seg.on { background: rgba(255, 255, 255, 0.24); color: #FFFFFF; }
+.rail.dark .here { border-left-color: var(--b2); }
+.prose-only .rail { display: none; }
+
+/* Contents */
+.toc { columns: 2; column-gap: 28px; font-size: 13px; }
+.toc .g { break-inside: avoid; margin-bottom: 10px; }
+.toc .g b { display: flex; font-size: 14px; color: var(--navy); border-bottom: 1px solid var(--rule); padding-bottom: 2px; margin-bottom: 3px; }
+.toc .g b span { margin-left: auto; color: var(--grey); font-weight: 400; }
+.toc .g div { display: flex; color: var(--ink); line-height: 1.6; }
+.toc .g div span { margin-left: auto; color: var(--grey); }
+
+/* Probe result (for the checks); it is not printed */
+#probe-out { display: none; }
+
+/* Natural-ratio figure: fits the cell width and takes its height from its own proportions (the neighboring text uses the spare
+   height) */
+.fig.natural { flex: none; }
+.fig.natural .frame { flex: none; }
+.fig.natural .frame svg { height: auto; }
+.grow-cards > .card { flex: 1 1 auto; }
+
+/* Chapter cover: a navy panel on the left (number, name, role, period, place); on the right the project list, the skills band and
+   the career timeline */
+.slide.chapter { padding: 0; flex-direction: row; }
+/* The left panel stacks from the top. Centered, the number and the CHAPTER line moved up and down by as much as 46pt from chapter
+   to chapter, depending on the content length. */
+.chapter .cl { width: 452px; flex: none; background: var(--deep); color: #fff; padding: 52px 44px 56px 48px; display: flex; flex-direction: column; justify-content: flex-start; }
+.chapter .cl .no { font-size: 112px; font-weight: 700; line-height: 1; color: var(--b2); letter-spacing: -3px; }
+.chapter .cl .kind { margin-top: 16px; font-size: 11px; font-weight: 700; letter-spacing: 2.4px; color: var(--b3); }
+.chapter .cl h1 { margin: 8px 0 0 0; font-size: 44px; line-height: 1.15; font-weight: 700; letter-spacing: -0.5px; }
+.chapter .cl .enm { margin-top: 6px; font-size: 15px; letter-spacing: 2.6px; color: var(--b3); }
+/* flex: none keeps the tile from shrinking: when the left column overflowed, the tile was squeezed to 36px and the text below it
+   moved up 7px */
+.chapter .cl .logo { flex: none; width: 44px; height: 44px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.chapter .cl .logo img { width: 32px; height: 32px; object-fit: contain; }
+/* The label and the value share one baseline (top alignment with a 1px padding-top left them 2px apart) */
+.chapter .cl .meta { margin-top: 30px; display: grid; grid-template-columns: 70px 1fr; row-gap: 9px; font-size: 15px; line-height: 1.45; align-items: baseline; }
+.chapter .cl .meta b { color: var(--b3); font-size: 11.5px; font-weight: 700; letter-spacing: 1px; }
+.chapter .cl .lead { margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.16); font-size: 17px; line-height: 1.7; color: #E8EEF6; }
+.chapter .cr { flex: 1; min-width: 0; padding: 48px 48px 44px 44px; display: flex; flex-direction: column; }
+.chapter .plist { margin-top: 14px; flex: none; }
+/* The number, the period and the page share the baseline of the first title line (centered, they floated between the two lines
+   and were 2 to 3px off) */
+.chapter .plist .p { display: grid; grid-template-columns: 40px 1fr auto 36px; column-gap: 12px; align-items: baseline; padding: 9px 0;
+                     border-bottom: 1px solid var(--hair); }
+.chapter .plist .p:first-child { border-top: 2px solid var(--navy); }
+/* With baseline alignment the line box of the number (18px) was taller than the title and stretched every row, so its line height
+   is pinned to 17px */
+.chapter .plist .p .num { font-size: 18px; font-weight: 700; color: var(--blue); line-height: 17px; }
+.chapter .plist .p .t { font-size: 15px; font-weight: 700; color: var(--ink2); line-height: 1.3; }
+.chapter .plist .p .tg { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--g700); }
+.chapter .plist .p .per { font-size: 11.5px; color: var(--g500); letter-spacing: 0.3px; text-align: right; }
+.chapter .plist .p .pg { font-size: 13px; font-weight: 700; color: var(--navy); text-align: right; }
+.chapter .plist.dense .p { padding: 6px 0; }   /* dense rows (many projects in one chapter) use less padding so that the timeline under the cover stays clear of the footer */
+.chapter .plist.dense .p .t { font-size: 13.5px; }
+/* Two columns, filled top to bottom first. The navy line above the first row of each column is drawn once, above the list box */
+.chapter .plist.two { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: column; column-gap: 28px; border-top: 2px solid var(--navy); }
+.chapter .plist.two .p { grid-template-columns: 30px 1fr 28px; padding: 7px 0; }
+.chapter .plist.two .p:first-child { border-top: 0; }
+.chapter .plist.two .p .num { font-size: 15px; }
+.chapter .plist.two .p .t { font-size: 13.5px; }
+.chapter .plist.two .p .t .per { display: block; margin-top: 2px; text-align: left; font-weight: 400; font-size: 11px; }
+/* A project that is the only one in its chapter also lists its follow-on slides */
+.chapter .plist .subs { padding: 2px 0 8px 52px; border-bottom: 1px solid var(--hair); }
+.chapter .plist .subs .s { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: var(--g900); border-top: 1px dashed var(--hair); }
+.chapter .plist .subs .s:first-child { border-top: 0; }
+.chapter .plist .subs .s span:last-child { width: 36px; text-align: right; font-weight: 700; color: var(--navy); }
+.chapter .plist.solo .p, .chapter .plist.rich .p { padding: 12px 0; }
+.chapter .plist.few .p { padding: 14px 0; }
+.chapter .plist.solo .p .t, .chapter .plist.rich .p .t { font-size: 16px; }
+.chapter .plist.solo .p .tg, .chapter .plist.rich .p .tg { font-size: 13px; margin-top: 4px; }
+.chapter .skills { margin-top: 26px; }
+.chapter .skills .lab { font-size: 11px; font-weight: 700; letter-spacing: 1.4px; color: var(--g500); margin-bottom: 6px; }
+.chapter .skills .r { display: grid; grid-template-columns: 120px 1fr; align-items: center; padding: 6px 0; border-top: 1px solid var(--hair); }
+.chapter .skills .r b { font-size: 13px; color: var(--navy); }
+.chapter .skills .r .names { font-size: 13px; color: var(--ink2); line-height: 1.5; }
+.chapter .cr .fig { flex: none; padding-top: 0; }
+/* Spare height of the right panel: split into equal shares between the list and the skills band, and between the skills band and
+   the timeline. With the timeline pinned to the bottom, a chapter with few projects (a company, a lab, a startup, research) left
+   an empty band of 110 to 190px in the middle. */
+.chapter .cr .sp { flex: 1 1 0; min-height: 8px; }
+.chapter .skills, .chapter .skills.compact { margin-top: 0; }
+/* Row of a chapter with few projects: role and context, in the same form as the role and context line in the header of a
+   project's first slide */
+.chapter .plist .p .rc { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--g900); }
+.chapter .plist .p .rc b { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--blue); margin-right: 6px; }
+.chapter .plist .p .rc b:not(:first-child) { margin-left: 14px; }
+
+/* Contents: the chapter number and name, with the projects below. Chapters have very uneven project counts, so placing each
+   chapter whole in a column left the third column and the bottom empty. Every project gets a one-line summary, and a chapter may
+   continue across columns so that the three columns fill evenly. A chapter header never separates from its first item. */
+.toc2 { columns: 3; column-gap: 30px; margin-top: 10px; column-fill: balance; }
+.toc2 .g { break-inside: auto; margin-bottom: 18px; }
+.toc2 .gh { break-inside: avoid; break-after: avoid; display: grid; grid-template-columns: 30px 1fr auto; align-items: baseline; border-bottom: 2px solid var(--navy); padding-bottom: 3px; }
+.toc2 .gh .no { font-size: 15px; font-weight: 700; color: var(--blue); }
+.toc2 .gh b { font-size: 15px; color: var(--ink2); }
+.toc2 .gh .pg { font-size: 12px; font-weight: 700; color: var(--navy); }
+/* Item padding is 9px above and below. With fewer items in the compact deck, 6px left the bottom of the three columns empty. */
+.toc2 .it { break-inside: avoid; display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: 9px 0 9px 30px; border-bottom: 1px solid var(--hair);
+            font-size: 12.5px; line-height: 1.4; color: var(--ink2); }
+.toc2 .it .t em { display: block; margin-top: 2px; font-style: normal; font-size: 11px; line-height: 1.35; color: var(--g700); }
+.toc2 .it .pg { color: var(--g500); font-weight: 700; }
+.prose-only .toc2, .prose-only .chapter .plist, .prose-only .chapter .skills { display: none; }
+/* Fixed labels (role, context, legend) are scaffolding, not sentences. They are the same on every slide, so the reuse check would
+   count them. */
+.prose-only .sec .pmeta b, .prose-only .fig.chrome figcaption, .prose-only .chapter .skills .lab, .prose-only .chapter .kind, .prose-only .chapter .meta b, .prose-only .chapter .enm { display: none; }
+/* The fixed labels of a cover (cell names such as ROLE and APPROACH, and legends) are scaffolding, not sentences. They repeat on
+   every cover, so the reuse check would count them. */
+
+/* The left part of a chapter cover's footer sits on the navy panel */
+.slide.chapter .foot span:first-child { color: rgba(255, 255, 255, 0.5); }
+
+/* One line under the header of a project's first slide: role, context, stack */
+.sec .pmeta { display: flex; flex-wrap: wrap; column-gap: 24px; row-gap: 2px; margin-top: 7px; font-size: 12.5px; line-height: 1.5; color: var(--g900); }
+.sec .pmeta b { font-size: 10.5px; font-weight: 700; letter-spacing: 1px; color: var(--blue); margin-right: 8px; }
+
+/* Skills band of a chapter cover with many projects: two columns */
+.prose-only .chapter .skills.compact { display: none; }
+.chapter .skills.compact { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; margin-top: 18px; }
+.chapter .skills.compact .lab { grid-column: 1 / -1; }
+.chapter .skills.compact .r { grid-template-columns: 96px 1fr; padding: 5px 0; }
+/* Skills band of a chapter with few projects: wider row spacing fills the panel */
+.chapter .skills.roomy .r { padding: 10px 0; }
+/* A chapter with one or two projects gets wider rows so that the right panel does not look empty */
+.chapter .skills.airy .r { padding: 14px 0; }
+.chapter .skills.roomy .r b { font-size: 13.5px; }
+
+/* Scale and constraint chips, at the right end of the header line of a project's first slide. A scale is written as a rounded
+   figure, following the resume's rule. The chips are bold navy text separated by thin vertical lines, not navy pills. */
+.sec .pmeta .chips { margin-left: auto; display: inline-flex; align-items: center; flex-wrap: wrap; }
+.sec .pmeta .chips i { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--navy); letter-spacing: 0.1px; white-space: nowrap; padding: 0 10px; }
+.sec .pmeta .chips i + i { border-left: 1px solid var(--b4); }
+.sec .pmeta .chips i:last-child { padding-right: 0; }
+.prose-only .sec .pmeta .chips { display: none; }
+/* Figure-to-card number mark: a navy circle on a card title (the same form as D.mark inside a figure) */
+/* The circle and the digit are drawn by the SVG inside it (mkSvg in deck.js). As HTML text, the digit moved up and down inside the
+   circle by as much as 1px depending on where the card sat. */
+.card h3 .mk { width: 18px; height: 18px; display: inline-flex; flex: none; margin-left: auto; }
+.card h3 .mk svg { display: block; }
+.prose-only .card h3 .mk { display: none; }
+/* Spread the items inside a card evenly from top to bottom. On slides where the grid row sets the cell height (the technology
+   stack), the items would crowd the top and leave the bottom empty (24 to 44px in the probe's empty-space check). */
+.spread > .card { display: flex; flex-direction: column; }
+.spread > .card ul { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 2px; }
+/* A hyphenated word stays in one piece (nobreak in deck.js) */
+.nw { white-space: nowrap; }

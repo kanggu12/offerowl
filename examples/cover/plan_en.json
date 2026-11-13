@@ -1,0 +1,291 @@
+{
+ "schema": "offerowl-cover-plan/0.1",
+ "lang": "en",
+ "posting": {
+  "company": "Orion Payments",
+  "role": "Backend Platform Engineer",
+  "location": "Seoul, hybrid",
+  "overview": "At Orion Payments we run a payment service that connects merchants and shoppers. When payments stop, money is lost at once, so we care most about the stability of the approval path and about how we ship changes. The platform team builds and runs the deployment, observability and incident tools that the payment developers use.",
+  "sha": "71aaa0634d05f169"
+ },
+ "lines": [
+  {
+   "id": "d1",
+   "order": 1,
+   "kind": "duty",
+   "section": "Responsibilities",
+   "text": "Design and build the backend services for payment approval and settlement",
+   "ev": [
+    "alpha-1"
+   ],
+   "strength": "strong",
+   "missing": [],
+   "basis": "Split the approval path into its own deployable unit; idempotency keys and retry policy",
+   "source": "reviewed",
+   "use": true
+  },
+  {
+   "id": "d2",
+   "order": 2,
+   "kind": "duty",
+   "section": "Responsibilities",
+   "text": "Design and run event-driven links between services",
+   "ev": [
+    "beta-1"
+   ],
+   "strength": "strong",
+   "missing": [],
+   "basis": "Order status changes published as Kafka events, partitioned by order number",
+   "source": "reviewed",
+   "use": true
+  },
+  {
+   "id": "d3",
+   "order": 3,
+   "kind": "duty",
+   "section": "Responsibilities",
+   "text": "Run the Kubernetes deployment pipeline and the internal developer platform",
+   "ev": [
+    "alpha-2"
+   ],
+   "strength": "strong",
+   "missing": [],
+   "basis": "Shared deployment path on Argo CD and Helm",
+   "source": "reviewed",
+   "use": true
+  },
+  {
+   "id": "d4",
+   "order": 4,
+   "kind": "duty",
+   "section": "Responsibilities",
+   "text": "Build service metrics and alerting",
+   "ev": [
+    "beta-1"
+   ],
+   "strength": "weak",
+   "missing": [],
+   "basis": "Consumer lag metric and alert threshold; no wider service metrics work is shown",
+   "source": "reviewed",
+   "use": true
+  },
+  {
+   "id": "d5",
+   "order": 5,
+   "kind": "duty",
+   "section": "Responsibilities",
+   "text": "Set up incident response and take part in the on-call rotation",
+   "ev": [
+    "beta-3"
+   ],
+   "strength": "strong",
+   "missing": [],
+   "basis": "Incident procedures per failure type, used in on-call training",
+   "source": "reviewed",
+   "use": true
+  },
+  {
+   "id": "d6",
+   "order": 6,
+   "kind": "duty",
+   "section": "Responsibilities",
+   "text": "Write firmware in Rust for payment terminals",
+   "ev": [],
+   "strength": "none",
+   "missing": [
+    "Rust"
+   ],
+   "basis": "No firmware or Rust work in the profile",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "the profile does not show it"
+  },
+  {
+   "id": "q1",
+   "order": 7,
+   "kind": "requirement",
+   "section": "Qualifications",
+   "text": "3+ years building and running backend services",
+   "ev": [
+    "role:alpha",
+    "role:beta"
+   ],
+   "strength": "weak",
+   "missing": [],
+   "basis": "Tenure is read from the career table, not written into the letter",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "a tenure line is judged by the reader from the career table"
+  },
+  {
+   "id": "q2",
+   "order": 8,
+   "kind": "requirement",
+   "section": "Qualifications",
+   "text": "Experience running services in Go or Java",
+   "ev": [
+    "skills#Languages"
+   ],
+   "strength": "weak",
+   "missing": [],
+   "basis": "Only a skills row lists the languages; no project shows services run in them",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "only a skills row names it; no project shows the work"
+  },
+  {
+   "id": "q3",
+   "order": 9,
+   "kind": "requirement",
+   "section": "Qualifications",
+   "text": "Experience running Kubernetes",
+   "ev": [
+    "summary#intro"
+   ],
+   "strength": "weak",
+   "missing": [],
+   "basis": "Only the intro sentence mentions the platform on Kubernetes",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "answered with d3"
+  },
+  {
+   "id": "q4",
+   "order": 10,
+   "kind": "requirement",
+   "section": "Qualifications",
+   "text": "Experience designing relational databases",
+   "ev": [],
+   "strength": "none",
+   "missing": [],
+   "basis": "No database design project",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "the profile does not show it"
+  },
+  {
+   "id": "q5",
+   "order": 11,
+   "kind": "requirement",
+   "section": "Qualifications",
+   "text": "Able to work with colleagues in English",
+   "ev": [],
+   "strength": "none",
+   "missing": [],
+   "basis": "The profile says nothing about working in English",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "the profile does not show it"
+  },
+  {
+   "id": "p1",
+   "order": 12,
+   "kind": "preferred",
+   "section": "Preferred Qualifications",
+   "text": "Managing deployment environments with Argo CD or Helm",
+   "ev": [
+    "alpha-2"
+   ],
+   "strength": "strong",
+   "missing": [],
+   "basis": "Environment settings managed with Argo CD and Helm",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "answered with d3"
+  },
+  {
+   "id": "p2",
+   "order": 13,
+   "kind": "preferred",
+   "section": "Preferred Qualifications",
+   "text": "Experience in the payments domain",
+   "ev": [
+    "alpha-1",
+    "beta-1"
+   ],
+   "strength": "strong",
+   "missing": [],
+   "basis": "Payment approval and order events projects",
+   "source": "reviewed",
+   "use": true
+  },
+  {
+   "id": "p3",
+   "order": 14,
+   "kind": "preferred",
+   "section": "Preferred Qualifications",
+   "text": "Managing infrastructure as code with Terraform",
+   "ev": [
+    "skills#Platform"
+   ],
+   "strength": "weak",
+   "missing": [],
+   "basis": "Terraform appears only in the skills list",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "only a skills row names it; no project shows the work"
+  },
+  {
+   "id": "p4",
+   "order": 15,
+   "kind": "preferred",
+   "section": "Preferred Qualifications",
+   "text": "A security certification such as CISSP",
+   "ev": [],
+   "strength": "none",
+   "missing": [],
+   "basis": "The only certificate is an information-processing one",
+   "source": "reviewed",
+   "use": false,
+   "skipped": "the profile does not show it"
+  }
+ ],
+ "groups": [
+  {
+   "id": "g1",
+   "lines": [
+    "d1",
+    "d2"
+   ],
+   "theme": "payment approval and event links"
+  },
+  {
+   "id": "g2",
+   "lines": [
+    "d3",
+    "d4"
+   ],
+   "theme": "deployment path and metrics"
+  },
+  {
+   "id": "g3",
+   "lines": [
+    "d5"
+   ],
+   "theme": "incident response"
+  },
+  {
+   "id": "g4",
+   "lines": [
+    "p2"
+   ],
+   "theme": "payments domain"
+  }
+ ],
+ "fit": [
+  "alpha-1",
+  "alpha-2",
+  "beta-1"
+ ],
+ "gap_terms": [
+  "Rust"
+ ],
+ "allow": [],
+ "motivation": true,
+ "matched_by": "words, then reviewed by hand",
+ "notes": [
+  "a reviewer checked every line against the profile and fixed the word matching by hand"
+ ],
+ "evidence_hash": "b2c72861949f9422",
+ "style": "examples/cover/style.json"
+}

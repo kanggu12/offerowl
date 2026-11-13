@@ -1,0 +1,36 @@
+/* The light deck: job field deckStyle "clean". The same slides, parts and sizes as the classic deck; the panels that are dark there
+   (the cover's name panel, a chapter's left panel, the last slide) are paper here, with the colour set's accent for the structure.
+   Only colours change, so everything the probe measures on the classic deck holds here too. */
+.cover .name { background: #fff; color: var(--ink2); }
+.cover .name .kind { color: var(--blue); }
+.cover .name h1 { color: var(--navy); }
+.cover .name h1 small { color: var(--g700); }
+.cover .name .tag { color: var(--navy); }
+.cover .name .proof { border-top: 2px solid var(--navy); }
+.cover .name .proof > span { border-left-color: var(--rule); }
+.cover .name .proof > span > b { color: var(--navy); }
+.cover .name .proof > span > i { color: var(--g700); }
+.chapter .cl { background: var(--band); color: var(--ink2); }
+.chapter .cl .no { color: var(--b2); }
+.chapter .cl .kind { color: var(--blue); }
+.chapter .cl h1 { color: var(--navy); }
+.chapter .cl .enm { color: var(--g700); }
+.chapter .cl .meta b { color: var(--blue); }
+.chapter .cl .lead { border-top-color: var(--rule); color: var(--ink); }
+.slide.chapter .foot span:first-child { color: var(--g700); }
+.slide.eod { background: #fff; }
+.eod .end { color: var(--ink2); }
+.eod .top { color: var(--blue); }
+.eod .top::before { background: var(--blue); }
+.eod h1 { color: var(--navy); }
+.eod h1 small { color: var(--g700); }
+.eod .tag { color: var(--blue); }
+.eod .lead { color: var(--ink); }
+.eod .bot { border-top-color: var(--rule); }
+.eod .cc .ic { background: var(--band); }
+.eod .cc b { color: var(--blue); }
+.eod .cc a, .eod .cc .v { color: var(--ink2); }
+.slide.eod .foot span { color: var(--g700); }
+.rail.dark .seg { background: var(--b4); color: var(--g700); }
+.rail.dark .seg.on { background: var(--navy); color: #FFFFFF; }
+.rail.dark .here { border-left-color: var(--navy); }

@@ -1,0 +1,40 @@
+name: A document came out wrong
+description: A resume, a deck, a cover letter or an interview card looks wrong, or a check missed or stopped something it should not.
+labels: [documents]
+body:
+  - type: markdown
+    attributes:
+      value: Please reproduce it with a fictional person, or take out everything personal from the picture and the text.
+  - type: dropdown
+    id: document
+    attributes:
+      label: Which document
+      options:
+        - Resume
+        - Portfolio deck
+        - Cover letter
+        - Interview kit
+    validations:
+      required: true
+  - type: dropdown
+    id: renderer
+    attributes:
+      label: What typeset it
+      options:
+        - The app, or the PC's browser (html)
+        - The container
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What is wrong
+      description: The page and what you see. A picture helps.
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: The smallest input that shows it
+      description: A few fictional lines of a profile, or a sentence with its evidence.
+      render: json

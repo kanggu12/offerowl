@@ -1,0 +1,80 @@
+{
+ "_comment": "Other ways an interviewer may ask each question (fictional example).",
+ "O1": [
+  "Hello, thanks for coming today",
+  "안녕하세요, 와 주셔서 감사합니다"
+ ],
+ "O2": [
+  "Can you hear me?",
+  "Is my audio okay?",
+  "Could you share your screen?",
+  "제 목소리 들리세요?",
+  "화면 공유해 주시겠어요?"
+ ],
+ "A1": [
+  "Tell me about yourself",
+  "Walk me through your background",
+  "Introduce yourself briefly",
+  "자기소개 해 주세요",
+  "경력 위주로 소개해 주세요"
+ ],
+ "A2": [
+  "Why do you want to work here?",
+  "Why this company?",
+  "왜 저희 회사에 지원하셨나요?"
+ ],
+ "A3": [
+  "What are your strengths?",
+  "What is your weakness?",
+  "장점과 단점을 말씀해 주세요"
+ ],
+ "D1": [
+  "Tell me about a failure",
+  "What mistake taught you the most?",
+  "실패 경험을 말씀해 주세요"
+ ],
+ "D2": [
+  "Tell me about a conflict at work",
+  "How do you handle disagreement?",
+  "동료와 갈등이 있었던 경험"
+ ],
+ "E1": [
+  "Payments are slow, what do you check?",
+  "There is an incident at night. Where do you start?",
+  "결제가 느려지면 무엇부터 보나요?"
+ ],
+ "K1": [
+  "What if you don't know the answer?",
+  "모르는 질문이 나오면 어떻게 하나요?"
+ ],
+ "K2": [
+  "Any questions for us?",
+  "Is there anything you want to ask?",
+  "궁금한 점 있으세요?"
+ ],
+ "R1": [
+  "How did you split the approval service?",
+  "Tell me about the payment approval project",
+  "승인 서비스는 어떻게 분리했나요?"
+ ],
+ "R2": [
+  "How did you build the shared deploy path?",
+  "Tell me about your work with Argo CD and Helm",
+  "배포 플랫폼을 어떻게 만들었나요?"
+ ],
+ "U1": [
+  "Tell me about the Kafka event pipeline",
+  "How did settlement and notifications get their data?",
+  "Kafka 이벤트 파이프라인을 설명해 주세요"
+ ],
+ "Q1": [
+  "What does idempotent mean?",
+  "How do you avoid double charges?",
+  "멱등 키가 뭐예요?"
+ ],
+ "Q2": [
+  "Explain GitOps",
+  "What is the idea behind GitOps?",
+  "GitOps가 뭐예요?"
+ ]
+}

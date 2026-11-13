@@ -1,0 +1,24 @@
+{
+ "_comment": "The shipped table of the blind edition (OFFEROWL_BLIND=1): generic and empty, so it hides nothing. A person's own table goes over it key by key: the panel keeps it in the workspace as blind.json, and on the command line OFFEROWL_BLIND_TABLE names it. docs/USAGE.md describes each key",
+ "mask": [],
+ "mask_fill": "8B1A1A",
+ "leak": [],
+ "contacts_unlink": [],
+ "logo_mask": {},
+ "footer": {
+  "ko": "블라인드 버전",
+  "en": "Blind version"
+ },
+ "mark_fill": "8B1A1A",
+ "banner": {
+  "ko": [
+   "블라인드",
+   "이름과 연락처를 가린 판"
+  ],
+  "en": [
+   "BLIND",
+   "Name and contacts masked"
+  ]
+ },
+ "mask_whole": []
+}

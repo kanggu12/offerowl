@@ -1,0 +1,22 @@
+{
+ "meta": {
+  "schema": "offerowl-measure/0.1",
+  "date": "2026-11-06",
+  "machine": "Linux x86_64, 32 CPUs, Python 3.10.12"
+ },
+ "resume": {
+  "fields": 138,
+  "sentences": 174,
+  "unlinked": 0,
+  "fact_flags": 0,
+  "claim_flags": 0,
+  "ok": true
+ },
+ "cover": {
+  "sentences": 18,
+  "with_evidence": 16,
+  "framing": 2
+ },
+ "printed": 192,
+ "with_evidence": 190
+}

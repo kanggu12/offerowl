@@ -1,0 +1,22 @@
+Hong Gildong
+Portfolio
+Backend platform engineerPayment approval service redesign
+Alpha Pay, 2023.01 - 2023.09
+Problem: when requests piled up, every deploy of the single application stopped the approval path as well.
+What I did: split the approval function into its own service, set an idempotency key on every request, and limited
+retries with exponential backoff and a cap.
+Result: the approval path deploys and rolls back on its own.
+Deploy time went from 42 to 9 minutes and rollback from 30 to 4 minutes (fictional example values).Internal deploy platform
+Alpha Pay, 2023.10 - 2024.06
+Problem: every team had its own deploy scripts.
+What I did: moved every team to one Argo CD application pattern, kept the Helm values for each environment in one
+repository, and made two approvals a rule before merge.
+Flow: a pull request changes the Helm values, two people approve, Argo CD syncs staging first and checks its state,
+and only an approved version is synced to production. Rollback is one step from the history screen.
+Result: the settings for each environment sit in one repository and every change is reviewed.
+The pattern was shown at the company engineering day as the reference setup (fictional example).Order event pipeline
+Beta Commerce, 2020.03 - 2021.04
+Problem: settlement and notifications called the order service directly, so one failure spread to the others.
+What I did: published every order status change as a Kafka event. Settlement and notifications consume the same
+events on their own.
+Result: settlement and notifications read the same stream separately, and the order service no longer waits for them.
