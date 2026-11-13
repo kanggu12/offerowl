@@ -140,7 +140,9 @@ from the folders above the profile or the plan) or anywhere by path, and overrid
 
 In the panel, the inspector's Style tab chooses the pack (**Writing rules**) and takes a new one (**Add your own rules**): the file is
 checked first (a JSON object; `banned_chars` text; `resume` and `cover` objects; every `banned_patterns` entry a `[pattern, why]` pair
-whose pattern compiles), kept as `<workspace>/style/<name>.json` and chosen. From then on every draft, rewrite, translation, application
+whose pattern compiles; the `printed`, `claims`, `ledger`, `structure` and `pages` objects in the shapes below, every pattern of them
+compiling), kept as `<workspace>/style/<name>.json` and chosen. The same goes through `POST /api/v1/style` (`{name, pack}`), and from a
+shell through `offerowl api post /api/v1/style`. From then on every draft, rewrite, translation, application
 answer and document check uses it (`Tasks.style_spec`). The interview scenes and the talk read the kit's own pack instead
 (`style` in kit.json, [Style packs](INTERVIEW.md#style-packs)); the Style tab's choice does not reach them.
 
@@ -227,6 +229,102 @@ that breaks says it did not run.
 
 The panel words every finding by its code in the person's language (`--report` writes them with their values), lists the
 defects over the pages, which keep the PDFs home as before, and the notes to polish in a quieter band.
+
+### Phrases fixed once
+
+A sentence corrected against the facts tends to come back in the next edition written from an older one, and an edition
+corrected alone leaves the others saying it the old way. The pack's `claims` object keeps the corrections, and every build's
+document check (`src/check_claims.py`) holds the resume and the deck to them. Each list is one for both languages, or one per
+language (`{"ko": [...], "en": [...]}`); every pattern is a Python regular expression.
+
+```json
+"claims": {
+ "retired": {"ko": [["결제 표준을 홀로 세워", "결제 표준을 팀과 정리", "the standard was the team's", "팀 공용 결제 표준"]]},
+ "shared": [["주문 이벤트", "Kafka 이벤트로 내보내", "one wording of the order events in every general edition"]],
+ "proposal": [["주문 재처리", "제안|설계안|propos", "the reprocessing was designed and proposed only"]]
+}
+```
+
+| List | A row | Fails when |
+|---|---|---|
+| `retired` | `[old, new, why, ledger words]` | the old phrase is printed again; the finding says what to write (`new`, may be `""`) and why |
+| `shared` | `[topic, phrase, why, ledger words]` | a general edition speaks of the topic without the phrase (an edition for one posting words it its own way; a blind edition's bars may cover the topic, so it is not read) |
+| `proposal` | `[topic, need, why]` | a sentence that speaks of work which ended as a proposal or a plan lacks the word that says so (the sentence runs from the full stop before to the one after, or 120 letters either way) |
+
+A `retired` or `shared` row may end with the ledger words it rests on (one text or a list): when the person's profile no longer holds
+them (spaces and emphasis marks aside), the check says the rule is stale (`claim_anchor`), so the table never outlives the facts it was
+written from. The words read are the Word file's paragraphs and the deck's page beside the PDFs (no line break or footer cuts a phrase
+there), else the PDF's text. Every finding is a defect.
+
+### The edition against the profile
+
+An edition brought in, or edited by hand, may print a period, a number or a title the facts never had, and an edition rewritten for
+one posting may lose an item, a section, a figure or a required line. The pack's `ledger` object holds an edition to the person's
+profile (the ledger: `profile/profile.json` and its English translation, which the build stages for the check), and `structure` to the
+shape the person keeps (`src/check_ledger.py`).
+
+```json
+"ledger": {
+ "periods": true,
+ "ids": [{"printed": "KR(\\d{9})0000", "ledger": "KR(\\d{9})B1", "why": "a registered patent's number", "all": true}],
+ "lists": ["논문", "Papers", "등록 특허", "Patents"],
+ "required": {"ko": ["정보처리기사", ["선임 엔지니어", "선임 개발자"]], "en": ["Engineer"]},
+ "core": ["결제 승인 서비스 재설계"],
+ "min_items": {"알파페이": 3, "Alpha Pay": 3}
+},
+"structure": {
+ "sections": {"ko": ["개요", "경력요약", "학력사항", "핵심역량", "보유기술", "상세경력사항", "기타사항", "자기소개", ["지원 동기", "커리어 목표"]]},
+ "figures": ["timeline", "stack"], "about_max": 3, "title_lead": "latin", "title_ranks": true,
+ "not_skills": ["Soft Skills", "Statistics", "Experiment(?:ation|s)?\\b", "A/B Test"]
+}
+```
+
+| Key | Fails when |
+|---|---|
+| `ledger.periods` | a closed period printed (`2022.03 ~ 2024.02`, `2022.03 - 2024.02`, digits a wide letter spacing split) is not one the profile writes or keeps as a `start` and `end`; `22.03` and `2022.03` are the same month |
+| `ledger.ids` | an identifier printed (`printed`) is not one the profile holds (`ledger`, the same pattern when left out): the first group of each pattern is the part both share, else the whole match; with `all`, one the profile holds is not printed |
+| `ledger.lists` | an entry of a section or group of these titles (its item, its dated line's main text, its table row's cell with the most letters) is not in the profile, read by its first 40 letters with spaces aside and in any case |
+| `ledger.required` | words every edition prints are missing (spaces aside, any case); an entry that is a list passes with any of its words |
+| `ledger.core` | a project no edition leaves out is not printed |
+| `ledger.min_items` | in a general edition, a company (by any of its names) prints fewer items than this; a project marked `resume: false` or written for the other language is not printed. An application's edition is not held to it: it drops items for its posting on purpose |
+| `structure.sections` | a section title is missing, or the printed ones are in another order (an entry that is a list names alternatives) |
+| `structure.figures` | a figure the form places (`timeline`, `stack`) is not placed |
+| `structure.about_max` | about me has more parts (stage bands and boxed statements) than this |
+| `structure.title_lead` | `latin`: the job title printed under a company band (after its department and ` / `) has Hangul before its first comma; `same`: those titles lead in two scripts |
+| `structure.title_ranks` | a job title says one rank twice: the same rank twice, or a Korean rank with its English word (`Project Lead, 플랫폼 운영 리드`). A gloss in parentheses translates the rank before it (`팀장(Platform Lead)`), and two different ranks are two positions (`Team Lead, Release Owner`): neither is a finding |
+| `structure.not_skills` | a category or a skill of the skills table matches one of these patterns: experience, not a stack |
+
+The ledger rules are read only when the check has a ledger (`--ledger`; the panel's build always gives the workspace's profile). What
+the typesetting set comes from its sidecar (`<name>.highlights.json`, its `parts`: section titles, figures, about-me parts, job titles,
+company bands), so a document typeset without one (an older engine's) is held to its printed words only. In a blind edition a
+required word or a core project counts as printed when the letters its bars leave are there. Every finding is a defect. A word that
+may never be printed (`GPA`, a client's name) is a `banned_patterns` entry, which every document check already reads.
+
+### What the pages show
+
+The pack's `pages` object measures what only the pages show (`src/check_pages.py`): page pictures at 100 dpi for the fill, 200 dpi
+for the bands, and the PDF's words.
+
+```json
+"pages": {"fill_last": 12, "mid_gap": 22, "summary_first": ["경력요약", "Career Summary"], "bands": 0.75, "volume": 1.6}
+```
+
+| Key | Fails when |
+|---|---|
+| `fill_last` | an application's last page leaves more than this share (percent of the page) empty at its foot; the finding counts the lines that would fill it. The room is for facts: never cut the margins or merge items to pass it. A general edition is not held to it |
+| `mid_gap` | a page in the middle leaves more than this share empty at its foot: a block that moved whole to the next page is a typesetting accident (a first page of twelve lines or fewer is a cover) |
+| `summary_first` | in an application, a section of these titles runs past page 1 (its title is not on page 1, or page 2 holds one of its rows before the next section's title) |
+| `bands` | a company band's name, place, period or badge, or an about-me band's title, sits more than this many points off its band's middle; a logo sticks out of its band by more than 0.5 pt or sits more than 1 pt off its middle; a band the measurement cannot find is said too |
+| `volume` | a company held clearly shorter (two thirds of another's tenure or less) prints more lines of experience than the longer one, or one prints more lines per month than this many times the median of all (an ongoing role runs to today) |
+
+A page's foot is measured above the footer (the bottom 50 pt of a portrait page). The bands are found by the colour the typesetting
+painted them in, which the sidecar names. Lines that could not be counted (a band found twice) are said as such, never passed.
+Every finding is a defect.
+
+**From a shell.** `offerowl build profile.json job.json` runs the same document check: `job.json` names the pack (`style`), and may
+name the ledger (`"ledger": "<profile.json>"`) and the edition's kind (`"edition": "general"` or `"job"`, the default). `python3
+src/check_documents.py <profile.json> <resume.pdf> [deck.pdf] --style <pack> --ledger <profile.json> --edition job` runs it on PDFs
+already made.
 
 ## Cover letters
 

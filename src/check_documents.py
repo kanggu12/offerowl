@@ -17,8 +17,18 @@ here, so only checks that fit everyone are kept.
          a highlight broken across two lines, its size, a name inside it, a paragraph ending on a word alone
   blind: in a blind edition (OFFEROWL_BLIND=1, the table src/blind.py reads) a company or a project counts as listed when the
          words its bars leave are there: a covered name is a bar in the text layer (square glyphs), never its words
+  claims: phrases fixed once stay fixed (the pack's "claims": retired, shared, proposal; src/check_claims.py), resume and deck
+  ledger, structure: the edition against the person's profile (--ledger: periods, identifiers, lists, required words, core
+         projects, items per company) and the shape the pack keeps (sections, figures, about me, job titles, skills;
+         src/check_ledger.py)
+  pages: an application's last page filled, no hole in a middle page, the career summary on page 1, the bands' middles,
+         the lines per company against its tenure (the pack's "pages"; src/check_pages.py)
 
   python3 src/check_documents.py <profile.json> <resume.pdf> [deck.pdf] [--style name] [--max-pages N] [--report out.json]
+                                 [--ledger profile.json] [--edition general|job]
+
+--ledger names the profile the edition is held to (the person's facts); --edition general says the edition is a general one,
+held to the shared phrases and free of the rules for one application (the last page's fill, the summary on page 1).
 
 --report also writes each finding as JSON, {"defects": [{"code", its values..., "text"}], "polish": [...]}: a reader that words the checks in
 its own language (the panel) reads the code and the values; a line with no code of its own ("") keeps only its text.
@@ -31,7 +41,10 @@ import sys  # command-line arguments
 import tempfile  # page images
 
 import blind  # the blind edition's table: what its bars cover
+import check_claims as CC  # phrases fixed once (the pack's claims)
+import check_ledger as CLG  # the edition against the person's profile and the shape the pack keeps
 import check_lines as CL  # the line checks, from the PDF's word boxes and the typesetting's sidecar
+import check_pages as CP  # what the pages show: fill, holes, the summary's page, the bands, the lines per company
 import check_render as CR  # footer clearance, numbers split from their units (layout checks shared with the other paths)
 import llm  # the message helper and the language setting
 import pdftools as P  # the PDF's text, size and page pictures, with poppler or PDFium
@@ -318,8 +331,9 @@ def form_issues(prof: dict, edition: str) -> list:
     return out
 
 
-def check_resume(prof: dict, pdf: str, style: str, max_pages: int) -> list:
-    """Resume checks. The list of problems"""
+def check_resume(prof: dict, pdf: str, style: str, max_pages: int, ledger=None, general: bool = False) -> list:
+    """Resume checks. The list of problems. ledger: the person's profile the edition is held to (None: the ledger rules are
+    not read); general: a general edition (the shared phrases hold, the rules for one application do not)"""
     text = P.text(pdf)
     if not text.strip():
         return [issue("no_text")]
@@ -361,18 +375,24 @@ def check_resume(prof: dict, pdf: str, style: str, max_pages: int) -> list:
     bad += form_issues(prof, edition)  # the lines of a table said alike
     pack = load_pack(style)  # the person's rules
     side = CL.sidecar(pdf)  # what the typesetting set, when it left it
-    paras = None
+    paras, parts = None, {}
     if side.is_file():
         try:
-            paras = json.loads(side.read_text(encoding="utf-8")).get("paras") or []
+            got = json.loads(side.read_text(encoding="utf-8"))
+            paras = got.get("paras") or []
+            parts = got.get("parts") if isinstance(got.get("parts"), dict) else {}  # the sections, figures, bands it set
         except ValueError:
             paras = None
     bad += printed_issues(text, pack, edition, paras)  # what no document prints, and the pack's printed rules
     bad += CL.check(pdf, edition, **line_rules(pack, edition))  # highlights and last lines, from the word boxes
+    held = CLG.ledger_text(ledger) if ledger is not None else None  # the profile's words, for the rules that rest on them
+    bad += CC.check(CC.doc_text(pdf), pack, edition, general=general, blind=BT is not None, ledger=held)  # phrases fixed once
+    bad += CLG.check(text, prof, parts, pack, edition, ledger, shown, general=general)  # the edition against the facts and the shape kept
+    bad += CP.check(pdf, parts, pack, application=not general)  # what the pages show
     return bad + style_issues(text, style)
 
 
-def check_deck(pdf: str, style: str) -> list:
+def check_deck(pdf: str, style: str, general: bool = False) -> list:
     """Deck checks. The browser measurement (.probe.json) and the PDF"""
     probe = pathlib.Path(pdf).with_suffix(".probe.json")
     if not probe.exists():
@@ -397,7 +417,9 @@ def check_deck(pdf: str, style: str) -> list:
     text = P.text(pdf)
     hangul = len(re.findall(r"[가-힣]", text))  # the deck's language, read from its pages
     lang = "ko" if hangul > 0.2 * max(1, len(re.findall(r"[A-Za-z가-힣]", text))) else "en"
-    return bad + printed_issues(text, load_pack(style), lang) + style_issues(text, style)
+    pack = load_pack(style)  # the person's rules
+    claims = CC.check(CC.doc_text(pdf), pack, lang, general=general, blind=BT is not None)  # phrases fixed once, on the slides too
+    return bad + printed_issues(text, pack, lang) + claims + style_issues(text, style)
 
 
 def main() -> int:
@@ -405,14 +427,16 @@ def main() -> int:
     style = args[args.index("--style") + 1] if "--style" in args else "default"
     max_pages = int(args[args.index("--max-pages") + 1]) if "--max-pages" in args else 3
     report = args[args.index("--report") + 1] if "--report" in args else None  # the defects as JSON too
-    pos = [a for i, a in enumerate(args) if not a.startswith("--") and (i == 0 or args[i - 1] not in ("--style", "--max-pages", "--report"))]
+    ledger = CLG.read_ledger(args[args.index("--ledger") + 1]) if "--ledger" in args else None  # the profile the edition is held to
+    general = "--edition" in args and args[args.index("--edition") + 1] == "general"  # a general edition, not one application's
+    pos = [a for i, a in enumerate(args) if not a.startswith("--") and (i == 0 or args[i - 1] not in ("--style", "--max-pages", "--report", "--ledger", "--edition"))]
     if len(pos) < 2:
         print(__doc__)
         return 1
     prof = json.loads(pathlib.Path(pos[0]).read_text(encoding="utf-8"))
-    bad = check_resume(prof, pos[1], style, max_pages)
+    bad = check_resume(prof, pos[1], style, max_pages, ledger, general)
     if len(pos) > 2:
-        bad += check_deck(pos[2], style)
+        bad += check_deck(pos[2], style, general)
     warn = [b for b in bad if getattr(b, "polish", False) or any(w in b for w in WARN)]
     bad = [b for b in bad if b not in warn]
     if report:  # the defects with their codes, for a reader that words them itself

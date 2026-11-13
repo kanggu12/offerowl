@@ -259,6 +259,10 @@ python3 src/office_check.py powerpoint portfolio.pptx                           
 - Colour sets are in `src/themes.json`. Add your own with `OFFEROWL_THEME_FILE=<json>` and name one in `job.json` as `theme`.
 - A style pack lists the characters and patterns a document must not hold. `src/style/default.json` is empty. Make your own
   and name it in `job.json` as `style`; the fact check and the drafts both apply it.
+- A pack can also hold the documents to phrases fixed once, to your profile and to the shape you keep, and measure the pages
+  ([WRITING.md](WRITING.md#phrases-fixed-once)). For `build`, `job.json` may name the profile the edition is held to as `ledger`
+  and say `"edition": "general"` for a general edition (the shared phrases hold, the rules for one application do not); the panel
+  passes both itself.
 
 ## Tests
 

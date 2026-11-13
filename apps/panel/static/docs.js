@@ -663,12 +663,35 @@ const CHECK_WORDS = {
   hl_size: "A highlight of {size}; your rules say {lo} to {hi}: '{text}'", hl_name: "A name inside a highlight ({names}): '{text}'",
   hl_missing: "A highlight was not found on the page: '{text}'", last_word: "A paragraph ends on '{tail}' alone: '…{end}'",
   para_missing: "A paragraph was not found on the page: '{text}…'", no_words: "No words could be read from the PDF, so its lines were not measured.",
-  deck_tool: "The deck's own check {tool}: {what}", deck_tool_failed: "The deck's own check {tool} did not run: {what}" };
+  deck_tool: "The deck's own check {tool}: {what}", deck_tool_failed: "The deck's own check {tool} did not run: {what}",
+  // 0.10.0: phrases fixed once, the edition against the profile, the shape kept, and what the pages show (docs/WRITING.md)
+  claim_retired: "A phrase taken out once is printed again: '{old}'{instead} ({why})", claim_shared: "It speaks of '{topic}' without the phrase every edition uses: '{phrase}' ({why})",
+  claim_proposal: "Work that ended as a proposal reads as done: '{near}' ({why})", claim_anchor: "A rule of your phrases rests on words your profile no longer has: '{words}' ({rule})",
+  ledger_period: "A period your profile does not have: {period}", ledger_id: "A number your profile does not have: {id} ({why})",
+  ledger_id_missing: "A number of your profile is not printed: {id} ({why})", ledger_entry: "An entry of '{list}' that your profile does not have: '{entry}'",
+  required_missing: "Words every edition prints are missing: '{words}'", core_missing: "A project no edition leaves out is missing: {name}",
+  items_fewer: "{org} has {n} items, fewer than your rules keep ({min}).", section_missing: "A section is missing: {title}",
+  section_order: "The sections are not in the order your rules keep: {order}", figure_missing: "A figure your rules keep is not on the pages: {figure}",
+  about_parts: "About me has {n} parts, more than {limit}: {parts}", title_lead: "A job title does not lead in Latin letters as the others do: '{title}'",
+  title_mixed: "The job titles lead in two scripts: {titles}", title_rank: "A job title says its rank twice: '{title}'",
+  not_skill: "The skills table holds experience, not a stack: '{what}'",
+  last_page_room: "The last page leaves {gap}% empty at its foot, more than {limit}%: about {lines} more lines fit. Fill it with facts, never by cutting the margins.",
+  page_gap: "Page {page} leaves {gap}% empty at its foot, more than {limit}%: a block moved whole to the next page.", summary_spills: "'{title}' runs past page 1.",
+  band_off: "Page {page}, the band of {name}: the {part} sits {off} pt off the band's middle (at most {limit}).",
+  band_logo: "Page {page}, the band of {name}: its logo sticks {over} pt out of the band, {off} pt off its middle.",
+  band_count: "{found} company bands were found on the pages for {want} set.",
+  volume_order: "{short} ({m_short} months) has {n_short} lines, more than {long} ({m_long} months) with {n_long}.",
+  volume_density: "{org} has {density} lines a month, {times} times the median {median} (at most {limit}).",
+  volume_section: "The section '{title}' was not found, so the lines per company were not measured.",
+  volume_band: "The band of {name} was found {n} times, so the lines per company were not measured." };
+const BAND_PARTS = { name: "company name", place: "place of work", period: "period of work", badge: "company badge", title: "band title" };   // the part of a band the band check measured
 function checkWords(x) {                                                            // one finding in the page's words
   if (typeof x === "string") return x === "check_failed" ? t("The checks did not run.") : x;   // a line as the checks wrote it
   if (!x || !CHECK_WORDS[x.code]) return (x && x.text) || "";                       // no code of the page's own: as written
   const size = x.code === "hl_size" ? (docLang() === "en" ? tn(x.size, "{n} word", "{n} words") : t("{n} letters", { n: x.size })) : "";   // a highlight's size in the edition's unit
-  return t(CHECK_WORDS[x.code], { ...x, size });
+  const instead = x.code === "claim_retired" && x.new ? t(", write '{new}'", { new: x.new }) : "";   // what the phrase was fixed to, when the rules say
+  const part = x.code === "band_off" && BAND_PARTS[x.which] ? t(BAND_PARTS[x.which]) : x.part;   // the band's part, in the page's words
+  return t(CHECK_WORDS[x.code], { ...x, size, instead, part });
 }
 function checksBand(b) {                                                            // the checks a typeset edition failed: what keeps its PDFs from going out
   const coded = b && Array.isArray(b.checks) && b.checks.length ? b.checks : null;  // the findings with their codes, when the build kept them

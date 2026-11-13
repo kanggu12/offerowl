@@ -285,6 +285,11 @@ class Api:
                 re.compile(row[0])  # a broken pattern is refused here, not at the next check
             except re.error as exc:
                 raise ValueError("style") from exc
+        import check_claims  # src/check_claims.py: the phrases fixed once (docs/WRITING.md "Phrases fixed once")
+        import check_ledger  # src/check_ledger.py: the edition against the profile, and the shape kept
+        import check_pages  # src/check_pages.py: what the pages show
+        if check_claims.problems(pack.get("claims")) or check_ledger.problems(pack) or check_pages.problems(pack):  # a shape they cannot read, a pattern that does not compile
+            raise ValueError("style")  # refused here, never at the next build's check
         import tempfile  # the pack read once by the writers' own loader before it is kept
         import write_resume  # src/write_resume.py: its loader reads the cover options too (src/cover.py)
         with tempfile.TemporaryDirectory() as tmp:  # never in the style folder, where the panel lists the packs

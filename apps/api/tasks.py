@@ -1322,19 +1322,29 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
 
     def _check(self, profile: str, pdf: Path, deck: Path | None, max_pages: int, env: dict | None = None) -> tuple[list, list]:
         """src/check_documents.py on the edition, in the engine's container: (defects, notes to polish). deck is None when a
-        blind edition left it out; env is the build's own (a blind edition's check reads its table)."""
+        blind edition left it out; env is the build's own (a blind edition's check reads its table). The edition is the job whose
+        folder holds the profile (jobs/<job>/resume/<lang>/): a general one (its id starts with a dash) is held to the shared
+        phrases, an application's to the rules for one posting."""
         import resume  # its sh() runs the tool where the typesetting runs
         spec = self.style_spec()  # "default" or the person's pack in the workspace
         report = self.check_report(pdf)  # the defects with their codes, written beside the engine's PDF where the container writes too
         report.unlink(missing_ok=True)  # never an older build's
+        ledger = self.stage_ledger(pdf)  # the person's profile, which the edition is held to (docs/WRITING.md "The edition against the profile")
+        where = Path(profile).resolve().parent.parent  # jobs/<job>/resume, for an edition's own profile
+        general = where.name != "resume" or where.parent.name.startswith("-")  # a general edition (the profile's own, or a named one), or none to say
         # its words in the edition's language: a line the panel cannot word from its code (a layout check, the measurement of a
         # slide) is shown as written, and the container's own locale would write it in English under a Korean edition
         env = {**(env or os.environ), "OFFEROWL_LANG": "en" if Path(str(pdf)).stem.endswith("_en") else "ko"}
         table = self.blind_file()  # the person's table: its never-shown names never go inside a highlight either
         if table:  # staged where the container reads it (resume.rel); _clean_engine takes the copy away with the others
             env["OFFEROWL_HIGHLIGHT_TABLE"] = resume.rel(str(table))
-        r = resume.sh(["python3", "src/check_documents.py", resume.rel(profile), resume.rel(str(pdf)), *([resume.rel(str(deck))] if deck else []),  # the document checks, in the render container
-                       "--style", spec if spec == "default" else resume.rel(spec), "--max-pages", str(max_pages), "--report", resume.rel(str(report))], env)  # the pack the documents were written with; a workspace file is staged where the container sees it
+        try:
+            r = resume.sh(["python3", "src/check_documents.py", resume.rel(profile), resume.rel(str(pdf)), *([resume.rel(str(deck))] if deck else []),  # the document checks, in the render container
+                           "--style", spec if spec == "default" else resume.rel(spec), "--max-pages", str(max_pages), "--report", resume.rel(str(report)),  # the pack the documents were written with; a workspace file is staged where the container sees it
+                           *(["--ledger", resume.rel(str(ledger))] if ledger else []), "--edition", "general" if general else "job"], env)  # the facts it is held to, and what kind of edition it is
+        finally:  # the copy of the person's profile never stays in the engine's folder
+            if ledger:
+                ledger.unlink(missing_ok=True)
         out = (r.stdout or "") + (r.stderr or "")  # their report
         notes = [line.split(":", 1)[1].strip() for line in out.splitlines()  # warnings to polish, in either language
                  if re.match(r"\s*(다듬을 거리|to polish|polish)\s*:", line, re.I)]  # warnings, in either language
@@ -1372,6 +1382,19 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
             found = [ln.lstrip("-•*").strip() for ln in lines if re.match(r"\s*[-•*]\s", ln)] or lines[-3:]  # its list of problems, else its last words
             out += [CD.deck_tool_item(tool, unpathed(w)[:240]) for w in found[:20]]
         return out
+
+    def stage_ledger(self, pdf: Path) -> Path | None:
+        """The person's profile (and its English translation, when there is one) written where the container reads it, as
+        {"profiles": [...]}: the ledger an edition's periods, numbers and lists are held to. Named after the engine's PDF, so the
+        edition's clean-up takes it with its other working files if the check's own removal could not. None without a profile."""
+        found = [read_json(f, None) for f in (self.ws.path("profile", "profile.json"), self.ws.path("profile", "profile.en.json")) if f.is_file()]  # both languages
+        found = [p for p in found if isinstance(p, dict)]  # readable ones only
+        if not found:  # no profile yet: the ledger rules are not read
+            return None
+        f = ROOT / "output" / "_inputs" / f"{Path(str(pdf)).stem}.ledger.json"  # beside the edition's other staged inputs
+        f.parent.mkdir(parents=True, exist_ok=True)
+        write_json(f, {"profiles": found})  # no schema at the top: it is never staged as a profile with its pictures
+        return f
 
     @staticmethod
     def check_report(pdf: Path) -> Path:
