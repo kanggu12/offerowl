@@ -1,0 +1,20 @@
+{
+ "_comment": "Kit settings for the fictional example job (docs/INTERVIEW.md lists every key).",
+ "ui": "ko",
+ "sources": [
+  {"file": "qa.md", "label": "문답", "prefix": "Q", "role": "scenes"},
+  {"file": "deep.md", "label": "이력상세", "prefix": "R", "role": "deep"},
+  {"file": "terms.md", "label": "용어", "prefix": "T", "role": "terms"},
+  {"file": "@stories", "label": "이야기", "prefix": "S", "role": "reference"}
+ ],
+ "sections": {"O": "첫 인사", "A": "소개", "D": "인성", "E": "상황", "K": "마무리", "R": "알파페이", "U": "베타커머스", "Q": "용어"},
+ "synonyms": [["감마클라우드", "gamma"], ["멱등", "idempotency", "idempotent"], ["배포", "deploy", "deployment", "release"]],
+ "fallback": "K1",
+ "weak_hint": {"ko": "K1 틀로 답하세요: \"그 규모에서는 해 본 적이 없습니다. 가장 가까운 건 ...이고, 확인한다면 ...부터 보겠습니다.\"",
+               "en": "Use the K1 frame: \"I haven't done that at this scale. The closest thing I've done is ..., and to check, I would start with ...\""},
+ "examples": {"ko": "자기소개, 멱등 키, why Gamma Cloud, R1", "en": "tell me about yourself, idempotency key, why Gamma Cloud, R1"},
+ "company": {"ko": "감마클라우드", "en": "Gamma Cloud"},
+ "profile": "../sample_ko.json",
+ "style": "interview",
+ "grow_skip": ["O", "K"]
+}

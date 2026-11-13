@@ -1,0 +1,28 @@
+{
+ "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+ "basics": {
+  "name": "Mira Solberg", "label": "Platform Engineer", "email": "mira@example.com", "phone": "+00 000 0000",
+  "url": "https://mira.example.com", "summary": "Platform engineer who moved payment services onto Kubernetes.",
+  "location": {"city": "Example City", "countryCode": "XX"},
+  "profiles": [{"network": "GitHub", "username": "example-mira", "url": "https://github.com/example-mira"}]
+ },
+ "work": [
+  {"name": "Northwind Payments", "position": "Platform Engineer", "location": "Example City", "startDate": "2021-03", "summary": "Payment processor for small shops.",
+   "highlights": ["Proposed the move of the checkout service to Kubernetes and carried it out with the team", "Wrote the on-call runbook used by every shift"]},
+  {"name": "Tailspin Labs", "position": "Developer", "startDate": "2018-07", "endDate": "2021-02",
+   "highlights": ["Built the release pipeline on GitLab CI"]}
+ ],
+ "projects": [
+  {"name": "Shop analytics", "entity": "Northwind Payments", "startDate": "2022-05", "endDate": "2022-11", "description": "Daily sales reports for shop owners."},
+  {"name": "Open-source CLI", "startDate": "2016-01", "description": "A small tool for log search."}
+ ],
+ "education": [{"institution": "Example University", "area": "Computer Science", "studyType": "B.S.", "startDate": "2014-03", "endDate": "2018-02", "score": "3.8/4.0"}],
+ "skills": [{"name": "Platform", "keywords": ["Kubernetes", "Helm"]}, {"name": "Go", "level": "Advanced"}],
+ "awards": [{"title": "Hackathon winner", "awarder": "Example Meetup", "date": "2019-10-12"}],
+ "certificates": [{"name": "Example Cloud Certificate", "issuer": "Example Org", "date": "2022-01"}],
+ "publications": [{"name": "Notes on rollbacks", "publisher": "Example Journal", "releaseDate": "2020-06"}],
+ "languages": [{"language": "English", "fluency": "Fluent"}, {"language": "Korean", "fluency": "Basic"}],
+ "interests": [{"name": "Climbing", "keywords": ["bouldering"]}],
+ "volunteer": [{"organization": "Example Coding Club", "position": "Mentor", "startDate": "2019-01"}],
+ "meta": {"theme": "elegant"}
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kanggu12/offerowl/main/core/schema/documents/resume.schema.json",
+  "title": "The resume as the canvas draws it",
+  "description": "GET /api/v1/documents/resume answers with this. The page lays the blocks out on A4 sheets in the order the typeset resume prints them (src/resume_form.js); every piece of text is a sentence with its evidence, so a click shows where it came from and a sentence without evidence stops the export.",
+  "type": "object",
+  "required": ["kind", "lang", "theme", "person", "blocks", "sentences", "counts"],
+  "properties": {
+    "kind": {"const": "resume"},
+    "lang": {"enum": ["ko", "en"]},
+    "theme": {"enum": ["navy", "teal", "mono", "wine", "forest", "slate"]},
+    "job": {"type": ["string", "null"]},
+    "draft": {"type": ["object", "null"], "description": "The draft on the canvas: when it was written, whether it is this edition's own or the general edition's, whether the facts changed since, and its counts.",
+      "properties": {"at": {"type": "string"}, "general": {"type": "boolean"}, "own": {"type": "boolean"}, "stale": {"type": "boolean"}, "counts": {"type": "object", "additionalProperties": {"type": "integer"}}}},
+    "colors": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9A-Fa-f]{6}$"}},
+    "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+    "person": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string"},
+        "name_en": {"type": "string"},
+        "tagline": {"type": "string"},
+        "contacts": {"type": "array", "items": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 2}},
+        "photo": {"type": "string", "description": "The resume's photo (GET /api/v1/photo), when the setting puts it on the resume; the detailed form only."}
+      }
+    },
+    "blocks": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+    "sentences": {"type": "object", "additionalProperties": {"$ref": "#/$defs/sentence"}},
+    "counts": {
+      "type": "object",
+      "required": ["sentences", "unsupported"],
+      "properties": {
+        "sentences": {"type": "integer", "minimum": 0},
+        "unsupported": {"type": "integer", "minimum": 0},
+        "edited": {"type": "integer", "minimum": 0},
+        "locked": {"type": "integer", "minimum": 0}
+      }
+    },
+    "missing": {"type": "array", "items": {"type": "string"}, "description": "What stops a resume from being made (name_missing, email_missing, no_roles)."}
+  },
+  "$defs": {
+    "sid": {"type": "string", "pattern": "^[a-z][a-z0-9_.]*$", "description": "A sentence id: its path in the profile, then .sN for the sentence of a paragraph."},
+    "block": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["headline", "intro", "section", "cards", "highlights", "career", "education", "competencies", "skills", "role", "list", "about", "motivation", "figure", "service"]},
+        "title": {"type": "string"},
+        "en": {"type": "string"},
+        "sid": {"$ref": "#/$defs/sid"},
+        "sids": {"type": "array", "items": {"$ref": "#/$defs/sid"}},
+        "items": {"type": "array"},
+        "rows": {"type": "array", "description": "Career rows also carry name, place, department and role (the printed table's own columns); career and education rows carry logo_id (the tile's name) and logo (its address), education rows sub, majorSub and note."},
+        "projects": {"type": "array"},
+        "key": {"type": "string", "description": "A section's part (overview, career, edu, comp, ...); a figure's name: timeline or stack."},
+        "src": {"type": "string", "description": "A figure's address: GET /api/v1/jobs/{job}/figures/{lang}/{name}.png, drawn from the edition's profile as the PDF prints it."},
+        "w": {"type": "integer", "minimum": 1, "description": "A figure's width in pixels, so the page keeps its room before it loads."},
+        "h": {"type": "integer", "minimum": 1},
+        "logo": {"type": "string", "description": "A role band's logo tile address (logo_id names the tile)."},
+        "note": {"type": "string", "description": "A section heading's grey words after its title, as printed: the career summary's total, \"(총경력 7년 2개월)\"."},
+        "place": {"type": "string", "description": "A role band's place, grey before its dates; career rows carry sub, the grey line under the company's name (place, then the role's note)."},
+        "tenure": {"type": "string", "description": "A role band's or a career row's time there, as the loader writes it (\"1년\", \"2 yrs 3 mos\")."},
+        "sub": {"type": "string", "description": "A role band's underlined line (the role's own, else department / title)."},
+        "desc": {"type": "string", "description": "A role band's grey line about the company."},
+        "badge": {"type": "string", "description": "A role band's small mark beside the name (co-founder and the like)."},
+        "groups": {"type": "array", "description": "A list's printed parts in order: {caption, items: [{sid}], lines: [{sid, main, org, date}], table: {head, rows: [[{t, bold, accent}]], widths (twips), align} or null, note}. items holds every sentence of them too."},
+        "paras": {"type": "array", "items": {"type": "array", "items": {"$ref": "#/$defs/sid"}}, "description": "About me (per item) and the motivation: the sentence ids of each printed paragraph."},
+        "title_long": {"type": "string", "description": "A role band's long title (the role's titleLong, a career block's full one): the English one-column form prints it beside the company."},
+        "label": {"type": "string", "description": "The service record's words (its label, else the ledger's chart words). Only the table form prints the service block."},
+        "period": {"type": "string", "description": "A role band's or the service record's dates as printed (the service record's as written, joined with \" ~ \")."}
+      }
+    },
+    "sentence": {
+      "type": "object",
+      "required": ["text", "state", "evidence"],
+      "properties": {
+        "text": {"type": "string", "description": "As printed; ==phrase== marks the highlighter."},
+        "state": {"enum": ["ok", "edited", "unsupported", "typed"], "description": "ok: as the evidence says; edited: changed by the person and still within the evidence; unsupported: holds a number, tool or name the evidence does not; typed: the person's own words."},
+        "locked": {"type": "boolean", "description": "Edit and Regenerate leave it alone, and a new draft keeps its words."},
+        "drafted": {"type": "boolean", "description": "The agent wrote it from the evidence it cites (apps/api/drafts.py)."},
+        "issues": {"type": "array", "items": {"type": "object", "required": ["code"], "properties": {"code": {"type": "string"}, "words": {"type": "string"}, "said": {"type": "string"}}}},
+        "kind": {"type": "string", "description": "The fact kind it rests on (project, role, card, ...)."},
+        "evidence": {"type": "array", "items": {"$ref": "../job.schema.json#/$defs/evidence"}}
+      }
+    }
+  }
+}

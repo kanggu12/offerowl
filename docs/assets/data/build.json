@@ -1,0 +1,51 @@
+{
+ "meta": {
+  "schema": "offerowl-measure/0.1",
+  "date": "2026-11-05",
+  "machine": "Linux x86_64, 32 CPUs, Python 3.10.12",
+  "renderer": "container"
+ },
+ "documents": [
+  {
+   "kind": "resume",
+   "seconds": 4.6,
+   "files": [
+    "measure_resume_ko.docx",
+    "measure_resume_ko.pdf"
+   ],
+   "pages": 2
+  },
+  {
+   "kind": "deck",
+   "seconds": 3.9,
+   "files": [
+    "measure_resume_ko_deck.pdf"
+   ],
+   "pages": 6
+  },
+  {
+   "kind": "cover",
+   "seconds": 3.5,
+   "files": [
+    "cover_en.docx",
+    "cover_en.pdf"
+   ],
+   "pages": 1
+  },
+  {
+   "kind": "interview",
+   "seconds": 0.6,
+   "files": [
+    "cue_cards.html",
+    "cue_cards.pdf"
+   ],
+   "pages": 3,
+   "verdict": "cue cards 10: <out>/kit/cue_cards.pdf"
+  }
+ ],
+ "kinds": 4,
+ "files": 7,
+ "seconds": 12.6,
+ "check": "Document check: resume and deck passed (style pack default)",
+ "check_exit": 0
+}

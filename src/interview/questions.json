@@ -1,0 +1,38 @@
+{
+ "_comment": "Standard questions for the question map, and the rule-made phrasings per kind of source. {text}, {term}, {title} and {company} are filled in by plan.py; the model may phrase them better with plan --phrase.",
+ "opening": [
+  {"topic": "greeting", "en": "Hi, nice to meet you. Thanks for joining today.", "ko": "안녕하세요, 반갑습니다. 오늘 시간 내 주셔서 감사합니다."},
+  {"topic": "sound check", "en": "Can you hear me okay?", "ko": "제 목소리 잘 들리시나요?"},
+  {"topic": "camera", "en": "Could you turn on your camera?", "ko": "카메라를 켜 주시겠어요?"},
+  {"topic": "screen share", "en": "Would you like to share your portfolio on screen?", "ko": "포트폴리오를 화면에 띄워 주시겠어요?"},
+  {"topic": "small talk", "en": "How is your day going so far?", "ko": "오늘 하루는 어떠세요?"},
+  {"topic": "repeat", "en": "Sorry, could you say that again?", "ko": "죄송하지만 다시 한 번 말씀해 주시겠어요?"}
+ ],
+ "behavioral": [
+  {"topic": "introduction", "en": "Tell me about yourself.", "ko": "자기소개 부탁드립니다."},
+  {"topic": "leaving", "en": "Why are you looking for a new job now?", "ko": "지금 이직하려는 이유가 무엇인가요?"},
+  {"topic": "strength", "en": "What is your greatest strength?", "ko": "가장 큰 강점은 무엇인가요?"},
+  {"topic": "weakness", "en": "What is your biggest weakness?", "ko": "가장 큰 약점은 무엇인가요?"},
+  {"topic": "failure", "en": "Tell me about a mistake you made and what you learned from it.", "ko": "실수한 경험과 거기서 배운 점을 말씀해 주세요."},
+  {"topic": "conflict", "en": "Tell me about a time you disagreed with a colleague or your manager.", "ko": "동료나 상사와 의견이 달랐던 경험을 말씀해 주세요."},
+  {"topic": "pressure", "en": "How do you decide what to do first when everything is urgent?", "ko": "모든 일이 급할 때 무엇부터 하시나요?"},
+  {"topic": "learning", "en": "Tell me about a time you had to learn something new quickly.", "ko": "새로운 것을 빨리 배워야 했던 경험을 말씀해 주세요."},
+  {"topic": "customer", "en": "Tell me about a time you worked with a difficult customer.", "ko": "까다로운 고객과 일한 경험을 말씀해 주세요."},
+  {"topic": "your questions", "en": "Do you have any questions for us?", "ko": "저희에게 궁금한 점이 있으신가요?"}
+ ],
+ "company": [
+  {"topic": "why us", "en": "Why do you want to join {company}?", "ko": "{company}에 지원한 이유가 무엇인가요?"},
+  {"topic": "what you know", "en": "What do you know about {company}?", "ko": "{company}에 대해 무엇을 알고 계신가요?"},
+  {"topic": "why this role", "en": "Why this role?", "ko": "왜 이 자리인가요?"}
+ ],
+ "research": {"en": "What do you know about this: {title}?", "ko": "이 부분을 알고 계신가요: {title}"},
+ "posting": {"en": ["Tell me about your experience with this: {text}", "Can you give a concrete example of doing this?"],
+             "ko": ["이 부분 경험을 말씀해 주세요: {text}", "실제로 해 본 예를 들어 주시겠어요?"]},
+ "resume": {"en": ["Your resume says: \"{text}\" Can you tell me more?", "What exactly was your part in it?"],
+            "ko": ["이력서에 이렇게 쓰셨는데요: \"{text}\" 좀 더 설명해 주세요.", "그중 본인이 직접 한 부분은 어디까지인가요?"]},
+ "portfolio": {"en": ["Walk me through this page: {title}.", "What was your part, and what would you do differently now?"],
+               "ko": ["이 장을 설명해 주세요: {title}", "본인이 맡은 부분은 무엇이고, 지금 다시 한다면 무엇을 바꾸시겠어요?"]},
+ "term": {"en": ["What is {term}?", "How did you use {term} in your work?"],
+          "ko": ["{term}, 무엇인지 설명해 주세요.", "{term}, 실제 일에서는 어떻게 쓰셨나요?"]},
+ "company_default": {"en": "this company", "ko": "이 회사"}
+}

@@ -1,0 +1,62 @@
+name: Bug report
+description: Something does not work as the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please leave out anything from your own resume, files or postings. A fictional example is enough.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Try an example
+        2. Paste a posting on Make, then choose Make this job's documents
+        3. ...
+  - type: dropdown
+    id: install
+    attributes:
+      label: How Offerowl runs
+      options:
+        - Windows app
+        - macOS app
+        - Linux app
+        - Docker
+        - Helm chart on Kubernetes
+        - Python package
+        - From a checkout
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: AI backend
+      options:
+        - None
+        - Claude Code
+        - Codex
+        - A local model
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: A release tag or a commit.
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `offerowl doctor`
+      description: For the package, the container and a checkout. The doctor prints no key or address of yours.
+      render: text
+  - type: textarea
+    id: log
+    attributes:
+      label: The log
+      description: The last lines of `logs/panel.log` in the data folder. Read them first and take out anything personal.
+      render: text

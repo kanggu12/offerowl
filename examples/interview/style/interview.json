@@ -1,0 +1,13 @@
+{
+ "_comment": "A fictional person's style pack: wording this person never uses in a scene. The interview kit reads its \"interview\" object (see docs/INTERVIEW.md).",
+ "banned_chars": "",
+ "banned_patterns": [],
+ "interview": {
+  "banned_words": ["rockstar", "ninja", "guru"],
+  "padding": ["That's a great question"],
+  "forbidden": [
+   {"pattern": "single-handedly|all by myself|sole owner", "why": "the deploy platform was a team effort", "in": "en"},
+   {"pattern": "혼자서|단독으로", "why": "팀 작업을 혼자 한 일처럼 쓰지 않는다", "in": "ko"}
+  ]
+ }
+}

@@ -1,0 +1,32 @@
+/* English edition only (deck.js appends this file to English builds). The same layout holds longer English sentences than Korean
+   ones, so the lede wraps to two lines and cards grow, which shrinks the figure area and the figure text. Body text goes down
+   half a step and the letter spacing is tightened a little so the English edition fits the same cells as the Korean one. Text
+   inside figures is handled by the English fitting in draw.js. */
+html[lang="en"] body { letter-spacing: -0.1px; }
+html[lang="en"] .lede { font-size: 13px; line-height: 1.5; }
+html[lang="en"] .sec h1 .t2 { font-size: 16px; }
+/* Korean cards are 14px for readability. English stays half a step below that, at 13px. */
+html[lang="en"] .card h3 { font-size: 14px; }
+html[lang="en"] .card p, html[lang="en"] .card li { font-size: 13px; line-height: 1.55; }
+html[lang="en"] .card.dom p { font-size: 11.5px; line-height: 1.5; }
+html[lang="en"] .fig figcaption { font-size: 10px; line-height: 1.35; }
+html[lang="en"] .hcard .v { font-size: 11.5px; line-height: 1.4; }
+html[lang="en"] .hcard .bd { grid-template-columns: 70px 1fr; }  /* wide enough for the label CHALLENGE */
+html[lang="en"] .bul li { font-size: 11.5px; }
+html[lang="en"] .chapter .cl .lead { font-size: 14px; line-height: 1.55; }
+html[lang="en"] .chapter .plist .p .t { font-size: 14px; }
+html[lang="en"] .chapter .plist .p .tg { font-size: 11.5px; }
+html[lang="en"] .cover .headline { font-size: 23px; }
+html[lang="en"] .cover .journey { padding-bottom: 8px; }   /* an English line takes two rows more often than a Korean one */
+/* Cover proof row: the English values are wider than their cells, so the value is 17px and the context 11.5px, and the four
+   columns are weighted differently */
+html[lang="en"] .cover .name .proof { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+html[lang="en"] .cover .name .proof > span > b { font-size: 16px; }
+html[lang="en"] .cover .name .proof > span > i { font-size: 11.5px; }
+
+/* The one-line summaries in the contents are longer in English and pushed the three columns past the footer, so the summary text
+   is reduced. The row padding stays at 9px, as in Korean: 7px made the contents end well above the footer and left the bottom
+   empty. */
+html[lang="en"] .toc2 .it { padding: 9px 0 9px 30px; font-size: 12px; }
+html[lang="en"] .toc2 .it .t em { font-size: 10.5px; }
+.sec .pmeta .chips i { font-size: 10.5px; padding: 0 8px; }   /* the English header line is longer, so the scale and constraint chips go down one step to keep the line from folding in two */

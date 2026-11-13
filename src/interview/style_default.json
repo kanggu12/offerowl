@@ -1,0 +1,18 @@
+{
+ "_comment": "Built-in wording rules for interview scenes. A style pack (<workspace>/style/<name>.json, chosen with kit.json \"style\" or --style) adds to them: its banned_chars and its \"interview\" object. Patterns are Python regular expressions, matched without case. fillers are the words practice mode counts in a spoken answer (whole words; \"like\" only between commas).",
+ "banned_chars": "·—→",
+ "interview": {
+  "banned_words": [
+   "leverag\\w*", "robust", "seamless\\w*", "delve\\w*", "cutting-edge", "spearhead\\w*", "pivotal", "synergy", "holistic",
+   "landscape", "tapestry", "showcas\\w*", "elevat(?:e|es|ed|ing)", "unlock\\w*", "harness\\w*", "empower\\w*", "foster\\w*",
+   "streamlin\\w*", "paradigm", "game-changer", "best-in-class", "world-class", "passionate", "journey"
+  ],
+  "padding": [
+   "Good question\\. // Let me explain", "step by step\\. //", "simple and clear\\. //", "Let me explain how I think"
+  ],
+  "forbidden": [],
+  "spaced_josa": true,
+  "fillers": ["um", "uh", "erm", "er", "ah", "hmm", "you know", "I mean", "sort of", "kind of", "basically", "actually",
+              "literally", "like", "음", "어", "뭐랄까", "약간", "막"]
+ }
+}
