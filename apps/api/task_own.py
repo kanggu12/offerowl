@@ -7,7 +7,7 @@ import re  # names and patterns
 import shutil  # copies and tool lookup
 
 from .facts import Facts  # noqa: E402
-from .stamps import file_hash  # noqa: E402
+from .stamps import _cached, file_hash  # noqa: E402  a small file read again only when it changed; a file's short hash
 from .workspace import Workspace, read_json, sha256, write_json  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]  # the repository (or the app's bundle)
@@ -28,10 +28,42 @@ class OwnEdition:
         d = self.ws.job_dir(job_id) / "own"  # beside the job's other files
         return d if (d / "profile" / "profile.json").is_file() else None
 
+    def own_meta(self, job_id: str | None) -> dict:
+        """What a job's own edition says of itself (own/own.json, written by app.own_edition and editions.copy): its languages,
+        the name it came in as, the day, and the edition it was started from. {} when the job has none. The state asks this
+        for every job at every poll: the file is read again only when it changed."""
+        d = self.own_dir(job_id)  # the edition, if any
+        if d is None:  # drafted from the profile
+            return {}
+        got = _cached("own", d / "own.json", lambda f: read_json(f, {}) or {})  # remembered while the file is unchanged
+        return dict(got) if isinstance(got, dict) else {}  # a copy: the memory's own is never changed by a caller
+
     def own_langs(self, job_id: str | None) -> list:
         """The languages a job's own edition was written in: its documents in another language need a translation."""
-        d = self.own_dir(job_id)  # the edition, if any
-        return list((read_json(d / "own.json", {}) or {}).get("langs") or []) if d else []
+        return list(self.own_meta(job_id).get("langs") or [])  # [] when the job has no own edition
+
+    def own_files(self, job_id: str | None) -> list:
+        """The documents the person brought in as files for this edition (app.own_file), as "<kind>_<lang>" (resume_ko,
+        cover_en): each stands for what Offerowl would typeset in that language."""
+        if not job_id or job_id == "-general":  # the general edition keeps its files in the profile
+            return []
+        d = self.ws.job_dir(job_id) / "own" / "files"  # where they are kept
+        names = {f.stem for f in d.glob("*_*.*") if f.is_file() and f.suffix in (".pdf", ".docx")} if d.is_dir() else set()  # one per kind and language
+        return sorted(n for n in names if re.fullmatch(r"(resume|cover|deck)_(ko|en)", n))  # only the names own_file gives
+
+    def own_info(self, job_id: str | None) -> dict | None:
+        """What the panel says of a job's own things before its edition is replaced or started from: the day its own edition's
+        words came (or were started), the edition they were started from, how many of its facts the person rewrote and how many
+        sentences they locked, and the files brought in for it. None when it has neither words nor files of its own."""
+        files = self.own_files(job_id)  # documents that stand for the typeset ones
+        meta = self.own_meta(job_id)  # its words' record
+        if not meta and not files:  # nothing of its own: it prints the general resume
+            return None
+        d = self.own_dir(job_id)  # its words' folder, if any
+        count = lambda name: _cached("count", d / "sources" / name, lambda f: len(read_json(f, {}) or {})) if d else 0  # noqa: E731  entries of a small file, read again only when it changed
+        src = meta.get("from") if isinstance(meta.get("from"), dict) else None  # where it was started from, when it was
+        return {"at": str(meta.get("at") or ""), "from": {"job": str(src.get("job") or ""), "name": str(src.get("name") or "")} if src else None,
+                "edited": count("edits.json"), "locked": count("locks.json"), "files": files}  # the facts rewritten, the sentences locked
 
     def own_form(self, job_id: str | None, lang: str) -> dict:
         """The layout choices a job's own edition was made with, in this language (own/form.json, app.own_edition)."""

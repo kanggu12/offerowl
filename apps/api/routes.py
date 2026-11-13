@@ -144,6 +144,10 @@ class Router:
             return 200, documents.cover(a.tasks, jid, lang_of(q.get("lang"))), JSON  # paragraphs and sentences
         if path == "/api/v1/jobs":  # every job
             return 200, {"jobs": a.jobs_view()}, JSON  # with fits and editions
+        if path == "/api/v1/editions":  # the editions with words of their own, to start a job's edition from (editions.py)
+            from . import editions  # listed on demand
+            job = a.need_job({"job": q["job"]}) if q.get("job") else None  # the job to leave out and describe, when one is named
+            return 200, editions.listing(a, job), JSON  # the named editions first, then the applications
         m = MATERIAL.match(path)  # a job's own materials
         if m:  # the list, one file, its preview or one of its page pictures
             jid = a.need_job({"job": urllib.parse.unquote(m.group(1))})  # it exists
@@ -389,6 +393,9 @@ class Router:
             return {"job": a.add_edition(req)}  # its id: the other job routes take it
         if path == "/api/v1/jobs/own":  # a resume the person already wrote for this job, brought in whole
             return a.own_edition(req)  # how many facts it gave
+        if path == "/api/v1/jobs/own/copy":  # this job's own edition started from another edition's words (editions.py)
+            from . import editions  # the copy
+            return editions.copy(a, req)  # one undo step: the job, the source, the languages, whether it replaced words, the files that stay
         if path == "/api/v1/jobs/remove":  # off the board, or a named edition off the list (undo or the Removed list brings it back)
             a.board({"job": a.need_job(req), "removed": True})  # through the board: one undo step
             return None  # the new state is the whole answer

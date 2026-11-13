@@ -624,9 +624,12 @@ function viewDocuments(host) {                                                  
   // "For {job}" only when this edition was written or brought in for it; a job with none of its own shows the general
   // resume, and says so (a submitted application's own files are its own)
   const ownForJob = !!(j && ((m && m.draft && m.draft.own) || (ed && (ed.own || []).includes(lang)) || ownFileIn(ed) || (j.locked && j.locked.brought)));
+  const from = (((j || named()) || {}).own_info || {}).from;                        // the edition its words were started from, when they were
   fill($("dochead"),                                                                // the head, over the document and its inspector
     h("div", { class: "viewhead" }, h("h1", { text: t("Documents") }),
-      h("span", { class: "sub", text: j ? (ownForJob ? t("For {job}", { job: jobName }) : t("For {job}: the general resume as it is", { job: jobName })) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it") }),
+      h("span", { class: "sub", text: (j ? (ownForJob ? t("For {job}", { job: jobName }) : t("For {job}: the general resume as it is", { job: jobName })) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it"))
+        + (from ? " · " + t("Started from {name}", { name: from.name || from.job }) : "") }),   // and where its words came from
+      startKey(),                                                                   // beside what the edition prints: start it from another edition's words
       h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn)),   // the page's actions beside its title, as one group; Export and its lock on one row
       named() ? h("button", { class: "btn small quiet danger edrm", type: "button", "data-key": "edition-remove", "aria-label": t("Remove the edition {name}", { name: named().name }),   // a named edition: off the list, into the Trash; at the row's end, away from its name and the keys that make it
         onclick: () => removeAct("/api/v1/jobs/remove", { job: named().id }, t("Removed the edition {name}. It waits in the trash.", { name: named().name })) }, icon("trash"), t("Remove this edition")) : null),
@@ -860,6 +863,44 @@ function blindBand(b) {                                                         
     ...(b.notes || []).filter((n) => BLIND_NOTES[n] && n !== "blind_no_cover").map((n) => t(BLIND_NOTES[n]))].filter(Boolean);   // what it left out (the letter is said on its own tab)
   return h("div", { class: "band info", role: "status" }, h("p", { text: words.join(" ") }),
     typeset ? null : h("button", { class: "btn small", onclick: () => { UI.mode = "typeset"; render(); }, text: t("Typeset PDF") }));
+}
+// ---------------------------------------------------------------- an edition started from another one's words (0.10.0)
+// A new application starts from the sentences the person last wrote (a named edition they keep for it) or from an earlier
+// application's: its own edition takes that edition's words as they are now, to be rewritten for its posting on the page.
+// The same list and copy as `offerowl edition` (apps/api/editions.py): GET /api/v1/editions, POST /api/v1/jobs/own/copy.
+function startKey() {                                                               // the key, for a job or a named edition that is not submitted, when there is an edition to start from
+  const ed = job() || named();                                                      // the general edition is the profile itself: nothing to start
+  if (!ed || ed.locked) return null;                                                // a submitted application keeps what went out
+  if (![...(S.editions || []), ...(S.jobs || [])].some((e) => e.id !== ed.id && (e.own || []).length)) return null;   // no other edition has words of its own: no key that offers nothing
+  return h("button", { class: "btn small quiet edstart", type: "button", "data-key": "edition-start", onclick: () => startFrom(ed) },
+    icon("copy"), t("Start from another edition"));                                 // what it does, in words
+}
+const FILE_KIND = { resume: "Resume", cover: "Cover letter", deck: "Portfolio deck" };   // a file brought in, by its kind
+function fileWordsOf(name) {                                                        // "resume_ko" as "Resume (Korean)"
+  const [kind, lang] = String(name).split("_");
+  return t("{doc} ({lang})", { doc: t(FILE_KIND[kind] || "Resume"), lang: t(lang === "en" ? "English" : "Korean") });
+}
+async function startFrom(ed) {                                                      // the editions to start from on the panel's own sheet, then the copy
+  let got;                                                                          // the list as it is now, and what this edition has
+  try { got = await api(`/api/v1/editions?job=${enc(ed.id)}`); }
+  catch (e) { toast(e.message === "offline" ? t("Offerowl is not answering, so this was not saved.") : errorText(e), null, "bad"); return; }   // said, never silent
+  const list = got.editions || [], target = got.target || {}, own = target.own || {};   // the editions; this one's own things
+  if (!list.length) { toast(t("No other edition has words of its own yet."), null, "info"); return; }   // gone meanwhile
+  const name = target.name || ed.name || [ed.company, ed.role].filter(Boolean).join(", ") || ed.id;   // as the head names it
+  const langs = (r) => (r.langs || []).map((l) => t(l === "en" ? "English" : "Korean")).join(", ");   // an edition's languages
+  const choices = list.map((r) => ({ value: r.job, title: r.name, group: t(r.kind === "edition" ? "Named editions" : "Applications"),   // named editions first, as the list comes
+    hint: [langs(r), r.at ? t("Words of {date}", { date: r.at }) : "", r.from ? t("Started from {name}", { name: r.from.name || r.from.job }) : "", r.locked ? t("Submitted") : ""].filter(Boolean).join(" · ") }));
+  const has = (target.langs || []).length > 0;                                      // words of its own already: they are replaced, said first
+  const words = has ? [t("{name} has its own edition already, from {date}.", { name, date: own.at || "" }),   // what would be replaced, and what of the person's work goes with it
+    own.from ? t("It was started from {src}.", { src: own.from.name || own.from.job }) : "",
+    own.edited ? t("You rewrote {n} of its facts.", { n: own.edited }) : "", own.locked ? t("You locked {n} of its sentences.", { n: own.locked }) : "",   // "of its" reads for one and for many
+    t("The edition you pick replaces its words.")] : [t("{name} prints your general resume now. It takes the words of the edition you pick, as they are now, and you rewrite them for it on the page.", { name })];
+  const lines = [t("The edition you pick stays as it is."), has ? t("One undo brings its words back.") : t("One undo takes it back."),   // what stays
+    (own.files || []).length ? t("The files you brought in for it stay, and still stand for their documents: {files}.", { files: own.files.map(fileWordsOf).join(", ") }) : ""].filter(Boolean);
+  const pick = await askFirst({ title: t("Start {name} from another edition", { name }), text: words.filter(Boolean).join(" "), lines, ok: t("Start from it"), choices });
+  if (!pick) return;                                                                // no, or nothing picked
+  const src = list.find((r) => r.job === pick) || { name: pick };                   // its name, for the note
+  await act("/api/v1/jobs/own/copy", { job: ed.id, from: pick, replace: has }, t("Started from {src}: {name}", { name, src: src.name }));   // never replaces what the sheet did not show: the server refuses an edition that came meanwhile
 }
 function ownFileIn(ed, doc = "resume") {                                           // the edition's resume (or letter) is the person's own file in this language
   const b = ed && ed.builds && ed.builds[docLang()];                                // the typeset edition

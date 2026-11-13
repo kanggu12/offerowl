@@ -1,6 +1,7 @@
 """A browser walk through the panel on the fictional example: the make view and the example person (timed to the first resume), the workspace
 with the evidence of a sentence, an edit the evidence does not cover, the profile, a job with its fit, tailoring, the
-interview studio, the job's own materials and its presentation, the tracker with reminders, every inspector tab and the menu, then the agent's own states through
+interview studio, the job's own materials and its presentation, a job's resume started from a named edition's words (the key, its sheet, the
+head after it, the sheet before a replace), the tracker with reminders, every inspector tab and the menu, then the agent's own states through
 the stand-in, the agent's panel, the command bar open with a day's asks, the setup guide (its four steps the first time, and again from the menu), and a whole automatic
 run from a dropped file to the PDFs. Every state is measured (tests/app/audit.js) at 2560x1440, 1440x900 and a 390-pixel phone, light and
 dark, Korean and English, and kept as a screenshot.
@@ -75,6 +76,12 @@ GUIDE = {"profile_facts": [("guide-profile", (1600, 1000), ("light", "dark"), No
 SETTLED = ("() => Promise.race([Promise.all(document.getAnimations().filter((a) => a.effect && a.effect.getComputedTiming().endTime !== Infinity)"
            ".map((a) => a.finished.catch(() => null))).then(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))),"  # and two frames: what the last animation left is drawn
            " new Promise((ok) => setTimeout(ok, 3000))])")
+# the sheet of editions to start the job in view from (docs.js startFrom), opened anew in the page's language, its first
+# edition picked: a question left open from the last view is closed first, and the sheet waits for its list (a read)
+START_SHEET = ("(async () => { const no = document.querySelector('[data-key=confirm-no]'); if (no) no.click();"
+               " document.querySelector('[data-key=edition-start]').click();"
+               " for (let i = 0; i < 100 && !document.querySelector('.choice'); i++) await new Promise((ok) => setTimeout(ok, 50));"
+               " const c = document.querySelector('.choice'); if (c) c.click(); })()")
 # the bar wears its glass once the page has slid under it, and takes it from the page's own scroll event (app.js): true when the
 # bar's look matches where the page now is, or when the page has no bar
 LANDED = "(() => { const t = document.getElementById('top'); return !t || t.classList.contains('under') === (window.scrollY > 4); })()"
@@ -358,6 +365,18 @@ def main() -> int:  # 0 only when nothing was found
             page.evaluate("UI.doc = 'resume'; go('documents')"); w.wait("document.getElementById('canvas').dataset.ready === 'resume'")  # its resume
             w.shoot("documents_named_edition")  # the edition's name, the mark, no offer to write it
             w.api("/api/v1/jobs/select", {"job": page.evaluate("S.jobs[0].id")})  # back to the job
+
+            # ---- the job's resume started from the named edition's words: the key beside the head's words, its sheet with the
+            # editions to start from (one picked), the head after the copy, the sheet again with what a replace would take, then undo
+            page.evaluate("UI.doc = 'resume'; go('documents')"); w.wait("document.getElementById('canvas').dataset.ready === 'resume' && document.querySelector('[data-key=edition-start]')")
+            w.shoot("documents_start_from", prep=START_SHEET)  # the sheet over the job's documents, its first edition picked
+            page.evaluate(START_SHEET); page.click("[data-key=confirm-yes]"); w.settle(900)  # started from it, as a person does
+            w.wait("((job() || {}).own_info || {}).from && document.getElementById('canvas').dataset.ready === 'resume'")  # the head says where its words came from
+            w.shoot("documents_started_from", prep="document.getElementById('toast').classList.remove('show')")  # the head and the copied words
+            w.shoot("documents_start_again", prep=START_SHEET)  # the sheet again: the words it has now are what a replace would take
+            page.evaluate("(() => { const no = document.querySelector('[data-key=confirm-no]'); if (no) no.click(); })()")  # closed
+            w.api("/api/v1/undo", {})  # the copy taken back: the job prints the general resume again for the states below
+            w.wait("!(job() || {}).own_info", 20)
 
             # ---- the application's interview tab: the board, then scripts from the fictional kit
             page.evaluate("go('interview'); UI.ivPart = 'map'; render()"); w.wait("boardOf(S.job) && boardOf(S.job).ready")  # the board, on the application's Interview tab (its map part, before any script)

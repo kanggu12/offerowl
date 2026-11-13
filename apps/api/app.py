@@ -504,7 +504,8 @@ class Api:
                 "fit": {"score": f["score"], "counts": f["counts"], "gaps": len(f["gaps"])},  # the fit's summary
                 "days": tracker.stage_days(st),  # the days of the stages it went through, as the board and the timeline show them
                 "kit": self.kit_stamp(st["id"]),  # when the interview kit's map was last made (0: never)
-                "own": self.tasks.own_langs(st["id"])}  # the languages of the resume the person brought in for it, if any
+                "own": self.tasks.own_langs(st["id"]),  # the languages of the resume the person brought in for it, if any
+                "own_info": self.tasks.own_info(st["id"])}  # its day, the edition it was started from, its edits and its files (null: none)
 
     def kit_stamp(self, job_id: str) -> float:
         """When the job's interview map was last written (0 when there is no kit): the page reads the board again on a change."""
@@ -609,20 +610,23 @@ class Api:
     def own_edition(self, req: dict) -> dict:
         """Bring in a resume the person already wrote for one job, whole: its items become that job's own facts, all kept,
         in the job's folder apart from the profile, and the job's documents print it as written (tasks.facts_for). A second
-        one replaces the first. Returns how many facts it gave."""
+        one replaces the first. One undo step takes it back (the one before comes back, or the job its general resume), so
+        an undo never writes an older step's files over it unseen. The documents brought in as files for the job (own/files/)
+        stay: the words replace words only. Returns how many facts it gave."""
         jid = self.need_job(req)  # which job, or a named general edition
         if jid == GENERAL:  # the general edition is the profile itself
             raise ValueError("job")
         doc, langs = req.get("profile"), [x for x in (req.get("langs") or []) if x in ("ko", "en")]  # the edition and its languages
         if not isinstance(doc, dict) or not doc.get("roles") or not langs:  # nothing a resume could print
             raise ValueError("profile")
-        import shutil  # the edition before is replaced whole
+        import shutil  # the staging folder
+        from .editions import OWN_FILES, name_of, put_files  # every file an own edition is made of; the job's name for the undo key; the replacing
         from .facts import OwnFacts  # the job's own facts
         root = self.ws.job_dir(jid) / "own"  # beside the job's other files
-        new, old = root.with_name(f"own.new-{os.getpid()}"), root.with_name(f"own.old-{os.getpid()}")  # the one coming in, the one going
+        new = root.with_name(f"own.new-{os.getpid()}")  # the one coming in, made whole beside the one before
         with self.ws.lock:  # one writer
             shutil.rmtree(new, ignore_errors=True)  # what a stopped import left
-            try:  # made whole beside the one before, which stays until this one is: an import that fails replaces nothing
+            try:  # made whole apart, so an import that fails replaces nothing
                 facts = OwnFacts(Workspace(new), self.facts)  # its own workspace
                 n = facts.import_profile(doc, "own", str(req.get("name") or "own edition")[:120])  # its items as facts
                 write_json(new / "sources" / "review.json", {c["cid"]: "accepted" for c in facts.candidates()})  # all kept: the person wrote them
@@ -632,15 +636,12 @@ class Api:
                 form = req.get("form") if isinstance(req.get("form"), dict) else {}  # per language, as the edition was made
                 write_json(new / "form.json", {lang: {k: v for k, v in (form.get(lang) or {}).items() if k in OWN_FORM_KEYS}
                                                for lang in langs if isinstance(form.get(lang), dict)})  # kept beside it
-            except BaseException:  # a profile that does not fit, a full disk: the edition before stays as it was
+                texts = {rel: (new / rel).read_text(encoding="utf-8") for rel in OWN_FILES if (new / rel).is_file()}  # the edition as made
+            finally:  # the staging folder goes, made or not
                 shutil.rmtree(new, ignore_errors=True)
-                raise
-            self.tasks.forget_own(jid)  # nothing read from the one before
-            shutil.rmtree(old, ignore_errors=True)  # what a stopped swap left
-            if root.exists():  # a second one replaces the first
-                retried(root.rename, old)  # aside, then gone below
-            retried(new.rename, root)  # the new one in its place
-            shutil.rmtree(old, ignore_errors=True)  # a file held open stays for the next import's sweep
+            with self.ws.change({"code": "undo_own_edition", "company": name_of(self, jid)}, [f"jobs/{jid}/own/{rel}" for rel in OWN_FILES]):  # one undo step
+                put_files(root, texts)  # the new one in place of the one before, file by file, its printed profile last (own/files/ is never touched)
+                self.tasks.forget_own(jid)  # nothing read from the one before
             self.tasks.forget_own(jid)  # read afresh
         return {"facts": n}
 
@@ -685,7 +686,8 @@ class Api:
                 builds = documents.editions(self.tasks, st["id"])  # per language
                 for b in builds.values():  # each edition
                     b["stale"] = self.stale(st["id"], b)  # facts, the draft or the job's own edition changed since
-                out.append({**st, "builds": builds, "own": self.tasks.own_langs(st["id"])})  # with the languages of the resume brought in for it
+                out.append({**st, "builds": builds, "own": self.tasks.own_langs(st["id"]),  # with the languages of the resume brought in for it,
+                            "own_info": self.tasks.own_info(st["id"])})  # and where it was started from (the Documents head says so)
         return out
 
     OWN_KINDS = {"resume": (".pdf", ".docx"), "cover": (".pdf", ".docx"), "deck": (".pdf",)}  # what an own file may stand for, and its types

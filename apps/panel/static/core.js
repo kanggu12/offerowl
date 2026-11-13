@@ -371,7 +371,10 @@ function errorText(e) {                                                         
     blind_table: t("That file is not a mask table."), blind_unread: t("The blind edition's text could not be read, so nothing was exported. Make the PDFs again."),
     no_files: t("Add your old resume, portfolio or notes first: there is nothing yet to make the documents from."),
     too_many: t("This application holds as many as it can keep. Remove an old one first."),
-    job: t("That application is not there any more. It may be in the Trash.") };
+    job: t("That application is not there any more. It may be in the Trash."),
+    // 0.10.0: an edition started from another one's words (apps/api/editions.py)
+    from: t("The edition you picked is not there any more. It may be in the Trash."), no_edition: t("That edition has no words of its own to start from."),
+    same_edition: t("An edition cannot start from itself."), own_exists: t("It got an edition of its own meanwhile. Start it again to see what would be replaced.") };
   if (words[what]) return words[what];                                              // a known refusal
   if (e.status >= 400 && e.status < 500 && what !== "bad_request") return t("That could not be done. Open the page again and try once more.");   // a refusal with no words of its own: never "a problem on this PC"
   return errorInfo(e.message === "bad_request" ? "unexpected" : e.message).msg;    // the general words
@@ -519,14 +522,16 @@ async function undoOnly(id) {                                                   
 // Asked before what cannot be taken back (deleting for good, emptying the Removed list, restoring a backup, undoing several
 // changes at once), on the panel's own sheet instead of the browser's grey box: its title says what happens, its lines what
 // stays. The safe key holds the keyboard: Enter on it, Esc and a click beside the sheet all say no. With no cancel it is a
-// notice to read (in place of alert()). Resolves true for its main key.
-function askFirst({ title, text, lines, ok, danger, cancel = true }) {
+// notice to read (in place of alert()). Resolves true for its main key. With choices ([{value, title, hint, group}], each a
+// row the person picks, under its group's name) the main key waits for a pick and the answer is the value picked, else false.
+function askFirst({ title, text, lines, ok, danger, cancel = true, choices }) {
   return new Promise((resolve) => {
     const host = $("confirm"), back = document.activeElement;                       // the sheet's place, and the key that asked
+    let picked = null;                                                              // the choice made, when the question offers some
     const keys = (e) => {                                                           // the keyboard while it is open, before any other handler
       if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); close(false); return; }   // no
       if (e.key !== "Tab") return;                                                  // Enter is the focused key's own
-      const ks = [...host.querySelectorAll("button")], i = ks.indexOf(document.activeElement);   // the keyboard goes round the sheet's keys only
+      const ks = [...host.querySelectorAll("button:not([disabled])")], i = ks.indexOf(document.activeElement);   // the keyboard goes round the sheet's keys only (a key that waits for a pick takes none)
       e.preventDefault(); if (ks.length) ks[(i + (e.shiftKey ? ks.length - 1 : 1)) % ks.length].focus();
     };
     const close = (yes) => {                                                        // answered: the sheet goes, the keyboard goes back to the key that asked
@@ -535,21 +540,30 @@ function askFirst({ title, text, lines, ok, danger, cancel = true }) {
       const again = back && !back.isConnected && back.dataset && back.dataset.key ? document.querySelector(`[data-key="${CSS.escape(back.dataset.key)}"]`) : null;   // a poll drew that key anew meanwhile
       const to = back && back.isConnected ? back : again;
       if (to && to.focus) to.focus({ preventScroll: true });
-      resolve(yes);
+      resolve(yes && choices ? picked : yes);                                       // the value picked, when it asked for one
     };
     const no = cancel ? h("button", { class: "btn", type: "button", "data-key": "confirm-no", onclick: () => close(false) }, t("Cancel")) : null;
-    const yes = h("button", { class: "btn " + (danger ? "danger-solid" : "primary"), type: "button", "data-key": "confirm-yes", onclick: () => close(true) },
-      danger ? icon("trash") : null, ok || t("OK"));                                // what it does, in the words of the action
+    const yes = h("button", { class: "btn " + (danger ? "danger-solid" : "primary"), type: "button", "data-key": "confirm-yes", disabled: !!choices || null, onclick: () => close(true) },
+      danger ? icon("trash") : null, ok || t("OK"));                                // what it does, in the words of the action; with choices, once one is picked
+    const pick = (c, row) => {                                                      // a row picked: it alone is marked, and the main key may answer
+      picked = c.value;
+      for (const r of host.querySelectorAll(".choice")) r.setAttribute("aria-checked", r === row ? "true" : "false");
+      yes.disabled = false;
+    };
+    const list = (choices || []).length ? h("div", { class: "confirm-choices", role: "radiogroup", "aria-label": title }, choices.map((c, i) => [   // one row per choice, each group under its name
+      c.group && c.group !== (choices[i - 1] || {}).group ? h("p", { class: "choice-group", text: c.group }) : null,
+      h("button", { class: "choice", type: "button", role: "radio", "aria-checked": "false", "data-key": "confirm-choice-" + i, onclick: (e) => pick(c, e.currentTarget) },
+        h("span", { class: "choice-t", text: c.title }), c.hint ? h("span", { class: "choice-h", text: c.hint }) : null)])) : null;   // its name, then what tells it apart
     UI.confirm = true; lockPage();                                                  // the page behind takes nothing
     fill(host, h("div", { class: "confirm-scrim", onclick: () => close(false) }),
-      h("section", { class: "confirm" + (danger ? " danger" : ""), role: cancel ? "alertdialog" : "dialog", "aria-modal": "true", "aria-labelledby": "confirm-title", "aria-describedby": "confirm-text" },
+      h("section", { class: "confirm" + (danger ? " danger" : "") + (list ? " picks" : ""), role: cancel ? "alertdialog" : "dialog", "aria-modal": "true", "aria-labelledby": "confirm-title", "aria-describedby": "confirm-text" },
         h("h2", { id: "confirm-title", text: title }),
-        h("div", { id: "confirm-text", class: "confirm-text" }, text ? h("p", { text }) : null,
+        h("div", { id: "confirm-text", class: "confirm-text" }, text ? h("p", { text }) : null, list,
           (lines || []).length ? h("ul", { class: "confirm-lines" }, lines.map((l) => h("li", {}, icon("check", 14), h("span", { text: l })))) : null),
         h("footer", { class: "confirm-keys" }, no, yes)));
     host.hidden = false;
     document.addEventListener("keydown", keys, true);                               // first: Esc here never also closes what lies behind
-    (no || yes).focus({ preventScroll: true });                                     // the safe key, so a quick Enter says no
+    ((list && host.querySelector(".choice")) || no || yes).focus({ preventScroll: true });   // the first choice, else the safe key, so a quick Enter never says yes
   });
 }
 function lockPage() {                                                               // the page behind a sheet takes no click and no key: the setup guide, or a question over all

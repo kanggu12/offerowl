@@ -824,4 +824,17 @@ CATALOGS.ko = {
   "The section '{title}' was not found, so the lines per company were not measured.": "'{title}' 절을 찾지 못해 회사별 줄 수를 재지 못했습니다.",
   "The band of {name} was found {n} times, so the lines per company were not measured.": "{name} 띠를 {n}번 찾아 회사별 줄 수를 재지 못했습니다.",
   "company name": "회사명", "place of work": "소재지", "period of work": "기간", "company badge": "배지", "band title": "띠 제목",
+  // 0.10.0 (editions): an application's own edition started from another edition's words, and its undo steps
+  "Start from another edition": "다른 판에서 시작", "Start from it": "이 판에서 시작", "Start {name} from another edition": "{name}의 판을 다른 판에서 시작",
+  "Named editions": "범용판", "Words of {date}": "{date} 문장", "Started from {name}": "{name}에서 시작", "{doc} ({lang})": "{doc}({lang})",
+  "No other edition has words of its own yet.": "자기 문장이 있는 다른 판이 아직 없습니다.",
+  "{name} prints your general resume now. It takes the words of the edition you pick, as they are now, and you rewrite them for it on the page.": "{name|은/는} 지금 범용 이력서를 그대로 찍습니다. 고른 판의 지금 문장을 가져오고, 화면에서 이 지원에 맞게 고쳐 씁니다.",
+  "{name} has its own edition already, from {date}.": "{name}에는 이미 자기 판이 있습니다({date}).", "It was started from {src}.": "{src}에서 시작한 판입니다.",
+  "You rewrote {n} of its facts.": "그중 사실 {n}개를 직접 고쳤습니다.", "You locked {n} of its sentences.": "문장 {n}개를 잠갔습니다.", "The edition you pick replaces its words.": "그 문장이 고른 판의 문장으로 바뀝니다.",
+  "The edition you pick stays as it is.": "고른 판은 그대로 둡니다.", "One undo brings its words back.": "되돌리기 한 번이면 지금 문장이 돌아옵니다.", "One undo takes it back.": "되돌리기 한 번이면 되돌아갑니다.",
+  "The files you brought in for it stay, and still stand for their documents: {files}.": "가져온 파일은 그대로 두고, 그 서류는 계속 파일로 냅니다: {files}.",
+  "Started from {src}: {name}": "{src}에서 시작했습니다: {name}",
+  "The edition you picked is not there any more. It may be in the Trash.": "고른 판이 없습니다. 휴지통에 있을 수 있습니다.", "That edition has no words of its own to start from.": "그 판에는 시작할 자기 문장이 없습니다.",
+  "An edition cannot start from itself.": "판은 자기 자신에서 시작할 수 없습니다.", "It got an edition of its own meanwhile. Start it again to see what would be replaced.": "그사이 자기 판이 생겼습니다. 다시 시작하면 무엇이 바뀌는지 보입니다.",
+  "Started {what} from another edition": "{what}의 판을 다른 판에서 시작", "Started an edition from another": "판을 다른 판에서 시작", "Brought in an edition for {what}": "{what}의 판 가져옴", "Brought in an edition": "판 가져옴",
 };

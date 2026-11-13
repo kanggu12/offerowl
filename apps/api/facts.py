@@ -470,6 +470,11 @@ class Facts:
             p = read_json(self.ws.path("profile", "profile.json"), None)  # built meanwhile by the other one?
             return p if isinstance(p, dict) else self.rebuild()  # built once when it was never written
 
+    def change(self, label: dict, rels=None):
+        """One undo step for a change of these facts: the fact files (FACT_FILES, or the files named) as they are now are
+        kept, so one undo puts them back. A context manager, as Workspace.change is."""
+        return self.ws.change(label, list(FACT_FILES if rels is None else rels))  # this workspace's own history
+
     def rebuild(self) -> dict:
         """Build profile/profile.json and its evidence map from the fact files. Called inside every change, so undo
         restores all of them together."""
@@ -629,3 +634,16 @@ class OwnFacts(Facts):
         mine = {k: v for k, v in fields.items() if k not in PERSON_KEYS}  # this edition's own words
         if mine:
             super().set_details(mine, src)
+
+    def change(self, label: dict, rels=None):
+        """An edit of this edition's words is a step of the workspace's own history, never one of its own folder: the panel's
+        undo takes back the workspace's newest step, so a step kept in jobs/<job>/own/.history could never be undone there,
+        and the undo took back the change made before the edit instead (the job added, say). Its files are named from the
+        workspace's root (jobs/<job>/own/sources/edits.json), with the person's details beside them, which set_details
+        writes to the profile. An edition made outside the workspace (an import's staging folder) keeps its own history."""
+        try:  # where this edition's folder is inside the workspace
+            at = self.ws.root.resolve().relative_to(self.main.ws.root.resolve()).as_posix()  # jobs/<job>/own
+        except ValueError:  # not inside it: nothing the panel's undo could reach
+            return super().change(label, rels)
+        mine = [f"{at}/{rel}" for rel in (FACT_FILES if rels is None else rels)]  # this edition's files, as the workspace names them
+        return self.main.ws.change(label, mine + ["profile/details.json"])  # one step in the workspace's history, under its lock
