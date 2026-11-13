@@ -238,7 +238,8 @@ function undoLabel(l) {                                                         
     undo_sentence: ["Changed a sentence"], undo_lock_sentence: ["Locked a sentence"], undo_unlock_sentence: ["Unlocked a sentence"],
     undo_reminder: ["Changed a reminder of {what}", "Changed a reminder"], undo_round: ["Changed an interview round of {what}", "Changed an interview round"],
     undo_remove_job_material: ["Removed {what}", "Removed a file"], undo_blind: ["Changed the blind edition's table"], undo_remove_job: ["Removed the job {what}", "Removed a job"],
-    undo_remove_edition: ["Removed the edition {what}", "Removed an edition"], undo_put_back: ["Put back {what}", "Put back from the trash"] };
+    undo_remove_edition: ["Removed the edition {what}", "Removed an edition"], undo_put_back: ["Put back {what}", "Put back from the trash"],
+    undo_own_copy: ["Started {what} from another edition", "Started an edition from another"], undo_own_edition: ["Brought in an edition for {what}", "Brought in an edition"] };   // 0.10.0: an own edition started or brought in
   const words = L[x.code] || ["A change"];                                          // an unknown step still reads
   return t(what || words.length === 1 ? words[0] : words[1], { what, n: x.n || 0 });   // with its name when it has one
 }

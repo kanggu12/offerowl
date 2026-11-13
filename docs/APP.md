@@ -179,6 +179,10 @@ scaled down to the width (a pinch enlarges them).
   picker, and never on the board.
 - An edition you brought in says so beside its actions: "As you wrote it" for a resume you wrote and brought in, which prints as
   written and offers no writing; "Your own file" for a document file you made, which shows its own pages and is exported as it is.
+- **Start from another edition**, beside the words under the head, starts the job's (or the named edition's) own edition from the words
+  of another edition: the panel's own sheet lists the editions with words of their own, the named editions first, and the one you pick is
+  copied as it is now; the head then says "Started from" it. A job with words of its own already is replaced only after the sheet has said
+  what it has, and one undo takes the copy back ([Starting from another edition](DOCUMENTS.md#starting-from-another-edition)).
 - **Blind edition** ("블라인드판"), a switch beside "Make PDFs", makes the edition in view again with the names of your table under
   bars of their width, a red band on page one and a label in every footer ([docs/USAGE.md](USAGE.md#a-blind-edition)), and shows
   the typeset pages. A band above them says that they are the blind edition, what it left out (your own portfolio file; your own

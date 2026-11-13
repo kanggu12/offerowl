@@ -11,9 +11,10 @@ import re  # find {placeholders}
 import sys  # module search path
 import unittest  # the test framework
 
-from support import LAUNCHER, SRC
+from support import LAUNCHER, ROOT, SRC
 
 sys.path.insert(0, str(SRC))
+sys.path.insert(0, str(ROOT))  # apps/: the edition command's messages
 import check_claims  # noqa: E402  its messages
 import check_documents  # noqa: E402  its messages
 import check_ledger  # noqa: E402  its messages
@@ -25,6 +26,7 @@ import llm  # noqa: E402  its messages
 import ocr_selfcheck  # noqa: E402  its messages
 import resume  # noqa: E402  its messages
 import review  # noqa: E402  its messages
+from apps.api import editions  # noqa: E402  its messages (offerowl edition)
 
 
 def load_launcher():
@@ -51,6 +53,7 @@ TABLES = {
     "ocr_selfcheck": (ocr_selfcheck.MSG, SRC / "ocr_selfcheck.py"),
     "review": (review.MSG, SRC / "review.py"),
     "launcher": (launcher.MSG, LAUNCHER),
+    "editions": (editions.MSG, ROOT / "apps" / "api" / "editions.py"),
 }
 
 

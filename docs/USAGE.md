@@ -65,6 +65,7 @@ python3 src/figure_draft.py propose ~/my-application/profile.json   # (optional)
 | `interview ...` | Prepares the interview kit: question map, scenes, audits, search view, cue cards, the interview deck and the talk ([INTERVIEW.md](INTERVIEW.md)) | see `offerowl interview --help` |
 | `panel` | Opens the local web panel | see `offerowl panel --help` |
 | `open [--port N]` | Brings up the panel that runs on this PC (the app, a container, a port-forward or `panel`) in your browser, and prints its address; on a computer with no screen the address is the way in | a running panel |
+| `edition list [<job>] \| start <job> --from <edition> [--replace]` | Starts an application's own edition from another edition's words, as the panel's *Start from another edition* does, through the same API; `list` names the editions to start from, the named editions first ([Starting from another edition](DOCUMENTS.md#starting-from-another-edition)). `--data DIR` names the data folder | the app's data folder |
 | `api serve\|get\|post\|add-file ...` | Serves Offerowl's HTTP API alone, or calls one endpoint from the shell ([The HTTP API](ARCHITECTURE.md#the-http-api)) | see `offerowl api --help` |
 | `mcp [--url ...] [--read-only]` | Serves Offerowl's tools to an AI agent over MCP on stdio, driving the running panel ([MCP.md](MCP.md)) | a running panel |
 | `import <resume.json> [-o profile.json]` | Reads a JSON Resume file into a new profile | nothing |
@@ -73,8 +74,8 @@ python3 src/figure_draft.py propose ~/my-application/profile.json   # (optional)
 | `llm [--list \| --probe <backend>]` | Shows which AI backend is in use and why; `--probe` makes one tiny test call | nothing |
 | `doctor [--json] [--only ...]` | Checks what Offerowl needs on this PC and says what to do about what is missing | nothing |
 
-`cover`, `interview`, `panel`, `api`, `mcp` and `doctor` are separate programs (`src/cover.py`, `src/interview/cli.py`,
-`apps/panel/server.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`), and `import` and `export` are `src/write_jsonresume.py`.
+`cover`, `interview`, `panel`, `edition`, `api`, `mcp` and `doctor` are separate programs (`src/cover.py`, `src/interview/cli.py`,
+`apps/panel/server.py`, `apps/api/editions.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`), and `import` and `export` are `src/write_jsonresume.py`.
 The launcher passes your arguments and the exit code through. When a file is missing it prints "not installed", names
 the file, and exits with code 3.
 

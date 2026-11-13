@@ -130,7 +130,9 @@ Offerowl also keeps the documents you made before you used it, so moving to it l
   (`POST /api/v1/jobs/own`). Its words are its own facts, kept in the job's folder (`jobs/<job>/own/`) apart from your profile, and the job's
   PDFs print them as written, in the languages it came in. The person's name, email and phone stay your profile's. The layout choices it
   was made with come along per language (`form`: `plain`, `footerLabel`, `competencyFigure`, `photo`, `titleView`, `skillsFocus`,
-  `skillsStrong`, `skillsHighlight`, `blind`), and the posting's own order does not reorder it.
+  `skillsStrong`, `skillsHighlight`, `blind`), and the posting's own order does not reorder it. Bringing one in is one undo step, and a
+  second one replaces the words of the first only: the files you brought in for the job stay. The sentences you change on the page are
+  steps of the same history, so the bar's Undo takes each one back.
 - **Named general editions.** Editions with no posting, such as one for headhunters or one per target role
   (`POST /api/v1/editions`). They are kept like a job's, in a folder whose name starts with a dash, but never appear on the board.
   Documents lists them under General editions, beside the general edition made from your profile.
@@ -150,6 +152,37 @@ Offerowl also keeps the documents you made before you used it, so moving to it l
   container too) and taken away after. A job's own deck file still comes first. Changing a file of the source marks the editions
   whose decks it wrote stale; one made before there was a source stays as it was. Checks the source ships in `deck/tools/`
   run on every build's deck, and their failures are the deck's issues ([Printed words](WRITING.md#printed-words)).
+
+### Starting from another edition
+
+A new application rarely starts from nothing. Most people keep the sentences they last polished, or apply to work much like an
+earlier application's. In Offerowl both are editions with words of their own: a named edition whose own edition holds your latest
+sentences, or an earlier application's own edition. A new application's resume starts from one of them and is then rewritten for its
+posting.
+
+- **In the panel.** Documents shows *Start from another edition* beside the words that say what the edition prints, for a job or a
+  named edition that is not submitted, once another edition has words of its own. It lists them, the named editions first and each
+  group with the newest words first, with their languages, the day of their words and the edition they were started from. The one you
+  pick is copied as it is now into the job's own edition: its facts, the sentences you rewrote and locked in it, its languages and its
+  layout choices (`form`). The profile and its evidence are built again from them, so your name, email and phone are as they are now.
+  The head then says *Started from* that edition, and the PDFs made next print its words. Rewrite them for the posting on the page; the
+  edition you started from stays as it is.
+- **What it replaces.** A job that has words of its own already is replaced only when you say so: the sheet first says what it has
+  (the day of its words, where they were started from, how many facts you rewrote and sentences you locked in it). One undo takes the
+  copy back, and the words it replaced with it. A submitted application is not started again.
+- **What it leaves.** The files you brought in for a job (*Your own file* above) are never copied: each stands for one
+  application's document. A job's own files stay where they are, and still stand for their documents after the copy; the sheet
+  names them.
+- **The same from the API and the command line.** `GET /api/v1/editions?job=<job>` lists the editions to start from and what the job has,
+  and `POST /api/v1/jobs/own/copy {job, from, replace}` makes the copy ([The HTTP API](ARCHITECTURE.md#writes-post)). `offerowl edition`
+  calls the same two routes ([USAGE.md](USAGE.md#commands)). It takes an edition's id as `list` prints it, a named edition's id without its
+  leading dash (a shell reads `-name` as an option), or a name:
+
+```bash
+./offerowl edition list gamma                              # what gamma prints now, and the editions it can start from
+./offerowl edition start gamma --from platform-roles       # gamma's own edition from the named edition -platform-roles
+./offerowl edition start gamma --from beta --replace       # replace those words with another application's
+```
 
 ## The portfolio deck
 

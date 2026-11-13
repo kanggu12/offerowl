@@ -2,7 +2,8 @@
 document's language and colours, for the job in view. Also the edits made on the canvas: a sentence's new words, its
 lock, and the text of the resume that the interview kit reads.
 
-Every change goes through Workspace.change() with the fact files, so one undo takes it back.
+Every change goes through Workspace.change() with the fact files (Facts.change: an application's own edition's too, in the
+workspace's one history), so one undo takes it back.
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from urllib.parse import quote  # a job's id in a picture's address
 
 from . import drafts as D  # a job's drafted resume
 from . import evidence as E  # the resume model and the sentence rules
-from .facts import FACT_FILES, text_of  # the files a fact change touches, plain text
+from .facts import text_of  # plain text (a fact change names its own files: Facts.change)
 from .workspace import read_json, write_json  # files
 
 log = logging.getLogger("offerowl.panel")  # the panel's log
@@ -153,7 +154,7 @@ def edit_sentence(tasks, sid: str, text: str, lang: str = "ko", job: str | None 
     if not SID.match(sid or "") or not isinstance(text, str) or not text.strip():  # a made-up id or no words
         raise ValueError("sentence")  # refused
     facts = tasks.facts_for(job)  # the fact files: the job's own edition's when it has one
-    ws = facts.ws  # where its undo steps are kept
+    ws = tasks.ws  # where the drafts are kept, and every undo step (an own edition's too: facts.change)
     R = model(tasks, lang, job)  # the sentences as they are now
     if sid not in R.sent:  # not a sentence of this resume (a stale page)
         raise ValueError("sentence")  # refused
@@ -173,7 +174,7 @@ def edit_sentence(tasks, sid: str, text: str, lang: str = "ko", job: str | None 
     place, field, n = E.field_for(sid)  # where its words live
     text = text.strip()[:1000]  # bounded
     label = {"code": "undo_sentence", "title": R.sent[sid]["text"][:60]}  # the undo button's words
-    with ws.change(label, FACT_FILES):  # one undo step
+    with facts.change(label):  # one undo step, in the workspace's history even for an own edition's words
         if field in ("headline", "intro"):  # the person's own words
             old = text_of(facts.details().get(field)) or text_of(E.pick_lang(R.prof.get("summary", {}).get(field), lang))  # the paragraph as it is
             facts.set_details({field: E.replaced(old, n, text)})  # saved as typed
@@ -219,7 +220,7 @@ def lock_sentence(tasks, sid: str, locked: bool, lang: str = "ko", job: str | No
             write_json(tasks.ws.job_dir(owner) / "draft.json", d)  # saved with the job
         return  # the facts' locks are another list
     facts = tasks.facts_for(job)  # the job's own edition's, or the profile's
-    with facts.ws.change({"code": "undo_lock_sentence" if locked else "undo_unlock_sentence", "title": R.sent[sid]["text"][:60]}, FACT_FILES):  # one undo step
+    with facts.change({"code": "undo_lock_sentence" if locked else "undo_unlock_sentence", "title": R.sent[sid]["text"][:60]}):  # one undo step, the panel's undo reaches it
         facts.set_lock(sid, R.sent[sid]["text"] if locked else None)  # kept with its words, or forgotten
 
 
