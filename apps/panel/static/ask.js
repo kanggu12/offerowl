@@ -87,9 +87,8 @@ function askKey() {                                                             
   const working = task("ask").state === "running", lamp = agentLamp();              // a request on its way, and the agent's lamp
   return h("button", { class: "ask-fab" + (working ? " working" : ""), type: "button", "data-lamp": working ? "busy" : lamp[0], "aria-haspopup": "dialog", "aria-controls": "askpanel",
     title: t("Ask the AI ({key})", { key: MAC ? "\u2318K" : "Ctrl+K" }), onclick: () => askToggle(true) },   // its key on this keyboard, said on the hover
-    h("span", { class: "ask-fab-i", "aria-hidden": "true" }, icon("agent")),        // the agent's mark, lit by its lamp
-    h("span", { class: "ask-fab-w", text: t("Ask the AI") }),                      // the box's own words: what it is for
-    h("kbd", { class: "ask-fab-k", "aria-hidden": "true", text: MAC ? "\u2318K" : "Ctrl K" }));   // its key at the end, as a command box shows it (a phone has none: skin.css)
+    h("span", { class: "ask-fab-i", "aria-hidden": "true" }, icon("agent")),        // the AI's mark; a dot says when the agent is not ready
+    h("span", { class: "ask-fab-w", text: t("Ask the AI") }));                     // what it does, in words: a floating button, never a box to type in
 }
 
 // what each of Offerowl's tools (apps/mcp/server.py) did, in words: a request's answer lists the steps it took
@@ -129,7 +128,7 @@ function drawAsk() {                                                            
     oninput: (e) => { UI.askDraft = e.target.value; },
     onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); UI.askLast = e.target.value.trim(); askSend(e.target); } else if (e.key === "Escape") { e.stopPropagation(); askToggle(false); } } });   // Escape closes the top layer only: the drawer or selection under the bar stays
   const able = ["claude-code", "codex"].includes(S.agent.backend) && S.agent.state === "ready";   // an agent that can act through Offerowl's tools, on and signed in
-  const panel = h("section", { id: "askpanel", class: "ask-panel", role: "dialog", "aria-label": t("Ask the AI") },
+  const panel = h("section", { id: "askpanel", class: "ask-panel", role: "dialog", "aria-modal": "true", "aria-label": t("Ask the AI"), onkeydown: (e) => trapTab(e, e.currentTarget) },   // the page behind is dimmed: Tab goes round in here
     h("header", { class: "ask-head" }, icon("agent"), h("b", { text: t("Ask the AI") }),   // what the sheet is for, as its key says
       h("span", { class: "ask-sub" }, h("span", { class: "lit " + (working ? "busy" : lamp[0]), "aria-hidden": "true" }), h("span", { text: `${name} · ${t(lamp[1])}` })),   // which agent answers, and its state
       h("span", { class: "grow" }),

@@ -124,7 +124,8 @@ Offerowl also keeps the documents you made before you used it, so moving to it l
   switches from the environment; `require(path.join(process.cwd(), "src", "blind"))` gives it the covering the resume uses, with
   your table. The folder is copied into the engine's folder for each build (so its scripts find the engine's libraries, in the
   container too) and taken away after. A job's own deck file still comes first. Changing a file of the source marks the editions
-  whose decks it wrote stale; one made before there was a source stays as it was.
+  whose decks it wrote stale; one made before there was a source stays as it was. Checks the source ships in `deck/tools/`
+  run on every build's deck, and their failures are the deck's issues ([Printed words](WRITING.md#printed-words)).
 
 ## The portfolio deck
 

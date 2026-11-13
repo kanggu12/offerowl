@@ -323,6 +323,13 @@ FONTS = "bash src/fonts.sh >/dev/null 2>&1; "  # register the fonts first or Lib
 CHROME = "chromium --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=30000 "
 
 
+# LibreOffice's PDF export with every picture kept whole: its default re-encodes pictures as JPEG at 300 ppi, so a logo tile came
+# out 69 px wide and the photo and the figures looked soft when zoomed (the author's earlier generator fixed the same blur on
+# 2026-10-13; it was not carried over). JSON filter options need LibreOffice 7.4 or newer, as the renderer's image has
+PDF_EXPORT = ('pdf:writer_pdf_Export:{"ReduceImageResolution":{"type":"boolean","value":"false"},'
+              '"UseLosslessCompression":{"type":"boolean","value":"true"}}')
+
+
 def build(profile: str, cfg: str | None = None, env: dict | None = None) -> pathlib.Path:
     """Make the resume DOCX from the profile and convert it to PDF; returns the PDF path. The old output is deleted first
     so that a failure cannot hide behind a file from an earlier run. env: the environment of this build's steps (the panel
@@ -335,10 +342,10 @@ def build(profile: str, cfg: str | None = None, env: dict | None = None) -> path
     c = load_cfg(cfg)
     # Draw the overview figures (timeline, hierarchy) first (src/overview_figures.py); the theme name goes in as OFFEROWL_FIG_THEME.
     script = (FONTS + 'OFFEROWL_FIG_THEME="$5" python3 src/overview_figures.py "$1" "$3" "$4" "$2" >/dev/null && '
-              'node src/resume_form.js "$1" "$2" && soffice --headless --convert-to pdf --outdir output "output/$3.docx" >/dev/null')
-    r = sh(["bash", "-c", script, "_", rel(profile), job, out, c.get("lang") or "ko", c.get("theme") or "navy"], env)  # run.sh hands the blind switches on
+              'node src/resume_form.js "$1" "$2" && soffice --headless --convert-to "$6" --outdir output "output/$3.docx" >/dev/null')
+    r = sh(["bash", "-c", script, "_", rel(profile), job, out, c.get("lang") or "ko", c.get("theme") or "navy", PDF_EXPORT], env)  # run.sh hands the blind switches on
     if r.returncode != 0 or not pdf.exists():
-        raise SystemExit(t("build_failed") + "\n" + r.stdout[-1500:] + r.stderr[-1500:])
+        raise SystemExit(t("build_failed") + "\n" + failed_output(r))
     stamp_meta(pdf, profile, cfg, "resume", env)  # its title and author
     return pdf
 
@@ -353,10 +360,10 @@ def docx_to_pdf(docx: pathlib.Path) -> pathlib.Path:
         soffice = shutil.which("soffice") or shutil.which("libreoffice")  # its command
         if not soffice:
             raise SystemExit(t("build_failed") + "\nLibreOffice")
-        r = subprocess.run([soffice, "--headless", "--convert-to", "pdf", "--outdir", str(ROOT / "output"), str(ROOT / src)], cwd=ROOT,
+        r = subprocess.run([soffice, "--headless", "--convert-to", PDF_EXPORT, "--outdir", str(ROOT / "output"), str(ROOT / src)], cwd=ROOT,
                            capture_output=True, text=True, encoding="utf-8", errors="replace")
     else:
-        r = sh(["bash", "-c", FONTS + 'soffice --headless --convert-to pdf --outdir output "$1" >/dev/null', "_", src])  # in the container
+        r = sh(["bash", "-c", FONTS + 'soffice --headless --convert-to "$2" --outdir output "$1" >/dev/null', "_", src, PDF_EXPORT])  # in the container
     if r.returncode != 0 or not out.exists():
         raise SystemExit(t("build_failed") + "\n" + (r.stdout or "")[-800:] + (r.stderr or "")[-800:])
     return out
@@ -384,9 +391,74 @@ def stamp_meta(pdf: pathlib.Path, profile: str, cfg: str | None, kind: str, env:
     import blind  # src/blind.py: a blind edition's table
     if blind.on(env):  # a blind edition: no covered word in its title or author, where no bar can stand
         table = blind.load(env)  # the table it was made with
-        pdfmeta.stamp(pdf, blind.title(f"{name} {word}", table, lang), blind.plain(name, table) or table["footer"][lang])  # its label stands for a covered name
+        pdfmeta.stamp(pdf, blind.title(f"{name} {word}", table, lang), blind.plain(name, table) or table["footer"][lang], creator="")  # its label stands for a covered name
         return
-    pdfmeta.stamp(pdf, f"{name} {word}", name)  # False for a file with cross-reference streams: it keeps its own
+    if kind == "resume":  # the header's contacts as links a recruiter can click (LibreOffice drops a link inside a table cell)
+        contact_links(pdf, person)
+    # no tool's name in a document that goes out: a recruiter who opens its properties sees the person, not the program
+    # (Creator was "Offerowl"; LibreOffice's Producer is dropped with the old information dictionary)
+    pdfmeta.stamp(pdf, f"{name} {word}", name, creator="")  # False for a file with cross-reference streams: it keeps its own
+
+
+CONTACT_KEYS = ("email", "linkedin", "github", "scholar", "website", "homepage", "blog", "portfolio")  # person fields that are addresses
+
+
+def contact_links(pdf: pathlib.Path, person: dict) -> int:
+    """Put a link on page 1 over each contact the header prints: an email as mailto:, an address as itself, found by the word
+    the page shows (the address without https:// and www.). LibreOffice exports a hyperlink in a paragraph but drops one in a
+    table cell, where the header keeps its contacts, so the Word file had all of them and the PDF none. Written as one more
+    incremental update (src/pdfmeta.py add_links), with no library, so the title written after it is an ordinary one too.
+    Returns how many links were added."""
+    import pdfmeta  # the update
+    import pdftools  # the words of page 1 with their boxes
+    want = {}  # the word the page shows -> the address it opens
+    for k in CONTACT_KEYS:
+        v = str(person.get(k) or "").strip()
+        if not v:
+            continue
+        if "@" in v and not v.lower().startswith(("http://", "https://")):  # an email address
+            want[v] = "mailto:" + v
+        elif v.lower().startswith(("http://", "https://")):  # a web address, shown without its scheme and www.
+            want[re.sub(r"^https?://(www\.)?", "", v).rstrip("/")] = v
+    for link in person.get("links") or []:  # the profile format's own list, [name, shown text, address], as the header prints it
+        if not isinstance(link, (list, tuple)) or len(link) < 2:
+            continue
+        shown = str(link[1] or "").strip()  # the words on the page
+        address = str(link[2] if len(link) > 2 else "").strip() or shown  # what it opens; a link written with no address opens its words
+        if shown and address.lower().startswith(("http://", "https://", "mailto:")):
+            want[shown] = address
+        elif shown and re.match(r"^[\w.-]+\.[a-z]{2,}(/\S*)?$", address, re.I):  # an address written without its scheme
+            want[shown] = "https://" + address
+    if not want:
+        return 0
+    try:
+        layout = pdftools.bbox_layout(pdf)  # page 1 comes first
+    except Exception:  # noqa: BLE001  a file no reader opens (PDFium raises where poppler reads nothing): its words stay as they are, never a failed build for a link
+        return 0
+    words = re.findall(r'<page width="([\d.]+)" height="([\d.]+)">|<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]+)</word>',
+                       layout)
+    boxes, pages = [], 0
+    for pw, ph, x0, y0, x1, y1, text in words:
+        if pw:  # a new page
+            pages += 1
+            if pages > 1:  # page 1 only: the header
+                break
+            continue
+        text = text.replace("&amp;", "&")
+        if text in want:
+            boxes.append((float(x0), float(y0), float(x1), float(y1), want[text]))
+    if not boxes:
+        return 0
+    return pdfmeta.add_links(pdf, boxes)
+
+
+def failed_output(r: subprocess.CompletedProcess) -> str:
+    """A failed tool's output for its message: the lines that name a thrown error first (node prints its `Error:` line above
+    a stack that, with long paths, pushed it out of the tail kept below, so the panel had no reason to show), then the end
+    of each stream."""
+    out, err = r.stdout or "", r.stderr or ""  # either may be empty
+    named = [line.strip() for line in (err + "\n" + out).splitlines() if "Error:" in line][:3]  # node's thrown message, and a cause or two
+    return "\n".join([*named, out[-1500:] + err[-1500:]])  # the reason first, then the tails as before
 
 
 def run_steps(steps: list, env: dict, fail_key: str) -> None:
@@ -394,7 +466,7 @@ def run_steps(steps: list, env: dict, fail_key: str) -> None:
     for cmd in steps:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
         if r.returncode != 0:
-            raise SystemExit(t(fail_key) + "\n" + r.stdout[-1500:] + r.stderr[-1500:])
+            raise SystemExit(t(fail_key) + "\n" + failed_output(r))
 
 
 def html_env(base: dict | None = None, **extra) -> dict:
@@ -529,7 +601,7 @@ def build_deck(profile: str, cfg: str | None = None, env: dict | None = None) ->
     r = sh(["bash", "-c", script, "_", rel(profile), job, out], env)  # run.sh hands the blind switches on
     pdf = ROOT / "output" / f"{out}.pdf"
     if r.returncode != 0 or not pdf.exists():
-        raise SystemExit(t("deck_failed") + "\n" + r.stdout[-1500:] + r.stderr[-1500:])
+        raise SystemExit(t("deck_failed") + "\n" + failed_output(r))
     stamp_meta(pdf, profile, cfg, "deck", env)  # its title and author
     return pdf
 
@@ -543,7 +615,7 @@ def build_plain(profile: str, cfg: str | None = None) -> tuple:
         f.unlink(missing_ok=True)
     r = sh(["node", "src/resume_plain.js", rel(profile), job])
     if r.returncode != 0 or not docx.exists():
-        raise SystemExit(t("build_failed") + "\n" + r.stdout[-1500:] + r.stderr[-1500:])
+        raise SystemExit(t("build_failed") + "\n" + failed_output(r))
     return docx, txt
 
 
@@ -567,7 +639,7 @@ def deck_page(profile: str, cfg: str | None = None, env: dict | None = None) -> 
     script = 'OFFEROWL_FIG_THEME="$5" python3 src/overview_figures.py "$1" "$3" "$4" "$2" >/dev/null; ' + writer + ' >/dev/null'  # in the container
     r = sh(["bash", "-c", script, "_", rel(profile), job, out, lang, theme], env)
     if r.returncode != 0 or not page.exists():
-        raise SystemExit(t("deck_failed") + "\n" + r.stdout[-1500:] + r.stderr[-1500:])
+        raise SystemExit(t("deck_failed") + "\n" + failed_output(r))
     return page
 
 

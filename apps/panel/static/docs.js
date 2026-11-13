@@ -55,7 +55,7 @@ function sentenceOf(sid) {                                                      
 function sourcesOf(m) {                                                             // the document's source files in the order its sentences first cite them: [{file, n}]
   if (m._sources) return m._sources;                                                // worked out once per model
   const seen = new Map();                                                           // file -> its row
-  let typed = 0;                                                                    // sentences resting only on what the person typed
+  let details = 0, typed = 0;                                                       // sentences resting only on Your details, or on facts the person added
   for (const rec of Object.values(m.sentences || {})) {                            // every sentence, in the document's order
     for (const e of rec.evidence || []) {                                           // what it rests on
       if (!e || !e.file) continue;                                                  // the person's own words cite no file
@@ -63,9 +63,12 @@ function sourcesOf(m) {                                                         
     }
     const files = new Set((rec.evidence || []).map((e) => e && e.file).filter(Boolean));   // the files this sentence rests on, once each
     files.forEach((f) => { seen.get(f).n += 1; });                                  // a sentence more for each
-    if (!files.size && (rec.evidence || []).length) typed += 1;                     // it rests on the person's own words alone: counted too, so the list adds up
+    if (!files.size && (rec.evidence || []).length) {                               // no file behind it: counted too, so the list adds up
+      if ((rec.evidence || []).some((e) => e && e.where === "details")) details += 1; else typed += 1;   // Your details, or a fact added by hand
+    }
   }
-  m._sources = [...seen.values(), ...(typed ? [{ file: t("Typed by you"), n: typed, typed: true }] : [])];   // numbered from one, in order; the person's own words last
+  m._sources = [...seen.values(), ...(details ? [{ file: t("Your details"), n: details, typed: true }] : []),   // numbered from one, in order; the person's own words last
+    ...(typed ? [{ file: t("Facts you added"), n: typed, typed: true }] : [])];
   return m._sources;
 }
 // a piece of evidence by what it is: a fact of the profile (its id), or a passage of an imported file; the person's own details cite nothing
@@ -92,10 +95,11 @@ function citeMark(m, rec) {
   const first = (rec.evidence || []).find((e) => evKey(e));                         // the first passage, to read on hover
   return h("sup", { class: "cite", "aria-hidden": "true", title: first ? unmarked(first.quote || first.file).slice(0, 160) : null, text: nums.join(",") });
 }
+const inKorean = (m, rec) => m.lang === "en" && /[가-힣]/.test((rec && rec.text) || "");   // a sentence of the English edition still in Korean (no English for its field yet)
 function sent(m, sid, extra, kids) {                                                // one sentence as a key on the page; kids: its words drawn in parts (a dated line)
   const rec = m.sentences[sid];                                                     // its record
   if (!rec) return null;                                                            // not in this model
-  const cls = ["s", rec.state === "unsupported" ? "unsupported" : "", rec.state === "edited" ? "edited" : "", UI.sel === sid ? "sel" : ""].filter(Boolean).join(" ");
+  const cls = ["s", rec.state === "unsupported" ? "unsupported" : "", rec.state === "edited" ? "edited" : "", inKorean(m, rec) ? "kr" : "", UI.sel === sid ? "sel" : ""].filter(Boolean).join(" ");
   const el = h("span", { class: cls, "data-sid": sid, tabindex: "0", role: "button", "aria-pressed": UI.sel === sid ? "true" : "false",  // a key with its state
     "aria-label": rec.state === "unsupported" ? t("No evidence: {text}", { text: unmarked(rec.text) }) : null }, kids || marks(rec.text));
   const cite = citeMark(m, rec);                                                    // which sources it rests on
@@ -397,6 +401,7 @@ function drawResume(m, host) {                                                  
         const bad = unit.sids.some((sid) => (m.sentences[sid] || {}).state === "unsupported");  // a sentence without evidence here
         const locked = unit.sids.some((sid) => (m.sentences[sid] || {}).locked);    // a locked sentence here
         if (bad) margin.append(h("div", { class: "mlabel bad", style: `top:${y + 18 * zoom}px`, text: t("No evidence") }));  // said in words, not by colour alone
+        else if (unit.sids.some((sid) => inKorean(m, m.sentences[sid]))) margin.append(h("div", { class: "mlabel kr", style: `top:${y + 18 * zoom}px`, text: t("In Korean") }));   // the English edition's untranslated words
         if (bad || locked) margin.append(h("div", { class: "mdot " + (bad ? "bad" : "lock"), style: `top:${y + 3}px` }));  // the dot on the margin line
       }
       if (placed.length) placed[0].unit.el.classList.add("top0");                   // no space above a page's first paragraph, as printed
@@ -558,9 +563,21 @@ function drawShots(kind, host) {                                                
   const pre = { resume: "r", deck: "d", cover: "c" }[kind];                         // the pictures' prefix
   // a stamp per made document: its PDF's hash, so pages made again within the same minute (the blind switch) are never the browser's older pictures
   const v = (b.hashes || {})[kind + ".pdf"] || b.at || "";
-  host.append(h("div", { class: "shots" + (kind === "deck" ? " deck" : "") }, Array.from({ length: n }, (_, i) =>
-    h("img", { src: `/api/v1/jobs/${enc(j.id)}/files/${lang}/preview/${pre}-${i + 1}.png?v=${enc(v)}`, loading: "lazy",
-      alt: t("{doc}, page {n} of {m}", { doc: t(kind === "deck" ? "Portfolio deck" : kind === "cover" ? "Cover letter" : "Resume"), n: i + 1, m: n }) }))));
+  const imgs = Array.from({ length: n }, (_, i) => h("img", { class: "shot", src: `/api/v1/jobs/${enc(j.id)}/files/${lang}/preview/${pre}-${i + 1}.png?v=${enc(v)}`, loading: "lazy",
+    alt: t("{doc}, page {n} of {m}", { doc: t(kind === "deck" ? "Portfolio deck" : kind === "cover" ? "Cover letter" : "Resume"), n: i + 1, m: n }) }));
+  if (kind === "deck") { host.append(h("div", { class: "shots deck" }, imgs)); return true; }   // the slides at the width the live deck has
+  // a resume's or a letter's pages laid out as the live pages are: the same margin column, the same size, a spread on a wide
+  // screen, so switching between Live and Typeset PDF keeps the page where it stood
+  const grid = h("div", { class: "pages shotpages" }, imgs.map((img) => h("div", { class: "pagewrap" }, h("div", { class: "marginal", "aria-hidden": "true" }), img)));
+  host.append(grid);
+  requestAnimationFrame(() => {                                                     // measured once in the page, as drawResume measures
+    if (!grid.isConnected || PHONE.matches) return;                                // a phone's pages fill its width (app.css)
+    const width = grid.parentElement.clientWidth || 900;                            // the canvas's room
+    const twoUp = n > 1 && width >= 2 * (A4.w * 0.86 + 104) + 24;                   // a wide screen shows a spread
+    const zoom = Math.max(0.5, Math.min(1.12, ((twoUp ? (width - 24) / 2 : width) - 104) / A4.w));   // the page as large as fits, as the live page is
+    grid.style.setProperty("--cols", twoUp ? "2" : "1");
+    imgs.forEach((img) => { img.style.width = `${(A4.w * zoom).toFixed(1)}px`; });
+  });
   return true;                                                                      // drawn
 }
 
@@ -576,9 +593,9 @@ function viewDocuments(host) {                                                  
     h("button", { "aria-pressed": UI.mode === k ? "true" : "false", onclick: () => { UI.mode = k; render(); }, text: t(w) })));
   const cov = UI.doc === "cover" ? coverModel() : null;                              // the cover letter, on its tab
   const counts = (cov && cov.state === "drafted" ? cov.counts : null) || (UI.doc === "cover" ? {} : (m && m.counts)) || {};  // the evidence totals of the document on screen
-  const evsum = !m || !counts.sentences || ownFileIn(edition(), UI.doc) || m.missing && m.missing.length && !(m.blocks || []).length ? null :   // a file the person made has no sentences of Offerowl's
+  const evsum = !m || !counts.sentences || UI.doc === "deck" || ownFileIn(edition(), UI.doc) || m.missing && m.missing.length && !(m.blocks || []).length ? null :   // a file the person made has no sentences of Offerowl's; the deck's are the resume's
     h("span", { class: "evsum" }, counts.unsupported ? h("span", { class: "chip bad", text: t("{n} without evidence", { n: counts.unsupported }) })
-      : h("span", { class: "chip ok", text: t("Every sentence has evidence") }), " ", tn(counts.sentences || 0, "{n} sentence", "{n} sentences"));
+      : h("span", { class: "chip ok", text: t("Every sentence has evidence") }), h("span", { class: "sep", "aria-hidden": "true", text: "·" }), tn(counts.sentences || 0, "{n} sentence", "{n} sentences"));   // two facts, apart
   const ed = edition(), b = ed && ed.builds && ed.builds[lang];                     // the typeset edition
   const sent = !!(j && j.locked && j.locked.lang === lang);                         // submitted in this language: export gives the copies that went out
   const why = sent ? null : !b ? t("Make the PDFs to export them.") : counts.unsupported > 0 ? t("Every sentence needs evidence before export.") : null;   // why export waits, said beside it
@@ -603,32 +620,75 @@ function viewDocuments(host) {                                                  
   const lockBtn = !j ? null : j.locked ? h("span", { class: "docstate ok" }, icon("lock", 14), h("span", { text: t("Submitted and locked") })) :  // the general edition is never submitted
     h("button", { class: "btn lockkey", disabled: !b || counts.unsupported > 0 || null, onclick: () => lockJob(j.id), title: t("Lock when submitted"), "aria-label": t("Lock when submitted") },
       icon("lock"), h("span", { class: "w", text: t("Lock when submitted") }));  // the rule of the export; on a phone its sign alone, beside the other two
+  const jobName = j ? [j.company, j.role].filter(Boolean).join(", ") || j.id : "";  // the application in view
+  // "For {job}" only when this edition was written or brought in for it; a job with none of its own shows the general
+  // resume, and says so (a submitted application's own files are its own)
+  const ownForJob = !!(j && ((m && m.draft && m.draft.own) || (ed && (ed.own || []).includes(lang)) || ownFileIn(ed) || (j.locked && j.locked.brought)));
   fill($("dochead"),                                                                // the head, over the document and its inspector
     h("div", { class: "viewhead" }, h("h1", { text: t("Documents") }),
-      h("span", { class: "sub", text: j ? t("For {job}", { job: [j.company, j.role].filter(Boolean).join(", ") || j.id }) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it") }),
-      named() ? h("button", { class: "btn small quiet danger", type: "button", "data-key": "edition-remove", "aria-label": t("Remove the edition {name}", { name: named().name }),   // said in words   // a named edition: off the list, into the Trash
-        onclick: () => removeAct("/api/v1/jobs/remove", { job: named().id }, t("Removed the edition {name}. It waits in the trash.", { name: named().name })) }, icon("trash"), t("Remove this edition")) : null,
-      h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn))),   // the page's actions beside its title, as one group; Export and its lock on one row
+      h("span", { class: "sub", text: j ? (ownForJob ? t("For {job}", { job: jobName }) : t("For {job}: the general resume as it is", { job: jobName })) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it") }),
+      h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn)),   // the page's actions beside its title, as one group; Export and its lock on one row
+      named() ? h("button", { class: "btn small quiet danger edrm", type: "button", "data-key": "edition-remove", "aria-label": t("Remove the edition {name}", { name: named().name }),   // a named edition: off the list, into the Trash; at the row's end, away from its name and the keys that make it
+        onclick: () => removeAct("/api/v1/jobs/remove", { job: named().id }, t("Removed the edition {name}. It waits in the trash.", { name: named().name })) }, icon("trash"), t("Remove this edition")) : null),
     // what is shown; why export waits at the row's right (under the keys it came and went, and the head jumped 27 px); the
     // inspector's key at the row's end where it is a drawer
     h("div", { class: "doctools" }, docTabs, modes, zoomSeg(), evsum, h("span", { class: "grow" }), why && !counts.unsupported ? h("span", { class: "hint why", text: why }) : null,
       h("button", { class: "btn insp-toggle", onclick: () => { UI.drawer = true; render(); }, "aria-label": t("Open the inspector") }, icon("panel"), t("Inspector"))));
   fill(host,
-    counts.unsupported ? h("div", { class: "band" }, h("p", { text: t("A sentence with no evidence is marked with a red wave and cannot be exported. Click it to fix it, regenerate it or put the evidence in your profile.") }),
+    buildBand(ed),                                                                  // the last PDFs of this edition failed: why, with the key that fixes it
+    counts.unsupported ? h("div", { class: "band" }, h("p", { text: UI.doc === "cover"   // the letter's sentences have no Edit of their own: what can be done there
+      ? t("A sentence with no evidence is marked with a red wave and cannot be exported. Write the letter again, or put the evidence in your profile.")
+      : t("A sentence with no evidence is marked with a red wave and cannot be exported. Click it to fix it, regenerate it or put the evidence in your profile.") }),
       h("button", { class: "btn small", onclick: () => selectNextBad(), text: t("Show the first one") })) : null,
     blindBand(b),                                                                   // a blind edition says what its pages are
     checksBand(b),                                                                  // the checks its typeset pages failed, which keep them home
+    polishBand(b),                                                                  // and what they would polish, which does not
     docBody(m, j));
   // one main key in sight: an empty page's own next step, or the Save of a sentence being edited in the inspector, outranks the head's
   if (UI.editing || host.querySelector(".btn.primary")) $("dochead").querySelectorAll(".btn.primary").forEach((k) => k.classList.remove("primary"));
   host.dataset.ready = "";                                                          // set again once the pages are drawn
 }
+// The document checks' findings by their codes (src/check_documents.py --report, src/check_lines.py), in the page's language:
+// a line the checks wrote in another language, or one with no code (a layout check, a deck's own), is shown as written
+const CHECK_WORDS = {
+  too_long: "{pages} pages, over the limit of {limit}.", no_role: "A company is missing from the resume: {name}", no_project: "A project is missing from the resume: {name}",
+  korean_left: "Korean is left in the English edition: '{text}' ({n} places)", no_text: "The resume's text could not be read.",
+  form_suffix: "The education table writes '{value}' ({school}) unlike its other lines, which end in '{suffix}'.", banned: "A character your rules ban is printed: '{c}'",
+  no_pack: "The writing rules file could not be read.", no_probe: "The deck's measurement is missing.", slide_count: "The deck's PDF has {pages} pages for {slides} slides.",
+  not_wide: "The deck's pages are not 16:9.", slide: "Slide {n}: {what}", empty_value: "A value the build left empty is printed: '{word}'",
+  markup_left: "Marks are printed as typed ({marks}): '{near}'", editing_note: "An editing note is printed ({why}): '{near}'",
+  comma_ending: "A comma after a connective ending: '{near}'", instead: "The contrastive '{word}': '{near}'", not_a_but_b: "'{form}' {n} times; your rules allow {limit}.",
+  latin_and: "와/과 between Latin words, where your rules write a slash: '{near}'", colloquial: "A machine said to act like a person: '{near}'",
+  repeated_word: "The same word twice in one sentence ({word}): '{near}'", hl_broken: "A highlight breaks across two lines: '{text}'",
+  hl_size: "A highlight of {size}; your rules say {lo} to {hi}: '{text}'", hl_name: "A name inside a highlight ({names}): '{text}'",
+  hl_missing: "A highlight was not found on the page: '{text}'", last_word: "A paragraph ends on '{tail}' alone: '…{end}'",
+  para_missing: "A paragraph was not found on the page: '{text}…'", no_words: "No words could be read from the PDF, so its lines were not measured.",
+  deck_tool: "The deck's own check {tool}: {what}", deck_tool_failed: "The deck's own check {tool} did not run: {what}" };
+function checkWords(x) {                                                            // one finding in the page's words
+  if (typeof x === "string") return x === "check_failed" ? t("The checks did not run.") : x;   // a line as the checks wrote it
+  if (!x || !CHECK_WORDS[x.code]) return (x && x.text) || "";                       // no code of the page's own: as written
+  const size = x.code === "hl_size" ? (docLang() === "en" ? tn(x.size, "{n} word", "{n} words") : t("{n} letters", { n: x.size })) : "";   // a highlight's size in the edition's unit
+  return t(CHECK_WORDS[x.code], { ...x, size });
+}
 function checksBand(b) {                                                            // the checks a typeset edition failed: what keeps its PDFs from going out
-  const lines = b ? [...(b.issues || []), ...(((b.cover || {}).issues) || [])].filter((x) => typeof x === "string" && x) : [];
+  const coded = b && Array.isArray(b.checks) && b.checks.length ? b.checks : null;  // the findings with their codes, when the build kept them
+  const lines = b ? [...(coded || (b.issues || []).filter((x) => typeof x === "string" && x)), ...(((b.cover || {}).issues) || []).filter((x) => typeof x === "string" && x)] : [];
   if (!lines.length) return null;                                                   // passed, or not made
   return h("div", { class: "band", role: "status" }, h("p", { text: t("These documents did not pass their checks:") }),
-    h("ul", { class: "checklist" }, lines.slice(0, 8).map((x) => h("li", { text: x === "check_failed" ? t("The checks did not run.") : x }))),
+    h("ul", { class: "checklist" }, lines.slice(0, 8).map((x) => h("li", { text: checkWords(x) }))),
     lines.length > 8 ? h("p", { class: "hint", text: t("{n} more", { n: lines.length - 8 }) }) : null);
+}
+function polishBand(b) {                                                            // what the checks would polish: said beside the pages, never a reason to keep them home
+  const items = b && Array.isArray(b.polish) ? b.polish : [];
+  if (!items.length || (b.issues || []).length) return null;                        // nothing to polish, or a failure says more first
+  return h("div", { class: "band info", role: "status" }, h("p", { text: t("Worth a look before you send them:") }),
+    h("ul", { class: "checklist" }, items.slice(0, 5).map((x) => h("li", { text: checkWords(x) }))),
+    items.length > 5 ? h("p", { class: "hint", text: t("{n} more", { n: items.length - 5 }) }) : null);
+}
+function buildBand(ed) {                                                            // the last PDFs of an edition failed: the reason, and the key that fixes it
+  const bt = ed ? task("build:" + ed.id) : {};
+  if (bt.state !== "error" || !bt.error) return null;                               // made, never asked, or making now
+  return band(bt.error.code, { retry: () => makePdfs(), detail: bt.error.detail });   // a missing English text offers the translation; anything else, to try again
 }
 function sentPanel(j, sent) {                                                       // a submitted application: the copies that went out, as they went
   const files = Object.entries(sent.files || {});                                   // name -> hash
@@ -645,10 +705,11 @@ function sentPanel(j, sent) {                                                   
 }
 function docBody(m, j) {                                                            // the page area under the toolbar
   const body = h("div", { id: "docbody" });                                         // where the pages go
-  if (UI.offline) return fill(body, band("unexpected", { retry: refresh }));         // the server is gone
   if (!m || m.error) return fill(body, h("div", { class: "empty glass" }, h("p", { text: t("Laying out your pages…") })));  // loading, or refused for now (never read as "no resume yet")
   const sent = j && j.locked ? j.locked : null;                                     // what this application sent, frozen
-  if (sent && (!(m.blocks || []).length || (UI.mode === "typeset" && sent.brought))) return fill(body, sentPanel(j, sent));   // a submitted application with nothing to draw, or whose own files went out (no pages of Offerowl's): the copies that went out, never an offer to write it again
+  // a submitted application with nothing to draw, or whose own files went out (no pages of Offerowl's, in either view: the
+  // live page would draw a resume that never went out): the copies that went out, never an offer to write it again
+  if (sent && (!(m.blocks || []).length || sent.brought) && UI.doc !== "cover") return fill(body, sentPanel(j, sent));
   if (m.missing && m.missing.includes("needs_translation") && UI.mode !== "typeset") return fill(body, band("needs_translation"));  // the English edition without its profile: the live canvas waits for it, the printed pages do not
   if (!(m.blocks || []).length) return fill(body, h("div", { class: "empty glass" }, h("h3", { text: t("Your resume starts with your files") }),  // nothing kept yet
     h("p", { text: t("Add an old resume, a portfolio or notes, and keep the facts you want. The resume appears here as it will print.") }),
@@ -667,6 +728,12 @@ function docBody(m, j) {                                                        
   if (UI.doc === "resume") {                                                        // the live resume
     const top = writeBand(m);                                                       // what the agent can do for it
     const pages = h("div", {});                                                     // the pages go here
+    if (sent) body.append(h("div", { class: "band info", role: "status" }, h("p", { text: t("This page is drawn from your profile as it is now. The copies you sent stay as they went: Typeset PDF shows them.") }),
+      h("button", { class: "btn small", onclick: () => { UI.mode = "typeset"; render(); }, text: t("Typeset PDF") })));   // a submitted application: what went out is in the PDFs
+    const korean = m.lang === "en" ? Object.values(m.sentences || {}).filter((r) => inKorean(m, r)).length : 0;   // the English edition's sentences still in Korean
+    if (korean) { const e = errorInfo("needs_translation"); body.append(h("div", { class: "band", role: "status" },   // said, marked on the page, with the key that translates them
+      h("p", { text: tn(korean, "{n} sentence of the English edition is still in Korean. It is marked on the page.", "{n} sentences of the English edition are still in Korean. They are marked on the page.") }),
+      e.sent ? sendNote(e.sent) : null, sent ? null : h("button", { class: "btn small agent", onclick: () => e.go(), text: e.fix }))); }
     if (top) body.append(top);                                                      // above the pages
     body.append(pages);                                                             // the pages' place
     requestAnimationFrame(() => { if (pages.isConnected && !pages.childElementCount) drawResume(m, pages); });  // laid out once in the page
@@ -675,6 +742,9 @@ function docBody(m, j) {                                                        
   if (UI.doc === "cover") {                                                         // the cover letter
     const c = coverModel();                                                         // its model
     if (!j) return fill(body, h("div", { class: "empty glass" }, h("h3", { text: t("A cover letter is written for one job") }), h("button", { class: "btn primary", onclick: () => go("jobs"), text: t("Add a job") })));
+    if (sent && !Object.keys(sent.files || {}).includes("cover.pdf")) return fill(body, h("div", { class: "empty glass" }, h("h3", { text: t("No cover letter went out") }),   // submitted without one: nothing to write now
+      h("p", { text: t("The copies you sent on {date} hold no cover letter.", { date: sent.at || "" }) })));
+    if (sent && (!c || c.state !== "drafted" || sent.brought)) return fill(body, sentPanel(j, sent));   // the letter that went out, as it went
     if (!c) return fill(body, h("div", { class: "empty glass" }, h("p", { text: t("Laying out your pages…") })));
     if (c.state !== "drafted") return fill(body, h("div", { class: "empty glass" }, h("h3", { text: t("No cover letter yet") }),
       h("p", { text: t("The agent writes it from this job's posting and your evidence, and every sentence names the fact it rests on.") }),
@@ -710,6 +780,15 @@ function figureBand(m) {                                                        
     sendNote(t("Drawing sends each project's evidence to the agent.")), h("button", { class: "btn small", onclick: () => drawFigures(ed.id), text: t("Draw the figures") }), error);  // what it sends, and the button
 }
 function drawFigures(jid) { return act("/api/v1/jobs/figures", { job: jid, lang: docLang() }); }  // the task starts; the band follows it
+function markSelected() {                                                           // the selected sentence and its numbers marked on the page as they stand: a click redraws no page
+  const canvas = $("canvas"); if (!canvas) return;
+  for (const el of canvas.querySelectorAll(".s[data-sid]")) {                       // every sentence
+    const on = el.dataset.sid === UI.sel;
+    if (el.classList.contains("sel") !== on) el.classList.toggle("sel", on);       // only what changed
+    el.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  for (const el of canvas.querySelectorAll(".cite.over[data-for]")) el.classList.toggle("sel", el.dataset.for === UI.sel);   // its numbers
+}
 function select(sid) {                                                              // a sentence opens its evidence
   UI.sel = sid; UI.editing = false; UI.tab = "evidence"; forget("sentence-edit");    // the inspector shows it
   if (window.matchMedia("(max-width: 1000px)").matches) UI.drawer = true;           // the drawer opens where the rail sits under the page
@@ -728,7 +807,9 @@ async function makePdfs(blind) {                                                
   // a blind edition stays blind and an ordinary one ordinary, unless the switch says otherwise; before the first PDFs the server
   // decides (a resume brought in as a blind edition is made blind)
   const keep = blind === undefined ? (b ? !!b.blind : undefined) : blind;
-  await act("/api/v1/jobs/build", { job: ed.id, lang: docLang(), theme: UI.theme, maxPages: UI.maxPages, cover: UI.cover && !!job(), blind: keep });  // started; a letter needs a job
+  const own = b && Number(b.maxPages);                                              // the limit the PDFs on screen were made with
+  const pages = blind !== undefined && own ? own : UI.maxPagesChosen || !own ? UI.maxPages : own;   // the switch keeps it; the key uses the one picked in the Style tab, else keeps it
+  await act("/api/v1/jobs/build", { job: ed.id, lang: docLang(), theme: UI.theme, maxPages: pages, cover: UI.cover && !!job(), blind: keep });  // started; a letter needs a job
 }
 function makeBlind(on) {                                                            // the blind edition's switch: the PDFs again, with or without the bars
   const ed = edition(); if (!ed) return;                                            // nothing to make
@@ -800,6 +881,7 @@ let lastHit = { sid: "", at: 0 };                                               
 function editInPlace(sid, tries = 12) {                                             // type over a sentence where it stands on the page
   const rec = sentenceOf(sid), el = document.querySelector(`#canvas .s[data-sid="${CSS.escape(sid)}"]`);  // its record and its words on the page
   if (!rec || sid.startsWith("cover.")) return;                                     // only the resume's sentences can be changed
+  if (sentAway()) { toast(t("This application was submitted and locked."), null, "warn"); return; }   // its sentences stay as they went
   if (rec.locked) { toast(errorInfo("locked").msg, null, "warn"); return; }                       // said plainly
   if (!el) { if (tries) setTimeout(() => editInPlace(sid, tries - 1), 50); return; }  // the pages are still being laid out
   UI.inplace = sid;                                                                 // the canvas is not redrawn under the caret

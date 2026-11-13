@@ -70,6 +70,15 @@ def clean_reason(text: str) -> str:
     return re.sub(r"\s{2,}", " ", line).strip()[:200]  # one short line
 
 
+def build_error(text: str, lang: str) -> dict:
+    """A failed typesetting's error for the page. An English edition whose profile lacks a field's English (node names it:
+    "summary.intro has no en text") is needs_translation, whose band offers the translation; anything else is build_failed.
+    The detail is the tool's own reason without paths or commands, "" when none is left."""
+    detail = clean_reason(text)  # node's thrown message, cleaned
+    code = "needs_translation" if lang == "en" and re.search(r"언어|\ben\b", detail) else "build_failed"  # an English text missing, said as the band that fixes it
+    return {"code": code, "detail": detail}  # what the page draws
+
+
 LIVE_PICTURES = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")  # what a slide shows
 LIVE_PICTURE_MAX = 20_000_000  # bytes of one: a page is sent whole
 
@@ -212,18 +221,40 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
             no = self.run_no  # kept in its record
             self.tasks[key] = {"state": "running", "step": "queued", "t": time.time(), "run": no}  # shown at once
 
-        def body():
-            try:
-                fn(*args)  # the task sets done or error itself
-                with self.state_lock:  # read and written in one step
-                    rec = self.tasks.get(key) or {}  # the record now
-                    if rec.get("state") == "running" and rec.get("run") == no:  # still this task, and it returned without saying
-                        rec.update(state="done", t=time.time())  # a task that set nothing counts as done
-            except (Exception, SystemExit) as exc:  # a bug, or a tool that stopped with a message: shown as an error with a retry, logged in full
-                log.exception("task %s failed", key)  # the trace goes to the log, not the page
-                self._set(key, state="error", error={"code": "unexpected", "detail": type(exc).__name__})  # the page gets a code and a retry
-        threading.Thread(target=body, name=f"task-{key}", daemon=True).start()  # in the background
+        threading.Thread(target=self._run, args=(key, no, fn, args), name=f"task-{key}", daemon=True).start()  # in the background
         return True  # started
+
+    def _run(self, key: str, no: int, fn, args) -> None:
+        """Task `key`'s body, run number `no`: fn sets done or error itself; one that returns without saying is done, and
+        one that raises is an error with a retry, its trace in the log."""
+        try:
+            fn(*args)  # the task sets done or error itself
+            with self.state_lock:  # read and written in one step
+                rec = self.tasks.get(key) or {}  # the record now
+                if rec.get("state") == "running" and rec.get("run") == no:  # still this task, and it returned without saying
+                    rec.update(state="done", t=time.time())  # a task that set nothing counts as done
+        except (Exception, SystemExit) as exc:  # a bug, or a tool that stopped with a message: shown as an error with a retry, logged in full
+            log.exception("task %s failed", key)  # the trace goes to the log, not the page
+            self._set(key, state="error", error={"code": "unexpected", "detail": type(exc).__name__})  # the page gets a code and a retry
+
+    def run_here(self, key: str, fn, *args, wait_s: float = 900) -> bool:
+        """Run fn(*args) in this thread as task `key`, the way start() runs it in a thread of its own: the page sees it
+        running, and a start of the same key meanwhile is refused (a build the page asks for while tailoring typesets the
+        same edition would write its folder twice at once). A run of the key already going (a build the page started) is
+        waited for, up to wait_s. False when it never got its turn."""
+        deadline = time.time() + wait_s  # how long a running twin is waited for
+        while True:
+            with self.state_lock:  # check and mark in one step, as start() does
+                if (self.tasks.get(key) or {}).get("state") != "running":  # its turn
+                    self.run_no += 1  # this run's number
+                    no = self.run_no
+                    self.tasks[key] = {"state": "running", "step": "queued", "t": time.time(), "run": no}  # shown at once
+                    break
+            if time.time() > deadline:  # the other run never ended
+                return False
+            time.sleep(0.5)  # the other run is still going
+        self._run(key, no, fn, args)  # here, not in a thread: the caller goes on once it is done
+        return True
 
     @contextlib.contextmanager
     def turn(self, key: str, *locks):
@@ -339,6 +370,11 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         name_of = {str(self.ws.material_path(m)): (m["id"], m["name"]) for m in files}  # file -> material
         new = self.facts.ingest_candidates(kept, lambda f: name_of.get(f, ("", "")))  # panel candidates
         with self.ws.change({"code": "undo_add_material", "n": len(recs)}, FACT_FILES):  # one undo takes it all back
+            alive = {m["id"] for m in self.ws.materials()}  # a source taken off while it was read brings nothing in
+            by_mid = {mid: v for mid, v in by_mid.items() if mid in alive}
+            new = [c for c in new if c["source"]["material"] in alive]
+            dropped = [d for d in dropped if name_of.get(str((d.get("source") or {}).get("file", "")), ("", ""))[0] in alive | {""}]  # one of no known source stays
+            files = [m for m in files if m["id"] in alive]
             count = 0  # facts added
             for mid, (_, doc) in by_mid.items():  # the profile files read earlier
                 n = self.facts.import_profile(doc, mid, recs[mid]["name"])  # its items as facts to confirm
@@ -467,15 +503,35 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         DOC.resume(self, lang, "navy", job_id)  # a draft the canvas cannot read must fail here, inside the task
         return {"state": "done", **record["counts"]}  # the task's result
 
-    def analyze(self, job_id: str, agent: bool = True) -> bool:
-        """Match the posting to the profile (task "analyze:<job>"). agent=False keeps it on this PC, by words."""
-        return self.start(f"analyze:{job_id}", self._analyze, job_id, agent)  # one analysis per job at a time
+    def analyze(self, job_id: str, agent: bool = True, step: bool = True) -> bool:
+        """Match the posting to the profile (task "analyze:<job>"). agent=False keeps it on this PC, by words. step=False
+        makes no undo step of its own: the analysis that follows adding a job or pasting its posting belongs to that change,
+        whose step holds plan.json (a step of its own would come after it and turn the toast's Undo into "moved")."""
+        return self.start(f"analyze:{job_id}", self._analyze, job_id, agent, step)  # one analysis per job at a time
 
-    def _analyze(self, job_id: str, agent: bool = True) -> None:
+    def _analyze(self, job_id: str, agent: bool = True, step: bool = True) -> None:
         import draft  # src/draft.py
         from . import fit  # the fit by words
         key = f"analyze:{job_id}"  # this task
-        posting = (self.ws.job_dir(job_id) / "posting.md").read_text(encoding="utf-8")  # the posting
+        rel = f"jobs/{job_id}/plan.json"  # where the plan is kept
+        for _ in range(3):  # a posting pasted again, or taken back by an undo, while this ran: the plan follows the newer text
+            path = self.ws.job_dir(job_id) / "posting.md"  # the posting
+            if not path.is_file():  # the job was taken back meanwhile (the toast's Undo): no plan for a job no longer there
+                self._set(key, state="done", step="", result={})
+                return
+            posting = path.read_text(encoding="utf-8")  # the posting as it is now
+            plan = self._plan_of(key, posting, agent, draft, fit)  # the analysis itself
+            with (self.ws.change({"code": "undo_analysis"}, [rel]) if step else self.ws.lock):  # its own undo step, or part of the change that started it
+                if path.is_file() and path.read_text(encoding="utf-8") == posting:  # still the posting it was made from
+                    write_json(self.ws.path(rel), plan)  # saved with the job
+                    break
+        else:  # the posting kept changing: the last paste's own analysis, or the next one, writes the plan
+            self._set(key, state="done", step="", result={})
+            return
+        self._set(key, state="done", step="", result={k: plan.get(k) for k in ("skillsFocus", "projectOrder", "by")})  # the page shows these
+
+    def _plan_of(self, key: str, posting: str, agent: bool, draft, fit) -> dict:
+        """The plan of one posting against the profile as it is now: the agent's when it answers, else the fit by words."""
         prof = self.facts.profile()  # the profile as it is now
         self._set(key, step="asking_agent")  # the step the page shows
         cfg, by = None, "words"  # the agent's plan when it answers, else the words
@@ -492,9 +548,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
             cfg = fit.plan_by_words(prof, fit.compute(prof, posting, evmap=self.facts.evidence(), cands=self.facts.candidates()))  # no model
         plan = {k: cfg.get(k) for k in ("skillsFocus", "competencyWeak", "projectOrder") if cfg.get(k)}  # what the build uses
         plan.update(at=today(), profile=file_hash(self.ws.path("profile", "profile.json")), by=by)  # when, from which profile, by whom
-        with self.ws.change({"code": "undo_analysis"}, [f"jobs/{job_id}/plan.json"]):  # undo takes the analysis back
-            write_json(self.ws.job_dir(job_id) / "plan.json", plan)  # saved with the job
-        self._set(key, state="done", step="", result={k: plan.get(k) for k in ("skillsFocus", "projectOrder", "by")})  # the page shows these
+        return plan
 
     # ------------------------------------------------------------------ the English profile
 
@@ -689,7 +743,9 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         d = self.deck_dir()  # the source, if any
         if d is None:
             return ""
-        files = sorted(p for p in d.rglob("*") if p.is_file())  # every file of it
+        files = sorted(p for p in d.rglob("*") if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc")  # every file of it but
+        # the bytecode Python leaves beside a deck's own tools when they run: a check run is no change to the slides (it marked
+        # every edition's deck stale again after each run)
         stats = [p.stat() for p in files]  # one stat per file, not one per number below
         key = (str(d), len(files), max((st.st_mtime_ns for st in stats), default=0), sum(st.st_size for st in stats))  # cheap to read
         if getattr(self, "_deck_stamp", (None, ""))[0] != key:  # changed since it was last worked out
@@ -867,6 +923,10 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
                 return
         out_dir = self.build_dir(job_id, lang)  # where this edition goes
         out_dir.mkdir(parents=True, exist_ok=True)  # jobs/<job>/resume/<lang>/
+        # the inputs the edition's PDF was made from, as they are before this build writes its own: a build that fails puts
+        # them back, so the PDF on screen never stands beside the profile of a build that did not happen (a page-fitting
+        # loop leaves a shortened one), which the lock and the live deck read
+        kept = {f: (out_dir / f).read_bytes() for f in ("profile.json", "job.json") if (out_dir / f).is_file()}
         name = "owl_" + self.short(job_id) + "_" + lang  # the engine's output name
         cfg = {"out": name, "maxPages": max_pages, **self.edition_cfg(job_id, lang, theme)}  # job.json: what resume_form.js and deck_slides.js read
         cfg.pop("blind", None)  # what the edition was brought in as gives way to what this build is
@@ -913,12 +973,15 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
                     own_deck = None if blind else self._own_pdf(job_id, "deck", lang, out_dir)  # the job's own deck file, if any
                     deck = own_deck or resume.build_deck(str(out_dir / "profile.json"), str(out_dir / "job.json"), env)
                     from_source = bool(deck_src) and own_deck is None  # written from the person's deck source
-            except SystemExit as exc:  # resume.py stops with the tool's output
-                text = str(exc)  # its output
-                log.warning("build %s failed: %s", job_id, text[-3000:])  # in full, for the log only
-                code = "needs_translation" if re.search(r"언어|\ben\b", clean_reason(text)) and lang == "en" else "build_failed"  # an English edition missing its English text
-                self._set(key, state="error", error={"code": code, "detail": clean_reason(text)})  # the cleaned reason, never a path
-                self._clean_engine(job_id, lang, out_dir)  # a failed build leaves nothing behind either
+            except (SystemExit, Exception) as exc:  # resume.py stops with the tool's output; anything else (a file the system refused, a timeout) ends the build the same way
+                text = str(exc)  # the tool's output, or the error's own words
+                if isinstance(exc, SystemExit):  # the tool said why
+                    log.warning("build %s failed: %s", job_id, text[-3000:])  # in full, for the log only
+                else:  # a fault of its own: the trace for the log
+                    log.exception("build %s failed", job_id)
+                self._set(key, state="error", error=build_error(text, lang))  # the cleaned reason, never a path
+                self._clean_engine(job_id, lang, out_dir)  # a failed build leaves nothing behind either (it reads the attempt's profile for the staged logos)
+                self._restore_inputs(out_dir, kept)  # and the edition's inputs are the ones its PDF was made from again
                 return  # nothing else to do
             self._set(key, step="checking")  # the step the page shows
             # the document checks; a resume the person made is theirs as it is: its pages are shown, not measured against the profile.
@@ -927,6 +990,11 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
             # export was refused with nothing the person could change
             limit = max_pages if own is None else max(max_pages, pdfmeta.pages(pdf))
             issues, notes = ([], ["own_file"]) if mine else self._check(str(out_dir / "profile.json"), pdf, deck, limit, env)
+            checks, polish = ([], []) if mine else self.read_checks(pdf)  # the same findings with their codes, for the panel's own words
+            if deck and from_source and deck_src:  # a deck written from the person's source: the checks that source ships, on this deck
+                more = self._deck_tools(Path(str(deck)), deck_src, env)
+                issues += [x["text"] for x in more]  # the deck's issues: they keep the documents home as its own checks would
+                checks += more  # with their codes, for the panel
             self._set(key, step="previews")  # the step the page shows
             for f in ("resume.pdf", "resume.docx", "resume_plain.docx", "resume.txt", "deck.pdf"):  # the last edition's files go first
                 (out_dir / f).unlink(missing_ok=True)  # an old file must never pass for a new one
@@ -974,7 +1042,8 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         info = {"lang": lang, "theme": theme, **self.look(), "pages": pages, "slides": slides, "issues": issues, "notes": notes + left, "hashes": hashes,  # what the inspector and the canvas show
                 "at": time.strftime("%Y-%m-%d %H:%M"), "profile": content_hash(self.ws.path("profile", "profile.json")),  # when, and from which profile's content (stale editions are marked)
                 "own": self.own_stamp(job_id),  # and from which own edition or files, when the job has them
-                "maxPages": max_pages, "cover": cover, "draft": self.draft_stamp(job_id)}  # what the panel shows; the draft it was made from
+                "maxPages": max_pages, "cover": cover, "draft": self.draft_stamp(job_id),  # what the panel shows; the draft it was made from
+                "checks": checks, "polish": polish}  # the findings with their codes: the panel words them in the person's language
         if blind:  # a blind edition says so, and which table its bars came from (another table makes it stale)
             info.update(blind=True, blind_table=self.blind_stamp())
         if deck and from_source:  # its deck was written from the person's deck source: which one (another makes it stale)
@@ -999,6 +1068,19 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         """The name part of a job's files in the engine's folder: from the workspace and the job, so two panels that share one
         engine folder (a test run beside an open panel, two workspaces) never write or clean each other's files."""
         return hashlib.sha1(f"{self.ws.root.resolve()}|{job_id}".encode("utf-8")).hexdigest()[:8]
+
+    @staticmethod
+    def _restore_inputs(out_dir: Path, kept: dict) -> None:
+        """An edition's profile.json and job.json put back as they were before a build that failed: written again from the
+        bytes kept, or taken away when the edition had none (its first build failed)."""
+        for f in ("profile.json", "job.json"):  # what a build writes before it typesets
+            try:
+                if f in kept:  # there before: its old bytes again
+                    (out_dir / f).write_bytes(kept[f])
+                else:  # this build wrote the first one: none again
+                    (out_dir / f).unlink(missing_ok=True)
+            except OSError as exc:  # a file held open elsewhere: the next build writes it again
+                log.info("edition input not restored: %s", exc)  # for the log only
 
     def _clean_engine(self, job_id: str, lang: str, out_dir: Path) -> None:
         """A person's words do not stay in the engine's folder: its working copies of an edition go once the edition has its own, or failed."""
@@ -1243,8 +1325,16 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
         blind edition left it out; env is the build's own (a blind edition's check reads its table)."""
         import resume  # its sh() runs the tool where the typesetting runs
         spec = self.style_spec()  # "default" or the person's pack in the workspace
+        report = self.check_report(pdf)  # the defects with their codes, written beside the engine's PDF where the container writes too
+        report.unlink(missing_ok=True)  # never an older build's
+        # its words in the edition's language: a line the panel cannot word from its code (a layout check, the measurement of a
+        # slide) is shown as written, and the container's own locale would write it in English under a Korean edition
+        env = {**(env or os.environ), "OFFEROWL_LANG": "en" if Path(str(pdf)).stem.endswith("_en") else "ko"}
+        table = self.blind_file()  # the person's table: its never-shown names never go inside a highlight either
+        if table:  # staged where the container reads it (resume.rel); _clean_engine takes the copy away with the others
+            env["OFFEROWL_HIGHLIGHT_TABLE"] = resume.rel(str(table))
         r = resume.sh(["python3", "src/check_documents.py", resume.rel(profile), resume.rel(str(pdf)), *([resume.rel(str(deck))] if deck else []),  # the document checks, in the render container
-                       "--style", spec if spec == "default" else resume.rel(spec), "--max-pages", str(max_pages)], env)  # the pack the documents were written with; a workspace file is staged where the container sees it
+                       "--style", spec if spec == "default" else resume.rel(spec), "--max-pages", str(max_pages), "--report", resume.rel(str(report))], env)  # the pack the documents were written with; a workspace file is staged where the container sees it
         out = (r.stdout or "") + (r.stderr or "")  # their report
         notes = [line.split(":", 1)[1].strip() for line in out.splitlines()  # warnings to polish, in either language
                  if re.match(r"\s*(다듬을 거리|to polish|polish)\s*:", line, re.I)]  # warnings, in either language
@@ -1253,6 +1343,50 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
             log.warning("check failed: %s", out[-2000:])  # the full report for the log
             issues = ["check_failed"]  # the page says the checks did not run
         return issues, notes  # defects and notes
+
+    DECK_TOOLS = (("check_deck", "pdf"), ("check_align", "html"), ("check_density", "html"), ("check_contrast", "html"))  # a deck source's own checks, and what each reads
+
+    def _deck_tools(self, deck: Path, deck_src: str, env: dict | None) -> list:
+        """The checks a person's deck source ships in its tools/ folder (check_deck.py on the PDF and its .probe.json,
+        check_align.py, check_density.py and check_contrast.py on the page), run on this build's deck before its working
+        files are cleaned. Each one that fails gives its lines as the deck's issues; one that cannot run says so."""
+        import resume  # its sh() runs a tool where the typesetting runs
+        import check_documents as CD  # the findings worded as every other check's
+        page = deck.with_suffix(".html")  # the page the deck was printed from, beside it
+        out = []
+        for tool, reads in self.DECK_TOOLS:
+            script = ROOT / deck_src / "tools" / f"{tool}.py"  # in the staged copy of the source
+            target = deck if reads == "pdf" else page
+            if not script.is_file() or not target.is_file():  # the source ships no such check, or there is nothing for it to read
+                continue
+            r = resume.sh(["python3", f"{deck_src}/tools/{tool}.py", resume.rel(str(target))], env)  # where the typesetting ran
+            if r.returncode == 0:  # passed
+                continue
+            text = (r.stdout or "") + (r.stderr or "")  # what it said
+            unpathed = lambda s: re.sub(r"(/[\w.\-가-힣]+)+/?", "", s).strip()  # noqa: E731  a line without the paths it names
+            if "Traceback (most recent call last)" in text:  # it broke: the deck was not checked, which is said as such
+                last = ([ln.strip() for ln in text.splitlines() if ln.strip()][-1:] or [""])[0]
+                out.append(CD.deck_tool_item(tool, unpathed(last)[:200], failed=True))
+                continue
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            found = [ln.lstrip("-•*").strip() for ln in lines if re.match(r"\s*[-•*]\s", ln)] or lines[-3:]  # its list of problems, else its last words
+            out += [CD.deck_tool_item(tool, unpathed(w)[:240]) for w in found[:20]]
+        return out
+
+    @staticmethod
+    def check_report(pdf: Path) -> Path:
+        """Where src/check_documents.py writes an edition's defects with their codes: beside the engine's PDF, in the engine's
+        folder the container sees (its clean-up takes it with the edition's other working files)."""
+        return ROOT / "output" / f"{Path(str(pdf)).stem}.checks.json"
+
+    def read_checks(self, pdf: Path) -> tuple[list, list]:
+        """The defects and the notes to polish of the last check of a PDF, with their codes and values, for the panel to word
+        in its own language (([], []) when the check wrote none: a stand-in, an older engine, or a check that did not run)."""
+        f = self.check_report(pdf)  # beside it
+        got = read_json(f, None) if f.is_file() else None  # what the check wrote
+        f.unlink(missing_ok=True)  # read once
+        well = lambda items: [x for x in items if isinstance(x, dict) and isinstance(x.get("text"), str)][:200] if isinstance(items, list) else []  # noqa: E731  well formed only
+        return (well(got.get("defects")), well(got.get("polish"))) if isinstance(got, dict) else ([], [])
 
     def _previews(self, pdf: Path, folder: Path, prefix: str, dpi: int, last: int | None = None) -> int:
         """One PNG per page (r-1.png, d-1.png ...) for the canvas's typeset view, up to page `last` when it is given (a job's
@@ -1405,7 +1539,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
             return  # nothing else to do
         if typeset and not self.engine_ready():  # the PDFs too, where the typesetting can run
             self._set(key, step="typesetting_resume", parts=dict(parts))  # the step the page shows
-            self._build(job_id, lang, theme, max_pages, with_cover, write_cover=True)  # the existing build (its own task record keeps the details)
+            self.run_here(f"build:{job_id}", self._build, job_id, lang, theme, max_pages, with_cover, True)  # the existing build, as a build of its own (its task record keeps the details; the page's own build waits)
             built = read_json(self.build_dir(job_id, lang) / "build.json", {})  # what it made
             parts["cover"] = ((built.get("cover") or {}).get("state") or "failed") if with_cover and not built.get("blind") else "skipped"  # the letter came with it; a blind edition has none
         elif with_cover:  # the letter drafted without typesetting

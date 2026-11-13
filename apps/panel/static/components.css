@@ -304,7 +304,7 @@ span.lit { display: inline-flex; align-items: center; }                         
 .band.ai { background: var(--orange-soft); border-color: color-mix(in srgb, var(--orange) 30%, transparent); }
 .band.ok { background: var(--green-soft); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
 .band.offer { background: var(--pane-well); border-color: var(--pane-rule); }   /* what the agent could do: an offer, not a warning; its chip says what is sent */
-.band p { flex: 1 1 220px; }
+.band p { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }   /* a long address or name wraps inside the band: it made a phone's page wider than the phone */
 
 /* the room a taller card in the same row leaves, so a card's foot line sits on its foot (make.js) */
 .fill { flex: 1 1 auto; min-height: 0; }

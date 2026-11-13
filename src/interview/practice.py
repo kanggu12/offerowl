@@ -459,7 +459,7 @@ class Practice:  # one per server
         with self.lock:  # one build at a time
             if stamp != self._stamp:  # a scene file changed, or the first call
                 from interview import plan  # the question map
-                _, sc = check.load_scenes(self.job)  # every scene with its dialogue
+                _, sc = check.load_scenes(self.job, drafts=True)  # every scene with its dialogue, the agent's drafts too: a run that wrote only drafts can still be practised
                 self._scenes = {it["id"]: (it, turns(d, it.get("ten") or it.get("tko") or "")) for it, d, _ in sc}  # turns per scene
                 self._plan = plan.build(self.job)  # the map, with the scenes that cover each entry
                 self._stamp = stamp  # up to date
@@ -493,7 +493,7 @@ class Practice:  # one per server
                     asked = r["text"] if r["kind"] == "asked" else tt[0]["q"]  # a question an earlier round asked comes in the words it was asked in
                     out.append({"qid": f"q{len(out) + 1}", "kind": r["kind"], "topic": "" if r["kind"] == "asked" else r["text"], "source": r["source"],  # an asked question is its own topic
                                 "scene": sid, "title": it.get("ten") or it.get("tko"), "ask": asked, "ask_ko": tt[0]["q_ko"],
-                                "fixed": tt[0]["q"], "turns": len(tt)})  # the scene's own line asks the rest
+                                "fixed": tt[0]["q"], "turns": len(tt), "draft": bool(it.get("draft"))})  # the scene's own line asks the rest; a draft says so on the page
                     break  # one per kind per round
                 if len(out) >= n:  # enough
                     break
@@ -531,6 +531,8 @@ class Practice:  # one per server
     def start(self, n=8, kinds=None, agent=True, seed=None):
         """A new session with its questions, saved at once."""
         qs = self.questions(max(1, min(int(n or 8), 30)), kinds, seed)  # between one and thirty questions
+        if not qs:  # no script to practise with: nothing is saved, or the list of earlier sessions fills with empty ones
+            return {"id": "", "questions": []}
         who = self.agent() if agent else ""  # the agent, when connected and wanted
         why = self.phrase(qs) if who and qs else ""  # one call phrases them all
         return self.store.new({"job": self.job.name, "interviewer": who or "fixed", "phrase_error": why, "questions": qs})

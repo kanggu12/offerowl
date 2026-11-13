@@ -159,6 +159,8 @@ def edit_sentence(tasks, sid: str, text: str, lang: str = "ko", job: str | None 
         raise ValueError("sentence")  # refused
     if sid in R.locks:  # a locked sentence keeps its words
         raise ValueError("locked")  # the page says to unlock it first
+    if text.strip()[:1000] == R.sent[sid]["text"]:  # the words it has already: nothing changes, and no undo step names a change that was not made
+        return R.sent[sid]  # its record as it is
     if sid in R.link_of:  # a sentence of the draft: its words live there, in this language
         d, owner = D.load(tasks, job)  # the stored draft
         with ws.change({"code": "undo_sentence", "title": R.sent[sid]["text"][:60]}, D.files(owner)):  # one undo step

@@ -83,6 +83,7 @@ class Api:
         self.tasks = Tasks(self.ws, self.facts, self.card)  # long tasks
         self._fit_cache: dict = {}  # (job, posting hash, profile hash) -> fit
         self._fit_lock = threading.Lock()  # the page's polls and a write may ask for the same fit at once
+        self._settings_lock = threading.Lock()  # two changes of the settings at once (two quick switches) never lose one
         self._restoring = threading.Lock()  # one restore at a time
         threading.Thread(target=self.card.refresh, kwargs={"force": True}, daemon=True, name="agent").start()  # first look
         threading.Thread(target=self.tasks.letter_pages_all, daemon=True, name="letters").start()  # the pages of letters brought in before the build drew them
@@ -178,7 +179,8 @@ class Api:
         from . import answers as A  # the counting
         qs = read_json(self.ws.job_dir(jid) / "questions.json", {}).get("questions") or []  # as kept
         heads = {c["cid"]: " · ".join(x for x in (c.get("org"), c.get("title")) if x) for c in self.facts.candidates()} if any(q.get("cites") for q in qs) else {}  # each fact's name
-        return [{**q, "count": A.count(q.get("answer", ""), q.get("unit", "chars")), "cited": [{"id": c, "title": heads.get(c, "")} for c in q.get("cites") or [] if c in heads]} for q in qs]
+        return [{**q, "issues": A.with_placeholders(q), "count": A.count(q.get("answer", ""), q.get("unit", "chars")),  # a slot left to fill is said even under an answer checked before
+                 "cited": [{"id": c, "title": heads.get(c, "")} for c in q.get("cites") or [] if c in heads]} for q in qs]
 
     def set_questions(self, req: dict) -> None:
         """A job's questions as the page sends them, in order; a question that did not change keeps its answer."""
@@ -271,7 +273,12 @@ class Api:
             raise ValueError("style")
         if not isinstance(pack.get("banned_patterns", []), list):  # a list of [pattern, why]
             raise ValueError("style")
-        for row in pack.get("banned_patterns") or []:  # each pattern must compile, or every check would stop on it
+        printed = pack.get("printed", {})  # the rules for printed words (docs/WRITING.md "Printed words")
+        if not isinstance(printed, dict) or not words(printed.get("colloquial", [])) or not words(printed.get("highlight_names", [])) \
+                or printed.get("lines", "polish") not in ("fail", "polish") or not isinstance(printed.get("editing_notes", []), list) \
+                or not (printed.get("not_a_but_b") is None or (isinstance(printed.get("not_a_but_b"), int) and not isinstance(printed.get("not_a_but_b"), bool))):
+            raise ValueError("style")
+        for row in [*(pack.get("banned_patterns") or []), *printed.get("editing_notes", []), *[[p, ""] for p in printed.get("colloquial", [])]]:  # each pattern must compile, or every check would stop on it
             if not (isinstance(row, list) and len(row) == 2 and all(isinstance(x, str) for x in row)):  # [pattern, why]
                 raise ValueError("style")
             try:
@@ -349,8 +356,9 @@ class Api:
         finally:
             self._restoring.release()  # the next one may start
 
-    def set_settings(self, req: dict) -> dict:
-        """Change the settings that were sent (each one checked)."""
+    def _set_settings_locked(self, req: dict) -> bool:
+        """set_settings' reading, checking and writing of settings.json, under its lock. True when the portfolio kept on the
+        Desktop was just turned on."""
         s = read_json(self.settings_file, {})  # saved choices
         if req.get("lang") in ("auto", "ko", "en"):  # only a language the page offers
             s["lang"] = req["lang"]  # kept for the next start
@@ -391,6 +399,12 @@ class Api:
                 self.start.pop(k, None)  # the menu wins from here on
                 self.card.look_again()  # whether the new address answers is said now, not at the next minute's look
         write_json(self.settings_file, s)  # saved
+        return turned_on
+
+    def set_settings(self, req: dict) -> dict:
+        """Change the settings that were sent (each one checked)."""
+        with self._settings_lock:  # read, changed and written as one: a second change waits for the first
+            turned_on = self._set_settings_locked(req)
         if turned_on:  # an edition that passed already goes there now, not at the next build
             from . import delivery  # the portfolio kept on the Desktop
             for lang in ("ko", "en"):  # each language made
@@ -600,18 +614,28 @@ class Api:
         import shutil  # the edition before is replaced whole
         from .facts import OwnFacts  # the job's own facts
         root = self.ws.job_dir(jid) / "own"  # beside the job's other files
+        new, old = root.with_name(f"own.new-{os.getpid()}"), root.with_name(f"own.old-{os.getpid()}")  # the one coming in, the one going
         with self.ws.lock:  # one writer
-            shutil.rmtree(root, ignore_errors=True)  # a second one replaces the first
+            shutil.rmtree(new, ignore_errors=True)  # what a stopped import left
+            try:  # made whole beside the one before, which stays until this one is: an import that fails replaces nothing
+                facts = OwnFacts(Workspace(new), self.facts)  # its own workspace
+                n = facts.import_profile(doc, "own", str(req.get("name") or "own edition")[:120])  # its items as facts
+                write_json(new / "sources" / "review.json", {c["cid"]: "accepted" for c in facts.candidates()})  # all kept: the person wrote them
+                facts.rebuild()  # its profile and evidence
+                write_json(new / "own.json", {"langs": langs, "name": str(req.get("name") or "")[:120], "at": today()})  # what it is
+                from .tasks import OWN_FORM_KEYS  # the layout choices the form reads
+                form = req.get("form") if isinstance(req.get("form"), dict) else {}  # per language, as the edition was made
+                write_json(new / "form.json", {lang: {k: v for k, v in (form.get(lang) or {}).items() if k in OWN_FORM_KEYS}
+                                               for lang in langs if isinstance(form.get(lang), dict)})  # kept beside it
+            except BaseException:  # a profile that does not fit, a full disk: the edition before stays as it was
+                shutil.rmtree(new, ignore_errors=True)
+                raise
             self.tasks.forget_own(jid)  # nothing read from the one before
-            facts = OwnFacts(Workspace(root), self.facts)  # its own workspace
-            n = facts.import_profile(doc, "own", str(req.get("name") or "own edition")[:120])  # its items as facts
-            write_json(root / "sources" / "review.json", {c["cid"]: "accepted" for c in facts.candidates()})  # all kept: the person wrote them
-            facts.rebuild()  # its profile and evidence
-            write_json(root / "own.json", {"langs": langs, "name": str(req.get("name") or "")[:120], "at": today()})  # what it is
-            from .tasks import OWN_FORM_KEYS  # the layout choices the form reads
-            form = req.get("form") if isinstance(req.get("form"), dict) else {}  # per language, as the edition was made
-            write_json(root / "form.json", {lang: {k: v for k, v in (form.get(lang) or {}).items() if k in OWN_FORM_KEYS}
-                                            for lang in langs if isinstance(form.get(lang), dict)})  # kept beside it
+            shutil.rmtree(old, ignore_errors=True)  # what a stopped swap left
+            if root.exists():  # a second one replaces the first
+                retried(root.rename, old)  # aside, then gone below
+            retried(new.rename, root)  # the new one in its place
+            shutil.rmtree(old, ignore_errors=True)  # a file held open stays for the next import's sweep
             self.tasks.forget_own(jid)  # read afresh
         return {"facts": n}
 
@@ -620,10 +644,11 @@ class Api:
         name = " ".join(str(req.get("name") or "").split())[:80]  # its name, on one line, bounded
         if not name:  # a name is what tells it apart
             raise ValueError("name")
-        jid = self.ws.new_edition_id(name)  # its folder name
-        n = len(self.ws.jobs(removed=True, kind="edition")) + 1  # a counter for the order of editions made the same day
-        with self.ws.change({"code": "undo_add_edition", "company": name}, self.ws.job_files(jid)):  # undo takes it away
-            self.ws.save_job({"id": jid, "kind": "edition", "name": name, "company": "", "role": name, "created": today(), "seq": n})  # its record
+        with self.ws.lock:  # the folder name picked and the edition written in one go
+            jid = self.ws.new_edition_id(name)  # its folder name
+            n = len(self.ws.jobs(removed=True, kind="edition")) + 1  # a counter for the order of editions made the same day
+            with self.ws.change({"code": "undo_add_edition", "company": name}, self.ws.job_files(jid)):  # undo takes it away
+                self.ws.save_job({"id": jid, "kind": "edition", "name": name, "company": "", "role": name, "created": today(), "seq": n})  # its record
         return jid
 
     def deck_stale(self, b: dict) -> bool:
@@ -778,7 +803,8 @@ class Api:
         if len(posting) < 20:  # too short to be a posting
             raise ValueError("posting")  # nothing to analyze
         job = self.ws.job(jid) or {}  # its card, for the undo key's words
-        with self.ws.change({"code": "undo_posting", "company": job.get("company") or job.get("role") or jid}, [f"jobs/{jid}/posting.md"]):
+        # the plan too: the analysis that follows writes it with no step of its own, so one undo takes both back
+        with self.ws.change({"code": "undo_posting", "company": job.get("company") or job.get("role") or jid}, [f"jobs/{jid}/posting.md", f"jobs/{jid}/plan.json"]):
             write_text(self.ws.job_dir(jid) / "posting.md", posting + "\n")  # as pasted
 
     def add_job(self, req: dict, select: bool = True) -> str:
@@ -803,6 +829,14 @@ class Api:
             if company and role.startswith(company):  # the company named twice
                 role = role[len(company):].strip(" -·|,")
             role = role[:80]  # bounded
+        with self.ws.lock:  # the folder name picked and its job written in one go: two adds at once never share a folder
+            jid = self._add_job_locked(company, role, posting, url)
+        if select:  # the person added it: in view
+            self.ws.set_prefs(job=jid)
+        return jid  # the route starts its analysis
+
+    def _add_job_locked(self, company: str, role: str, posting: str, url: str) -> str:
+        """add_job's writing, under the workspace's lock: the folder's name and the job's files."""
         jid = self.ws.new_job_id(company, role or posting.splitlines()[0])  # its folder name
         n = len(self.ws.jobs(removed=True)) + 1  # a counter for the order of jobs made the same day
         # undo takes the job away, the questions a posting brought along with it
@@ -815,9 +849,7 @@ class Api:
             self.ws.save_job({"id": jid, "company": company, "role": role, "created": today(), "seq": n,  # its card, first column
                               "stage": "preparing", "dates": {"preparing": today()}, "next": "", "result": "",
                               **({"url": url[:2000]} if url else {})})  # where it was read from
-        if select:  # the person added it: in view
-            self.ws.set_prefs(job=jid)
-        return jid  # the route starts its analysis
+        return jid
 
     def agent_calls(self) -> dict:
         """The agent card's figures (apps/api/agent.py calls_summary), read at most every few seconds."""
@@ -844,7 +876,7 @@ class Api:
             raise ValueError("no_files")
         files, skipped = AP.collect(paths)  # what the paths hold (walked once: the run reads this list)
         paths = [str(f) for f in files] or paths  # the files themselves, so the run does not walk the folders again (none found: the run says why)
-        est = AP.estimate(len(mids) + len(files), with_job)  # calls and minutes
+        est = AP.estimate(len(mids) + len(files), with_job, agent=(self.card.chosen() or "none") != "none")  # calls and minutes; with no agent, the typesetting's few
         said = {"task": "autopilot", "files": len(mids) + len(files), "skipped": skipped[:20], "estimate": est}  # the answer's facts
         req_now = (mids, paths, posting, url, again, theme, pages, job)  # this request
         for _ in range(3):  # a run that ends between the look and the start: look again
@@ -879,6 +911,9 @@ class Api:
             jid = self.need_job(req)  # which job
             st = self.ws.job(jid)  # its status
             off = req.get("removed") is True and not st.get("removed")  # taken off now (only an explicit true removes)
+            days = [req.get("date")] + (list(req["dates"].values()) if isinstance(req.get("dates"), dict) else [])  # every day sent
+            if any(isinstance(d, str) and d and not is_day(d) for d in days):  # 2026-02-30: refused in words, never answered ok with nothing done
+                raise ValueError("date")  # as a reminder's bad day is refused
             # one undo step per change of the card; a removal says so on the undo key, an edition in its own words
             code = ("undo_remove_edition" if st.get("kind") == "edition" else "undo_remove_job") if off else "undo_board"
             with self.ws.change({"code": code, "company": st.get("company") or st.get("role") or st.get("name")}, self.ws.job_files(jid),

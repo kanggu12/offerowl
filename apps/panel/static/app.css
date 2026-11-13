@@ -30,7 +30,9 @@
 /* ---------------------------------------------------------------- the page */
 .layout { max-width: var(--page-w); margin: 0 auto; padding: var(--gap-xl) var(--pad-x) 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-xl); align-items: start; }
 .layout[data-view="documents"] { grid-template-columns: minmax(0, 1fr) var(--insp-w); }   /* a document and its inspector */
-.dochead { grid-column: 1 / -1; display: grid; gap: var(--gap-m); min-width: 0; }    /* the title, the actions and the choices, over both */
+.dochead { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-m); min-width: 0; }    /* the title, the actions and the choices, over both;
+   one column no wider than the head: an auto column took the widest row's one-line width (an English subtitle on a 390 px phone, 2 px past the window) */
+.dochead > * { min-width: 0; }                                                     /* each row wraps inside that column */
 .stage { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-l); align-content: start; }   /* one track, never wider than the page */
 .stage:focus { outline: none; }                                                      /* focus moves here on a view change; no ring around the page */
 .split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap-l); align-items: start; }   /* the profile: details and files, then the facts */

@@ -47,10 +47,12 @@ function rowWords(r) {                                                          
   if (r.kind === "questions") return t("{a} of {n} answered", { a: n.answered || 0, n: n.total || 0 });
   if (r.group === "made") return [lang, n.count ? (r.name === "deck.pdf" ? t("{n} slides", { n: n.count }) : t("{n} pages", { n: n.count })) : "", n.stale ? t("older than your facts") : ""].filter(Boolean).join(" · ");
   if (r.group === "sent") return [lang, "sha256 " + (n.sha256 || "")].filter(Boolean).join(" · ");
-  if (r.group === "kit") return n.made ? t("Made from the kit") : r.kind === "json" ? t("The kit's settings") : t("Kit note");   // a kit's JSON is how it is set up, not a note
+  if (r.group === "kit") return n.draft ? t("Scripts drafted by the agent") : n.made ? t("Made from the kit") : r.kind === "md" ? t("Scripts you wrote")   // the scripts first: they are what a kit is
+    : r.kind === "json" ? t("The kit's settings") : t("Kit note");                  // a kit's JSON is how it is set up, not a note
   return t(LIB_KIND_WORD[r.kind] || r.kind || "");
 }
 function fileName(r) {                                                              // a file's name as a person reads it
+  if ((r.note || {}).draft) return t("Draft scripts {n}", { n: (/(\d+)/.exec(r.name) || ["", "1"])[1] });   // the agent's drafts file by what it holds; its file name under it
   const words = { "resume.pdf": "Resume", "deck.pdf": "Portfolio deck", "cover.pdf": "Cover letter", "posting.md": "Posting", questions: "Form questions" }[r.name];
   return words ? t(words) : r.name;
 }

@@ -102,6 +102,47 @@ function problemWords(code) {                                                   
   const info = errorInfo(code);                                                     // the panel's reasons (name_missing, renderer_missing ...)
   return info.msg === errorInfo("unexpected").msg && code !== "unexpected" ? t("Did not work") : info.msg;   // a known one in words, else plainly (errorInfo makes a new object each time: compare the words)
 }
+function problemWhat(p) {                                                           // what a run could not do, as a sentence
+  const lang = p.lang === "en" ? t("English") : p.lang === "ko" ? t("Korean") : "";  // which edition, when it is one
+  if (p.step === "typeset") return lang ? t("The {lang} PDFs were not made.", { lang }) : t("The PDFs were not made.");
+  if (p.step === "cover") return lang ? t("The {lang} cover letter was not written.", { lang }) : t("The cover letter was not written.");
+  if (p.step === "export") return lang ? t("The {lang} files were not saved to the Desktop.", { lang }) : t("Nothing was saved to the Desktop.");
+  if (p.step === "interview") return t("The interview scripts were not written.");
+  if (p.step === "answers") return t("The form's answers were not finished.");
+  return t("Not finished: {step}.", { step: t(RUN_STEPS[p.step] || p.step) });     // any other step, by its name in the list above
+}
+function problemWhy(p) {                                                            // why, as a sentence of its own ("" when the code says no more)
+  const code = String(p.why || "");                                                 // the step's reason
+  if (!code || /^\d+$/.test(code)) return "";                                       // a count is no reason
+  if (refusedWords(code)) return refusedWords(code);                                // a Word or PowerPoint file kept home by its own check
+  if (/^blind_leak:\d+$/.test(code)) return t("A name the blind edition covers still shows.");
+  const SAID = { checks_failed: t("They did not pass their checks. Documents shows which."), changed: t("They changed after their checks."),
+    copy_unreadable: t("The copy did not read back."), blind_unread: t("The blind edition's text could not be read."), answers_need_attention: t("An answer still needs your fix."),
+    failed: t("The agent stopped part way."), agent_stopped: t("The agent stopped part way."), needs_agent: errorInfo("agent_unavailable").msg, agent_unavailable: errorInfo("agent_unavailable").msg,
+    not_written: t("No agent wrote it."), no_files: runError("no_files").msg, no_roles: runError("no_roles").msg };
+  if (SAID[code]) return SAID[code];                                                // the run's own codes
+  const info = errorInfo(code, { detail: p.detail });                               // the panel's reasons (needs_translation, name_missing, renderer_missing ...)
+  return info.msg === errorInfo("unexpected").msg && code !== "unexpected" ? problemWords(code) : info.msg;   // a known one in words, else its short words
+}
+function problemFix(p, run) {                                                       // the one key that fixes it, for the run on screen: {words, go, agent}
+  const code = String(p.why || ""), jid = run.job;                                  // why, and which edition
+  const toDocs = { words: t("Open the documents"), go: () => { S.job = jid; act("/api/v1/jobs/select", { job: jid }); go("documents"); } };   // its band says the rest
+  if (code === "needs_translation") return { words: t("Translate with the agent"), agent: true, go: () => act("/api/v1/translate", jid === GENERAL ? {} : { job: jid }, t("Translating. Make the PDFs again when it ends."), "info") };
+  if (["needs_agent", "agent_unavailable"].includes(code) || (!agentOn() && ["cover", "interview"].includes(p.step))) return { words: t("Turn on the agent"), go: () => openAgentMenu() };
+  if (p.step === "cover" && jid !== GENERAL) return { words: t("Tailor this job"), agent: true, go: () => tailorJob(jid) };   // the letter, written again with the others
+  if (p.step === "interview" && jid !== GENERAL) return { words: t("Open its interview tab"), go: () => { openApplication(jid, "interview"); go("jobs"); } };
+  if (p.step === "answers" && jid !== GENERAL) return { words: t("Open the questions"), go: () => { openApplication(jid, "questions"); go("jobs"); } };
+  const info = errorInfo(code);                                                     // a fix that needs no edition (install, Docker, the browser)
+  if (["engine_not_ready", "renderer_missing", "browser_missing"].includes(code)) return { words: info.fix, href: info.href, go: info.go };
+  return ["typeset", "export"].includes(p.step) ? toDocs : null;                     // the documents show the build's own band, and their export
+}
+function problemItem(p, run) {                                                      // one line of the list: the sentence, then its key
+  const why = problemWhy(p), found = problemFix(p, run);
+  const fix = found && found.agent && !agentOn() ? { words: t("Turn on the agent"), go: () => openAgentMenu() } : found;   // its fix asks the agent, which is off: turning it on comes first
+  return h("li", { class: "lit bad" }, h("span", { class: "pl-w", text: [problemWhat(p), why].filter(Boolean).join(" ") }),
+    fix ? (fix.href ? h("a", { class: "btn small", href: fix.href, target: "_blank", rel: "noopener", text: fix.words })
+      : h("button", { class: "btn small" + (fix.agent ? " agent" : ""), type: "button", onclick: fix.go, text: fix.words })) : null);   // a fix that sends to the agent is orange
+}
 function runError(code) {                                                           // why a run stopped, in words, and the one fix
   const E = {
     no_files: { short: t("No file to read"), msg: t("None of these files can be read. Use PDF, Word, PowerPoint, pictures or text.") },
@@ -147,7 +188,7 @@ function heroCard() {                                                           
       d.tagline ? h("div", { class: "tagline", text: d.tagline }) : null),
     h("div", { class: "rhead-facts" },
       h("b", { text: t("Applications") }),
-      jobs.length ? stageBar(jobs, { compact: true }) : h("span", { text: t("None yet") }),   // every application by stage, its words and numbers beside it
+      jobs.length ? stageBar(jobs, { compact: true }) : h("span", { class: "none-yet", text: t("None yet") }),   // every application by stage, its words and numbers beside it; none: words on its label's line
       ahead.length || next ? h("b", { text: t("Next") }) : null,
       ahead.length ? h("span", { class: "agenda" }, ahead.map(({ j, r }) => h("span", { class: "next-line" }, h("button", { class: "next", type: "button", onclick: () => goJob(j, "progress"),   // each round ahead opens its application
         text: `${String(r.at).slice(0, 10) === today ? `${t("Today")} ${String(r.at).slice(11, 16)}`.trim() : whenWords(r.at)} ${jobName(j)}, ${t(ROUND_KIND[r.kind] || "Other round")}` }),   // today's say so, as the application's line does
@@ -340,7 +381,7 @@ function chainCard() {                                                          
     step("documents", "file", docs, tn(docs, "Document", "Documents"),
       docs ? h("div", { class: "ps-docs" }, segBar([["r", t("Resume"), 100], ["d", t("Portfolio deck"), 66], ["c", t("Cover letter"), 40]].map(([k, w, pc]) =>   // the documents by kind
         ({ n: per[k], words: w, color: `color-mix(in srgb, var(--aqua-bar) ${pc}%, var(--surface))` })), { label: t("Documents"), id: "chain-docs", compact: true }),
-        h("span", { class: "ps-langs", text: t("{n} editions: Korean {k}, English {e}", { n: langs.ko + langs.en, k: langs.ko, e: langs.en }) })) : h("p", { class: "ps-none", text: t("The PDFs show here.") }), "documents"));
+        h("span", { class: "ps-langs", text: tn(langs.ko + langs.en, "{n} edition: Korean {k}, English {e}", "{n} editions: Korean {k}, English {e}", { k: langs.ko, e: langs.en }) })) : h("p", { class: "ps-none", text: t("The PDFs show here.") }), "documents"));
 }
 function sameName(mats, i) {                                                        // a file's name, told apart from another file of the same name by its number
   const name = mats[i].name, same = mats.filter((x) => x.name === name);
@@ -407,6 +448,8 @@ async function seeExample() {                                                   
   }
   if (S.facts.counts.to_confirm) await act("/api/v1/facts/keep-all", { material: ex.material && ex.material.id });   // the example's facts kept, never the person's own still to confirm; one undo takes them back
   UI.doc = "resume"; UI.mode = "live"; go("documents");                             // its resume on the canvas
+  // the next step, said once: the example lands on its resume with nothing that says where to go from there
+  toast(t("This is the example's resume. Add a job and it is tailored to it."), { words: t("Add a job"), run: () => { UI.adding = true; UI.jobsMode = "list"; go("jobs"); } }, "info");
 }
 function field(key, placeholder, send, onPaste, tall, ai) {                         // a text box with its start key (ai: what it takes goes to the agent: the rainbow rim)
   const box = h("textarea", { "data-key": key, rows: tall ? 3 : 1, placeholder, "aria-label": placeholder,
@@ -443,12 +486,15 @@ function runPanel(r) {                                                          
   const done = steps.filter((s) => s.state === "done").length;                      // finished steps
   const err = r.state === "error" ? runError((r.error || {}).code) : null;          // why it stopped
   const halted = !running && (r.result || {}).stopped;                              // the person stopped it
-  const lamp = running ? ["busy", t("Working")] : err ? ["bad", t("Stopped")] : halted ? ["warn", t("Stopped")] : steps.length ? ["ok", t("Done")] : ["off", t("Waiting")];
+  const partial = (s) => s.id === "typeset" && s.state === "done" && /^(ko|en)$/.test(String(s.detail || "").trim());   // the PDFs of one language only: the other one failed
+  const short = steps.some((s) => s.state === "failed" || partial(s));              // ended with something not done: amber, as its steps
+  const lamp = running ? ["busy", t("Working")] : err ? ["bad", t("Stopped")] : halted ? ["warn", t("Stopped")] : steps.length ? [short ? "warn" : "ok", t("Done")] : ["off", t("Waiting")];
   const stop = running ? h("button", { class: "btn sm", onclick: () => act("/api/v1/autopilot/stop", {}, t("It stops after the step in progress.")) }, icon("stop"), t("Stop")) : null;
   const word = { running: t("Working"), done: t("Done"), failed: t("Did not work"), skipped: t("Skipped"), waiting: t("Waiting") };   // a step's state
   const unit = { collect: ["{n} file", "{n} files"], read: ["{n} fact", "{n} facts"], keep: ["{n} fact", "{n} facts"], contact: ["{n} filled", "{n} filled"],
     answers: ["{n} answer", "{n} answers"], interview: ["{n} script", "{n} scripts"], export: ["{n} file", "{n} files"] };   // what a step's number counts, one and many
   const detail = (s) => {                                                           // its number with what it counts, or why it stopped
+    if (partial(s)) return "";                                                      // its word says it all
     if (s.state === "failed") return s.detail ? problemWords(s.detail) || runError(s.detail).short : "";   // the reason
     if (s.state !== "done" || !/^\d+$/.test(s.detail || "")) return "";             // no number to show
     const n = Number(s.detail);                                                     // the number
@@ -464,8 +510,9 @@ function runPanel(r) {                                                          
   return h("section", { class: "card conn", "aria-label": t("Automatic run") }, h("div", { class: "src", "data-state": lamp[0] }, head,
     err ? h("div", { class: "band", role: "alert", style: "margin-top:8px" }, h("p", { text: err.msg }), err.fix ? h("button", { class: "btn small", onclick: err.go, text: err.fix }) : null) : null,
     h("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-label": t("Steps") }, h("i", { style: `width:${pct}%` })),
-    h("ol", { class: "stepper" }, steps.map((s) => h("li", { class: "lit " + (lampOf[s.state] || ""), "data-step": s.id, "aria-current": s.state === "running" ? "step" : null },
-      h("b", { text: t(RUN_STEPS[s.id] || s.id) }), h("span", { text: [word[s.state] || "", detail(s)].filter(Boolean).join(", ") })))),
+    h("ol", { class: "stepper" }, steps.map((s) => h("li", { class: "lit " + (partial(s) ? "warn" : lampOf[s.state] || ""), "data-step": s.id, "aria-current": s.state === "running" ? "step" : null },
+      h("b", { text: t(RUN_STEPS[s.id] || s.id) }), h("span", { text: partial(s) ? (String(s.detail).trim() === "ko" ? t("Korean only") : t("English only"))   // part of it: which one came out
+        : [word[s.state] || "", detail(s)].filter(Boolean).join(", ") })))),
     h("div", { class: "fill", "aria-hidden": "true" }),                                       // the figures sit on the card's foot
     h("div", { class: "usage" }, h("div", { class: "usage-top" },
       h("span", { class: "stat" }, h("b", { text: clock(secs), "data-since": running && r.started ? String(r.started) : null }), h("span", { class: "k", text: t("Time") })),
@@ -499,7 +546,9 @@ function resultCard(run) {                                                      
   const grid = docTiles(run);                                                       // the PDFs, by language and document
   const tiles = grid.rows.length && grid.kinds.length;                              // anything to show
   const files = run.files || [];                                                    // the copies on the Desktop
-  const probs = (run.problems || []).filter((p) => p.step !== "export" || ["checks_failed", "changed", "copy_unreadable", "answers_need_attention", "blind_unread"].includes(p.why) || /^blind_leak:\d+$/.test(p.why) || refusedWords(p.why));   // what went wrong; the copying only when it was refused, a Word or PowerPoint file too
+  const probs = (run.problems || []).filter((p) => p.step !== "export" || ["checks_failed", "changed", "copy_unreadable", "answers_need_attention", "blind_unread"].includes(p.why) || /^blind_leak:\d+$/.test(p.why) || refusedWords(p.why))   // what went wrong; the copying only when it was refused, a Word or PowerPoint file too
+    .filter((p, i, all) => p.lang || !all.some((q) => q.step === p.step && q.lang))   // a step's line with no language beside its lines per language says the same thing again
+    .filter((p, i, all) => all.findIndex((q) => q.step === p.step && q.lang === p.lang && q.why === p.why) === i);   // and once each
   const det = S.details || {};                                                      // what "Your details" holds now
   const asked = probs.map((p) => p.why).filter((w) => w === "name_missing" || w === "email_missing");   // what the run said it lacked: the first it met
   const needs = asked.length ? ["name_missing", "email_missing"].filter((k) => asked.includes(k) || !String(det[k.replace("_missing", "")] || "").trim()) : [];   // and the other one when it is empty too, so one fix is enough
@@ -530,7 +579,7 @@ function resultCard(run) {                                                      
         h("span", { class: "thumb" }, icon("chat", 22)), h("span", { class: "iv-words" }, h("b", { text: t("Interview scripts") }), h("span", { class: "sub", text: t("Search and practice") })), icon("open", 16)) : null)
       : h("p", { class: "usage-none", text: t("No PDF was made.") }),
     probs.length && !needs.length ? h("p", { class: "hint", text: t("What the run of {at} could not do:", { at: dayTime(at) }) }) : null,   // that run's, not now's: the agent may be on since
-    probs.length && !needs.length ? h("ul", { class: "problist" }, probs.map((p) => h("li", { class: "lit bad", text: [t(RUN_STEPS[p.step] || p.step), p.lang ? (p.lang === "ko" ? t("Korean") : t("English")) : "", problemWords(p.why)].filter(Boolean).join(", ") }))) : null,
+    probs.length && !needs.length ? h("ul", { class: "problist" }, probs.map((p) => problemItem(p, run))) : null,   // each a sentence with its fix
     h("div", { class: "fill", "aria-hidden": "true" }),                                       // the Desktop line and the keys sit on the card's foot
     h("div", { class: "usage-sub" }, h("span", { text: files.length ? tn(files.length, "{n} file saved to your Desktop", "{n} files saved to your Desktop") : t("Nothing was copied.") }),
       files.length ? h("button", { class: "btn sm", onclick: openDesktop }, icon("folder"), t("Open the Desktop folder")) : null),

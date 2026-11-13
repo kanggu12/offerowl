@@ -1,7 +1,8 @@
 # Contributing to Offerowl
 
 Thank you for helping. Most of Offerowl can be worked on with no AI backend and no account: the tests run with stand-in models and
-fictional people, and the panel runs in a headless browser. This page takes you from a fresh clone to a pull request.
+fictional people, and the panel runs in a headless browser. This page takes you from a fresh clone to a pull request. What changed in
+each release is in [CHANGELOG.md](CHANGELOG.md).
 
 - [Ways to help](#ways-to-help)
 - [How the pieces fit](#how-the-pieces-fit)
@@ -263,7 +264,7 @@ The panel's look (`apps/panel/static/skin.css`, over `tokens.css` and `component
 
 ### The house style of the pictures
 
-The pictures look like the documents Offerowl makes.
+The drawn pictures are pieces of the panel: the same desk, glass, icons and colours as the screens beside them.
 
 - **Two copies of every drawn picture and every view of the panel:** `<name>-light.svg` and `<name>-dark.svg`, or `-light.png`
   and `-dark.png` for the panel's views; the badges, the banner and the gallery are one file each. The README picks one with
@@ -272,25 +273,32 @@ The pictures look like the documents Offerowl makes.
   - Plain SVG with text as text, so it stays sharp and searchable. The exceptions are the wordmark and the mark, whose letters are
     outlines.
   - A useful `aria-label` on each SVG, and a full sentence in the README's `alt` that says what the picture shows.
-- **Type:** Pretendard or the system sans, sizes between 12 and 40 pixels.
-- **Parts of the documents.** Every shape is a part of the resume or the deck Offerowl prints, so the docs look like what they
-  describe:
-  - a step is the resume's project card, a title bar over the pale band, and a step with nothing to mark is the band alone
-    with a navy title, as the resume's overview cards;
-  - a finished document is a page with a folded corner;
-  - a group of parts is a column under a rule, as the deck's focus columns;
-  - a chart's title is the resume's section title: a short blue bar, the title in navy, a thin rule under it.
-- Nearly square corners, arrows with short labels, and no colour without a meaning.
-- **Colour carries meaning, on a card's title bar, an arrow or a bar, with a legend:**
-  - In the pictures, navy means it stays on your PC (the panel shows the same in blue). An arrow that stays on your PC is the plain grey one.
-  - Amber (the highlighter) means the evidence.
-  - Orange means sent to the AI backend.
+- **Type:** Pretendard or the system sans, sizes between 12 and 40 pixels. Every text has room for the widest fallback font a
+  viewer may have (DejaVu Sans), and keeps 4.5:1 against what is under it.
+- **Parts of the panel** (`apps/panel/static/skin.css`, 'owl glass'), so the docs look like the screen they describe:
+  - the ground is the desk: a cool pale grey (a deep slate in the dark), the lamp's warmth from the top left and the night's
+    blue at the bottom right;
+  - a step or a part is a pane of the panel's frosted glass: its kind in one of the panel's icons on a tinted tile
+    (`apps/panel/static/core.js` ICONS, read by `build.py`), its title, and quiet lines under it;
+  - a run of steps is Make's chain: panes cut to chevrons, each pointing at the next;
+  - a group is one pane with its head inside and its parts on rows divided by hairlines, never a box in a box;
+  - a finished document is a sheet of paper with a folded corner, and a posting is an application's note;
+  - a chart is an Insights tile: rows of bars on their tracks, the counts beside them.
+- Square corners (2 pixels), thin arrows with short labels, and no colour without a meaning.
+- **Colour means what it means in the panel, with a legend:**
+  - Blue is your sources, amber the facts (the owl's eyes), orange what the AI writes, green the finished documents, on the
+    icons' tiles as on Make's chain.
+  - The highlighter, once per picture, marks the evidence.
+  - The rainbow rim marks the AI backend, as the panel draws it round what hands text to the AI, and an orange arrow carries
+    text to it. An arrow that stays on your PC is the plain grey one.
   - Red means stopped by a check.
+  - The Offerowl server wears the mark, as the panel's bar does. No AI backend is drawn as one company's.
 - **Real numbers only.**
   - Every number comes from a script in this repository run on the public example, never typed by hand.
   - `tools/measure.py` writes `docs/assets/data/*.json`, and `docs/assets/build.py` draws every SVG from them.
   - Running both redraws every SVG. `build.py --check DIR` renders each one in Chrome and counts text that leaves its room
-    or overlaps other text. The screenshots come from `docs/assets/scene.py` (one good run) and `tests/app/walk.py --guide DIR`; `gallery.png` and the kit's search
+    or overlaps other text, with this PC's fonts and with a wide and a narrow fallback font forced on every text; all three
+    must be zero. The screenshots come from `docs/assets/scene.py` (one good run) and `tests/app/walk.py --guide DIR`; `gallery.png` and the kit's search
     view are put together by hand from the example's typeset pages and the kit's page.
   - Drafting needs a model's words, so its numbers replay `docs/assets/data/recorded/`, the answers of one recorded run.
     `measure.py --record` records them again. A replay reports how many prompts still match the recording.
@@ -379,4 +387,5 @@ gets worse on those checks does not ship, however good the idea behind it.
 
 Open a [bug report](https://github.com/kanggu12/offerowl/issues/new?template=bug_report.yml), or a [document report](https://github.com/kanggu12/offerowl/issues/new?template=document_report.yml)
 when a resume, a deck or a letter comes out wrong. Please leave out anything from your own files: a fictional example is enough. A security problem goes
-to [the private form](.github/SECURITY.md).
+to [the private form](.github/SECURITY.md). [New issue](https://github.com/kanggu12/offerowl/issues/new/choose) lists every kind of report, and an idea for
+a feature goes to [Discussions](https://github.com/kanggu12/offerowl/discussions/new?category=ideas).

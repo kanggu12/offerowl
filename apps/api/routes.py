@@ -43,6 +43,14 @@ class FileAnswer(bytes):
         return obj
 
 
+def unlocked(a: Api, jid: str | None) -> str | None:
+    """The job a write names, refused once it was submitted and locked: its sentences, its letter and its deck stay as they
+    went out (tailoring and building it again are refused the same way). The general edition (None) is never locked."""
+    if jid and (a.ws.job(jid) or {}).get("locked"):  # submitted: the copies that went out are kept as they went
+        raise ValueError("locked")  # the page says the application was submitted and locked
+    return jid  # free to change
+
+
 def lang_of(v) -> str:
     """A document language from a request: ko or en, Korean when unknown."""
     return v if v in LANGS else "ko"  # only the editions there are
@@ -292,20 +300,23 @@ class Router:
             a.details(req)  # one undo step per field and pause
             return None  # the new state is the whole answer
         if path == "/api/v1/sentences/edit":  # new words for one sentence of the canvas
-            return {"sentence": documents.edit_sentence(t, str(req.get("sid") or ""), req.get("text"), lang_of(req.get("lang")), a.job_in(req))}  # its new state
+            return {"sentence": documents.edit_sentence(t, str(req.get("sid") or ""), req.get("text"), lang_of(req.get("lang")), unlocked(a, a.job_in(req)))}  # its new state
         if path == "/api/v1/sentences/lock":  # keep a sentence through later drafts
-            documents.lock_sentence(t, str(req.get("sid") or ""), req.get("locked") is not False, lang_of(req.get("lang")), a.job_in(req))  # one undo step
+            documents.lock_sentence(t, str(req.get("sid") or ""), req.get("locked") is not False, lang_of(req.get("lang")), unlocked(a, a.job_in(req)))  # one undo step
             return None  # the new state is the whole answer
         if path == "/api/v1/sentences/regenerate":  # new words from the evidence (the agent)
             sid = str(req.get("sid") or "")  # which sentence
             if not documents.SID.match(sid):  # a made-up id
                 raise ValueError("sentence")  # refused
-            return {"started": t.regen(sid, lang_of(req.get("lang")), a.job_in(req), str(req.get("way") or "")), "task": f"regen:{sid}"}  # the task's key, in the direction picked
+            jid = unlocked(a, a.job_in(req))  # a submitted application's sentences stay as they went
+            return {"started": t.regen(sid, lang_of(req.get("lang")), jid, str(req.get("way") or "")), "task": f"regen:{sid}"}  # the task's key, in the direction picked
         if path == "/api/v1/undo":  # the undo button; {"only": id} from a toast takes back that step only
             with a.ws.lock:  # the newest step is looked at and taken back in one go
                 if req.get("only") is not None and str(req["only"]) != a.ws.newest()[0]:  # another change came after it (or it was undone)
                     return {"undone": None, "moved": True}  # nothing is taken back: the page says the change is in the history
                 label = a.ws.undo()  # the files back
+                if label is not None and not t.busy("ingest"):  # a reading's step put back the list as it was while those files were read
+                    t.unstick()  # so none stays "reading" with no reading running (under the lock: a reading starting now marks its files after this)
             if label is not None:  # something was undone
                 a.facts.rebuild()  # the profile follows the restored facts
             return {"undone": label}  # the page says what came back
@@ -320,28 +331,30 @@ class Router:
                     if label is None:  # nothing left
                         break  # stop
                     done.append(label)  # remembered
+                if done and not t.busy("ingest"):  # as for one undo: no file stays "reading" with no reading running
+                    t.unstick()
             if done:  # the profile follows
                 a.facts.rebuild()  # once
             return {"undone": done}  # what came back
         if path == "/api/v1/jobs":  # a pasted posting or a link
             jid = a.add_job(req)  # its folder and card
-            t.analyze(jid, agent=False)  # the analysis starts at once, by words: adding a job sends nothing to the agent
+            t.analyze(jid, agent=False, step=False)  # the analysis starts at once, by words: adding a job sends nothing to the agent; the add's step holds its plan
             return {"job": jid}  # the new job's id
         if path == "/api/v1/jobs/select":  # another job in view
             a.ws.set_prefs(job=a.need_job(req))  # remembered with the workspace
             return None  # the new state is the whole answer
         if path == "/api/v1/jobs/write":  # the resume's sentences from the evidence (the agent)
-            jid = a.need_job(req)  # which job, or the general edition
+            jid = unlocked(a, a.need_job(req))  # which job, or the general edition; a submitted one is not written again
             return {"started": t.write_resume(jid, lang_of(req.get("lang"))), "task": f"write:{jid}"}  # the task's key
         if path == "/api/v1/jobs/figures":  # the deck's figures from the evidence (the agent)
-            jid = a.need_job(req)  # which job, or the general edition
+            jid = unlocked(a, a.need_job(req))  # which job, or the general edition; a submitted one keeps its deck
             return {"started": t.draw_figures(jid, lang_of(req.get("lang"))), "task": f"figures:{jid}"}  # the task's key
         if path == "/api/v1/jobs/analyze":  # analyze the posting again
             return {"started": t.analyze(a.need_job(req))}  # False when one already runs
         if path == "/api/v1/jobs/posting":  # a job's posting written again (the part with the duties pasted in), read again at once
             jid = a.need_job(req)  # which job
             a.set_posting(jid, str(req.get("posting") or ""))  # one undo step
-            return {"job": jid, "started": t.analyze(jid, agent=False)}  # by words: nothing goes to the agent
+            return {"job": jid, "started": t.analyze(jid, agent=False, step=False)}  # by words: nothing goes to the agent; the paste's step holds the plan
         if path == "/api/v1/jobs/tailor":  # resume, cover letter and interview kit together
             jid = a.need_job(req)  # which job
             if (a.ws.job(jid) or {}).get("locked"):  # submitted copies are frozen

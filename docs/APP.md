@@ -209,7 +209,20 @@ scaled down to the width (a pinch enlarges them).
 - A submitted application's export gives its frozen copies byte for byte, Word files included, as they were frozen: the lock keeps the
   build's own Word file, and the Word-ready copy made from it is the same bytes each time.
 - With a job in view the resume follows its plan: the skill groups the job needs lead, its strengths step back and
-  its projects come in its order.
+  its projects come in its order. The head says "For {job}" when the edition was written or brought in for the job, and
+  "the general resume as it is" while the job has none of its own.
+- "Typeset PDF" lays the PDF's pages where the live pages stand, at the same size and with the same spread, so switching
+  between the two keeps the page in place. "Make PDFs" makes them with the Style tab's page limit when one was picked in this
+  browser, else with the limit the edition was made with; the blind switch keeps that limit and changes only the bars.
+- A build that fails says why over the page with its one fix: an English edition whose profile lacks a field's English
+  offers the translation. The checks' findings are worded in the app's language; the defects keep the PDFs home, the notes to
+  polish ([Printed words](WRITING.md#printed-words)) stand in a quieter band.
+- The English edition's sentences still in Korean are marked with a dotted amber line and "In Korean" in the margin, and a
+  band counts them with the key that translates them.
+- A submitted and locked application keeps its documents as they went: no key offers to edit, regenerate, rewrite, write or
+  lock a sentence, write its letter or draw its deck, and the server refuses each (`locked`). Its own files that went out
+  show as the copies that went out in both views; a letter that did not go out says so; the live page of copies Offerowl made
+  says it is drawn from the profile as it is now.
 
 ### Evidence on click
 
@@ -230,6 +243,8 @@ scaled down to the width (a pinch enlarges them).
   (`POST /api/v1/sentences/regenerate` with `way` set to `shorter`, `plainer` or `result`); the new words are kept only when they
   pass the same checks.
 - **Lock**: a locked sentence cannot be edited, regenerated or rewritten until it is unlocked, and a new draft keeps its words.
+- With no agent on, Regenerate and the three rewrites wait, and a line under them says so beside "Turn on the agent". Saving the
+  words a sentence already has makes no undo step.
 - A sentence without evidence has a red wave under it, the toolbar counts it, a band offers "Show the first one", and
   the export and the lock are refused until it is fixed.
 
@@ -375,8 +390,8 @@ phone, and the figures are drawn for the width they get.
 
 ### The command bar
 
-**Ask the AI**, a prompt floating at the window's bottom right with its key at its end (on a phone or a tablet, a frosted
-bar along the foot of the screen), or Ctrl+K (Cmd+K), opens a sheet flush with the window's right edge, from the top bar
+**Ask the AI**, a floating button at the window's bottom right (a raised pill in the main key's colour with the AI's
+sparkles and its words, the same on a phone), or Ctrl+K (Cmd+K), opens a sheet flush with the window's right edge, from the top bar
 to the window's foot, where you write to the agent as you would in Claude Code or Codex: an interview's result to record, a
 posting to make a resume for, a question about your applications. With no agent that can use the tools (Claude Code or
 Codex, on and signed in) the sheet says so before anything is typed, with a key to the agent's panel. The

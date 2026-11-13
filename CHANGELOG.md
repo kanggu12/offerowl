@@ -6,6 +6,68 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-11-13
+
+What independent reviews of 0.9.1 found (the first run, the Documents area, the rest of the panel, the server and the
+docs' pictures), and checks on the words and lines a PDF prints.
+
+### Added
+
+- **The printed words are checked too.** Every build reads the PDF it made: a value a build left empty, marks left as typed
+  and editing notes stop an export. A style pack's new `printed` object adds the house rules the person keeps (a comma
+  after a Korean connective ending, "A가 아니라 B", 와/과 between Latin words, one word twice in a sentence, colloquial
+  patterns) and the line checks: a highlight broken across two lines, its size, a name inside it, and a paragraph that
+  ends on one word ([WRITING.md](docs/WRITING.md#printed-words)). Findings show in the panel in its own words, the notes to
+  polish in a quieter band.
+- A deck source's own `tools/check_deck.py`, `check_align.py`, `check_density.py` and `check_contrast.py` run on every
+  build's deck, and what they find is the deck's issues.
+- Page 1 of a resume links its email and web addresses (LibreOffice dropped links inside table cells).
+- The English edition's sentences still in Korean are marked, counted and offered for translation.
+
+### Changed
+
+- The competency figure is back to stepped arrow plates, light and short at the top, long and dark at the bottom, in the
+  resume and the deck alike.
+- The resume's selected-project cards set each label (problem, action, result) on a row of its own, so the labels line up
+  across the cards and a shorter card no longer ends in an empty block; a hairline divides the rows and the company and
+  years sit a step quieter under the title. Section titles are 12 pt, a step above the company bands and the sub-headings,
+  and items and the about-me paragraphs have more room between them.
+- The PDFs keep their pictures lossless (a logo was 69 px, a photo a JPEG), and a PDF that leaves your PC names no tool
+  as its creator.
+- **Ask the AI** is a floating pill with the sparkles mark and its words, at the window's bottom right.
+- The docs' pictures are drawn as pieces of the panel: its frosted glass, icons and colours, which mean what they mean in
+  the panel. They stay inside their boxes with a wide or a narrow font, and every text keeps 4.5:1. The README's guides
+  are one list, and a short Contributing section points to CONTRIBUTING.md.
+- Practice, the cue cards, the interview deck, the map and Insights count the agent's draft scripts, marked as drafts. The
+  Library lists the kit's scripts, the agent's drafts apart from your own, and no longer the files the panel writes into
+  every kit.
+- A run's problems on Make read as sentences, each with its one fix, and PDFs made in one language say so in amber. With
+  no agent the estimate is the typesetting's two minutes.
+
+### Fixed
+
+- A submitted application could still be changed from the inspector: the server now refuses sentence edits, locks,
+  regenerating, resume writing and figure drawing for it, and the Documents tab lists the copies that went out.
+- A change that stopped half way left half-written files; jobs added at once could share a folder; an undo could leave a
+  file "reading"; the toast's Undo after a job was added left its analysis; settings changed at once lost one change; a
+  long Korean file name broke on disk; Desktop and restore names were not ones every system takes; an own edition that
+  failed to come in replaced the one before; a request body sent in chunks ran as an empty request (it is refused with
+  411 now); a lock skipped the export's checks; an impossible day reached the board.
+- A build that failed with anything but SystemExit left the engine's folder and a changed profile behind; it now says why
+  without a path and puts the edition's files back. Make PDFs keeps the page limit an edition was made with.
+- The inspector kept the resume's evidence on the cover tab, offered keys that need the agent with the agent off, and a
+  double click on a sentence redrew it before it could be typed over. Saving the same words made an undo step.
+- With the server gone, every view says so once under the bar with "Connect again", and a write says it was not saved.
+- Long names wrap inside the board's cards, Make's notes, the list and the timeline's chips; the timeline and the days
+  table come in pages; an emoji in a name badge is no longer cut in half.
+- The settings, the agent's panel and the request sheet keep the keyboard inside while open; Escape closes the posting's
+  form; the keyboard lands on the note's Undo after a removal; an application removed in another window is said.
+- Keeping, dropping or putting back a fact says so with Undo; a fact typed in is shown where the list puts it.
+- On a phone: the inspector's tabs stay on one row at 44 px, and the lock key keeps its words; the Documents head and its
+  keys no longer make an English page 2 px wider than a 390 px screen.
+- Running a deck source's own check tools left Python bytecode in the source, which marked every edition's deck as
+  changed; bytecode is no longer part of the deck's stamp.
+
 ## [0.9.1] - 2026-11-13
 
 What three independent reviews of 0.9.0 found: the panel outside the interview tab, the interview tab, and the code.
@@ -449,7 +511,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/kanggu12/offerowl/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/kanggu12/offerowl/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/kanggu12/offerowl/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/kanggu12/offerowl/compare/v0.8.0...v0.8.1

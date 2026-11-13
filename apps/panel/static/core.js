@@ -47,7 +47,7 @@ const ICONS = {                                                                 
   pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
   stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/>',
   close: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
-  agent: '<path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6L6 18"/>',
+  agent: '<path d="M9.5 6.5c.55 4.2 2.8 6.45 7 7c-4.2.55-6.45 2.8-7 7c-.55-4.2-2.8-6.45-7-7c4.2-.55 6.45-2.8 7-7z"/><path d="M18 2.5c.35 1.85 1.65 3.15 3.5 3.5c-1.85.35-3.15 1.65-3.5 3.5c-.35-1.85-1.65-3.15-3.5-3.5c1.85-.35 3.15-1.65 3.5-3.5z"/>',   // AI: two sparkles, any agent's (the eight-ray star was Claude's mark)
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a13.5 13.5 0 0 1 0 18M12 3a13.5 13.5 0 0 0 0 18"/>',
   folder: '<path d="M3 7.5A2 2 0 0 1 5 5.5h4.2l2 2.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
@@ -90,8 +90,10 @@ const ICONS = {                                                                 
 const MONO_HUES = ["#2f6eba", "#0f766e", "#7c3aed", "#b45309", "#be185d", "#4d7c0f", "#475569", "#9a3412"];   // dark enough for white letters (4.5:1); never the brand navy, which the list itself is
 function mono(name, size, stage) {
   const s = String(name || "?").trim();                                             // the company's name
-  const words = s.split(/[\s,()]+/).filter(Boolean);                               // its words
-  const ini = /^[A-Za-z0-9]/.test(s) ? (words.length > 1 ? words[0][0] + words[1][0] : s.slice(0, 2)).toUpperCase() : s.slice(0, 1);   // two Latin letters, or one Hangul syllable
+  const lead = s.replace(/^[^\p{L}\p{N}\p{Extended_Pictographic}]+/u, "") || s;      // from its first letter, digit or emoji: "<b>" and quotes are not a name's initial
+  const words = lead.split(/[\s,()]+/).filter(Boolean);                            // its words
+  const first = (x) => { try { const g = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(x)[Symbol.iterator]().next().value; return g ? g.segment : ""; } catch (_) { return [...x][0] || ""; } };   // one whole character as a reader sees it: an emoji with its joiners, never half a pair (slice(0, 1) drew "\ufffd")
+  const ini = /^[A-Za-z0-9]/.test(lead) ? (words.length > 1 ? words[0][0] + words[1][0] : lead.slice(0, 2)).toUpperCase() : first(lead);   // two Latin letters, or one Hangul syllable or emoji
   let hsh = 0; for (const ch of s) hsh = (hsh * 31 + ch.codePointAt(0)) >>> 0;       // the same name, the same colour, on every screen
   return h("span", { class: "mono" + (size ? " " + size : ""), "data-stage": stage || null, style: stage ? null : `--mc:${MONO_HUES[hsh % MONO_HUES.length]}`, "aria-hidden": "true", text: ini });   // a stage given: its colour, which means something
 }
@@ -113,6 +115,7 @@ const UI = {                                                                    
   docLang: localStore("offerowl-doclang") || null,                                   // the document's language (null: the profile's own)
   theme: localStore("offerowl-doctheme") || "navy",                                 // the resume's colour pack
   maxPages: Number(localStore("offerowl-maxpages") || 3),                           // the page limit
+  maxPagesChosen: localStore("offerowl-maxpages") !== null,                          // picked in this browser; else an edition made before keeps its own limit
   cover: localStore("offerowl-cover") !== "0",                                      // tailoring writes the cover letter too
   typeset: localStore("offerowl-typeset") === "1",                                  // tailoring makes the PDFs too
   tab: "evidence",                                                                  // the inspector's tab
@@ -186,7 +189,7 @@ async function act(path, body, okText, okKind = "done") {                       
     if (okText) toast(okText, okKind === "done" && j && j.step ? { words: t("Undo"), run: () => undoOnly(j.step) } : null, okKind);   // a change made: its Undo on the note (a phone's band covers the bar's)
     schedule(); return j;                                                           // polled while a task runs
   }
-  catch (e) { if (e.message !== "offline") toast(errorText(e), null, "bad"); return null; }      // the reason in words
+  catch (e) { toast(e.message === "offline" ? t("Offerowl is not answering, so this was not saved.") : errorText(e), null, "bad"); return null; }   // the reason in words; a server gone says so too, beside the bar's band
 }
 let stateTag = { tag: "", of: null };                                               // the ETag of the state drawn, and that very state object
 async function refresh() {                                                          // the state again
@@ -217,6 +220,9 @@ function noteEnded(before, now) {
     const ok = is("ask").state === "done";
     toast(ok ? t("The AI answered your request.") : t("The AI's request did not finish."), { words: t("See the answer"), run: () => askToggle(true) }, ok ? "done" : "bad");
   }
+  const shown = before && before.job ? (before.jobs || []).find((j) => j.id === before.job) : null;   // the application in view before this poll
+  if (shown && !(now.jobs || []).some((j) => j.id === shown.id) && ["jobs", "documents"].includes(UI.view))   // gone since, and not by this window (a write here draws its own state first)
+    toast(t("{name} was removed in another window. It may be in the Trash.", { name: [shown.company, shown.role].filter(Boolean).join(", ") || shown.id }), null, "info");
   if (ended("autopilot") && UI.view !== "make") {                                   // the run's result is on Make
     const ok = is("autopilot").state === "done";
     toast(ok ? t("The documents are made.") : t("Making the documents stopped."), { words: t("Open"), run: () => go("make") }, ok ? "done" : "bad");
@@ -292,6 +298,7 @@ const job = () => (S.jobs || []).find((j) => j.id === S.job) || null;           
 const named = () => (S.editions || []).find((e) => e.id === S.job) || null;       // the named general edition in view, if one is
 const jobId = () => (job() || named() ? S.job : undefined);                         // the job or named edition a request names: none for the general edition
 const edition = () => job() || named() || S.general || null;                        // what PDFs are made for: the job in view, a named edition, else the general edition
+const sentAway = () => !!(job() && job().locked);                                   // the job in view was submitted and locked: its documents stay as they went
 const task = (key) => (S.tasks || {})[key] || {};                                   // one task's state
 const docLang = () => UI.docLang || (typeof job === "function" && job() && job().locked && job().locked.lang) || S.profile_lang || "ko";   // the document's language: chosen, else what a submitted application went out in
 const taskMarks = () => Object.entries(S.tasks || {}).map(([k, v]) => [k, Object.entries(v || {}).filter(([f]) => f !== "t")]);   // the tasks without their clocks
@@ -353,7 +360,7 @@ function errorText(e) {                                                         
     unreachable: t("The page did not answer. Paste the posting's text instead."), not_text: t("That link is not a web page. Paste the posting's text instead."),
     empty: t("That page has no text Offerowl can read. Paste the posting's text instead."), too_large: t("That page is too large. Paste the posting's text instead."),
     not_built: t("Make the PDFs first."), locked: t("This application was submitted and locked."), edit_in_korean: t("Edit the Korean sentence, then translate again."),
-    no_fact: t("Change this part in your profile."), at: t("Pick a date for the reminder."), text: t("Write what to be reminded of."), sentence: t("That sentence changed. Pick it again."),
+    no_fact: t("Change this part in your profile."), at: t("Pick a date for the reminder."), date: t("Pick a real date."), text: t("Write what to be reminded of."), sentence: t("That sentence changed. Pick it again."),
     style: t("That file is not a rules file."), photo: t("Use a JPEG or PNG photo."), answers_need_attention: t("An answer still needs your fix. Its problems are under it."),
     questions: t("Write the question first."), no_questions: t("No question was found in it. Paste the form's questions as they appear."), question: t("That question changed. Open the job again."),
     checks_failed: t("These documents did not pass their checks, so they stay here. The list above the document says what failed."),
@@ -495,8 +502,12 @@ async function removeAct(path, body, words) {                                   
     const j = await api(path, body);                                                // done; the new state is drawn
     schedule();                                                                     // polled while a task runs, as act() does
     toast(words, j.step ? { words: t("Undo"), run: () => undoOnly(j.step) } : null);   // the step the answer names: this change, never one another writer made just after it
+    // the key pressed went with its row: the keyboard lands on the note's Undo, never on the page's top (the body), so a
+    // keyboard user can take it back or go on from there
+    const k = $("toast").querySelector(".toast-key");
+    if (k && (document.activeElement === document.body || !document.activeElement)) k.focus({ preventScroll: true });
     return j;
-  } catch (e) { if (e.message !== "offline") toast(errorText(e), null, "bad"); return null; }    // the reason in words
+  } catch (e) { toast(e.message === "offline" ? t("Offerowl is not answering, so this was not saved.") : errorText(e), null, "bad"); return null; }    // the reason in words
 }
 async function undoOnly(id) {                                                       // a note's Undo: the change it named, only while it is still the newest
   const r = await act("/api/v1/undo", { only: id });                                // the server compares the names under its lock
@@ -554,6 +565,20 @@ function flashSaved() {                                                         
   flashSaved.tm = setTimeout(() => el.classList.remove("show"), 1600);              // faded
 }
 function pill(cls, text) { return h("span", { class: "pill " + cls, text }); }      // a lamp and a word
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+function sheetKeys(box) {                                                           // the keys of an open sheet a keyboard can reach, in order
+  return box ? [...box.querySelectorAll(FOCUSABLE)].filter((k) => k.getClientRects().length && getComputedStyle(k).visibility !== "hidden") : [];
+}
+function trapTab(e, box) {                                                          // Tab and Shift+Tab go round inside an open sheet: the page behind it is dimmed and out of reach
+  if (e.key !== "Tab" || !box) return;
+  const ks = sheetKeys(box); if (!ks.length) return;                                // nothing to go round
+  const i = ks.indexOf(document.activeElement);                                     // where the keyboard is (-1: outside the sheet)
+  if (e.shiftKey && i <= 0) { e.preventDefault(); ks[ks.length - 1].focus(); }      // back from the first: the last
+  else if (!e.shiftKey && (i === -1 || i === ks.length - 1)) { e.preventDefault(); ks[0].focus(); }   // on from the last, or from outside: the first
+}
+function focusSheet(sel) {                                                          // a sheet just opened: the keyboard goes into it, not left on the key that opened it
+  requestAnimationFrame(() => { const k = sheetKeys(document.querySelector(sel))[0]; if (k) k.focus({ preventScroll: true }); });
+}
 function band(code, ctx) {                                                          // an error band with its one fix
   const e = errorInfo(code, ctx);                                                   // the words
   return h("div", { class: "band", role: "alert" }, h("p", { text: e.msg }), e.sent ? sendNote(e.sent) : null,

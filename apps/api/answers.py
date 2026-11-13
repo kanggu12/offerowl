@@ -22,6 +22,25 @@ MAX_QUESTIONS = 12  # questions one job keeps: a form rarely has more
 MAX_LIMIT = 5000  # the largest limit one question may set
 ROOM = 7000  # characters of facts one answer is written from
 SHORT = 0.6  # an answer under this share of its limit is said to be short: a form wants the room used
+# words left in an answer for the person to fill: a slot in angle brackets (<link>, <회사명>), a to-do mark, an ellipsis in
+# brackets, a template's double braces, a row of circles (○○ 회사), or a bracketed slot name. A form would send them as they are
+PLACEHOLDER = re.compile(r"<[^<>\s][^<>\n]{0,38}>|\b(?:TODO|TBD|FIXME)\b|\[(?:…|\.{3})\]|\{\{[^{}\n]{0,40}\}\}|[○◯]{2,}"
+                         r"|\[(?:링크|주소|회사명?|이름|날짜|숫자|link|url|name|company|date|number|insert[^\]\n]{0,20})\]", re.I)
+
+
+def placeholders(answer: str) -> list[str]:
+    """The slots an answer still holds, as its problems ("placeholder:<link>"): each once, three at most."""
+    seen: list[str] = []  # in the order they stand
+    for m in PLACEHOLDER.finditer(answer or ""):  # every slot
+        if m.group(0)[:40] not in seen:  # once each
+            seen.append(m.group(0)[:40])
+    return [f"placeholder:{w}" for w in seen[:3]]  # named, as the page shows them
+
+
+def with_placeholders(q: dict) -> list:
+    """An answer's problems as kept, with the slots it still holds: an answer checked before this check existed shows them too."""
+    issues = list(q.get("issues") or [])  # as kept
+    return issues + [p for p in placeholders(str(q.get("answer") or "")) if p not in issues]  # the slots not said yet
 
 
 def lang_of(text: str) -> str:
@@ -133,6 +152,7 @@ def problems(q: dict, answer: str, cites: list[str], facts: dict, style: dict, p
     out += [f"style:{x}" for x in draft.style_issues(answer, style)]  # banned characters and patterns
     if re.search(r"\*\*[^*\n]+\*\*|^#{1,6}\s", answer, re.M):  # Markdown's bold and headings: a form's box shows the marks as they are (not __init__ or a blank ____)
         out.append("markup")  # said, and a drafted answer is written once more without them; it never stops the export
+    out += placeholders(answer)  # a slot left to fill: said, written once more by the agent, and the export waits for it
     return out
 
 

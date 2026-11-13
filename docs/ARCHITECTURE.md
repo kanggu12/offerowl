@@ -60,7 +60,8 @@ git's two settings (`.gitignore`, `.gitattributes`).
 5. **Render.** `src/layout.js` writes the DOCX and a renderer makes the PDF ([The renderer](#the-renderer)). The deck is HTML printed
    by a browser.
 6. **Layout checks.** Page fill, line ends, overflow and, on slides, overlap, arrow ends, small text and contrast
-   (`src/check_render.py`, `src/check_documents.py`, the deck's browser probe).
+   (`src/check_render.py`, `src/check_documents.py`, the deck's browser probe); the printed words and the highlights and last
+   lines the typesetting set (`src/check_lines.py`, [Printed words](WRITING.md#printed-words)).
 7. **Export.** The PDF and the DOCX. A sentence with no evidence blocks the export. "Lock when submitted" keeps exact copies
    with their hashes.
 

@@ -161,6 +161,32 @@ class SessionTest(unittest.TestCase):  # the practice service with stand-ins for
         self.assertEqual((fu["followup"], fu["from"]), (nxt, "scene" if nxt else ""))  # it stands in
         self.assertIn("in English", practice.FOLLOW_SYSTEM)  # and the prompt asks for English in the first place
 
+    def test_drafts_are_practised_marked_and_a_start_with_nothing_keeps_nothing(self):
+        """A kit whose scripts are all the agent's drafts is practised, each question marked as a draft; a kit with no script
+        at all starts nothing and keeps no empty session (each start added an empty row to the history)."""
+        from interview.job import Job  # the copied job
+        tmp, job_dir = helpers.copy_workspace()
+        try:
+            job = Job(job_dir)  # its output folder is where the agent's drafts go
+            drafts = job.out_path() / "drafts"  # as draft.py writes them
+            drafts.mkdir(parents=True)
+            (drafts / "drafts-1.md").write_text((job_dir / "interview" / "qa.md").read_text(encoding="utf-8"), encoding="utf-8")   # the person's scenes, as if the agent had drafted them
+            for name, head in (("qa.md", "# 문답\n"), ("deep.md", "# 이력상세\n"), ("terms.md", "# 용어\n")):   # no scene of the person's own left
+                (job_dir / "interview" / name).write_text(head, encoding="utf-8")
+            p = practice.Practice(Job(job_dir), self.out, backend="none")  # no model
+            s = p.start(n=4, seed=1)
+            self.assertTrue(s["questions"])  # practised, not refused
+            self.assertTrue(all(q["draft"] for q in s["questions"]))  # and each says it comes from a draft
+            self.assertTrue(s["id"])  # a real session, kept
+            shutil.rmtree(drafts)  # now no script at all
+            p = practice.Practice(Job(job_dir), self.out, backend="none")
+            before = len(p.store.list())  # the sessions kept so far
+            empty = p.start(n=4, seed=1)
+            self.assertEqual((empty["id"], empty["questions"]), ("", []))  # nothing to practise with
+            self.assertEqual(before, len(p.store.list()))  # and nothing kept for it
+        finally:
+            shutil.rmtree(tmp)
+
     def test_bad_ids_and_the_cap(self):
         """A session id of any other shape names no file, and only the newest KEEP sessions stay."""
         p = practice.Practice(helpers.example_job(), self.out, backend="none")  # no model

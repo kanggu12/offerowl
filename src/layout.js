@@ -40,12 +40,19 @@ function run(text, o = {}) {
 // Highlight marking. A ==phrase== inside a text is painted on a pale yellow background (FFF0A0, not a saturated
 // highlighter yellow). The marker characters do not appear in the render.
 const HILITE = "FFF0A0";
+// What rich() set, for the line checks (src/check_lines.py): every highlighted phrase in the order it was drawn, and every
+// paragraph it set (the introduction, a card's cells, a competency, an item, about me, the motivation) without its marks.
+// render() writes them beside the document as <name>.highlights.json; the checks find each in the PDF's word boxes and
+// say whether a highlight broke across two lines, how long it is, and whether a paragraph ends on a word of its own
+const HIGHLIGHTS = [];
+const PARAS = [];
 function rich(text, o = {}) {
+  PARAS.push(String(text).replace(/==/g, ""));                                  // the paragraph as it reads
   // split() with a capture group puts the captured (marked) phrases at the odd positions. Empty pieces are filtered out
   // only after the pairing, so the parity stays right
   return String(text).split(/==(.+?)==/)
     .map((t, i) => [t, i % 2 === 1]).filter(([t]) => t !== "")
-    .map(([t, marked]) => run(t, marked ? { ...o, fill: HILITE, color: INK } : o));
+    .map(([t, marked]) => { if (marked) HIGHLIGHTS.push(t); return run(t, marked ? { ...o, fill: HILITE, color: INK } : o); });   // a highlight, in drawing order
 }
 function p(text, o = {}) {
   return new Paragraph({
@@ -70,7 +77,7 @@ function setPlain(v) { PLAIN = !!v; }
 // Prose paragraph (about me, motivation)
 function prose(text, o = {}) {
   return new Paragraph({
-    spacing: { after: o.after ?? 60, line: 264 },   // after is the paragraph gap for cover letters (the default of 60 stays as it was)
+    spacing: { after: o.after ?? 80, line: o.line ?? 266 },   // a cover letter passes its own gap and line, sized to fill its page
     alignment: AlignmentType.BOTH,
     // rail draws a thin vertical line on the left, in the theme's rule color, which links the about-me stages like a
     // vertical timeline.
@@ -98,12 +105,12 @@ function accent2() { return T.acc2 || T.acc; }
 const shade = fill => ({ type: ShadingType.CLEAR, fill, color: "auto" });
 // en is the faint English section name at the right edge (OVERVIEW and the like).
 function fsec(title, note, en) {
-  const kids = [run(title, { bold: true, size: 22, color: T.sec })];
+  const kids = [run(title, { bold: true, size: 24, color: T.sec })];   // 12 pt: a step above the company bands (11 pt) and sub-headings (10 pt)
   if (note) kids.push(run(note, { size: 18, color: GREY }));
   if (en && !PLAIN) { kids.push(run("\t")); kids.push(run(en, { size: 14, color: "8A94A3", cs: 40 })); }   // no English name in the plain look
   return new Paragraph({
     tabStops: [{ type: TabStopType.RIGHT, position: RTAB - 140 }],
-    spacing: { before: 250, after: 90 },
+    spacing: { before: 250, after: 100 },
     keepNext: true,
     // Outline level 1: LibreOffice exports it as a PDF bookmark (the table of contents beside the viewer)
     outlineLevel: 0,
@@ -224,7 +231,7 @@ function fsub(text) {
 // Bullet item: the head is bold and the text is justified, as in the form
 function fbul(head, body, o = {}) {
   return new Paragraph({
-    spacing: { after: o.after === undefined ? 50 : o.after, line: 250 },
+    spacing: { after: o.after === undefined ? 60 : o.after, line: 250 },   // 3 pt between items (was 2.5)
     keepNext: !!o.keepNext,
     // Body bullets are justified, as in the form. Justification can spread a line out letter by letter; the form-mode
     // verification catches that.
@@ -559,33 +566,47 @@ function fheader(name, en, tag, contacts, photo) {
     } });
   return [table, new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: "exact" }, children: [band] })];
 }
-// Selected-project cards (usually three): a navy title band on top, and below it a cell each for problem, action and
-// result
+// A colour between two hex colours: t of the way from a to b
+function mixHex(a, b, t) {
+  const c = (h, i) => parseInt(h.slice(i, i + 2), 16);
+  return [0, 2, 4].map(i => Math.round(c(a, i) + (c(b, i) - c(a, i)) * t).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+// Selected-project cards (usually three): a navy title band on top, then one row for each label (problem, action,
+// result), so a label stands at the same height in every card and a shorter card's room sits inside its rows instead
+// of under them; a hairline divides the rows. (Until 2026-11-13 each card was one cell: its labels stood at different
+// heights from its neighbours' and the short cards ended in an empty block, "안예쁜 빈공간".)
 function fhighlights(cards) {
   const GAP = { style: BorderStyle.SINGLE, size: 36, color: "FFFFFF" };
+  const HAIR = { style: BorderStyle.SINGLE, size: 4, color: T.rule };   // between a card's rows
   const w = Math.floor(CONTENT_W / cards.length);
   const widths = cards.map((_, i) => i < cards.length - 1 ? w : CONTENT_W - w * (cards.length - 1));
+  const meta = mixHex(T.headText, T.head, 0.3);   // the company and the years, a step quieter than the title on the band
   const head = new TableRow({ cantSplit: true, children: cards.map((c, i) => new TableCell({
     width: { size: widths[i], type: WidthType.DXA }, shading: shade(T.head),
-    margins: { top: 80, bottom: 80, left: 140, right: 120 },
+    margins: { top: 90, bottom: 90, left: 150, right: 130 },
     children: [
-      new Paragraph({ keepNext: false, spacing: { after: 10 }, children: [run(c.title, { size: 17, bold: true, color: T.headText })] }),
-      new Paragraph({ keepNext: false, spacing: { after: 0 }, children: [run(c.where, { size: 14, color: T.headText })] }),
+      new Paragraph({ keepNext: false, spacing: { after: 20 }, children: [run(c.title, { size: 18, bold: true, color: T.headText })] }),
+      new Paragraph({ keepNext: false, spacing: { after: 0 }, children: [run(c.where, { size: 14, color: meta, cs: 6 })] }),
     ] })) });
   // Each card is recorded in the per-layer text cell by cell (title, problem, action, result). The rich() calls below
   // do not record the same text again.
-  const body = new TableRow({ cantSplit: true, children: cards.map((c, i) => new TableCell({
-    width: { size: widths[i], type: WidthType.DXA }, shading: shade(T.band),
-    margins: { top: 80, bottom: 90, left: 140, right: 120 },
-    children: c.rows.flatMap(([k, v], j) => [
-      // In the plain look a card's later labels stand further apart, since no rule divides them
-      new Paragraph({ keepNext: false, spacing: { before: PLAIN && j ? 110 : 30, after: 0 }, children: [run(k, { size: 14, bold: true, color: T.acc })] }),
-      new Paragraph({ keepNext: false, spacing: { after: 20, line: 240 }, children: rich(v, { size: 16, color: INK }) }),
-    ]) })) });
+  const n = Math.max(...cards.map(c => c.rows.length));   // the rows: as many as the card with the most labels
+  const body = Array.from({ length: n }, (_, j) => new TableRow({ cantSplit: true, children: cards.map((c, i) => {
+    const [k, v] = c.rows[j] || ["", ""];   // a card with fewer labels leaves the row empty
+    return new TableCell({
+      width: { size: widths[i], type: WidthType.DXA }, shading: shade(T.band),
+      // the first row keeps the band's room under the title, the last one room above the card's end
+      margins: { top: j ? 60 : 80, bottom: j === n - 1 ? 90 : 60, left: 150, right: 130 },
+      borders: { top: j && !PLAIN ? HAIR : NONE, bottom: NONE },   // the plain look draws no rule
+      children: [
+        new Paragraph({ keepNext: false, spacing: { after: 10 }, children: [run(k, { size: 14, bold: true, color: T.acc, cs: 10 })] }),
+        new Paragraph({ keepNext: false, spacing: { after: 0, line: 248 }, children: rich(v, { size: 16, color: INK }) }),
+      ] });
+  }) }));
   return new Table({
     width: { size: CONTENT_W, type: WidthType.DXA }, columnWidths: widths,
-    borders: { top: GAP, bottom: GAP, left: PLAIN ? NONE : GAP, right: PLAIN ? NONE : GAP, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, insideVertical: GAP },   // the plain look: no outer sides
-    rows: [head, body],
+    borders: { top: GAP, bottom: GAP, left: PLAIN ? NONE : GAP, right: PLAIN ? NONE : GAP, insideHorizontal: NONE, insideVertical: GAP },   // the plain look: no outer sides
+    rows: [head, ...body],
   });
 }
 // One list line: the content, a faded organization, and a date at the right edge. Used for certifications, training and
@@ -620,8 +641,8 @@ function frow(main, sub, right) {
 // Sub-heading above a table
 function tcap(text) {
   return new Paragraph({
-    spacing: { before: 140, after: 50 }, keepNext: true,
-    children: [run(text, { bold: true, size: 19, color: T.acc })],
+    spacing: { before: 140, after: 60 }, keepNext: true,
+    children: [run(text, { bold: true, size: 20, color: T.acc })],
   });
 }
 
@@ -708,6 +729,9 @@ function render(ch, outPath) {
       children: ch,
     }],
   });
+  // the highlights and paragraphs set, beside the document, for the line checks (written before the save, so a document
+  // that saved always has them, and an older pair is never read beside a newer document)
+  require("fs").writeFileSync(outPath.replace(/\.docx$/, ".highlights.json"), JSON.stringify({ highlights: HIGHLIGHTS, paras: PARAS }, null, 1));
   require("./save").save(doc, outPath, { fieldResults: PLAIN || !!FOOTER_NAME });   // page fields filled in when the footer or the plain look shows them
 }
 

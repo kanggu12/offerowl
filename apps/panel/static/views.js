@@ -113,6 +113,15 @@ function factsSheet(rows, c) {                                                  
   for (const r of rows) byKind[kindOf(r)] = (byKind[kindOf(r)] || 0) + 1;           // counted
   const kind = byKind[UI.factKind] ? UI.factKind : "";                              // a kind no longer here shows them all
   const found = rows.filter((r) => (!kind || kindOf(r) === kind) && (!q || words(r).includes(q)));   // the kind and the search
+  if (UI.factJump) {                                                                // a fact just added: its page, opened, once its row has come from the server
+    const at = found.findIndex((r) => r.cid === UI.factJump);
+    if (at >= 0) {
+      const cid = UI.factJump; UI.factJump = null; UI.factPage = Math.floor(at / FACT_PAGE); UI.factOpen = cid;   // the list was on page one, sorted by kind: the new row could be pages away
+      setTimeout(() => { render();                                                   // drawn with its page and its row open, then shown and marked for a moment
+        const k = document.querySelector(`[data-key="fact-keep-${CSS.escape(cid)}"]`), row = k && k.closest(".fact");
+        if (row) { row.scrollIntoView({ block: "center", behavior: "smooth" }); row.classList.add("flash"); } }, 0);
+    }
+  }
   const pages = Math.max(1, Math.ceil(found.length / FACT_PAGE));                   // how many pages
   const page = Math.min(UI.factPage || 0, pages - 1);                               // the page shown, within range
   const shown = found.slice(page * FACT_PAGE, (page + 1) * FACT_PAGE);              // its rows
@@ -145,7 +154,9 @@ function factForm() {                                                           
   const kinds = ["role", "project", "education", "skill", "certificate", "award", "paper", "patent", "other"];  // the kinds the profile knows
   const form = h("form", { class: "add-fact", "aria-label": t("Add a fact"), onsubmit: (e) => { e.preventDefault(); const f = e.target.elements;
     act("/api/v1/facts/add", { kind: f.kind.value, title: f.title.value, org: f.org.value, period: f.period.value, statement: f.statement.value }, t("Added. Undo takes it back."))
-      .then((r) => { if (r) { UI.factAdd = false; forget("f-add-"); render(); } }); } },
+      .then((r) => { if (r) { UI.factAdd = false; forget("f-add-");                   // the form closes
+        if (UI.filter !== "all") UI.filter = "kept";                                   // a typed fact is kept at once: shown where it now is
+        UI.factQuery = ""; UI.factKind = ""; UI.factJump = r.cid; render(); } }); } },   // no search or kind hides it; factsSheet takes the list to its row
     h("p", { class: "hint", text: t("A fact you type is its own evidence: write what you did, as you would say it.") }),
     h("div", { class: "details" },
       h("label", { class: "field" }, h("span", { text: t("Kind") }), h("select", { name: "kind", "data-key": "f-add-kind" }, kinds.map((k) => h("option", { value: k, text: t(KIND[k]) })))),
@@ -188,6 +199,7 @@ function factRow(r) {                                                           
   const editing = UI.factEdit === r.cid;                                            // its edit form is open
   const v = { ...r, ...(r.edit || {}) };                                            // with the person's edits
   const kept = r.status === "accepted", dropped = r.status === "rejected";          // its state
+  const named = unmarked(v.title || v.statement || "").trim(), shortTitle = named.length > 40 ? named.slice(0, 39) + "…" : named;   // the fact as a note names it: its title, short
   // the edit form, laid out as the add form is: the same fields two by two, the words across, keys of the same size. Its kind
   // too, for a fact read from a file or typed (the profile files them by kind); an item imported from a profile file keeps
   // its place in that profile, so its kind is not offered
@@ -223,9 +235,11 @@ function factRow(r) {                                                           
           h("span", { class: "fact-src" }, icon("file", 12), r.source && r.source.name ? r.source.name : t("Typed by you")))),
       r.edited ? h("span", { class: "chip", text: t("Edited") }) : null),
     editing ? null : h("div", { class: "acts" },
-      h("button", { class: "btn small go", "data-key": "fact-keep-" + r.cid, "aria-pressed": kept ? "true" : "false", onclick: () => act("/api/v1/facts/decide", { cid: r.cid, action: kept ? "reset" : "keep" }) }, kept ? [icon("check"), t("Kept")] : t("Keep")),   // done: green with a tick; still to do: a plain key
+      h("button", { class: "btn small go", "data-key": "fact-keep-" + r.cid, "aria-pressed": kept ? "true" : "false", title: kept ? t("Back to confirm") : null,   // pressed again, it goes back to the facts to confirm: said on hover
+        onclick: () => act("/api/v1/facts/decide", { cid: r.cid, action: kept ? "reset" : "keep" }, (kept ? t("Back to confirm: {what}", { what: shortTitle }) : t("Kept: {what}", { what: shortTitle }))) }, kept ? [icon("check"), t("Kept")] : t("Keep")),   // done: green with a tick; still to do: a plain key
       h("button", { class: "btn small", "data-key": "fact-edit-" + r.cid, onclick: () => { UI.factEdit = r.cid; render(); }, text: t("Edit") }),
-      h("button", { class: "btn small" + (dropped ? "" : " danger"), "data-key": "fact-drop-" + r.cid, "aria-pressed": dropped ? "true" : "false", onclick: () => act("/api/v1/facts/decide", { cid: r.cid, action: dropped ? "reset" : "drop" }), text: dropped ? t("Dropped") : t("Drop") })),
+      h("button", { class: "btn small" + (dropped ? "" : " danger"), "data-key": "fact-drop-" + r.cid, "aria-pressed": dropped ? "true" : "false", title: dropped ? t("Back to confirm") : null,
+        onclick: () => act("/api/v1/facts/decide", { cid: r.cid, action: dropped ? "reset" : "drop" }, dropped ? t("Back to confirm: {what}", { what: shortTitle }) : t("Dropped: {what}", { what: shortTitle })), text: dropped ? t("Dropped") : t("Drop") })),
     editing ? h("div", { class: "fact-body" }, body)                                 // the edit form under its row
       : open && v.statement && plain(v.statement) !== plain(v.title) ? h("div", { class: "fact-body" }, h("p", {}, marks(v.statement, "hl")))   // its own words when they say more than its title (the source is on its row)
       : null);
@@ -271,14 +285,23 @@ function viewJobs(host) {                                                       
       h("span", { class: "grow" }), modes,
       mode === "timeline" && jobs.length ? h("button", { class: "btn", type: "button", "aria-pressed": UI.editDays ? "true" : "false", onclick: () => { UI.editDays = !UI.editDays; render(); } },
         icon(UI.editDays ? "check" : "calendar"), UI.editDays ? t("Done") : t("Edit the days")) : null,   // every application's days in one table
-      jobs.length ? h("button", { class: "btn", onclick: () => { UI.adding = !UI.adding; render(); } }, icon(UI.adding ? "close" : "plus"), UI.adding ? t("Close the form") : t("Add a job")) : null),
+      jobs.length ? h("button", { class: "btn", "data-key": "jobs-add", "aria-expanded": UI.adding ? "true" : "false", onclick: () => { UI.adding = !UI.adding; render(); } }, icon(UI.adding ? "close" : "plus"), UI.adding ? t("Close the form") : t("Add a job")) : null),
     jobs.length && mode !== "board" && !alone ? h("div", { class: "jobs-viz" }, stageBar(jobs)) : null,   // every application by stage, at a glance
-    (S.due || []).length ? h("div", { class: "band info", role: "status" }, h("p", {}, h("b", { text: t("Due now") }), " ",   // the reminders whose time has come: whose, then what
-      S.due.map((d, i) => [i ? " · " : "", h("b", { text: d.name }), " " + d.text]))) : null,
+    (S.due || []).length ? dueBand() : null,                                          // the reminders whose time has come
     (UI.adding || !jobs.length) ? jobForm() : null,
     !jobs.length ? null : mode === "board" ? trackBoard(jobs) : mode === "timeline" ? (UI.editDays ? daysTable(jobs) : trackTimeline()) : h("div", { class: "jobsplit" + (list ? "" : " alone") },   // the jobs on the left, the one open on the right; alone, the whole width
       list, phone && !alone ? null : jobDetail(open, phone || wide)));
   if (list) keepListPlace(list, open);                                              // where the person left the list, with the open one in sight
+}
+const DUE_SHOWN = 3;                                                                 // reminders the band names: more filled the first screen and pushed the list under it
+function dueBand() {                                                                // the reminders whose time has come: whose, then what, its address a named link
+  const due = S.due || [], more = due.length - DUE_SHOWN;                           // the rest are a key away
+  // no live region: the band is drawn again with the page, and a screen reader would read the whole list out each time; the
+  // bar's Applications key already says how many are due ("지원, 할 일 2")
+  return h("div", { class: "band info due" }, h("p", {}, h("b", { text: t("Due now") }), " ",
+    due.slice(0, DUE_SHOWN).map((d, i) => [i ? " · " : "", h("b", { text: d.name }), " ", linked(d.text)])),   // a meeting's long address reads as "Zoom", as on the timeline
+    more > 0 ? h("button", { class: "btn small", type: "button", onclick: () => { UI.jobsMode = "timeline"; UI.editDays = false; render(); } },   // every reminder is on the timeline, by day
+      tn(more, "{n} more on the timeline", "{n} more on the timeline")) : null);
 }
 function keepListPlace(list, open) {                                                // a redraw builds the list anew, at its top
   list.scrollTop = UI.jobListTop || 0;                                              // back where it was scrolled
@@ -355,7 +378,8 @@ function issueWords(code) {                                                     
   const [k, rest] = String(code).split(/:(.*)/s);                                   // its kind, and what it names
   const [n, lim] = String(rest || "").split("/");                                   // a length and its limit
   return { too_long: t("Over the limit: {n} of {limit}", { n, limit: lim }), too_short: t("Short: {n} of {limit}, room for more", { n, limit: lim }),
-    unsupported: t("Not in your facts: {what}", { what: rest }), style: rest || t("Against your rules"), empty: t("Empty"), markup: t("Marks such as ** or # show as they are in a form's box."), agent_stopped: t("The agent stopped part way.") }[k] || code;
+    unsupported: t("Not in your facts: {what}", { what: rest }), style: rest || t("Against your rules"), empty: t("Empty"), markup: t("Marks such as ** or # show as they are in a form's box."), agent_stopped: t("The agent stopped part way."),
+    placeholder: t("Still a blank to fill in: {what}", { what: rest }) }[k] || code;   // a slot left in the answer (<link>, TODO, ○○): a form would send it as it is
 }
 async function saveQuestions(j, list) {                                             // the job's questions, in order
   await act("/api/v1/jobs/questions", { job: j.id, questions: list.map((q) => ({ text: q.text, limit: q.limit, unit: q.unit })) });
@@ -396,6 +420,8 @@ function questionsCard(j) {                                                     
     h("div", { class: "card-h" }, h("h3", { text: qs.length ? tn(qs.length, "{n} question", "{n} questions") : t("No questions yet") }), sentLine(agentOn()),   // a name before the chip that says where they go
       busy ? pill("busy", t("Writing {done} of {total}", { done: (tk.done || 0) + 1, total: tk.total || qs.length })) : null),
     qs.map((q) => answerRow(j, q)), add,
+    qs.length && !agentOn() ? h("div", { class: "band info" }, h("p", { text: t("Writing the answers needs the agent. You can write them yourself in the boxes.") }),   // why the writing keys wait
+      h("button", { class: "btn small", onclick: () => openAgentMenu(), text: t("Turn on the agent") })) : null,
     qs.length ? h("div", { class: "nextkeys" },
       h("button", { class: "btn primary", disabled: busy || !agentOn() || null, onclick: () => act("/api/v1/jobs/questions/write", { job: j.id }) }, icon("edit"), qs.some((q) => q.answer) ? t("Write every answer again") : t("Write the answers")),
       qs.some((q) => q.answer) ? h("button", { class: "btn", onclick: () => navigator.clipboard.writeText(qs.filter((q) => q.answer).map((q, i) => `${i + 1}. ${q.text}\n\n${q.answer}`).join("\n\n")).then(() => toast(t("Copied."))) }, icon("copy"), t("Copy all")) : null,
@@ -491,10 +517,21 @@ function docsPart(j, tk) {                                                      
   const qs = j.questions || [], answered = qs.filter((q) => q.answer).length;       // the form's questions and the answers written
   const built = (lang) => (j.builds || {})[lang] || {};                             // an edition's record, or nothing before its first PDFs
   const made = (n, one, many) => (n ? h("span", { class: "dp-v", text: tn(n, one, many) }) : h("span", { class: "dp-v none", text: t("Not made yet") }));   // a count, or that there is none
-  const openDoc = (doc) => { UI.doc = doc; UI.sel = null; if (S.job !== j.id) { S.job = j.id; act("/api/v1/jobs/select", { job: j.id }); } go("documents"); };   // on the canvas, this job's edition
+  const openDoc = (doc) => { UI.doc = doc; UI.sel = null; if (j.locked && j.locked.lang) UI.docLang = j.locked.lang;   // a submitted application opens in the language it went out in
+    if (S.job !== j.id) { S.job = j.id; act("/api/v1/jobs/select", { job: j.id }); } go("documents"); };   // on the canvas, this job's edition
   const key = (fn, words) => h("button", { class: "btn sm", type: "button", onclick: fn, text: t(words || "Open") });   // a row's key: what it does, "Open" when there is something to open
   const row = (name, cells, fn, words) => h("div", { class: "dp", role: "row" }, h("b", { role: "rowheader", text: name }), cells, key(fn, words));   // one document: its name, a cell per language or one across, its key
   const langs = [["ko", t("Korean")], ["en", t("English")]];                        // the editions' columns
+  const lk = j.locked && typeof j.locked === "object" ? j.locked : null;            // submitted and locked: the copies that went out
+  const SENT_NAMES = { "resume.pdf": t("Resume"), "deck.pdf": t("Portfolio deck"), "cover.pdf": t("Cover letter") };
+  if (lk) return h("div", { class: "docpart" },                                     // what went out, and the key that shows it
+    h("div", { class: "band info", role: "status" }, h("p", { text: t("Submitted on {date} in {lang}: {names}. The copies are kept as they went.", { date: lk.at || "",
+      lang: lk.lang === "en" ? t("English") : t("Korean"), names: Object.keys(lk.files || {}).map((f) => (lk.brought && lk.name && f === "deck.pdf" ? lk.name : SENT_NAMES[f] || f)).join(", ") || t("no file") }) })),   // the head's key shows them
+    h("div", { class: "docparts", role: "table", "aria-label": t("Documents") },   // what the application still has to do: its answers and its interview
+      row(t("Application questions"), h("span", { class: "dp-v across" + (qs.length ? "" : " none"), text: qs.length ? t("{a} of {n} answered", { a: answered, n: qs.length }) : t("No questions yet") }),
+        () => { UI.jobTab = "questions"; render(); }, qs.length ? "" : "Add questions"),
+      row(t("Interview kit"), h("span", { class: "dp-v across" + (iv && iv.ready ? "" : " none"), text: !iv ? t("Reading the interview kit…") : iv.ready ? t("{q} questions, {s} scripts", { q: iv.counts.questions, s: iv.counts.scripts }) : t("Not made yet") }),
+        () => { UI.jobTab = "interview"; render(); }, iv && !iv.ready ? "Make the kit" : "")));
   return h("div", { class: "docpart" },
     making ? h("div", { class: "band info", role: "status" }, pill("busy", t("A run is making these documents")),
       h("button", { class: "btn small", onclick: () => go("make"), text: t("Follow it on Make") })) : null,
@@ -564,17 +601,16 @@ function interviewPart(j) {                                                     
     b && b.ready && part === "search" ? wideKeys : null,                              // the scripts over the whole width, and in a window of their own: both stay in the panel
     b && b.ready && part === "deck" && b.deck && b.deck.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "deck?lang=" + LANG) }, icon("slides"), t("Interview deck to print")) : null,   // the deck's printable pages in the panel's language
     b && b.ready && part === "map" && b.cue && b.cue.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "cue") }, icon("copy"), t("Cue cards to print")) : null,
-    !(b && b.ready) || part === "map" ? h("button", { class: "btn", onclick: () => { UI.scenesFor = j.id; $("scenepick").click(); } }, icon("upload"), t("Add scenes you wrote")) : null,   // scripts written before, in the kit's markdown
-    practice && part !== "talk" && part !== "practice" ? h("button", { class: "btn primary", onclick: () => { UI.ivPart = "practice"; render(); } }, icon("mic"), t("Practice")) : null);   // the main key, last: the practice part
-  const keys = keysFor(null);                                                        // before the kit: what can be added already
+    b && b.ready && part === "map" ? addScenes() : null);                            // scripts written before, in the kit's markdown, beside the map they join (practice is a tab of its own: no second key for it)
+  const addScenes = () => h("button", { class: "btn", onclick: () => { UI.scenesFor = j.id; $("scenepick").click(); } }, icon("upload"), t("Add scenes you wrote"));   // scripts written before
+  const keys = null;                                                                 // before the kit: no keys over it (the empty state holds its own)
   if (!b || b.error) return h("div", { class: "ivpart" }, keys, h("p", { class: "hint", text: t("Reading the interview kit…") }), materialsPart(j));   // loading, or refused for now (never read as "no kit"); the materials need no kit
   if (!b.ready && UI.ivPart === "talk") return h("div", { class: "ivpart" }, keys, talkPart(j), materialsPart(j));   // a talk needs no question map
-  if (!b.ready) return h("div", { class: "ivpart" }, keys, h("div", { class: "empty glass" }, h("h3", { text: t("No interview kit for this job yet") }),
+  if (!b.ready) return h("div", { class: "ivpart" }, h("div", { class: "empty glass" }, h("h3", { text: t("No interview kit for this job yet") }),
     h("p", { text: t("The question map comes from the posting and your resume, on this PC. Scripts are written by the agent.") }),
-    sendNote(t("Tailoring sends the posting and your evidence to the agent.")),
-    h("div", { class: "part-keys" }, h("button", { class: "btn", onclick: () => makeForJob(j.id), text: t("Make this job's documents") }),
-      h("button", { class: "btn", onclick: () => { UI.ivPart = "talk"; render(); }, text: t("Prepare a presentation") }),   // a talk the interviewers asked for, without the map
-      h("button", { class: "btn primary", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }), text: t("Make the question map") }))), materialsPart(j));
+    h("div", { class: "part-keys" }, h("button", { class: "btn primary", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }), text: t("Make the question map") }),   // the main key first: it works on this PC alone
+      addScenes(),                                                                   // or the scripts written before, which make the map too
+      h("button", { class: "btn", onclick: () => { UI.ivPart = "talk"; render(); }, text: t("Prepare a presentation") }))), materialsPart(j));   // a talk the interviewers asked for, without the map
   const tk = task("scripts:" + j.id);                                                // the writing task, when one runs
   const writing = tk.state === "running";                                           // writing now
   const parts = [["search", t("Search the scripts"), "search"], ["deck", t("Interview deck"), "slides"], practice ? ["practice", t("Practice"), "mic"] : null,
@@ -593,6 +629,9 @@ function interviewPart(j) {                                                     
       h("button", { class: "btn" + (practice ? " agent" : " primary"), disabled: writing || null, onclick: () => act("/api/v1/interview/scripts", { job: j.id, lang: docLang() }) }, icon("agent"), writing ? t("Writing…") : t("Write 10 more scripts")),
       writing ? h("span", { class: "hint", role: "status", text: t("{done} of {total} written. The search view shows each one as it is finished.", { done: tk.done || 0, total: tk.total || 0 }) })
         : h("span", { class: "hint", text: t("The likeliest questions come first. It takes the agent about ten minutes.") })) : null,
+    S.agent.state !== "ready" && b.counts.uncovered > 0 && b.scripts.length ? h("div", { class: "band offer" },   // scripts there, more to write: the agent writes them
+      h("p", { text: t("The agent writes the scripts. Turn it on to write the rest.") }),
+      h("button", { class: "btn small", type: "button", onclick: () => openAgentMenu() }, icon("agent"), t("Turn on the agent"))) : null,
     tk.state === "done" && tk.result && tk.result.stopped ? band("agent_stopped", { retry: () => act("/api/v1/interview/scripts", { job: j.id, lang: docLang() }) }) : null,
     tk.state === "error" ? band(tk.error.code, { retry: () => act("/api/v1/interview/scripts", { job: j.id, lang: docLang() }) }) : null,
     h("div", { class: "qboard" }, b.categories.map((c) => h("section", { class: "qcol glass", "aria-label": t(CATEGORY[c.kind] || c.kind) },
@@ -603,7 +642,8 @@ function interviewPart(j) {                                                     
         h("span", { text: (docLang() === "en" ? q.ask_en : q.ask_ko) || q.text })))),
       c.questions.length > 5 ? h("span", { class: "hint", text: t("and {n} more in the search view", { n: c.questions.length - 5 }) }) : null))),
     b.scripts.length ? scriptsPart(b.scripts) :
-      h("div", { class: "empty glass" }, h("h3", { text: t("No scripts yet") }), h("p", { text: S.agent.state === "ready" ? t("Write scripts to let the agent answer the likeliest questions first.") : t("Scripts are written by the agent. Turn it on to draft them.") })),
+      h("div", { class: "empty glass" }, h("h3", { text: t("No scripts yet") }), h("p", { text: S.agent.state === "ready" ? t("Write scripts to let the agent answer the likeliest questions first.") : t("Scripts are written by the agent. Turn it on to draft them.") }),
+        S.agent.state === "ready" ? null : h("div", { class: "part-keys" }, h("button", { class: "btn", type: "button", onclick: () => openAgentMenu() }, icon("agent"), t("Turn on the agent")))),   // the one fix, beside its words
     materialsPart(j));                                                              // the person's own files, under what the kit made
 }
 
@@ -726,6 +766,8 @@ async function saveMaterial(jid, m) {                                           
   const r = await act("/api/v1/jobs/materials/export", { job: jid, id: m.id });     // refused when the file changed since it came in
   if (r && r.exported && r.exported.length) toast(t("Saved to the Desktop: {name}", { name: r.exported[0] }), null, "done");
 }
+const PLAIN_TITLE = /^(질문|문항|question|q)$/i;                                    // a Korean title that names no question ("### D1. 질문 / Tell me about yourself."), as kit.js reads it
+const koTitle = (x) => (PLAIN_TITLE.test(String(x || "").trim()) ? "" : x);         // said only when it says something
 function scriptsPart(list) {                                                        // the scripts: every title on the left, the one open read on the right
   const at = Math.min(Math.max(0, UI.scriptOpen || 0), list.length - 1);            // the open one, within range
   const s = list[at];                                                               // its scenes
@@ -733,10 +775,10 @@ function scriptsPart(list) {                                                    
     h("h2", { class: "scripts-h", text: t("Script cards") }),
     h("nav", { class: "scriptlist paper", "aria-label": t("Script cards") }, list.map((x, i) => h("button", { class: "scriptrow", "aria-current": i === at ? "true" : "false",
       onclick: () => { UI.scriptOpen = i; render(); } },
-      h("b", { text: x.title_en || x.title_ko }), x.title_en && x.title_ko ? h("span", { class: "ro", text: x.title_ko }) : null,
+      h("b", { text: x.title_en || x.title_ko }), x.title_en && koTitle(x.title_ko) ? h("span", { class: "ro", text: x.title_ko }) : null,
       x.draft ? h("span", { class: "chip ai", text: t("Draft by the agent") }) : null))),
     h("article", { class: "script paper", "aria-label": s.title_en || s.title_ko },
-      h("div", {}, h("div", { class: "t-en", text: s.title_en || s.title_ko }), s.title_en && s.title_ko ? h("div", { class: "t-ko", text: s.title_ko }) : null,
+      h("div", {}, h("div", { class: "t-en", text: s.title_en || s.title_ko }), s.title_en && koTitle(s.title_ko) ? h("div", { class: "t-ko", text: s.title_ko }) : null,
         s.draft ? h("span", { class: "chip ai", text: t("Draft by the agent") }) : null),
       s.key ? h("p", { class: "key" }, h("b", { text: t("Key") + " " }), speech(s.key)) : null,
       s.turns.map((tn) => h("div", { class: "turn " + tn.who }, h("span", { class: "who", text: tn.who === "me" ? t("You") : t("Interviewer") }),
@@ -923,16 +965,21 @@ function trackTimeline() {                                                      
     const same = row.items[row.items.length - 1];                                   // the same application's steps that day are one chip: its name once, its steps after it
     if (same && same.job === e.job && e.kind !== "reminder" && same.kind !== "reminder") { same.text += ", " + e.text; same.st = same.st || e.st; } else row.items.push({ ...e });
   }
+  const pages = Math.max(1, Math.ceil(days.length / TL_PAGE)), page = Math.min(UI.tlPage || 0, pages - 1);   // pages of days, the newest first
+  const turn = (p) => { UI.tlPage = p; render(); requestAnimationFrame(() => { const w = $("canvas").querySelector(".tl-wrap"); if (w) w.scrollIntoView({ block: "start" }); }); };   // a page, read from its top
   const dateless = S.jobs.filter((j) => !Object.keys(j.days || {}).length && !(j.rounds || []).length && !(j.reminders || []).length);   // nothing to place on a day
   const none = dateless.length ? h("p", { class: "hint tl-none" }, tn(dateless.length, "{n} application has no day yet:", "{n} applications have no day yet:") + " " + dateless.map(jobName).join(", ") + " ",
     h("button", { class: "linkish", type: "button", onclick: () => { UI.editDays = true; render(); }, text: t("Edit the days") })) : null;   // said, never left out without a word
-  return h("div", { class: "tl-wrap" }, none, h("ol", { class: "timeline paper", style: "list-style:none;margin:0" }, days.map((d) => h("li", { class: "tl day" + (d.items.some((e) => e.due) ? " due" : "") },
+  return h("div", { class: "tl-wrap" }, none, h("ol", { class: "timeline paper", style: "list-style:none;margin:0" }, days.slice(page * TL_PAGE, (page + 1) * TL_PAGE).map((d) => h("li", { class: "tl day" + (d.items.some((e) => e.due) ? " due" : "") },
     h("time", { text: d.day }), h("i", { "aria-hidden": "true" }),                    // the day, then its node on the line
     h("span", { class: "tl-day" }, d.items.map((e) => [h("button", { class: "tl-ev", type: "button", "data-stage": e.st || null, "data-kind": e.kind,   // each step: the company and what happened, in the stage's colour
       onclick: () => openApplication(e.job, "progress"), title: String(e.at).replace("T", " ") },   // the name opens its progress; the time on hover
       h("b", { text: e.name }), e.kind === "reminder" ? h("span", { class: "chip pc", text: e.done ? t("Done") : e.due ? t("Due") : t("Reminder") }) : null,
-      h("span", { class: "tl-what", text: unlinked(e.text) })), linkKeys(e.text)]))))));   // a link beside the step's key, never inside it
+      h("span", { class: "tl-what", text: unlinked(e.text) })), linkKeys(e.text)]))))),   // a link beside the step's key, never inside it
+    pager(page, pages, turn, pages > 1 ? t("{a}–{b} of {n} days", { a: page * TL_PAGE + 1, b: Math.min(days.length, (page + 1) * TL_PAGE), n: days.length }) : ""));   // the pages, numbered, when there is more than one
 }
+const TL_PAGE = 40;                                                                 // days on one page of the timeline
+const DT_PAGE = 30;                                                                 // applications on one page of the days table
 // ---------------------------------------------------------------- every application's days in one table
 // The progress tab sets one application's days; this sets them all at once, a row each, the stages each went through. A day
 // that comes after a later step's is left out of the timeline and the charts (tracker.stage_days) and wears the warning colour
@@ -959,6 +1006,8 @@ function daysTable(jobs) {
   const reached = (j) => S.stages.slice(0, S.stages.indexOf(j.stage) + 1);         // the stages it went through
   const offAny = jobs.some((j) => reached(j).some((st) => (j.dates || {})[st] && !(j.days || {})[st]));   // a day out of order somewhere: its mark is said in words
   const inBatch = (j, st) => !!batch && batch.ids.includes(j.id) && String((j.dates || {})[st] || "").slice(0, 10) === batch.day;   // a day the band's key clears
+  const pages = Math.max(1, Math.ceil(jobs.length / DT_PAGE)), page = Math.min(UI.dtPage || 0, pages - 1);   // pages of applications: the table drew all of them, 23,000 px on a phone
+  const turn = (p) => { UI.dtPage = p; render(); requestAnimationFrame(() => { const w = $("canvas").querySelector(".daystable"); if (w) w.scrollIntoView({ block: "start" }); }); };
   return h("section", { class: "daystable paper", "aria-label": t("Edit the days") },
     batch ? h("div", { class: "band info dt-batch", role: "status" },
       h("p", {}, h("b", { text: tn(batch.ids.length, "{n} application added on {day}", "{n} applications added on {day}", { day: batch.day }) }),   // what, in bold,
@@ -969,7 +1018,7 @@ function daysTable(jobs) {
       batch ? h("span", { class: "dt-key" }, h("span", { class: "dt-swatch batch", "aria-hidden": "true" }), t("A dashed day is the one the key above clears.")) : null) : null,
     h("div", { class: "dt-row dt-head", role: "row" }, h("span", { role: "columnheader", text: t("Application") }),
       S.stages.map((st) => h("span", { role: "columnheader", text: t(STAGE[st]) }))),
-    jobs.map((j) => h("div", { class: "dt-row", role: "row", "data-stage": j.stage },
+    jobs.slice(page * DT_PAGE, (page + 1) * DT_PAGE).map((j) => h("div", { class: "dt-row", role: "row", "data-stage": j.stage },
       h("span", { class: "dt-name", role: "cell" }, mono(j.company || j.role || j.id, "sm", j.stage),
         h("button", { class: "linkish", type: "button", onclick: () => openApplication(j.id, "progress"), text: jobName(j) })),
       S.stages.map((st) => {
@@ -979,7 +1028,8 @@ function daysTable(jobs) {
           h("span", { class: "dt-lab", "aria-hidden": "true", text: t(STAGE[st]) }),   // its stage's name, where the head row is not shown (a phone)
           dayField({ "data-key": `dt-${j.id}-${st}`, "aria-label": `${jobName(j)}: ${t(STAGE[st])}`, placeholder: "" }, kept,   // an empty day stays empty: sixty "YYYY-MM-DD" hid the days there are
             (v) => act("/api/v1/tracker/edit", { job: j.id, dates: { [st]: v } })));
-      }))));
+      }))),
+    pager(page, pages, turn, pages > 1 ? t("{a}–{b} of {n}", { a: page * DT_PAGE + 1, b: Math.min(jobs.length, (page + 1) * DT_PAGE), n: jobs.length }) : ""));   // the pages, numbered, when there is more than one
 }
 // ---------------------------------------------------------------- the interview rounds of one application (tracker.set_round)
 const ROUND_KIND = { call: "Recruiter call", first: "First interview", second: "Second interview", third: "Third interview", final: "Final interview",

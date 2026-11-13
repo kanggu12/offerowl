@@ -1,81 +1,151 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 906 400" width="906" height="400" font-family="Pretendard, -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Noto Sans&#x27;, Helvetica, Arial, sans-serif" role="img" aria-label="The interview kit. The posting, the resume and the portfolio you sent, and your confirmed facts, give the question map: questions for each posting line, resume line, portfolio page and term, plus behavioral, company and opening questions. Each question gets a scene, a short dialogue in English with the Korean translation under each line and speech marks, drafted by the AI backend from your evidence and checked. Audits rate how well the scenes cover the posting and compare them with what you sent. The search view finds a scene by keyword on your PC, practice mode asks the questions and gives feedback, and cue cards print the scenes">
-<rect x="0.0" y="8.0" width="170.0" height="72.0" rx="2" fill="#eef3f9"/>
-<text x="12.0" y="38.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="12.0,158.0">Posting</text>
-<text x="12.0" y="56.6" font-size="12" fill="#566175" data-box="12.0,158.0">each line a question</text>
-<rect x="0.0" y="96.0" width="170.0" height="72.0" rx="2" fill="#eef3f9"/>
-<text x="12.0" y="126.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="12.0,158.0">Resume you sent</text>
-<text x="12.0" y="144.6" font-size="12" fill="#566175" data-box="12.0,158.0">each line a question</text>
-<rect x="0.0" y="184.0" width="170.0" height="72.0" rx="2" fill="#eef3f9"/>
-<text x="12.0" y="214.8" font-size="14" font-weight="600" fill="#1b2e4b" data-box="12.0,158.0">Portfolio you sent</text>
-<text x="12.0" y="232.6" font-size="12" fill="#566175" data-box="12.0,158.0">each page a question</text>
-<rect x="0.0" y="272.0" width="170.0" height="72.0" rx="2" fill="#eef3f9"/>
-<rect x="0.0" y="272.0" width="170.0" height="24.0" rx="2" fill="#f2c744"/>
-<text x="12.0" y="288.7" font-size="13" font-weight="600" fill="#1b2e4b" data-box="12.0,158.0">Your facts</text>
-<text x="12.0" y="316.6" font-size="12" fill="#566175" data-box="12.0,158.0">the only evidence</text>
-<rect x="230.0" y="8.0" width="190.0" height="336.0" rx="2" fill="#eef3f9"/>
-<rect x="230.0" y="8.0" width="190.0" height="26.0" rx="2" fill="#1b2e4b"/>
-<text x="242.0" y="26.0" font-size="14" font-weight="600" fill="#ffffff" data-box="242.0,408.0">Question map</text>
-<text x="242.0" y="55.0" font-size="12.5" fill="#566175" data-box="242.0,408.0">posting lines</text>
-<text x="242.0" y="72.5" font-size="12.5" fill="#566175" data-box="242.0,408.0">resume lines</text>
-<text x="242.0" y="90.0" font-size="12.5" fill="#566175" data-box="242.0,408.0">portfolio pages</text>
-<text x="242.0" y="107.5" font-size="12.5" fill="#566175" data-box="242.0,408.0">terms you used</text>
-<text x="242.0" y="125.0" font-size="12.5" fill="#566175" data-box="242.0,408.0">behavioral</text>
-<text x="242.0" y="142.5" font-size="12.5" fill="#566175" data-box="242.0,408.0">company</text>
-<text x="242.0" y="160.0" font-size="12.5" fill="#566175" data-box="242.0,408.0">opening logistics</text>
-<rect x="480.0" y="8.0" width="196.0" height="160.0" rx="2" fill="#eef3f9"/>
-<rect x="480.0" y="8.0" width="196.0" height="26.0" rx="2" fill="#b3400a"/>
-<text x="492.0" y="26.0" font-size="14" font-weight="600" fill="#ffffff" data-box="492.0,664.0">Scenes</text>
-<text x="492.0" y="55.0" font-size="12.5" fill="#566175" data-box="492.0,664.0">English lines with the</text>
-<text x="492.0" y="72.5" font-size="12.5" fill="#566175" data-box="492.0,664.0">Korean translation under</text>
-<text x="492.0" y="90.0" font-size="12.5" fill="#566175" data-box="492.0,664.0">each, speech marks, one</text>
-<text x="492.0" y="107.5" font-size="12.5" fill="#566175" data-box="492.0,664.0">key phrase</text>
-<rect x="480.0" y="204.0" width="196.0" height="140.0" rx="2" fill="#eef3f9"/>
-<text x="492.0" y="242.2" font-size="15" font-weight="600" fill="#1b2e4b" data-box="492.0,664.0">Audits</text>
-<text x="492.0" y="261.3" font-size="12.5" fill="#566175" data-box="492.0,664.0">posting coverage: strong,</text>
-<text x="492.0" y="278.8" font-size="12.5" fill="#566175" data-box="492.0,664.0">weak or none</text>
-<text x="492.0" y="296.3" font-size="12.5" fill="#566175" data-box="492.0,664.0">consistency with what you</text>
-<text x="492.0" y="313.8" font-size="12.5" fill="#566175" data-box="492.0,664.0">sent</text>
-<rect x="736.0" y="8.0" width="164.0" height="100.0" rx="2" fill="#eef3f9"/>
-<rect x="736.0" y="8.0" width="164.0" height="24.0" rx="2" fill="#1b2e4b"/>
-<text x="748.0" y="24.7" font-size="13" font-weight="600" fill="#ffffff" data-box="748.0,888.0">Search view</text>
-<text x="748.0" y="52.6" font-size="12" fill="#566175" data-box="748.0,888.0">a scene by keyword, on</text>
-<text x="748.0" y="69.4" font-size="12" fill="#566175" data-box="748.0,888.0">your PC</text>
-<rect x="736.0" y="126.0" width="164.0" height="100.0" rx="2" fill="#eef3f9"/>
-<text x="748.0" y="162.4" font-size="14" font-weight="600" fill="#1b2e4b" data-box="748.0,888.0">Practice</text>
-<text x="748.0" y="180.2" font-size="12" fill="#566175" data-box="748.0,888.0">timer, your voice,</text>
-<text x="748.0" y="197.0" font-size="12" fill="#566175" data-box="748.0,888.0">feedback on your facts</text>
-<path d="M736.0,244.0 H888.0 L900.0,256.0 V344.0 H736.0 Z" fill="#ffffff" stroke="#c9d4e3" stroke-width="1"/>
-<path d="M888.0,244.0 V256.0 H900.0 Z" fill="#dde5ef" stroke="#c9d4e3" stroke-width="1" stroke-linejoin="round"/>
-<text x="748.0" y="280.4" font-size="14" font-weight="600" fill="#1b2e4b" data-box="748.0,886.0">Cue cards</text>
-<text x="748.0" y="298.2" font-size="12" fill="#566175" data-box="748.0,886.0">one scene per card, to</text>
-<text x="748.0" y="315.0" font-size="12" fill="#566175" data-box="748.0,886.0">print</text>
-<path d="M170.5,44.0 L221.5,44.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M229.0,44.0 L220.0,48.5 L220.0,39.5 Z" fill="#7f8ca1"/>
-<path d="M170.5,132.0 L221.5,132.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M229.0,132.0 L220.0,136.5 L220.0,127.5 Z" fill="#7f8ca1"/>
-<path d="M170.5,220.0 L221.5,220.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M229.0,220.0 L220.0,224.5 L220.0,215.5 Z" fill="#7f8ca1"/>
-<path d="M170.5,308.0 L221.5,308.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M229.0,308.0 L220.0,312.5 L220.0,303.5 Z" fill="#7f8ca1"/>
-<path d="M420.5,88.0 L471.5,88.0" fill="none" stroke="#d9622b" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M479.0,88.0 L470.0,92.5 L470.0,83.5 Z" fill="#d9622b"/>
-<text x="450.0" y="80.0" font-size="12" fill="#566175" text-anchor="middle" data-box="424.0,476.0">draft</text>
-<path d="M578.0,168.5 L578.0,195.5" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M578.0,203.0 L573.5,194.0 L582.5,194.0 Z" fill="#7f8ca1"/>
-<text x="586.0" y="190.0" font-size="12" fill="#566175" data-box="586.0,676.0">checked</text>
-<path d="M420.5,274.0 L471.5,274.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M479.0,274.0 L470.0,278.5 L470.0,269.5 Z" fill="#7f8ca1"/>
-<text x="450.0" y="266.0" font-size="12" fill="#566175" text-anchor="middle" data-box="424.0,476.0">gaps</text>
-<path d="M676.5,58.0 L727.5,58.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M735.0,58.0 L726.0,62.5 L726.0,53.5 Z" fill="#7f8ca1"/>
-<path d="M676.5,124.0 L706.0,124.0 L706.0,176.0 L727.5,176.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M735.0,176.0 L726.0,180.5 L726.0,171.5 Z" fill="#7f8ca1"/>
-<path d="M676.5,150.0 L690.0,150.0 L690.0,294.0 L727.5,294.0" fill="none" stroke="#7f8ca1" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M735.0,294.0 L726.0,298.5 L726.0,289.5 Z" fill="#7f8ca1"/>
-<rect x="467.1" y="372.0" width="22.0" height="10.0" rx="2" fill="#1b2e4b"/>
-<text x="497.1" y="381.0" font-size="12" fill="#566175" data-box="497.1,900.0">stays on your PC</text>
-<rect x="614.7" y="372.0" width="22.0" height="10.0" rx="2" fill="#b3400a"/>
-<text x="644.7" y="381.0" font-size="12" fill="#566175" data-box="644.7,900.0">sent to the AI backend</text>
-<rect x="795.1" y="372.0" width="22.0" height="10.0" rx="2" fill="#f2c744"/>
-<text x="825.1" y="381.0" font-size="12" fill="#566175" data-box="825.1,900.0">the evidence</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 424" width="900" height="424" font-family="Pretendard, -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Noto Sans&#x27;, Helvetica, Arial, sans-serif" role="img" aria-label="The interview kit. The posting, the resume and the portfolio you sent, and your confirmed facts, give the question map: questions for each posting line, resume line, portfolio page and term, plus behavioral, company and opening questions. Each question gets a scene, a short dialogue in English with the Korean translation under each line and speech marks, drafted by the AI backend from your evidence and checked. Audits rate how well the scenes cover the posting and compare them with what you sent. The search view finds a scene by keyword on your PC, practice mode asks the questions and gives feedback, and cue cards print the scenes">
+<defs>
+<linearGradient id="desk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f4f7"/><stop offset=".46" stop-color="#e8ebf0"/><stop offset="1" stop-color="#e1e5eb"/></linearGradient>
+<radialGradient id="lamp" cx=".03" cy="-.12" r=".74"><stop offset="0" stop-color="#ffc88a" stop-opacity="0.32"/><stop offset=".64" stop-color="#ffc88a" stop-opacity="0"/></radialGradient>
+<radialGradient id="shade" cx="1.06" cy="1.14" r=".88"><stop offset="0" stop-color="#425c94" stop-opacity="0.2"/><stop offset=".62" stop-color="#425c94" stop-opacity="0"/></radialGradient>
+<linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset=".55" stop-color="#ffffff" stop-opacity="0.08"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<radialGradient id="lampbox" cx="0" cy="0" r="1.3"><stop offset="0" stop-color="#ffbe6e" stop-opacity="0.075"/><stop offset=".55" stop-color="#ffbe6e" stop-opacity="0"/></radialGradient>
+<linearGradient id="rainbow" x1="0" y1="0" x2="1" y2=".18"><stop offset="0.000" stop-color="#ff4d6d"/><stop offset="0.143" stop-color="#ffb347"/><stop offset="0.286" stop-color="#f2e14c"/><stop offset="0.429" stop-color="#4cd97b"/><stop offset="0.571" stop-color="#4cc9f0"/><stop offset="0.714" stop-color="#7b61ff"/><stop offset="0.857" stop-color="#e84cf0"/><stop offset="1.000" stop-color="#ff4d6d"/></linearGradient>
+<filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="900" height="424"><feGaussianBlur stdDeviation="13"/></filter>
+<filter id="sheet" x="-20%" y="-20%" width="150%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="4"/><feOffset dx="3" dy="5" result="b"/><feFlood flood-color="#281e0f" flood-opacity="0.16"/><feComposite in2="b" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<clipPath id="o1"><path clip-rule="evenodd" d="M-40,-40 H940 V464 H-40 Z M20.0,288.0 H186.0 V362.0 H20.0 Z"/></clipPath>
+<clipPath id="i1"><path d="M20.0,288.0 H186.0 V362.0 H20.0 Z"/></clipPath>
+<clipPath id="o2"><path clip-rule="evenodd" d="M-40,-40 H940 V464 H-40 Z M240.0,24.0 H426.0 V362.0 H240.0 Z"/></clipPath>
+<clipPath id="i2"><path d="M240.0,24.0 H426.0 V362.0 H240.0 Z"/></clipPath>
+<clipPath id="o3"><path clip-rule="evenodd" d="M-40,-40 H940 V464 H-40 Z M482.0,24.0 H664.0 V186.0 H482.0 Z"/></clipPath>
+<clipPath id="i3"><path d="M482.0,24.0 H664.0 V186.0 H482.0 Z"/></clipPath>
+<clipPath id="o4"><path clip-rule="evenodd" d="M-40,-40 H940 V464 H-40 Z M482.0,222.0 H664.0 V362.0 H482.0 Z"/></clipPath>
+<clipPath id="i4"><path d="M482.0,222.0 H664.0 V362.0 H482.0 Z"/></clipPath>
+<clipPath id="o5"><path clip-rule="evenodd" d="M-40,-40 H940 V464 H-40 Z M722.0,24.0 H880.0 V128.0 H722.0 Z"/></clipPath>
+<clipPath id="i5"><path d="M722.0,24.0 H880.0 V128.0 H722.0 Z"/></clipPath>
+<clipPath id="o6"><path clip-rule="evenodd" d="M-40,-40 H940 V464 H-40 Z M722.0,142.0 H880.0 V246.0 H722.0 Z"/></clipPath>
+<clipPath id="i6"><path d="M722.0,142.0 H880.0 V246.0 H722.0 Z"/></clipPath>
+</defs>
+<rect width="900" height="424" rx="8" fill="url(#desk)"/>
+<rect width="900" height="424" rx="8" fill="url(#lamp)"/>
+<rect width="900" height="424" rx="8" fill="url(#shade)"/>
+<g filter="url(#sheet)"><path d="M20.0,24.0 H186.0 V84.0 L172.0,98.0 H20.0 Z" fill="#f3eac8"/></g>
+<path d="M20.0,24.0 H186.0 V84.0 L172.0,98.0 H20.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1"/>
+<path d="M172.0,84.0 H186.0 L172.0,98.0 Z" fill="#faf5e1" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1" stroke-linejoin="round"/>
+<text x="32.0" y="51.0" font-size="14" font-weight="600" fill="#171717" data-box="32.0,174.0">Posting</text>
+<text x="32.0" y="71.0" font-size="12" fill="#5f5a48" data-box="32.0,174.0">each line a question</text>
+<g filter="url(#sheet)"><path d="M20.0,112.0 H174.0 L186.0,124.0 V186.0 H20.0 Z" fill="#ffffff"/></g>
+<path d="M20.0,112.0 H174.0 L186.0,124.0 V186.0 H20.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1"/>
+<path d="M174.0,112.0 V124.0 H186.0 Z" fill="#e3e7ee" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1" stroke-linejoin="round"/>
+<text x="32.0" y="139.0" font-size="13.5" font-weight="600" fill="#171717" data-box="32.0,174.0">Resume you sent</text>
+<text x="32.0" y="159.0" font-size="12" fill="#616161" data-box="32.0,174.0">each line a question</text>
+<g filter="url(#sheet)"><path d="M20.0,200.0 H174.0 L186.0,212.0 V274.0 H20.0 Z" fill="#ffffff"/></g>
+<path d="M20.0,200.0 H174.0 L186.0,212.0 V274.0 H20.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1"/>
+<path d="M174.0,200.0 V212.0 H186.0 Z" fill="#e3e7ee" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1" stroke-linejoin="round"/>
+<text x="32.0" y="227.0" font-size="13.5" font-weight="600" fill="#171717" data-box="32.0,174.0">Portfolio you sent</text>
+<text x="32.0" y="247.0" font-size="12" fill="#616161" data-box="32.0,174.0">each page a question</text>
+<g clip-path="url(#o1)"><rect x="36.0" y="316.0" width="134.0" height="42.0" fill="#1e2434" fill-opacity="0.3" filter="url(#soft)"/><path d="M20.0,288.0 H186.0 V362.0 H20.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.08" stroke-width="2"/></g>
+<path d="M20.0,288.0 H186.0 V362.0 H20.0 Z" fill="#ffffff" fill-opacity="0.5"/>
+<path d="M20.0,288.0 H186.0 V362.0 H20.0 Z" fill="url(#lampbox)"/><path d="M20.0,288.0 H186.0 V362.0 H20.0 Z" fill="url(#sheen)"/>
+<path d="M20.0,288.0 H186.0 V362.0 H20.0 Z" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="2" clip-path="url(#i1)"/>
+<rect x="32.0" y="301.0" width="22.0" height="22.0" rx="2" fill="#865901" fill-opacity="0.12"/>
+<g transform="translate(36.5,305.5) scale(0.5417)" fill="none" stroke="#865901" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></g>
+<text x="63.0" y="317.0" font-size="14" font-weight="600" fill="#171717" data-box="63.0,174.0">Your facts</text>
+<rect x="29.5" y="332.0" width="103.8" height="12.2" rx="1.5" fill="#f2c744" fill-opacity="0.58"/>
+<text x="32.0" y="341.0" font-size="12.5" textLength="98.8" lengthAdjust="spacingAndGlyphs" fill="#171717" data-box="32.0,174.0">the only evidence</text>
+<g clip-path="url(#o2)"><rect x="256.0" y="52.0" width="154.0" height="306.0" fill="#1e2434" fill-opacity="0.3" filter="url(#soft)"/><path d="M240.0,24.0 H426.0 V362.0 H240.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.08" stroke-width="2"/></g>
+<path d="M240.0,24.0 H426.0 V362.0 H240.0 Z" fill="#ffffff" fill-opacity="0.5"/>
+<path d="M240.0,24.0 H426.0 V362.0 H240.0 Z" fill="url(#lampbox)"/><path d="M240.0,24.0 H426.0 V362.0 H240.0 Z" fill="url(#sheen)"/>
+<path d="M240.0,24.0 H426.0 V362.0 H240.0 Z" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="2" clip-path="url(#i2)"/>
+<rect x="252.0" y="37.0" width="22.0" height="22.0" rx="2" fill="#616161" fill-opacity="0.12"/>
+<g transform="translate(256.5,41.5) scale(0.5417)" fill="none" stroke="#616161" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5 3.5 6.5v13L9 17.5l6 2 5.5-2v-13L15 6.5z"/><path d="M9 4.5v13M15 6.5v13"/></g>
+<text x="283.0" y="53.0" font-size="14.5" font-weight="600" fill="#171717" data-box="283.0,414.0">Question map</text>
+<path d="M252.0,70.0 H414.0" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
+<text x="252.0" y="96.0" font-size="13" fill="#4d4d4d" data-box="252.0,414.0">posting lines</text>
+<path d="M252.0,111.0 H414.0" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
+<text x="252.0" y="137.0" font-size="13" fill="#4d4d4d" data-box="252.0,414.0">resume lines</text>
+<path d="M252.0,152.0 H414.0" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
+<text x="252.0" y="178.0" font-size="13" fill="#4d4d4d" data-box="252.0,414.0">portfolio pages</text>
+<path d="M252.0,193.0 H414.0" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
+<text x="252.0" y="219.0" font-size="13" fill="#4d4d4d" data-box="252.0,414.0">terms you used</text>
+<path d="M252.0,234.0 H414.0" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
+<text x="252.0" y="260.0" font-size="13" fill="#4d4d4d" data-box="252.0,414.0">behavioral</text>
+<path d="M252.0,275.0 H414.0" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
+<text x="252.0" y="301.0" font-size="13" fill="#4d4d4d" data-box="252.0,414.0">company</text>
+<path d="M252.0,316.0 H414.0" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
+<text x="252.0" y="342.0" font-size="13" fill="#4d4d4d" data-box="252.0,414.0">opening logistics</text>
+<g clip-path="url(#o3)"><rect x="498.0" y="52.0" width="150.0" height="130.0" fill="#1e2434" fill-opacity="0.3" filter="url(#soft)"/><path d="M482.0,24.0 H664.0 V186.0 H482.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.08" stroke-width="2"/></g>
+<path d="M482.0,24.0 H664.0 V186.0 H482.0 Z" fill="#ffffff" fill-opacity="0.5"/>
+<path d="M482.0,24.0 H664.0 V186.0 H482.0 Z" fill="url(#lampbox)"/><path d="M482.0,24.0 H664.0 V186.0 H482.0 Z" fill="url(#sheen)"/>
+<path d="M482.0,24.0 H664.0 V186.0 H482.0 Z" fill="none" stroke="url(#rainbow)" stroke-width="3.2" clip-path="url(#i3)"/>
+<rect x="494.0" y="37.0" width="22.0" height="22.0" rx="2" fill="#a0421c" fill-opacity="0.12"/>
+<g transform="translate(498.5,41.5) scale(0.5417)" fill="none" stroke="#a0421c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6.5c.55 4.2 2.8 6.45 7 7c-4.2.55-6.45 2.8-7 7c-.55-4.2-2.8-6.45-7-7c4.2-.55 6.45-2.8 7-7z"/><path d="M18 2.5c.35 1.85 1.65 3.15 3.5 3.5c-1.85.35-3.15 1.65-3.5 3.5c-.35-1.85-1.65-3.15-3.5-3.5c1.85-.35 3.15-1.65 3.5-3.5z"/></g>
+<text x="525.0" y="53.0" font-size="14.5" font-weight="600" fill="#171717" data-box="525.0,652.0">Scenes</text>
+<text x="494.0" y="77.0" font-size="12.5" fill="#616161" data-box="494.0,652.0">English lines with the</text>
+<text x="494.0" y="94.8" font-size="12.5" fill="#616161" data-box="494.0,652.0">Korean translation under</text>
+<text x="494.0" y="112.5" font-size="12.5" fill="#616161" data-box="494.0,652.0">each, speech marks,</text>
+<text x="494.0" y="130.2" font-size="12.5" fill="#616161" data-box="494.0,652.0">one key phrase</text>
+<g clip-path="url(#o4)"><rect x="498.0" y="250.0" width="150.0" height="108.0" fill="#1e2434" fill-opacity="0.3" filter="url(#soft)"/><path d="M482.0,222.0 H664.0 V362.0 H482.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.08" stroke-width="2"/></g>
+<path d="M482.0,222.0 H664.0 V362.0 H482.0 Z" fill="#ffffff" fill-opacity="0.5"/>
+<path d="M482.0,222.0 H664.0 V362.0 H482.0 Z" fill="url(#lampbox)"/><path d="M482.0,222.0 H664.0 V362.0 H482.0 Z" fill="url(#sheen)"/>
+<path d="M482.0,222.0 H664.0 V362.0 H482.0 Z" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="2" clip-path="url(#i4)"/>
+<rect x="494.0" y="235.0" width="22.0" height="22.0" rx="2" fill="#616161" fill-opacity="0.12"/>
+<g transform="translate(498.5,239.5) scale(0.5417)" fill="none" stroke="#616161" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></g>
+<text x="525.0" y="251.0" font-size="14.5" font-weight="600" fill="#171717" data-box="525.0,652.0">Audits</text>
+<text x="494.0" y="275.0" font-size="12.5" fill="#616161" data-box="494.0,652.0">posting coverage:</text>
+<text x="494.0" y="292.8" font-size="12.5" fill="#616161" data-box="494.0,652.0">strong, weak or none</text>
+<text x="494.0" y="315.5" font-size="12.5" fill="#616161" data-box="494.0,652.0">consistency with what</text>
+<text x="494.0" y="333.2" font-size="12.5" fill="#616161" data-box="494.0,652.0">you sent</text>
+<g clip-path="url(#o5)"><rect x="738.0" y="52.0" width="126.0" height="72.0" fill="#1e2434" fill-opacity="0.3" filter="url(#soft)"/><path d="M722.0,24.0 H880.0 V128.0 H722.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.08" stroke-width="2"/></g>
+<path d="M722.0,24.0 H880.0 V128.0 H722.0 Z" fill="#ffffff" fill-opacity="0.5"/>
+<path d="M722.0,24.0 H880.0 V128.0 H722.0 Z" fill="url(#lampbox)"/><path d="M722.0,24.0 H880.0 V128.0 H722.0 Z" fill="url(#sheen)"/>
+<path d="M722.0,24.0 H880.0 V128.0 H722.0 Z" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="2" clip-path="url(#i5)"/>
+<rect x="734.0" y="37.0" width="22.0" height="22.0" rx="2" fill="#616161" fill-opacity="0.12"/>
+<g transform="translate(738.5,41.5) scale(0.5417)" fill="none" stroke="#616161" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></g>
+<text x="765.0" y="53.0" font-size="14" font-weight="600" fill="#171717" data-box="765.0,868.0">Search view</text>
+<text x="734.0" y="77.0" font-size="12" fill="#616161" data-box="734.0,868.0">a scene by keyword,</text>
+<text x="734.0" y="94.0" font-size="12" fill="#616161" data-box="734.0,868.0">on your PC</text>
+<g clip-path="url(#o6)"><rect x="738.0" y="170.0" width="126.0" height="72.0" fill="#1e2434" fill-opacity="0.3" filter="url(#soft)"/><path d="M722.0,142.0 H880.0 V246.0 H722.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.08" stroke-width="2"/></g>
+<path d="M722.0,142.0 H880.0 V246.0 H722.0 Z" fill="#ffffff" fill-opacity="0.5"/>
+<path d="M722.0,142.0 H880.0 V246.0 H722.0 Z" fill="url(#lampbox)"/><path d="M722.0,142.0 H880.0 V246.0 H722.0 Z" fill="url(#sheen)"/>
+<path d="M722.0,142.0 H880.0 V246.0 H722.0 Z" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="2" clip-path="url(#i6)"/>
+<rect x="734.0" y="155.0" width="22.0" height="22.0" rx="2" fill="#616161" fill-opacity="0.12"/>
+<g transform="translate(738.5,159.5) scale(0.5417)" fill="none" stroke="#616161" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></g>
+<text x="765.0" y="171.0" font-size="14" font-weight="600" fill="#171717" data-box="765.0,868.0">Practice</text>
+<text x="734.0" y="195.0" font-size="12" fill="#616161" data-box="734.0,868.0">timer, your voice,</text>
+<text x="734.0" y="212.0" font-size="12" fill="#616161" data-box="734.0,868.0">feedback on your</text>
+<text x="734.0" y="229.1" font-size="12" fill="#616161" data-box="734.0,868.0">facts</text>
+<g filter="url(#sheet)"><path d="M722.0,260.0 H868.0 L880.0,272.0 V362.0 H722.0 Z" fill="#ffffff"/></g>
+<path d="M722.0,260.0 H868.0 L880.0,272.0 V362.0 H722.0 Z" fill="none" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1"/>
+<path d="M868.0,260.0 V272.0 H880.0 Z" fill="#e3e7ee" stroke="#1e2434" stroke-opacity="0.14" stroke-width="1" stroke-linejoin="round"/>
+<text x="734.0" y="287.0" font-size="14" font-weight="600" fill="#171717" data-box="734.0,868.0">Cue cards</text>
+<text x="734.0" y="307.0" font-size="12" fill="#616161" data-box="734.0,868.0">one scene per card,</text>
+<text x="734.0" y="324.0" font-size="12" fill="#616161" data-box="734.0,868.0">to print</text>
+<path d="M186.5,61.0 L233.0,61.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M239.0,61.0 L231.5,64.6 L231.5,57.4 Z" fill="#7b8494"/>
+<path d="M186.5,149.0 L233.0,149.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M239.0,149.0 L231.5,152.6 L231.5,145.4 Z" fill="#7b8494"/>
+<path d="M186.5,237.0 L233.0,237.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M239.0,237.0 L231.5,240.6 L231.5,233.4 Z" fill="#7b8494"/>
+<path d="M186.5,325.0 L233.0,325.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M239.0,325.0 L231.5,328.6 L231.5,321.4 Z" fill="#7b8494"/>
+<path d="M426.5,104.0 L475.0,104.0" fill="none" stroke="#d4531f" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M481.0,104.0 L473.5,107.6 L473.5,100.4 Z" fill="#d4531f"/>
+<text x="454.0" y="96.0" font-size="12" fill="#616161" text-anchor="middle" data-box="428.0,480.0">draft</text>
+<path d="M573.0,186.5 L573.0,215.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M573.0,221.0 L569.4,213.5 L576.6,213.5 Z" fill="#7b8494"/>
+<text x="581.0" y="208.0" font-size="12" fill="#616161" data-box="581.0,664.0">checked</text>
+<path d="M426.5,292.0 L475.0,292.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M481.0,292.0 L473.5,295.6 L473.5,288.4 Z" fill="#7b8494"/>
+<text x="454.0" y="284.0" font-size="12" fill="#616161" text-anchor="middle" data-box="428.0,480.0">gaps</text>
+<path d="M664.5,76.0 L715.0,76.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M721.0,76.0 L713.5,79.6 L713.5,72.4 Z" fill="#7b8494"/>
+<path d="M664.5,130.0 L700.0,130.0 L700.0,194.0 L715.0,194.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M721.0,194.0 L713.5,197.6 L713.5,190.4 Z" fill="#7b8494"/>
+<path d="M664.5,158.0 L686.0,158.0 L686.0,311.0 L715.0,311.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M721.0,311.0 L713.5,314.6 L713.5,307.4 Z" fill="#7b8494"/>
+<path d="M439.5,401.0 L452.5,401.0" fill="none" stroke="#7b8494" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M458.5,401.0 L451.0,404.6 L451.0,397.4 Z" fill="#7b8494"/>
+<text x="465.5" y="405.5" font-size="12" fill="#4d4d4d" data-box="465.5,880.0">stays on your PC</text>
+<path d="M587.4,401.0 L600.4,401.0" fill="none" stroke="#d4531f" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M606.4,401.0 L598.9,404.6 L598.9,397.4 Z" fill="#d4531f"/>
+<text x="613.4" y="405.5" font-size="12" fill="#4d4d4d" data-box="613.4,880.0">sent to the AI backend</text>
+<rect x="770.2" y="397.0" width="22.0" height="8.0" rx="1.5" fill="#f2c744" fill-opacity="0.58"/>
+<text x="800.2" y="405.5" font-size="12" fill="#4d4d4d" data-box="800.2,880.0">the evidence</text>
+<rect x=".5" y=".5" width="899" height="423" rx="7.5" fill="none" stroke="#1e2434" stroke-opacity="0.1" stroke-width="1"/>
 </svg>

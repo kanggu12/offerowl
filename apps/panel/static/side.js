@@ -27,7 +27,15 @@ function tabKeys(e) {                                                           
 
 // ---------------------------------------------------------------- evidence
 
+const srcName = (f) => (f === "profile.json" ? t("Your profile file") : f);       // a profile file brought in reads as the profile, not as a name of Offerowl's own
 function inspEvidence() {                                                           // the selected sentence and where it came from
+  if (UI.doc === "deck") return [h("div", { class: "ins-sec" }, h("h3", { text: t("The deck's sentences are the resume's") }),   // its slides are a picture: nothing on them to click
+    h("p", { class: "hint", text: t("Each one's evidence is on the Resume tab.") }),
+    h("div", {}, h("button", { class: "btn small", onclick: () => { UI.doc = "resume"; UI.sel = null; render(); }, text: t("Open the resume") })))];
+  const lk = sentAway() ? job().locked : null;                                      // a submitted application
+  if (lk && (lk.brought || (UI.doc === "cover" && !Object.keys(lk.files || {}).includes("cover.pdf")))) return [h("div", { class: "ins-sec" },   // its own files went out, or no letter did: nothing of Offerowl's to trace
+    h("h3", {}, icon("lock", 14), " ", t("Submitted and locked")), h("p", { class: "hint", text: UI.doc === "cover" && !Object.keys(lk.files || {}).includes("cover.pdf")
+      ? t("No cover letter went out with this application.") : t("The files you sent are kept as they went. They hold no sentence of Offerowl's to trace.") }))];
   const coverDoc = UI.doc === "cover";                                              // the cover letter has sentences and evidence of its own
   const m = coverDoc ? coverModel() : resumeModel();                                // the document in view (the deck prints the resume's sentences)
   if (coverDoc && !jobId()) return [h("div", { class: "ins-sec" }, h("h3", { text: t("A cover letter is written for one job") }))];   // the general edition has none
@@ -41,16 +49,16 @@ function inspEvidence() {                                                       
   const sources = src.length ? h("div", { class: "ins-sec" }, h("h3", { text: t("Sources of this document") }),   // what it was retrieved from
     // the files, each with a file sign (the numbers after the sentences count the facts they rest on, not these files)
     h("ol", { class: "srclist" }, src.map((x) => h("li", {}, h("span", { class: "srcn", "aria-hidden": "true" }, icon(x.typed ? "edit" : "file", 13)),
-      h("span", { class: "nm", title: x.file }, fileWords(x.file)), h("span", { class: "hint", text: tn(x.n, "{n} sentence", "{n} sentences") }))))) : null;
+      h("span", { class: "nm", title: x.file }, fileWords(srcName(x.file))), h("span", { class: "hint", text: tn(x.n, "{n} sentence", "{n} sentences") }))))) : null;
   if (!rec) return [sources, h("div", { class: "ins-sec" }, h("h3", { text: t("Click a sentence to see its evidence") })),
-    m && m.draft && m.draft.counts && m.draft.at ? h("div", { class: "ins-sec" }, h("p", { class: "hint", text: t("Written by the agent on {at}: {n} texts, {r} rewritten after a check stopped them, {d} dropped.", { at: m.draft.at, n: m.draft.counts.written || 0, r: m.draft.counts.rewritten || 0, d: m.draft.counts.dropped || 0 }) }),
-      agentOn() && edition() ? h("div", {}, h("button", { class: "btn small", onclick: () => writeResume(edition().id), text: t("Write it again") })) : null) : null,
+    m && m.draft && m.draft.counts && m.draft.at ? h("div", { class: "ins-sec" }, h("p", { class: "hint", text: t("The agent wrote this edition's texts on {at}: {n} for the resume and the deck together. The checks stopped {r}, which were written again, and {d} were dropped.", { at: m.draft.at, n: m.draft.counts.written || 0, r: m.draft.counts.rewritten || 0, d: m.draft.counts.dropped || 0 }) }),   // the draft's texts, never read as this page's sentences
+      agentOn() && edition() && !sentAway() ? h("div", {}, h("button", { class: "btn small", onclick: () => writeResume(edition().id), text: t("Write it again") })) : null) : null,
     m && m.counts && m.counts.sentences ? segBar([{ n: m.counts.sentences - (m.counts.unsupported || 0), words: t("With evidence"), color: "var(--violet-bar)" },   // the document's sentences by their evidence, in the chain's own colours (Make)
       { n: m.counts.unsupported || 0, words: t("Without evidence"), color: "var(--red-bar)" }], { label: t("Sentences"), id: "ev", compact: true }) : null,
     m && m.counts ? h("dl", { class: "kv" }, h("dt", { text: t("Sentences") }), h("dd", { text: String(counts.sentences || 0) }),
       counts.edited !== undefined ? [h("dt", { text: t("Edited by you") }), h("dd", { text: String(counts.edited) })] : null,   // the resume counts these; a letter does not
       counts.locked !== undefined ? [h("dt", { text: t("Locked") }), h("dd", { text: String(counts.locked) })] : null,
-      h("dt", { text: t("Without evidence") }), h("dd", {}, counts.unsupported ? h("button", { class: "btn small", onclick: selectNextBad, text: t("{n}: show the first", { n: counts.unsupported }) }) : "0")) : null];
+      counts.unsupported ? [h("dt", { text: t("Without evidence") }), h("dd", {}, h("button", { class: "btn small", onclick: selectNextBad, text: t("{n}: show the first", { n: counts.unsupported }) }))] : null) : null];   // the bar above says 0 already
   const cover = UI.sel.startsWith("cover.");                                        // a cover letter sentence
   const st = { ok: ["ok", "As your evidence says"], typed: ["pc", "Your own words"], edited: ["pc", "Edited, still within the evidence"], unsupported: ["bad", "No evidence for this"] }[rec.state] || ["off", ""];
   const regen = task("regen:" + UI.sel);                                            // a regeneration of this sentence
@@ -63,20 +71,23 @@ function inspEvidence() {                                                       
       rec.drafted ? h("span", { class: "chip ai", text: t("Written by the agent") }) : rec.kind ? h("span", { class: "chip", text: t(KIND[rec.kind] || "Other") }) : null),
       UI.editing ? editor : h("p", { class: "ev-sentence" }, marks(rec.text, "hl")),
       (rec.issues || []).length ? h("ul", { class: "band issues" }, rec.issues.map((i) => { const why = t(ISSUE[i.code] || ISSUE.other, { w: i.words, said: i.said || "" }); return h("li", { text: why.charAt(0).toUpperCase() + why.slice(1) }); })) : null),   // a list item starts as a sentence does
-    cover || UI.editing ? null : h("div", { class: "ev-actions" },
+    cover || UI.editing ? null : sentAway() ? h("p", { class: "hint", text: t("This application was submitted and locked: its sentences stay as they went.") })
+      : h("div", { class: "ev-actions" },
       h("button", { class: "btn small", disabled: rec.locked || null, onclick: () => { UI.editing = true; render(); const f = document.querySelector('[data-key="sentence-edit"]'); if (f) f.focus(); }, text: t("Edit") }),
-      h("button", { class: "btn small", disabled: rec.locked || busy || null, onclick: () => regenerate(UI.sel), text: busy ? t("Writing…") : t("Regenerate from the evidence") }),
+      h("button", { class: "btn small", disabled: rec.locked || busy || !agentOn() || null, onclick: () => regenerate(UI.sel), text: busy ? t("Writing…") : t("Regenerate from the evidence") }),
       ...[["shorter", "Shorter"], ["plainer", "Plainer"], ["result", "Result first"]].map(([way, w]) =>   // a direction picked with one press, never typed
-        h("button", { class: "btn small", disabled: rec.locked || busy || null, onclick: () => regenerate(UI.sel, way), text: t(w) })),
+        h("button", { class: "btn small", disabled: rec.locked || busy || !agentOn() || null, onclick: () => regenerate(UI.sel, way), text: t(w) })),
       h("button", { class: "btn small", "aria-pressed": rec.locked ? "true" : "false", onclick: () => act("/api/v1/sentences/lock", { sid: UI.sel, locked: !rec.locked, lang: docLang(), job: jobId() }, rec.locked ? t("Unlocked.") : t("Locked: Edit and Regenerate leave it alone.")) },
         icon("lock", 13), rec.locked ? t("Unlock") : t("Lock"))),
-    cover ? null : sendNote(t("Regenerating sends this sentence's evidence to the agent.")),
+    cover || UI.editing || sentAway() || agentOn() ? null : h("div", { class: "ins-sec agent-off" }, h("p", { class: "hint", text: t("Regenerating and the rewrites need the agent.") }),   // why four keys wait
+      h("div", {}, h("button", { class: "btn small", onclick: () => openAgentMenu(), text: t("Turn on the agent") }))),
+    cover || sentAway() ? null : sendNote(t("Regenerating sends this sentence's evidence to the agent.")),
     regen.state === "error" ? band(regen.error.code, { retry: () => regenerate(UI.sel) }) : null,
     h("div", { class: "ins-sec" }, h("h3", { text: t("Evidence") }),
       (rec.evidence || []).length ? h("div", { class: "ev-list" }, rec.evidence.map((e) => e.where === "details" ? h("div", { class: "note", text: t("You wrote this in Your details.") })
         : h("div", { class: "note ev-note" }, m && evidenceIndex(m).has(evKey(e)) ? h("span", { class: "evn", text: String(evidenceIndex(m).get(evKey(e))) }) : null,   // the number the canvas shows
           h("q", {}, evidenceQuote(e.quote, rec.text)),
-          h("span", { class: "from", text: [e.where && e.where !== "profile" ? bars(e.where) : "", e.file ? t("From {file}", { file: e.file }) : ""].filter(Boolean).join(", ") }))))
+          h("span", { class: "from", text: [e.where && e.where !== "profile" ? bars(e.where) : "", e.file ? t("From {file}", { file: srcName(e.file) }) : ""].filter(Boolean).join(", ") }))))
         : h("p", { class: "hint", text: t("No fact backs this sentence. Edit it to say what your evidence says, regenerate it, or add the fact to your profile.") })),
   ];
 }
@@ -107,6 +118,8 @@ async function saveSentence(text) {                                             
   const r = await act("/api/v1/sentences/edit", { sid: UI.sel, text, lang: docLang(), job: jobId() });  // checked against the evidence there
   if (!r) return;                                                                   // refused: the toast says why
   UI.editing = false; forget("sentence-edit");                                      // the form closes
+  const rec = sentenceOf(UI.sel);                                                   // the record the inspector and the page show
+  if (rec && r.sentence && r.sentence.text) Object.assign(rec, r.sentence);         // the new words at once: the model drawn again from the server follows
   const st = (r.sentence || {}).state;                                              // what the check found
   toast(st === "unsupported" ? t("Saved, but the evidence does not cover it: it will not be exported until it does.") : t("Saved. Undo takes it back."), null, st === "unsupported" ? "warn" : "done");
   render();                                                                         // drawn
@@ -136,9 +149,13 @@ const RATING_COUNT = { strong: "{n} met", weak: "{n} in part", none: "{n} not me
 const withKid = (el, kid) => { if (kid) el.append(kid); return el; };            // a section with one more line at its foot, when there is one
 function builtPages() {                                                            // the limit the PDF on screen was made with, said when it differs from the choice above
   const ed = edition(), b = ed && ed.builds && ed.builds[docLang()], n = b && Number(b.maxPages);
-  return n && n !== UI.maxPages ? h("p", { class: "hint", text: t("The PDF on screen was made with at most {n} pages.", { n }) }) : null;
+  return n && n !== pagesNow() ? h("p", { class: "hint", text: t("The PDF on screen was made with at most {n} pages.", { n }) }) : null;
 }
-function setDoc(key, value, store) { UI[key] = value; localStore(store, String(value)); render(); }  // a document setting, kept in this browser
+function pagesNow() {                                                               // the limit the next PDFs are made with: the one picked in this browser, else the edition's own
+  const ed = edition(), b = ed && ed.builds && ed.builds[docLang()], n = b && Number(b.maxPages);
+  return UI.maxPagesChosen || !n ? UI.maxPages : n;
+}
+function setDoc(key, value, store) { UI[key] = value; localStore(store, String(value)); if (key === "maxPages") UI.maxPagesChosen = true; render(); }  // a document setting, kept in this browser
 function inspStyle() {                                                              // the documents' language, length and parts
   const seg = (label, key, store, options, now = UI[key]) => h("div", { class: "ins-sec" }, h("h3", { text: t(label) }), h("div", { class: "seg" }, options.map(([v, w]) =>
     h("button", { "aria-pressed": now === v ? "true" : "false", onclick: () => setDoc(key, v, store), text: t(w) }))));   // pressed: the value in force, chosen or not
@@ -159,7 +176,7 @@ function inspStyle() {                                                          
     bl.own ? h("button", { class: "btn small", onclick: () => act("/api/v1/blind", { table: null }, t("Offerowl's own table is in use again.")), text: t("Use Offerowl's own") }) : null,   // back to the shipped one
     h("p", { class: "hint", text: t("The names, contacts and figures a blind edition covers with bars, as patterns in a JSON file. It is kept in your workspace on this PC.") }));
   return [rules, blind, seg("Document language", "docLang", "offerowl-doclang", [["ko", "Korean"], ["en", "English"]], docLang()),   // the language shown, even before one is chosen
-    withKid(seg("Pages at most", "maxPages", "offerowl-maxpages", [[2, "2 pages"], [3, "3 pages"], [4, "4 pages"], [5, "5 pages"], [6, "6 pages"], [7, "7 pages"]]), builtPages()),   // a long career's description runs to six, in English to seven; the PDF on screen's own limit under it when it differs
+    withKid(seg("Pages at most", "maxPages", "offerowl-maxpages", [[2, "2 pages"], [3, "3 pages"], [4, "4 pages"], [5, "5 pages"], [6, "6 pages"], [7, "7 pages"]], pagesNow()), builtPages()),   // a long career's description runs to six, in English to seven; the PDF on screen's own limit under it when it differs
     h("div", { class: "ins-sec" }, h("h3", { text: t("Tailoring makes") }),
       h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-cover", checked: UI.cover, onchange: (e) => setDoc("cover", e.target.checked, "offerowl-cover") }), h("span", { class: "track" }), t("The cover letter")),
       h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-typeset", checked: UI.typeset, disabled: !!S.engine || null, onchange: (e) => setDoc("typeset", e.target.checked, "offerowl-typeset") }), h("span", { class: "track" }), t("The PDFs too")),
