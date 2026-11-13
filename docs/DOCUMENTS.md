@@ -88,6 +88,30 @@ Figures come from a library of templates, listed in [The portfolio deck](#the-po
 checks (overflow, overlap, arrows, small text, contrast) measure them. A second figure in the narrow right column is drawn on its
 own smaller canvas.
 
+### What the checks hold an edition to
+
+Every build checks the edition it made (`src/check_documents.py`) before its PDFs may go out. Besides the rules for everyone (every
+company and project of the profile printed, the page limit, the footer, numbers kept with their units) and the printed words and
+lines ([Printed words](WRITING.md#printed-words)), a style pack can hold an edition to more, each rule off until the pack turns it on:
+
+- **Phrases fixed once** (`claims`, [Phrases fixed once](WRITING.md#phrases-fixed-once)): a phrase taken out because it did not match
+  the facts never comes back, the general editions say a topic with one phrase, and work that ended as a proposal says so. The resume
+  and the deck are both read.
+- **The edition against the profile** (`ledger`, [The edition against the profile](WRITING.md#the-edition-against-the-profile)): every
+  period printed is one the profile holds, identifiers such as a patent's number are printed as the profile writes them, the entries
+  of lists such as the papers are the profile's own, required words and core projects are printed, and no company prints fewer
+  items than the pack keeps. An edition you bring in is held to the profile it came beside, so a period or a title it carries from
+  an older document is found.
+- **The shape you keep** (`structure`): the sections in your order, the timeline and the hierarchy figure placed, about me in a few
+  parts, the job titles in one form, and the skills table holding stacks only.
+- **What the pages show** (`pages`, [What the pages show](WRITING.md#what-the-pages-show)): an application's last page filled with
+  facts, no hole in a middle page, the career summary on page 1, the bands' words and logos at their middles, and each company's lines
+  following its tenure.
+
+What the typesetting set is read from the sidecar `src/layout.js` writes beside the document (`<name>.highlights.json`): the
+highlights and paragraphs for the line checks, and `parts` for these rules (the section titles in print order, the figures placed with
+their pixel sizes, the about-me parts, the job titles of the company bands, and the company bands with the colours they were painted in).
+
 ### Tests of the parts
 
 - `node tests/parts/loader_test.js`: the loader (tenure, periods, language pairs, ledger markdown, ledger-form profiles) and

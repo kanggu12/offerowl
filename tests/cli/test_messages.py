@@ -14,7 +14,10 @@ import unittest  # the test framework
 from support import LAUNCHER, SRC
 
 sys.path.insert(0, str(SRC))
+import check_claims  # noqa: E402  its messages
 import check_documents  # noqa: E402  its messages
+import check_ledger  # noqa: E402  its messages
+import check_pages  # noqa: E402  its messages
 import check_render  # noqa: E402  its messages
 import draft  # noqa: E402  its messages
 import ingest  # noqa: E402  its messages
@@ -39,6 +42,9 @@ TABLES = {
     "llm": (llm.MSG, SRC / "llm.py"),
     "resume": (resume.MSG, SRC / "resume.py"),
     "check_documents": (check_documents.MSG, SRC / "check_documents.py"),
+    "check_claims": (check_claims.MSG, SRC / "check_claims.py"),
+    "check_ledger": (check_ledger.MSG, SRC / "check_ledger.py"),
+    "check_pages": (check_pages.MSG, SRC / "check_pages.py"),
     "check_render": (check_render.MSG, SRC / "check_render.py"),
     "draft": (draft.MSG, SRC / "draft.py"),
     "ingest": (ingest.MSG, SRC / "ingest.py"),

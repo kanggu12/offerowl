@@ -652,6 +652,10 @@ def check(profile: str, cfg: str | None, pdf: pathlib.Path, deck: pathlib.Path |
         style = rel(style)
     cmd = ["python3", "src/check_documents.py", rel(profile), rel(str(pdf))] + ([rel(str(deck))] if deck else []) + \
           ["--style", style, "--max-pages", str(c.get("maxPages") or 3)]
+    if c.get("ledger"):  # the profile the edition is held to (docs/WRITING.md "The edition against the profile"), staged as the panel does
+        cmd += ["--ledger", rel(str(c["ledger"]))]
+    if c.get("edition") in ("general", "job"):  # a general edition, or one application's
+        cmd += ["--edition", c["edition"]]
     r = sh(cmd)
     print((r.stdout + r.stderr).strip())
     return r.returncode

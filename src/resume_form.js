@@ -206,7 +206,10 @@ function build(profilePath, cfg = {}) {
   const badgeOk = fs.existsSync(path.join(__dirname, "badge.py"));
   for (const r of roles) {
     const logo = tile(r.logoId);
-    const band = L.fband(r.org, r.period + (r.tenure ? ` (${r.tenure})` : ""), { boldRight: true, title: r.titleLong || r.title, place: r.place,
+    // the job title the line under the band prints (after the department and its " / "): what the title checks read. The long
+    // title (titleLong) is printed by the one-column form only, so it is never the one held to them here
+    const shown = r.sub ? String(r.sub).split(" / ").pop() : (r.title || "");
+    const band = L.fband(r.org, r.period + (r.tenure ? ` (${r.tenure})` : ""), { boldRight: true, title: shown, place: r.place,
       logo, badge: logo && !badgeOk ? "" : r.badge });
     ch.push(...[].concat(band));
     const sub = r.sub || [[r.dept, r.title].filter(Boolean).join(" / "), r.context].filter(Boolean).join(", ");

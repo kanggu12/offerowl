@@ -46,6 +46,11 @@ const HILITE = "FFF0A0";
 // say whether a highlight broke across two lines, how long it is, and whether a paragraph ends on a word of its own
 const HIGHLIGHTS = [];
 const PARAS = [];
+// What the form set besides its words, for the document checks of src/check_ledger.py and src/check_pages.py (written into
+// the same sidecar as "parts"): the section titles in print order (the order a pack may hold), the figures placed with their
+// pixel sizes (a figure an edition lost), the about-me parts (how many), the job titles of the company bands (one form), and
+// the company bands themselves (where the band check measures). The typesetting's own list, so a check never holds a stale copy
+const PARTS = { sections: [], figures: [], about: [], titles: [], bands: [] };
 function rich(text, o = {}) {
   PARAS.push(String(text).replace(/==/g, ""));                                  // the paragraph as it reads
   // split() with a capture group puts the captured (marked) phrases at the odd positions. Empty pieces are filtered out
@@ -105,6 +110,7 @@ function accent2() { return T.acc2 || T.acc; }
 const shade = fill => ({ type: ShadingType.CLEAR, fill, color: "auto" });
 // en is the faint English section name at the right edge (OVERVIEW and the like).
 function fsec(title, note, en) {
+  PARTS.sections.push(String(title));                                  // the section order the checks read, as printed
   const kids = [run(title, { bold: true, size: 24, color: T.sec })];   // 12 pt: a step above the company bands (11 pt) and sub-headings (10 pt)
   if (note) kids.push(run(note, { size: 18, color: GREY }));
   if (en && !PLAIN) { kids.push(run("\t")); kids.push(run(en, { size: 14, color: "8A94A3", cs: 40 })); }   // no English name in the plain look
@@ -124,6 +130,12 @@ function fsec(title, note, en) {
 }
 // Grey band. Used for the company heading in the detailed career and for the stage titles of the about-me section.
 function fband(left, right, o = {}) {
+  if (o.rail) PARTS.about.push(String(left));                          // an about-me stage: one part of about me
+  else {                                                               // a company band: where the band check measures, and its job title
+    PARTS.bands.push({ name: String(left), right: String(right || ""), logo: !!(o.logo && fs.existsSync(o.logo)), badge: String(o.badge || ""),
+      section: PARTS.sections.length - 1 });                           // and the section it stands in (the lines counted per company end where it ends)
+    if (o.title) PARTS.titles.push(String(o.title));                   // the job title the edition gives the company
+  }
   if (o.logo && fs.existsSync(o.logo)) return fbandLogo(left, right, o);
   // An about-me stage in the plain look is a bold title in the section color, with no band and no rail
   if (PLAIN && o.rail) return new Paragraph({ spacing: { before: 200, after: 60 }, keepNext: true,
@@ -419,6 +431,7 @@ function logoRun(path, hpx = 14) {
 function fimage(path, o = {}) {
   const data = fs.readFileSync(path);
   const w = data.readUInt32BE(16), h = data.readUInt32BE(20);
+  PARTS.figures.push({ name: require("path").basename(path), w, h });  // a figure the form placed, with its size (the check finds it in the PDF)
   const width = 694, height = Math.round(h * width / w);
   return new Paragraph({
     spacing: { before: o.before || 40, after: o.after === undefined ? 80 : o.after },
@@ -460,6 +473,7 @@ function fcards(items) {
 }
 // Quote block with a thick accent bar on the left: one paragraph about the person, such as a working-style note
 function fquote(head, text) {
+  PARTS.about.push(String(head));                                      // a boxed statement is one part of about me too
   // The plain look: the heading and the paragraph without the bar
   if (PLAIN) return [
     new Paragraph({ spacing: { before: 60, after: 30 }, keepNext: true, children: [run(head, { size: 16, bold: true, color: T.acc })] }),
@@ -731,7 +745,9 @@ function render(ch, outPath) {
   });
   // the highlights and paragraphs set, beside the document, for the line checks (written before the save, so a document
   // that saved always has them, and an older pair is never read beside a newer document)
-  require("fs").writeFileSync(outPath.replace(/\.docx$/, ".highlights.json"), JSON.stringify({ highlights: HIGHLIGHTS, paras: PARAS }, null, 1));
+  // with the parts the form set, and the colours the bands were painted in (the band check finds them by colour)
+  const parts = { ...PARTS, band: T.band, rail: T.acc, badgeFill: accent2(), plain: PLAIN };
+  require("fs").writeFileSync(outPath.replace(/\.docx$/, ".highlights.json"), JSON.stringify({ highlights: HIGHLIGHTS, paras: PARAS, parts }, null, 1));
   require("./save").save(doc, outPath, { fieldResults: PLAIN || !!FOOTER_NAME });   // page fields filled in when the footer or the plain look shows them
 }
 
