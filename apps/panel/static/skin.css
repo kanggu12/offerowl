@@ -974,43 +974,28 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 /* ================================================================ the command bar (ask.js): a key at the bottom right, a bar to write to the agent */
 #askbar { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
 #askbar > * { pointer-events: auto; }
-.ask-fab { display: inline-flex; align-items: center; gap: 9px; height: 44px; padding: 0 7px 0 13px; border-radius: 2px; cursor: pointer; color: var(--ink); font: inherit;
-  border: 1.5px solid transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--rainbow) border-box; background-size: 100% 100%, 200% 100%;
-  box-shadow: var(--rainbow-glow), 0 8px 22px -12px rgba(0, 0, 0, .35); }             /* a closed bar: the rim of the box where you write to the agent */
-.ask-fab-i { display: inline-flex; color: var(--fab-lamp, var(--ink-3)); }           /* the agent's mark in its lamp's colour */
-.ask-fab-i svg { width: 17px; height: 17px; }
-.ask-fab[data-lamp="ok"] { --fab-lamp: var(--green); } .ask-fab[data-lamp="warn"] { --fab-lamp: var(--amber); } .ask-fab[data-lamp="off"] { --fab-lamp: var(--ink-3); }
-.ask-fab[data-lamp="busy"] { --fab-lamp: var(--ink-2); } .ask-fab[data-lamp="busy"] .ask-fab-i { animation: lamp 1.2s var(--ease) infinite; }   /* working: the mark breathes, as the bar's chip does */
-.ask-fab-w { font-size: 13.5px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }   /* the box's own words, a step softer than what you type */
-.ask-fab:hover .ask-fab-w { color: var(--ink); }
-.ask-fab-k { margin-left: 4px; padding: 4px 6px; font-family: inherit; font-size: 11px; font-weight: 600; line-height: 1; letter-spacing: .02em; color: var(--ink-3); white-space: nowrap;
-  background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); border-radius: 2px; }   /* its key, as the version beside the wordmark is drawn */
-.ask-fab:hover { animation: rainbow-run 7s linear infinite; }
-.ask-fab.working { animation: rainbow-run 3s linear infinite; }
-html[data-motion="off"] .ask-fab { animation: none; }
-html[data-motion="off"] .ask-fab-i { animation: none !important; }
-/* "AI에게 요청하기", closed: a prompt floating at the window's bottom right, as the owner asked (11-09: "오른쪽 아래 떠 있는
-   에이전트 입력창", a box like a coding agent's prompt). Its words say what it is for at every width, the agent's lamp lights its
-   mark, its key stands at its end. Frosted glass, as the panel's other floating layers are, so what lies under it reads as
-   under glass; the rainbow rim, which marks what goes to the agent, is a ring at its edge only (under clear glass a rainbow
-   fill would tint the whole box). A phone or a tablet keeps the bar along the foot (below). */
-@media (min-width: 861px) {
-  #askbar .ask-fab { position: relative; width: 300px; height: 46px; padding: 0 9px 0 15px; gap: 10px; border: 0;
-    background: var(--ask-glass); -webkit-backdrop-filter: blur(14px) saturate(1.6); backdrop-filter: blur(14px) saturate(1.6);
-    box-shadow: var(--card-lit), var(--ask-lift); animation: none; }
-  #askbar .ask-fab::before { content: ""; position: absolute; inset: 0; padding: 1.5px; border-radius: inherit; pointer-events: none;
-    background: var(--rainbow); background-size: 200% 100%;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }   /* the ring alone: the box less its inside */
-  #askbar .ask-fab:hover::before { animation: rim-run 7s linear infinite; }           /* under the pointer, the light runs along the rim */
-  #askbar .ask-fab.working::before { animation: rim-run 3s linear infinite; }          /* the agent at work: faster */
-  #askbar .ask-fab .ask-fab-w { font-size: 14px; color: var(--ink-2); }                /* what it is for, a step softer than words typed */
-  #askbar .ask-fab .ask-fab-k { margin-left: auto; }                                   /* its key at the box's end */
-  html[data-motion="off"] #askbar .ask-fab::before { animation: none; } }
+/* "AI에게 요청하기", closed: a floating button at the window's bottom right, as the owner asked (11-10 "우측 하단 플로팅 버튼",
+   11-12 and 11-13 "플로팅 버튼"; 0.8.1's 300 px box read as a field to type in). A raised pill in the panel's main key colour, the
+   AI's mark and its words, the rainbow ring that marks what goes to the agent at its edge; it rises a little under the
+   pointer. A dot on the mark says the agent is not ready; the mark breathes while it works. The same on a phone. */
+.ask-fab { position: relative; display: inline-flex; align-items: center; gap: 9px; height: 52px; padding: 0 22px 0 18px; border: 0; border-radius: 999px; cursor: pointer;
+  font: inherit; color: var(--primary-ink); background: var(--primary);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .5), 0 3px 8px -2px rgba(0, 0, 0, .22); transition: transform .16s var(--ease), box-shadow .16s var(--ease); }
+.ask-fab::before { content: ""; position: absolute; inset: -2px; padding: 2px; border-radius: inherit; pointer-events: none; background: var(--rainbow); background-size: 200% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }   /* the ring alone, just outside the pill */
+.ask-fab:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -12px rgba(0, 0, 0, .55), 0 4px 10px -2px rgba(0, 0, 0, .25); }
+.ask-fab:hover::before { animation: rim-run 7s linear infinite; } .ask-fab.working::before { animation: rim-run 3s linear infinite; }   /* the light runs along the ring */
+.ask-fab:active { transform: none; }
+.ask-fab:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+.ask-fab-i { position: relative; display: inline-flex; }
+.ask-fab-i svg { width: 20px; height: 20px; }
+.ask-fab[data-lamp="warn"] .ask-fab-i::after, .ask-fab[data-lamp="off"] .ask-fab-i::after { content: ""; position: absolute; right: -3px; top: -2px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 2px var(--primary); }   /* the agent off or signed out: said by a dot, the sheet says what to do */
+.ask-fab[data-lamp="busy"] .ask-fab-i { animation: lamp 1.2s var(--ease) infinite; }   /* working: the mark breathes, as the bar's chip does */
+.ask-fab-w { font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
+html[data-motion="off"] .ask-fab, html[data-motion="off"] .ask-fab::before, html[data-motion="off"] .ask-fab-i { animation: none !important; transition: none; }
 @keyframes rim-run { to { background-position: 200% 0; } }
-@media (max-width: 860px) { #askbar .ask-fab-k { display: none; } }                 /* a phone or a tablet: no keyboard key to show */
-:root, :root[data-theme="light"] { --ask-glass: rgba(255, 255, 255, .62); --ask-lift: 0 0 0 1px rgba(30, 36, 52, .05), 0 14px 30px -14px rgba(30, 36, 52, .42); }
-:root[data-theme="dark"] { --ask-glass: rgba(28, 30, 37, .62); --ask-lift: 0 16px 34px -14px rgba(0, 0, 0, .8); }
 .layout { padding-bottom: 96px; }                                                    /* the page's end scrolls clear of the closed prompt (46 px, 20 px off the foot) */
 /* the applications: the list is fitted to the window and scrolls itself, so a foot under the page only made the page scroll
    96 px past it; the open application's end is what has to scroll clear of the prompt */
@@ -1675,16 +1660,12 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 :root[data-theme="dark"] { --arrow-edge: drop-shadow(0 -1px 0 rgba(255, 255, 255, .1)) drop-shadow(0 0 1px rgba(255, 255, 255, .08)) drop-shadow(0 12px 18px rgba(0, 0, 0, .5)); }
 /* the persona's badge slot sat over its columns as a stray bar: gone */
 .ins-persona::before { display: none; }
-/* the command bar's key on a phone or a tablet: a frosted bar along the foot, as the top bar is, so it never lies over a
-   card (floating at the corner it covered the page's figures); the page keeps room for it at its end */
+/* the floating button on a phone or a tablet: the same pill at the corner, a little smaller; the page keeps room for it at
+   its end, so the last lines scroll clear of it */
 @media (max-width: 860px) {
-  body:not(:has(#askpanel)) #askbar { left: 0; right: 0; bottom: 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); align-items: stretch; pointer-events: auto;
-    border-top: 1px solid var(--bar-rule); box-shadow: 0 -10px 26px -20px rgba(30, 36, 52, .5); }
-  body:not(:has(#askpanel)) #askbar::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--grain), var(--bar-glass);
-    -webkit-backdrop-filter: blur(24px) saturate(1.8); backdrop-filter: blur(24px) saturate(1.8); }
-  body:not(:has(#askpanel)) #askbar > .ask-fab { width: 100%; height: 44px; justify-content: flex-start; padding: 0 10px 0 12px; }
-  body:not(:has(#askpanel)) #askbar .ask-fab-w { display: inline; }
-  body:has(#askbar .ask-fab) { padding-bottom: 61px; } }
+  body:not(:has(#askpanel)) #askbar { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  #askbar .ask-fab { height: 48px; padding: 0 18px 0 15px; } #askbar .ask-fab-w { font-size: 14.5px; }
+  body:has(#askbar .ask-fab) { padding-bottom: 84px; } }
 /* a link in words a person or the agent wrote: its service's or site's name in the link colour, the mark of a new tab,
    a hairline under it (a full line under the pointer); beside a key that holds the words, the links stand after it */
 .xlink { display: inline-flex; align-items: center; gap: 3px; color: var(--blue); font-weight: 600; text-decoration: none; white-space: nowrap;
@@ -2258,3 +2239,44 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 }
 @media (max-width: 640px), (pointer: coarse) { .dt-cell .pickfield > input:not(.pick) { min-height: 44px; } }   /* a thumb: the field as tall as its calendar key (44 px), as on the progress tab */
 
+
+/* Documents (0.9.2): the typeset pages stand where the live pages stand (the same margin column, size and spread), and the
+   deck's pictures where its live frame starts; the English edition's sentences still in Korean are marked in words and with a
+   dotted amber line; the evidence totals keep two facts apart; the remove key of an edition stands at the row's end */
+.shotpages img.shot { display: block; width: min(var(--a4-w), 100%); height: auto; background: #fff; box-shadow: var(--sheet-shadow); }
+#docbody > .shots.deck, #docbody > div > .shots.deck { justify-content: start; }
+#canvas .s.kr { text-decoration: underline dotted var(--amber); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.mlabel.kr { color: var(--amber); }
+.evsum .sep { margin: 0 7px; color: var(--ink-3); }
+.viewhead .edrm { margin-left: 2px; }
+.ins-sec.agent-off { gap: 8px; }
+/* a phone: the inspector's tabs keep a finger's width; the lock keeps its words, as a key that enters a state says what it does */
+@media (max-width: 859px) { .insp .tabs { flex-wrap: nowrap; gap: 6px; } .insp .tabs [role="tab"] { min-width: 44px; padding: 0 6px; justify-content: center; white-space: nowrap; } }   /* five tabs and the close key on one row: 6 px between them (the desktop 18 px made the English row 2 px wider than a 390 px phone) */
+@media (max-width: 640px) {
+  .viewhead .docacts > .btn.lockkey, .expgrp > .btn.lockkey { flex: 0 1 auto; width: auto; padding: 0 var(--ctl-px-sm); }
+  .viewhead .docacts > .btn.lockkey .w, .expgrp > .btn.lockkey .w { display: inline; }
+  .expgrp { flex-wrap: wrap; gap: 4px; }   /* Export and the lock keep one row at 4 px apart (the lock's words made the pair 2 px
+                                              wider than a 390 px phone in English); on a narrower screen the lock goes under Export */
+}
+/* ---------------------------------------------------------------- 0.9.2: long words, the run's lines, the server gone */
+/* a word longer than its column (a 40-letter name, or a Korean compound that keep-all holds whole) wraps inside its card:
+   it pushed the board's cards over the next column and the page sideways, and Make's notes over each other */
+.tcard { grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }
+:is(.tcard .co, .tcard .ro, .ac-co, .ac-role, .jobrow .co, .jobrow .ro, .tl-ev b, .tl-ev .tl-what, .viewhead .sub) { min-width: 0; overflow-wrap: anywhere; }
+.active-card { min-width: 0; }
+.tl-ev { height: auto; max-width: 100%; flex-wrap: wrap; padding-block: 2px; }      /* an event's words wrap in its chip: one ran 1281 px wide on a phone */
+@media (min-width: 641px) and (pointer: fine) { .tl-ev { min-height: 26px; } }       /* 26 px on one line, as before; a phone's 44 px rule stands */
+/* the photo's two keys in the edit form's 136 px column: the removal goes under the change, never over the next column's label */
+.photo-keys { flex-wrap: wrap; } .photo-keys > .btn { flex: 1 1 auto; justify-content: center; }
+/* Make's head with no application yet: its label on the line of its words (the padding that lines it up with the stage bar left it 10 px low) */
+.rhead-facts > b:first-of-type:has(+ .none-yet) { align-self: baseline; padding-top: 0; } .rhead-facts > .none-yet { align-self: baseline; }
+/* Insights' strengths: "100%" whole on its line */
+.pa-list li { grid-template-columns: minmax(0, 1fr) 64px minmax(34px, auto); } .pa-list b { white-space: nowrap; }
+/* the server gone: one band under the bar, the page's width */
+.bar-off { max-width: var(--page-w); margin: 0 auto; padding: 0 var(--pad-x) var(--gap-s); } .bar-off .band { margin: 0; }
+/* a fact just typed in, marked for a moment where the list put it */
+.fact.flash { animation: kit-flash 1.2s ease-out; }
+/* a run's problems: each a sentence, its key beside it, or under it when the line is full */
+.problist li { flex-wrap: wrap; } .problist .pl-w { flex: 1 1 240px; min-width: 0; color: var(--ink); } .problist .btn { flex: none; }
+/* a finger's target: the name to write on Make's head, on a phone */
+@media (max-width: 640px), (pointer: coarse) { .rhead-name .n.none .linkish { display: inline-flex; align-items: center; min-height: 44px; } }

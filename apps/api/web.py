@@ -192,6 +192,29 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
                 pass
         self.send(code, body)  # the refusal
 
+    def length_required(self) -> None:
+        """411 for a body sent in chunks (Transfer-Encoding): every write here is read by its Content-Length, which browsers
+        always send. The chunks are read to their end first, up to a megabyte, so the answer reaches the client before the
+        socket closes (a socket closed with bytes unread is reset), and the connection closes after it."""
+        left = self.DRAIN_MAX  # the most read before giving up
+        try:
+            self.connection.settimeout(10)  # a client that stops sending does not hold the thread
+            while left > 0:  # chunk by chunk
+                size = int(self.rfile.readline(1024).split(b";")[0].strip() or b"0", 16)  # the chunk's size, in hex
+                if size == 0:  # the last chunk: the trailer's lines up to the blank one end the body
+                    while self.rfile.readline(1024).strip():
+                        pass
+                    break
+                if size > left:  # more than is worth reading: the socket closes as it is
+                    break
+                self.rfile.read(size + 2)  # the chunk and its line end
+                left -= size
+        except (ValueError, OSError):  # a size that is no number, or a client that stopped: answered all the same
+            pass
+        self.body_read = True  # nothing more is read for this request
+        self.close_connection = True  # what is left of the stream is never read as a next request
+        self.send(411, {"error": "length_required"})  # the client is told to send a length
+
     def host_ok(self) -> bool:
         """The Host header names this PC and port (a page of another site cannot read this one by DNS rebinding)."""
         if self.headers.get("Host") in self.hosts:  # 127.0.0.1 or localhost with this port
@@ -272,6 +295,8 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         self.body_read = False  # nothing of this request's body read yet
         if not self.host_ok():  # DNS rebinding is refused first
             return  # the 403 is already sent
+        if self.headers.get("Transfer-Encoding"):  # a body in chunks with no length: read as none, it ran as an empty request
+            return self.length_required()  # and its chunks were left in the stream for the next request to trip on
         path = urllib.parse.urlsplit(self.path).path  # without the query
         if path.startswith("/kit/"):  # the kit's practice writes, from the panel's own page only
             if (self.headers.get("Origin") or "") not in self.origins:

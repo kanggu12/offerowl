@@ -57,7 +57,7 @@ def scene_cards(job, ids=None, sections=None, roles=("scenes",)):
     """[(item, [(speaker, english, translation)])] of the chosen scenes, in file order."""
     want = {i.strip() for i in ids.split(",") if i.strip()} if ids else None  # named ids
     secs = {s.strip().upper() for s in sections.split(",") if s.strip()} if sections else None  # section letters
-    _, scenes = check.load_scenes(job)  # every scene with its dialogue
+    _, scenes = check.load_scenes(job, drafts=want is not None)  # every scene with its dialogue; a practice session's own scripts by id, drafts among them
     out = []  # cards
     for it, dialogue, _ in scenes:  # file order
         if want is not None:  # named ids win over the other filters

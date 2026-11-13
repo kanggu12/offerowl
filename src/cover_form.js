@@ -87,7 +87,7 @@ function build(profilePath, coverPath, cfg = {}) {
 
   const company = (cover.job || {}).company || "";                // the greeting names the company when the posting did
   ch.push(L.p(cover.salutation || T.salutation(company), { size: 21, bold: true, color: L.INK, before: dens.salBefore, after: dens.salAfter })); // greeting
-  cover.paragraphs.forEach((par, i) => ch.push(L.prose(paragraphText(par, `paragraph ${par.id || i + 1}`), { after: dens.after }))); // body, one paragraph each
+  cover.paragraphs.forEach((par, i) => ch.push(L.prose(paragraphText(par, `paragraph ${par.id || i + 1}`), { after: dens.after, line: 264 }))); // body, one paragraph each
   ch.push(L.p(cover.closing || T.closing, { size: 19, color: L.INK, before: dens.closeBefore, after: 40 })); // closing line
   // The signature is the cover file's, unless the job file replaces the person: then the replaced name is the one on the header and here too.
   const signature = cfg.signature || (cfg.person && (cfg.person.name || cfg.person.name_en) ? N1 : cover.signature) || N1;

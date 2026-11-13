@@ -258,6 +258,7 @@ function practiceView(j, kit0) {                                                
   }
 
   // ---- drawing
+  const same = (a, b) => String(a || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "") === String(b || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");   // the same words, whatever the marks
   const keyBtn = (label, onclick, opts = {}) => h("button", { class: "btn" + (opts.primary ? " primary" : "") + (opts.quiet ? " quiet" : ""), type: "button", disabled: opts.disabled || null, onclick },
     opts.icon ? icon(opts.icon) : null, label);                                     // one of the part's keys
   function draw() {                                                                 // the part for the current view
@@ -269,6 +270,8 @@ function practiceView(j, kit0) {                                                
       h("span", { class: "pr-clock" }, h("span", { class: "k", text: fmt("pr_session_t") }), h("b", { "data-clock": "session", text: PR.t0 ? clock(Date.now() - PR.t0) : "0:00" })),
       h("span", { class: "pr-clock" }, h("span", { class: "k", text: fmt("pr_answer_t") }), h("b", { "data-clock": "answer", text: PR.tq && PR.view === "ask" ? clock(Date.now() - PR.tq) : "0:00" })));
     const err = PR.error && PR.setup ? h("div", { class: "band", role: "alert" }, h("p", { text: fmt("pr_error", { error: PR.error }) })) : null;   // said once
+    const empty = PR.empty && PR.setup && PR.view === "setup" ? h("div", { class: "band info" }, h("p", { text: t("No question has a script to practise with yet.") }),   // where the scripts come from, one key away
+      h("button", { class: "btn small", type: "button", onclick: () => { PR.empty = false; UI.ivPart = "map"; render(); } }, icon("map"), t("Open the question map"))) : null;
     let body;                                                                       // the part that changes with the view
     if (PR.error && !PR.setup) body = h("div", { class: "card" }, h("p", { text: t("The interview kit could not start.") }));   // no kit to talk to
     else if (!PR.setup) body = h("div", { class: "card" }, h("p", { class: "hint", role: "status", text: fmt("pr_loading") }));   // still asking
@@ -277,7 +280,7 @@ function practiceView(j, kit0) {                                                
     else if (PR.view === "ask" || busy) body = askCard(busy);                       // the question and the answer keys
     else if (PR.view === "feedback") body = feedbackCard();                         // what the answer was like, then the script
     else body = summaryCard();                                                      // the session's summary
-    fill(el, head, err, body);
+    fill(el, head, err, empty, body);
     if (PR.setup) PR.error = "";                                                    // an error is shown once
     if (PR.view === "ask" && !PR.rec && el.isConnected) { const box = el.querySelector("textarea"); if (box && !box.disabled) box.focus({ preventScroll: true }); }   // ready to type
   }
@@ -311,8 +314,9 @@ function practiceView(j, kit0) {                                                
       oninput: (e) => { PR.draft = e.target.value; },                               // the draft survives a redraw
       onkeydown: (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submitTyped(); } } });   // Ctrl+Enter sends a typed answer
     return h("div", { class: "card pr-ask" },
-      h("div", { class: "pr-qhead" }, h("span", { class: "chip count", text: fmt("pr_q", { i: PR.qi + 1, n }) }), h("span", { class: "chip pc", text: PR.turn ? fmt("pr_followup") : fmt("kind_" + q.kind) })),
-      PR.turn || !q.topic ? null : h("p", { class: "hint pr-topic", text: q.topic }),   // where the question comes from: the posting's line, the resume's (an earlier round's question is its own)
+      h("div", { class: "pr-qhead" }, h("span", { class: "chip count", text: fmt("pr_q", { i: PR.qi + 1, n }) }), h("span", { class: "chip pc", text: PR.turn ? fmt("pr_followup") : fmt("kind_" + q.kind) }),
+        q.draft ? h("span", { class: "chip ai", text: t("Draft by the agent") }) : null),   // its script is a draft the person has not made their own yet
+      PR.turn || !q.topic || same(q.topic, PR.ask) ? null : h("p", { class: "hint pr-topic", text: q.topic }),   // where the question comes from: the posting's line, the resume's (an earlier round's question is its own; a standard question's topic is the question, said once)
       h("p", { class: "pr-question", text: PR.ask }),                                // as the interviewer asks it
       PR.askKo ? h("details", { class: "pr-ko" }, h("summary", { text: fmt("pr_show_ko") }), h("p", { text: PR.askKo })) : null,   // its translation, folded
       h("div", { class: "part-keys pr-rec" }, rec),
@@ -371,10 +375,10 @@ function practiceView(j, kit0) {                                                
     if (b && PR.view === "ask" && PR.tq) b.textContent = clock(Date.now() - PR.tq); // the answer so far
   }
   async function start() {                                                          // Start: the kit picks the questions
-    PR.view = "busy"; PR.busy = fmt("pr_loading"); PR.session = { questions: [] }; draw();   // the wait is shown at once
+    PR.view = "busy"; PR.busy = fmt("pr_loading"); PR.session = { questions: [] }; PR.empty = false; draw();   // the wait is shown at once
     try { PR.session = await call("start", { n: PR.count, kinds: PR.kinds, agent: PR.useAgent }); }   // phrased by the agent when wanted
     catch (e) { PR.error = e.message; PR.view = "setup"; draw(); return; }
-    if (!PR.session.questions.length) { PR.error = fmt("pr_no_questions"); PR.view = "setup"; draw(); return; }   // a kit with no scenes yet
+    if (!PR.session.questions.length) { PR.empty = true; PR.session = null; PR.view = "setup"; draw(); return; }   // no script yet: a state to say, with the way to the map, never a fault
     PR.t0 = Date.now(); PR.qi = 0;                                                  // the session's clock
     const q = PR.session.questions[0]; ask(0, q.ask, q.ask === q.fixed ? q.ask_ko : "");   // the scene's translation fits only the scene's own wording
     clearInterval(tick); tick = setInterval(clocks, 250);                           // the clocks run while practising

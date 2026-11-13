@@ -34,8 +34,11 @@ function drawBar(el) {                                                          
         h("button", { class: "btn icon", id: "undo", disabled: !S.undo || null, title: S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."),
           "aria-label": S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."), onclick: undo }, icon("undo")),
         h("button", { class: "btn icon", id: "more", title: t("Settings"), "aria-label": t("Settings"), "aria-expanded": UI.menu ? "true" : "false", "aria-controls": "menu",
-          onclick: () => { UI.menu = !UI.menu; UI.agentPop = false; render(); } }, icon("gear")),
-        UI.menu ? drawMenu() : null)));
+          onclick: () => { UI.menu = !UI.menu; UI.agentPop = false; render(); if (UI.menu) focusSheet("#menu"); } }, icon("gear")),
+        UI.menu ? drawMenu() : null)),
+    UI.offline ? h("div", { class: "bar-off" }, h("div", { class: "band", role: "alert" },   // the server is gone: said once, under the bar, whatever the view
+      h("p", { text: t("Offerowl's server is not answering. What you change now is not saved.") }),
+      h("button", { class: "btn small", type: "button", onclick: () => refresh() }, icon("refresh"), t("Connect again")))) : null);   // asks now, instead of waiting for the next poll
   fitBar(el.querySelector(".bar-in"));                                              // one row, or the views on a row of their own
   const note = document.getElementById("toast"); if (note && note.classList.contains("show")) placeToast(note);   // a note showing keeps its place in the bar drawn anew, and what it covers aside
 }
@@ -67,8 +70,8 @@ function agentChip() {                                                          
   const name = a.backend === "none" ? t("AI agent") : t(AGENT_NAME[a.backend] || a.backend);  // its name, in the page's language (a local model is named, the two CLIs are names)
   return h("div", { class: "barpop" },
     h("button", { class: "barchip", "aria-expanded": UI.agentPop ? "true" : "false", "aria-haspopup": "dialog", title: `${name}: ${t(lamp[1])}`, "aria-label": `${name}: ${t(lamp[1])}`,   // its name and state, said on the hover too: a narrow bar shows its lamp alone
-      onclick: () => { UI.agentPop = !UI.agentPop; UI.menu = false; render(); } }, h("span", { class: "barchip-i", "aria-hidden": "true" }, icon("agent")), h("span", { class: "lit " + lamp[0], "aria-hidden": "true" }), h("span", { class: "barchip-w", text: name })),
-    UI.agentPop ? h("div", { class: "pop", role: "dialog", "aria-label": t("AI agent") }, agentPanel()) : null);
+      onclick: () => { UI.agentPop = !UI.agentPop; UI.menu = false; render(); if (UI.agentPop) focusSheet(".barpop .pop"); } }, h("span", { class: "barchip-i", "aria-hidden": "true" }, icon("agent")), h("span", { class: "lit " + lamp[0], "aria-hidden": "true" }), h("span", { class: "barchip-w", text: name })),
+    UI.agentPop ? h("div", { class: "pop", role: "dialog", "aria-modal": "true", "aria-label": t("AI agent") }, agentPanel()) : null);
 }
 function runChip() {                                                                // the run's lamp in the bar, away from the make view
   const r = task("autopilot");                                                      // the run
@@ -95,7 +98,7 @@ function drawMenu() {                                                           
   const langNow = langPicked();                                                     // the language's choice
   const motionNow = document.documentElement.dataset.motionChoice || "on";          // the motion's choice
   const pickMotion = (m) => { try { localStorage.setItem("offerowl-motion", m); } catch (_) { /* blocked */ } applyMotion(m); redrawAll(); };
-  return h("div", { class: "menu", id: "menu", role: "dialog", "aria-label": t("Settings") },
+  return h("div", { class: "menu", id: "menu", role: "dialog", "aria-modal": "true", "aria-label": t("Settings") },
     h("button", { class: "item", type: "button", onclick: () => openSetup(0) }, icon("list"), t("Setup guide")),   // the four steps again (setup.js); a list of steps, not a tick a menu reads as "chosen"
     h("hr"),
     h("h3", {}, icon("sun"), t("Theme")),
@@ -136,7 +139,7 @@ async function restoreBackup(file) {                                            
   }
   toast(t({ not_a_backup: "This file is not an Offerowl backup.", busy: "Wait until the work in progress ends, then try again.", too_large: "This file is too large to be a backup." }[j.error] || "The backup could not be restored."), null, "bad");  // why, in words
 }
-function openAgentMenu() { UI.agentPop = true; UI.menu = false; render(); window.scrollTo({ top: 0 }); }  // the agent's panel opens from the bar
+function openAgentMenu() { UI.agentPop = true; UI.menu = false; render(); window.scrollTo({ top: 0 }); focusSheet(".barpop .pop"); }  // the agent's panel opens from the bar, the keyboard in it
 async function undo() {                                                             // the bar's undo
   const r = await act("/api/v1/undo", {});                                          // the files back
   if (r) toast(r.undone ? t("Undone: {what}", { what: undoLabel(r.undone) }) : t("Nothing to undo."), null, r.undone ? "done" : "info");
@@ -211,11 +214,15 @@ function paneKey(name) {                                                        
   // a redraw then would close an open list and drop an address being typed
   if (name === "setup") return JSON.stringify([...look, UI.setup, S.agent, S.settings, S.engine, S.engine_needs, S.renderer, task("setup").state, task("setup").error, task("autopilot").state, (S.materials || []).length, langPicked()]);
   if (name === "insp") return JSON.stringify([...base, UI.view, UI.tab, UI.sel, UI.editing, UI.drawer, UI.docLang, UI.theme, S.settings, UI.maxPages, UI.cover, UI.typeset, S.job,
-    UI.docsVer, S.engine, S.english, S.styles, task("regen:" + UI.sel)]);
+    UI.docsVer, S.engine, S.english, S.styles, task("regen:" + UI.sel),
+    UI.doc, UI.mode, sentAway(), S.agent && S.agent.state]);                       // the cover tab showed the resume's evidence until another change came
   const framed = kitFramed();                                                       // a kit's page is in its frame
-  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.editDays, todayMarks(), UI.nextEdit, UI.jobTab, UI.ivPart, UI.ivWide, UI.roundEdit, UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen,
+  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.view === "documents" ? "" : UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.editDays, UI.tlPage, UI.dtPage, todayMarks(), UI.nextEdit, UI.jobTab, UI.ivPart, UI.ivWide, UI.roundEdit, UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen,
     UI.matOpen, UI.matSending, UI.libGroup, UI.libOwner, UI.libQuery, UI.libPage, (S.jobs || []).map((j) => (j.materials || []).map((m) => m.id).join()),
     (S.jobs || []).map((j) => [j.id, j.stage, j.result, j.next]),                     // a card moved on the board, or its next step changed: drawn at once   // a job's materials: one added or taken off, one opened, an upload going
+    // the form's questions: removed, a new limit, an answer edited or checked again. These writes keep no undo step, so the
+    // workspace's revision stays the same and the card kept showing the old list until something else changed
+    (S.jobs || []).map((j) => (j.questions || []).map((q) => [q.id, q.text, q.limit, q.unit, q.answer, q.state, (q.issues || []).join(), q.at])),
     // with a kit's frame up, a document fetched for another view (Insights arrives three seconds after the page) and a window
     // dragged 40 px wider no longer count: each drew the canvas again, and the frame's page with it, emptying its search box
     framed ? kitFrameDocs() : UI.docsVer, S.materials, S.photo, S.engine, S.engine_needs, S.due, typeof Notification === "undefined" ? "" : Notification.permission, PHONE.matches,
@@ -279,6 +286,7 @@ function render() {                                                             
   $("side").hidden = UI.view !== "documents";                                       // the inspector's column
   $("dochead").hidden = UI.view !== "documents";                                    // the documents' head, over both columns
   if (UI.view === "documents") drawPane($("inspector"), "insp", drawInspector);     // drawn when it shows
+  if (UI.view === "documents") markSelected();                                      // the selected sentence marked where it stands: the canvas is not drawn again for a click
   $("scrim").classList.toggle("open", UI.drawer && UI.view === "documents");        // the shade behind an open drawer
   $("skip").textContent = t("Skip to the document");                                // the first key on the page
   drawPane($("setup"), "setup", drawSetup);                                         // the setup guide over the page, when open (setup.js)
@@ -290,6 +298,8 @@ function render() {                                                             
 
 document.addEventListener("keydown", (e) => {                                       // keys that work everywhere
   if (UI.confirm != null) return;                                                   // the panel's question is answered first (core.js askFirst holds its keys)
+  if (e.key === "Tab" && UI.menu) { trapTab(e, document.getElementById("menu")); if (e.defaultPrevented) return; }   // the settings: the page behind is dimmed
+  if (e.key === "Tab" && UI.agentPop) { trapTab(e, document.querySelector(".barpop .pop")); if (e.defaultPrevented) return; }   // the agent's panel too
   const field = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;  // typing in a field
   if (e.key === "Escape") {                                                         // close what is open
     if (UI.setup != null) { closeSetup(); return; }                                 // the setup guide, first: it lies over everything
@@ -297,6 +307,8 @@ document.addEventListener("keydown", (e) => {                                   
     if (UI.menu || UI.agentPop) { const menu = UI.menu; UI.menu = false; UI.agentPop = false; render();   // the bar is drawn anew: its keys are found after
       const k = menu ? $("more") : document.querySelector(".barchip"); if (k) k.focus({ preventScroll: true }); return; }
     if (UI.askOpen && typeof askToggle === "function") { askToggle(false); return; }   // the command bar, wherever the keyboard is: it closes into its key, which takes the focus
+    if (UI.adding && UI.view === "jobs" && (S.jobs || []).length) { UI.adding = false; render();   // the posting's form (with no job yet it is the page itself, and stays)
+      const k = document.querySelector('[data-key="jobs-add"]'); if (k) k.focus({ preventScroll: true }); return; }
     if (UI.editing) { UI.editing = false; render(); const s = UI.sel && document.querySelector(`[data-sid="${CSS.escape(UI.sel)}"]`); if (s) s.focus({ preventScroll: true }); return; }   // the sentence
     if (UI.drawer) { UI.drawer = false; render(); const k = document.querySelector(".insp-toggle"); if (k) k.focus({ preventScroll: true }); return; }   // the drawer's key
     if (UI.sel) { UI.sel = null; render(); return; }                                // the selection

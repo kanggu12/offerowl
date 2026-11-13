@@ -1,6 +1,6 @@
 {
   "name": "offerowl",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Offerowl render toolchain: resume and portfolio deck from one profile",
   "scripts": {},
   "dependencies": {

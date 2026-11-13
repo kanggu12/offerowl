@@ -54,7 +54,7 @@ def placeholders(text: str) -> set:
 
 
 def keys_asked_for(path: pathlib.Path) -> dict:
-    """Which keys a file gives to t(...) calls, as {owner: keys}. A bare t(...) asks the file's own table (owner "self");
+    """Which keys a file gives to t(...) calls, as {owner: keys}. A bare t(...) or issue(...) asks the file's own table (owner "self");
     resume.t(...) asks the table of the module named in front of the dot. Every plain-word string constant inside the
     first argument counts, so t("a" if x else "b") yields both. A constant that ends in an underscore is a prefix, as in
     t("cmd_" + name), and is skipped"""
@@ -62,7 +62,7 @@ def keys_asked_for(path: pathlib.Path) -> dict:
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if not (isinstance(node, ast.Call) and node.args):
             continue
-        if isinstance(node.func, ast.Name) and node.func.id == "t":
+        if isinstance(node.func, ast.Name) and node.func.id in ("t", "issue"):  # issue(): check_documents' t() that keeps the code too
             owner = "self"
         elif isinstance(node.func, ast.Attribute) and node.func.attr == "t" and isinstance(node.func.value, ast.Name):
             owner = node.func.value.id

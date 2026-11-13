@@ -154,15 +154,16 @@ def scene_of(item, file_blocks):  # splits one item's body into spoken lines and
     return dialogue, notes
 
 
-def load_scenes(job, files=None, ids=None):  # --files and --ids narrow the set
-    """(all items, [(item, dialogue, notes)] for the scenes to check)."""
+def load_scenes(job, files=None, ids=None, drafts=False):  # --files and --ids narrow the set
+    """(all items, [(item, dialogue, notes)] for the scenes to check). drafts: the agent's drafts too, for practice and for
+    cue cards asked for by id; the checks leave them out (a draft passed the strict check when it was written)."""
     items, _ = corpus.load(job)  # every item of the kit
     cache = {}  # path -> blocks
     out = []  # scenes in file order
     want_files = {f.strip() for f in files.split(",")} if files else None  # --files
     want_ids = {i.strip() for i in ids.split(",")} if ids else None  # --ids
     for it in items:  # filters first, then the item's lines
-        if it.get("draft"):  # a draft passed the strict check when it was written; the rest is a person's to read
+        if it.get("draft") and not drafts:  # a draft passed the strict check when it was written; the rest is a person's to read
             continue
         if want_files and it["file"] not in want_files:  # not one of the asked files
             continue

@@ -162,6 +162,12 @@ class Collect(unittest.TestCase):
         self.assertLess(a["calls"], b["calls"])  # the posting adds the letter and the scripts
         self.assertGreaterEqual(a["minutes"], 5)  # never promises less than a few minutes
 
+    def test_with_no_agent_the_estimate_is_the_typesetting(self):
+        """No agent writes anything: the run is the typesetting, and saying seven minutes for it read as a wrong clock."""
+        got = AP.estimate(3, True, agent=False)  # a posting and three files, no agent
+        self.assertEqual(0, got["calls"])  # nothing asked of a model
+        self.assertLessEqual(got["minutes"], 2)  # a minute or two
+
 
 class Run(unittest.TestCase):
     """The whole run, through the panel's API."""
@@ -464,6 +470,29 @@ class Run(unittest.TestCase):
         self.assertEqual(["ko"], rec["result"]["langs"])  # what this run made
         self.assertTrue(rec["result"]["files"])
         self.assertFalse([n for n in rec["result"]["files"] if "Resume" in n or "Portfolio" in n], rec["result"]["files"])  # no English file
+
+    def test_a_letter_not_written_and_a_language_that_failed_are_said(self):
+        """The English build stops for its translation, and the agent wrote no letter: the run's problems say both, each
+        language by name and with the build's own code and detail; the PDFs step says the Korean ones were made."""
+        made = self.c.api.tasks._build.side_effect  # the stand-in that makes PDFs
+
+        def build(job_id, lang, *a, **kw):  # English stops; the Korean letter was not written
+            if lang == "en":
+                self.c.api.tasks._set(f"build:{job_id}", state="error", error={"code": "needs_translation", "detail": "summary.intro has no en text"})
+                return
+            made(job_id, lang, *a, **kw)
+            f = self.c.api.tasks.build_dir(job_id, lang) / "build.json"  # its record, as the real build writes the letter's state
+            rec = json.loads(f.read_text(encoding="utf-8"))
+            rec["cover"] = {"state": "failed", "error": "agent_stopped"}  # no sentence came back
+            f.write_text(json.dumps(rec), encoding="utf-8")
+        self.c.api.tasks._build.side_effect = build
+        self.c.post("/api/v1/autopilot", {"paths": [str(career_folder(self.tmp))], "posting": POSTING})
+        rec = self.c.wait("autopilot", 600)
+        self.assertEqual("done", rec["state"], rec)
+        probs = rec["result"]["problems"]
+        self.assertIn({"step": "typeset", "why": "needs_translation", "lang": "en", "detail": "summary.intro has no en text"}, probs)  # the build's own code, with its detail
+        self.assertIn({"step": "cover", "why": "agent_stopped", "lang": "ko"}, probs)  # the letter that did not come out
+        self.assertEqual("ko", next(s for s in rec["steps"] if s["id"] == "typeset")["detail"])  # one language made: the panel says "Korean only"
 
     def test_a_letter_that_failed_shows_no_tile(self):
         """The letter's picture from an earlier build stays in preview/, but its PDF is gone: no tile that leads nowhere."""

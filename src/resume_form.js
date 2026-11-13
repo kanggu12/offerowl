@@ -92,7 +92,7 @@ function build(profilePath, cfg = {}) {
     const runs = String(S.headline).split("\n").map((t, i) => L.run(t, { ...ho, br: i ? 1 : 0 }));
     ch.push(L.p(runs.length > 1 ? runs : S.headline, { ...ho, before: 160, after: 60 }));
   }
-  if (S.intro && typeof S.intro === "string") ch.push(L.prose(S.intro));
+  if (S.intro && typeof S.intro === "string") ch.push(L.prose(S.intro, { after: 50 }));   // the next section title brings its own room
   };
 
   parts.overview = () => {

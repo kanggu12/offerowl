@@ -1,11 +1,12 @@
 {
-  "description": "Your files in, the whole job application out: resumes, a portfolio deck, a cover letter, form answers and interview scripts, written only from your own files, every sentence citing them. Runs on your PC.",
+  "description": "Your files in, the whole job application out: resumes, a portfolio deck, a cover letter, form answers and interview scripts, written only from your own files, every sentence citing them. Works with Claude Code, Codex or a local model, on your PC.",
   "homepage": "https://github.com/kanggu12/offerowl/releases/latest",
   "topics": [
     "resume-builder",
     "cover-letter",
     "job-search",
-    "rag",
-    "claude-code"
+    "interview-preparation",
+    "portfolio",
+    "local-first"
   ]
 }

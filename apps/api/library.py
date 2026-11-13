@@ -12,11 +12,13 @@ import urllib.parse
 from collections import Counter
 from pathlib import Path
 
-from .materials import KINDS, TEXT, decodes
+from .materials import KINDS, ODD, RESERVED, TEXT, decodes
 
 GROUPS = ("source", "input", "made", "sent", "kit")                                 # brought in for the profile, brought in for an application, made, sent, the interview kit
 KIT_FILE = re.compile(r"^[\w가-힣 .()-]{1,80}\.(md|json|txt)$")                   # a kit's own files: notes and tables, Hangul names too, never a path
 KIT_OUT = ("deck.pdf", "deck.html", "plan.md")                                      # what the kit's maker writes and a person opens
+KIT_MADE = ("kit.json", "names.txt", "portfolio.txt", "resume.txt")                 # what the panel writes into a kit from the documents (task_kit.ensure_kit): its workings, made again each time, not a person's file
+DRAFT_FILE = re.compile(r"^drafts-\d{1,4}\.md$")                                    # the agent's scripts, as the kit's writer names them (out/interview/<job>/drafts); never the .rejected ones
 SENT_FILE = re.compile(r"^(resume|deck|cover)\.(pdf|docx|pptx)$")                   # the copies a lock keeps (app.sent_file, tasks.freeze)
 BUILT = ("resume.pdf", "deck.pdf", "cover.pdf")                                     # an edition's printed files
 
@@ -73,8 +75,8 @@ def sent_file(ws, jid: str, name: str) -> Path | None:
 
 def kit_file(ws, jid: str, name: str, out: bool = False) -> Path | None:
     """One file of a job's interview kit: its notes (jobs/<job>/interview) or what its maker wrote (out/interview/<job>)."""
-    if out:                                                                         # the made deck and plan
-        f = ws.path("out", "interview", jid, name) if name in KIT_OUT else None
+    if out:                                                                         # the made deck and plan, and the agent's drafted scripts
+        f = ws.path("out", "interview", jid, name) if name in KIT_OUT else ws.path("out", "interview", jid, "drafts", name) if DRAFT_FILE.match(name) else None
     else:                                                                           # the kit's own notes
         f = ws.job_dir(jid) / "interview" / name if KIT_FILE.match(name) and Path(name).name == name else None
     return f if f is not None and f.is_file() else None
@@ -142,10 +144,16 @@ def listing(api) -> dict:
             kd = jd / "interview"                                                       # the interview kit's notes
             if kd.is_dir():
                 for f in sorted(kd.iterdir()):
-                    if f.is_file() and KIT_FILE.match(f.name):
+                    if f.is_file() and KIT_FILE.match(f.name) and f.name not in KIT_MADE:   # the person's scripts and notes; the kit's own workings stay out of the list
                         rows.append({"group": "kit", "id": f"kit:{jid}:{f.name}", "name": f.name, "kind": ext(f.name), "size": f.stat().st_size,
                                      "date": stamp(f), "owner": owner, "note": {}, "open": f"/api/v1/jobs/{q(jid)}/kit/{q(f.name)}",
                                      "export": {"path": "/api/v1/library/export", "body": {"id": f"kit:{jid}:{f.name}"}}})
+                dd = ws.path("out", "interview", jid, "drafts")                         # the scripts the agent drafted for this job
+                for f in sorted(dd.glob("drafts-*.md")) if dd.is_dir() else []:         # in the order they were written
+                    if f.is_file() and DRAFT_FILE.match(f.name):                        # a drafts file, never the rejected scenes beside it
+                        rows.append({"group": "kit", "id": f"kitout:{jid}:{f.name}", "name": f.name, "kind": ext(f.name), "size": f.stat().st_size,
+                                     "date": stamp(f), "owner": owner, "note": {"draft": True}, "open": f"/api/v1/jobs/{q(jid)}/kit/out/{f.name}",
+                                     "export": {"path": "/api/v1/library/export", "body": {"id": f"kitout:{jid}:{f.name}"}}})
                 for name in KIT_OUT:                                                    # the deck and plan the kit's maker wrote
                     f = kit_file(ws, jid, name, out=True)
                     if f:
@@ -184,6 +192,23 @@ def file_of(api, row_id: str) -> tuple[Path, str] | None:
     return None
 
 
+def desk_name(name: str) -> str:
+    """A Library file's name as it lands on the Desktop, one every system takes: no character Windows refuses, no name it
+    keeps for a device (CON.md), no dot or space at the end, at most 180 bytes with the extension kept whole (a disk takes
+    255; a twin's number needs room)."""
+    name = ODD.sub("_", name)  # refused characters out
+    stem, dot, ext = name.rpartition(".")  # the last extension
+    if not dot or not stem or not re.fullmatch(r"\w{1,16}", ext):  # no extension, a dot file, or a dot followed by no extension ("notes. ")
+        stem, ext = name, ""  # all of it is the name
+    stem = stem.strip(" .") or "file"  # Windows takes no name that ends in a dot or a space
+    if RESERVED.fullmatch(stem.split(".")[0]):  # a device name of Windows, whatever follows it
+        stem = "_" + stem  # a mark before it, and it can be made
+    suffix = f".{ext}" if ext else ""  # kept whole: the system opens the file by it
+    while len((stem + suffix).encode("utf-8")) > 180 and len(stem) > 1:  # one character fewer, never half of one
+        stem = stem[:-1]
+    return stem.rstrip(" .") + suffix
+
+
 def export(api, row_id: str) -> str:
     """Copy one Library row's file to the Desktop, byte for byte, under a name of its own (never over another file).
     Returns the name written; refuses a row with no file."""
@@ -193,7 +218,7 @@ def export(api, row_id: str) -> str:
     if not found:                                                                   # no such row, or no file behind it
         raise ValueError("no_file")
     f, name = found
-    name = re.sub(r'[\x00-\x1f\x7f<>:"/\\|?*]', "_", name)                        # a name every system accepts
+    name = desk_name(name)                                                          # a name every system accepts
     dest_dir = desktop_dir()
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / name

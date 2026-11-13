@@ -181,6 +181,53 @@ answer and document check uses it (`Tasks.style_spec`). The interview scenes and
 The rules every pack shares are in the prompts (`src/prompts/write_rules.md`): only facts of the cited evidence, the
 person's part as the evidence states it (scope words kept), no dressed-up routine work, names kept, the industry's terms.
 
+### Printed words
+
+The drafting checks see each text as it is written; the document checks (`src/check_documents.py`) read the words the PDFs
+print, so a sentence the person edited, an edition brought in and the deck are held to the same rules. Some hold for
+every document, whatever the pack:
+
+- a value a build left empty (`undefined`, `[object Object]`; in English only where it stands alone);
+- marks left as they were typed (`==`, `**`);
+- an editing note (`(확인 필요`, `TODO`, `TBD`, `FIXME`, `<!-- -->`, a document file's name such as `notes.docx`).
+
+The rest are the pack's, in its `printed` object, and off until it turns them on:
+
+```json
+"printed": {
+ "comma_after_endings": true, "instead": true, "not_a_but_b": 0, "latin_and": true, "repeated_words": true,
+ "colloquial": ["(?:에서|으로|로) 도는 "], "editing_notes": [["이직\\s*사유", "a reason for leaving"]],
+ "lines": "fail", "highlight_names": ["Gasang Bank", "가상은행"]
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `comma_after_endings` | no comma after a Korean connective ending (`만들고,`, `맡아,`); nouns that end alike (`보고`, `이해`) pass |
+| `instead` | no contrastive 대신 or "instead of" (`사용자를 대신해` is a verb and passes) |
+| `not_a_but_b` | how many "A가 아니라 B" (in English, "rather than") one document may hold |
+| `latin_and` | 와/과 between two Latin words: a slash instead (`Kafka/Redis`) |
+| `repeated_words` | one word twice in one sentence (Korean words of three syllables and more, read without their particle; English words of six letters and more) |
+| `colloquial` | patterns of words the person does not want printed, such as a machine said to act like a person |
+| `editing_notes` | more editing notes, each a `[pattern, why]` pair |
+| `lines` | `fail` makes the line checks below defects; by default they are notes to polish, shown and never in the way |
+| `highlight_names` | names that never stand inside a highlight (a client's, an institution's), besides the never-shown words of the blind table |
+
+**Line checks** (`src/check_lines.py`) read the PDF's word boxes against what the typesetting set: `src/layout.js` writes
+`<name>.highlights.json` beside the document, every highlight in the order it was drawn and every paragraph it set (the
+introduction, a card's cells, a competency, an item, about me, the motivation). They say when a highlight breaks across two
+lines, when it is shorter or longer than the pack's `highlight` range, when it holds a name of `highlight_names` or of the
+blind table, and when a paragraph's last line holds one word alone. A highlight or a paragraph the checks cannot find on the
+page is said too: a check that measured nothing does not pass in silence.
+
+**A deck source's own checks.** When the workspace's `deck/` folder ships `tools/check_deck.py`, `check_align.py`,
+`check_density.py` or `check_contrast.py`, each runs on every build's deck (the first on its PDF and its `.probe.json`, the
+others on its page) before the engine's folder is cleaned; a check that fails gives its lines as the deck's issues, and one
+that breaks says it did not run.
+
+The panel words every finding by its code in the person's language (`--report` writes them with their values), lists the
+defects over the pages, which keep the PDFs home as before, and the notes to polish in a quieter band.
+
 ## Cover letters
 
 - **Weak lines get a paragraph** when the model judged them partly shown (a compiler requirement shown by porting work,

@@ -97,6 +97,7 @@ function kpiRow(d) {
 
 // ---------------------------------------------------------------- the persona: who the evidence says the person is
 
+const tipped = (a) => ({ ...a, role: "img", "aria-label": a["data-tip"] });     // a mark that takes the keyboard's focus is named by its tip (a screen reader said "group" and nothing more)
 function personaTile(d) {
   const p = d.persona || {};
   const rated = (d.areas || []).filter((a) => a.demand >= 2 && a.met !== null);    // areas asked for often enough to judge
@@ -156,7 +157,7 @@ function weeksTile(d, host) {
   for (let g = 0; g <= top; g += step) svg.append(sv("line", { class: "grid", x1: padL, x2: W, y1: y(g), y2: y(g) }), sv("text", { class: "ax", x: padL - 6, y: y(g) + 3, "text-anchor": "end" }, String(g)));
   weeks.forEach((w, i) => {
     const x = padL + i * cw + (cw - bw) / 2;                                        // the column's left edge
-    const g = sv("g", { class: "col", tabindex: "0", "data-tip": t("Week of {d}: {s} submitted, {i} interviews, {r} results", { d: shortDay(w.week), s: w.submitted, i: w.interview, r: w.result }) });
+    const g = sv("g", tipped({ class: "col", tabindex: "0", "data-tip": t("Week of {d}: {s} submitted, {i} interviews, {r} results", { d: shortDay(w.week), s: w.submitted, i: w.interview, r: w.result }) }));
     let base = 0;                                                                   // stacked from the axis up
     for (const [k, c] of [["submitted", "var(--ev-submitted)"], ["interview", "var(--ev-interview)"]]) {
       const n = w[k] || 0;
@@ -275,7 +276,7 @@ function mapTile(d, host) {
     ...rule("mid", pt, H - pb, x(midD), false), ...rule("mid", pl, W - pr, y(50), true));
   for (const a of order) {
     const cx = x(a.demand), cy = y(a.met), tone = metTone(a.met), name = t(a.area), spot = at.get(a);
-    const g = sv("g", { class: "dot", tabindex: "0", "data-tip": t("{area}: {m}% met over {d} lines in {p} postings; {e} facts back it", { area: name, m: a.met, d: a.demand, p: a.postings, e: a.evidence }) });
+    const g = sv("g", tipped({ class: "dot", tabindex: "0", "data-tip": t("{area}: {m}% met over {d} lines in {p} postings; {e} facts back it", { area: name, m: a.met, d: a.demand, p: a.postings, e: a.evidence }) }));
     g.append(sv("circle", { class: "hit", cx, cy, r: 11 }), sv("circle", { class: "mk" + (a.soft ? " ring" : ""), cx, cy, r: 5, style: `--c:${MET[tone]}` }));
     if (spot && spot.lead) g.append(sv("line", { class: "lead", ...spot.lead }));   // the line from the dot to a name set apart from it
     if (spot) g.append(sv("text", { class: "lb", x: spot.lx, y: spot.ly, "text-anchor": spot.anchor }, label(a)));   // an unnamed dot still answers the pointer and the keyboard with its line
@@ -324,7 +325,7 @@ function gapsTile(d, host) {
   const seen = {};                                                                  // dots at one score stack upward a little
   for (const f of fits) {
     const k = Math.round(f.score / 3), lift = (seen[k] = (seen[k] || 0) + 1) - 1;  // near the same score: lifted, not hidden
-    svg.append(sv("g", { class: "dot", tabindex: "0", "data-tip": t("{c}: fit {n}, {s} met, {w} in part, {m} not met", { c: jobNameOf(f.job, f.company), n: f.score, s: f.counts.strong, w: f.counts.weak, m: f.counts.none }) },
+    svg.append(sv("g", tipped({ class: "dot", tabindex: "0", "data-tip": t("{c}: fit {n}, {s} met, {w} in part, {m} not met", { c: jobNameOf(f.job, f.company), n: f.score, s: f.counts.strong, w: f.counts.weak, m: f.counts.none }) }),
       sv("circle", { class: "hit", cx: x(f.score), cy: ay - lift * 9, r: 9 }), sv("circle", { class: "mk", cx: x(f.score), cy: ay - lift * 9, r: 5, style: `--c:var(--stage-${f.stage})` })));
   }
   const pick = (d.areas || []).filter((a) => a.none > 0 && !a.soft).sort((a, b) => b.none - a.none || b.demand - a.demand).slice(0, 3);   // the craft's areas most often not met
@@ -346,14 +347,16 @@ function readyTile(d) {
   const goJob = (r, tab) => { S.job = r.job; UI.jobTab = tab; act("/api/v1/jobs/select", { job: r.job }); go("jobs"); };   // that application, on its tab
   return tile("ready", "mic", "Interview readiness", tn(all.length, "{n} open application", "{n} open applications"),
     rows.length ? h("ul", { class: "rd-list" }, rows.map((r) => {
-      const c = r.coverage, sum = c ? c.strong + c.weak + c.none : 0;               // the kit's likely questions
+      const c = r.coverage, sum = c ? c.strong + (c.draft || 0) + c.weak + c.none : 0;   // the kit's likely questions, the drafts' among them (left out, a kit of drafts read as 0% in red)
       return h("li", { class: "rd-item", "data-stage": r.stage },
         mono(r.company, "sm", r.stage),
         h("button", { class: "rd-name", type: "button", onclick: () => goJob(r, "interview"), title: t("Open its interview tab") }, h("b", { text: jobNameOf(r.job, r.company) }), h("small", { text: t(STAGE[r.stage]) })),
         h("span", { class: "rd-fit", "data-tip": r.fit === null ? null : t("Fit {n} / 100", { n: r.fit }) }, r.fit === null ? h("small", { text: t("No posting") }) : [h("b", { text: String(r.fit) }), h("i", { class: "rd-fitbar", style: `--w:${r.fit}%;--c:${MET_SOLO[metTone(r.fit)]}`, "aria-hidden": "true" })]),
         h("span", { class: "rd-meta" },
-          c ? h("span", { class: "rd-cov", tabindex: "0", "data-tip": t("Interview map: {s} met, {w} in part, {n} not met, {k} scripts", { s: c.strong, w: c.weak, n: c.none, k: r.scripts }) },
-            h("span", { class: "rd-seg", "aria-hidden": "true" }, ["strong", "weak", "none"].map((k) => c[k] ? h("i", { style: `flex-grow:${c[k]};--c:${MET[k]}` }) : null)), h("small", { text: t("map {p}%", { p: pct(c.strong, sum) }) }))
+          c ? h("span", { class: "rd-cov", tabindex: "0", "data-tip": c.draft ? t("Interview map: {s} met, {d} by the agent's drafts, {w} in part, {n} not met, {k} scripts", { s: c.strong, d: c.draft, w: c.weak, n: c.none, k: r.scripts })
+              : t("Interview map: {s} met, {w} in part, {n} not met, {k} scripts", { s: c.strong, w: c.weak, n: c.none, k: r.scripts }) },
+            h("span", { class: "rd-seg", "aria-hidden": "true" }, ["strong", "draft", "weak", "none"].map((k) => c[k] ? h("i", { style: `flex-grow:${c[k]};--c:${k === "draft" ? "var(--orange)" : MET[k]}` }) : null)),   // the drafts orange, as on the map
+            h("small", { text: t("map {p}%", { p: pct(c.strong + (c.draft || 0), sum) }) }))   // answered by a script, a draft included: the map's own count of what is left
             : h("button", { class: "btn small", type: "button", onclick: () => goJob(r, "interview"), text: t("Make the kit") }),
           r.questions ? h("small", { class: "rd-q", text: t("form answers {a}/{n}", { a: r.answered, n: r.questions }) }) : null,
           r.next ? h("small", { class: "rd-next", text: r.next }) : r.interview ? h("small", { class: "rd-next", text: t("Interview {d}", { d: shortDay(r.interview) }) }) : null));
@@ -380,7 +383,7 @@ function careerTile(d, host) {
     const fs = textW(name, 11) > pl - 12 ? 10 : 11;                                  // a name longer than the column a size smaller
     while (name.length > 2 && textW(name, fs) > pl - 12) name = name.slice(0, -1);   // past 45% of the tile even so: the last resort
     if (name !== l.org) name = name.slice(0, -1) + "…";
-    const g = sv("g", { class: "lane " + l.kind, tabindex: "0", "data-tip": `${l.org} · ${l.title} · ${l.start.replace("-", ".")} ~ ${l.ongoing ? t("now") : l.end.replace("-", ".")} (${t("{n} months", { n: l.months })})` + (l.kind === "role" ? " · " + t("{n} facts", { n: l.facts }) : "") });
+    const g = sv("g", tipped({ class: "lane " + l.kind, tabindex: "0", "data-tip": `${l.org} · ${l.title} · ${l.start.replace("-", ".")} ~ ${l.ongoing ? t("now") : l.end.replace("-", ".")} (${t("{n} months", { n: l.months })})` + (l.kind === "role" ? " · " + t("{n} facts", { n: l.facts }) : "") }));
     g.append(sv("text", { class: "lb", x: pl - 8, y: y0 + 12, "text-anchor": "end", style: fs < 11 ? "font-size:10px" : null }, name),
       sv("rect", { class: "hit", x: 0, y: y0, width: W, height: rowH }),
       sv("rect", { class: "mk", x: x0, y: y0 + 4, width: x1 - x0, height: rowH - 8 }));

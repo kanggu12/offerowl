@@ -17,6 +17,7 @@ import contextlib  # the change() context manager
 import datetime  # dates on the board
 import hashlib  # hashes of the frozen copies
 import json  # every state file is JSON
+import logging  # a file a failed change could not put back
 import os  # atomic replace
 import re  # job folder names
 import shutil  # copies of submitted files
@@ -30,6 +31,8 @@ PASSING = re.compile(r"\.\d+\.\d+\.tmp$")  # a write in progress (tmp_name): <na
 STALE_S = 3600  # a write takes a moment: one an hour old has no writer left
 COALESCE_S = 4.0  # typing in one field within this many seconds is one undo step
 STAGES = ("preparing", "submitted", "interview", "result")  # the board's columns, in order
+
+log = logging.getLogger("offerowl.panel")  # the panel's log
 
 
 def today() -> str:
@@ -89,6 +92,19 @@ def write_text(path: Path, text: str) -> None:
     tmp = tmp_name(path)  # beside the target, unique to this writer
     tmp.write_text(text, encoding="utf-8")  # the whole text
     retried(os.replace, tmp, path)  # atomic replace
+
+
+def stored_name(mid: str, base: str) -> str:
+    """A source's name on disk: its id, then its own name cut to 180 bytes (a disk takes 255; Korean takes three a letter)
+    before the extension, which stays whole because the reader goes by it."""
+    stem, dot, ext = base.rpartition(".")  # the last extension
+    if not dot or not stem or not re.fullmatch(r"\w{1,16}", ext):  # no extension, a dot file, or a dot followed by no extension
+        stem, ext = base, ""  # all of it is the name
+    suffix = f".{ext}" if ext else ""  # kept whole
+    head = f"{mid}_{stem}"  # the id first: it makes the name unique
+    while len((head + suffix).encode("utf-8")) > 180 and len(head) > len(mid) + 1:  # one character fewer, never half of one
+        head = head[:-1]
+    return head.rstrip(" .") + suffix  # Windows takes no name that ends in a dot or a space
 
 
 def slug(text: str) -> str:
@@ -190,7 +206,11 @@ class Workspace:
         few seconds are one undo step (typing in a field saves on every pause)."""
         with self.lock:  # one change at a time
             before = self._snapshot_files(rels)  # the files as they were
-            yield  # the caller writes
+            try:
+                yield  # the caller writes
+            except BaseException:  # it stopped half way: what it wrote has no undo step, so it goes now
+                self._put_back(before)  # the files as they were before the change
+                raise  # the caller's error is still the answer
             after = self._snapshot_files(rels)  # the files as they are now
             if after == before:  # nothing changed: no undo step
                 return
@@ -212,6 +232,23 @@ class Workspace:
             self._mine.step = f"{n}:{t}"  # for the answer to this thread's request: its own step, whatever another writer did since
             for old in self._history()[:-HISTORY_MAX]:  # keep the newest HISTORY_MAX
                 old.unlink(missing_ok=True)  # the oldest steps go
+
+    def _put_back(self, before: dict) -> None:
+        """Write the files of a change that stopped half way back as they were (under the lock, so nobody wrote meanwhile)."""
+        for rel, text in before.items():  # each file the change could write
+            p = self.root / rel  # absolute path
+            try:
+                if text is None:  # it did not exist before the change
+                    p.unlink(missing_ok=True)  # so it goes
+                    if p.parent.parent == self.path("jobs"):  # a job's folder the change made: its name is free again
+                        try:
+                            p.parent.rmdir()  # only when nothing else is in it
+                        except OSError:  # other files stay, and the folder with them
+                            pass
+                elif not p.is_file() or p.read_text(encoding="utf-8") != text:  # written meanwhile
+                    write_text(p, text)  # its old text back
+            except OSError as exc:  # a file that cannot be put back: the others still are, and the log says which
+                log.warning("could not put back %s after a failed change: %s", rel, exc)
 
     def history(self) -> list[dict]:
         """The undo steps, newest first, as the History tab lists them: {n, t, label}."""
@@ -396,7 +433,7 @@ class Workspace:
             n = 1 + max([int(m["id"][1:]) for m in items if re.fullmatch(r"m\d+", m.get("id", ""))] + on_disk + [high if isinstance(high, int) else 0])  # next id, never one a file has or had
             mid = f"m{n}"  # material id
             base = re.sub(r"[^\w가-힣.() -]+", "_", Path(name).name).strip() or "file"  # safe file name, no folders
-            stored = f"{mid}_{base}"[:120]  # unique by the id prefix
+            stored = stored_name(mid, base)  # unique by the id prefix, at most 180 bytes, its extension kept
             (self.path("sources") / stored).write_bytes(data)  # the file itself
             rec = {"id": mid, "name": Path(name).name[:200], "file": stored, "size": len(data),
                    "kind": kind_of(base, data), "added": today(), "state": "new", "facts": 0}  # its record

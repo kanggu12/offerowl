@@ -57,7 +57,7 @@ jobs:
           python3 -m unittest discover -s tests/interview -v
           python3 -m unittest discover -s tests/decide -v
       - name: The renderer's rules, and the panel's API on the fictional example
-        run: python3 -m unittest tests/render/test_render.py tests/render/test_pdftools.py tests/render/test_blind_figures.py tests/render/test_office.py tests/app/test_panel.py tests/app/test_choices.py tests/app/test_draft.py tests/app/test_materials.py tests/app/test_talk_api.py tests/app/test_removed.py tests/app/test_blind.py tests/app/test_deck_source.py tests/app/test_delivery.py tests/app/test_agent_usage.py tests/app/test_ask.py tests/app/test_autopilot.py tests/app/test_insights_library.py tests/app/test_kit_proxy.py tests/app/test_interview_views.py tests/app/test_mcp.py tests/app/test_state_cost.py tests/app/test_static_css.py -v
+        run: python3 -m unittest tests/render/test_render.py tests/render/test_pdftools.py tests/render/test_blind_figures.py tests/render/test_office.py tests/render/test_outgoing_pdf.py tests/app/test_panel.py tests/app/test_choices.py tests/app/test_draft.py tests/app/test_materials.py tests/app/test_talk_api.py tests/app/test_removed.py tests/app/test_blind.py tests/app/test_deck_source.py tests/app/test_delivery.py tests/app/test_agent_usage.py tests/app/test_ask.py tests/app/test_autopilot.py tests/app/test_insights_library.py tests/app/test_kit_proxy.py tests/app/test_interview_views.py tests/app/test_mcp.py tests/app/test_state_cost.py tests/app/test_static_css.py tests/app/test_server_guards.py tests/app/test_documents_checks.py -v
 
   selftest:
     # Slow: the first run builds the render image (LibreOffice, Chromium, Tesseract), then typesets the fictional example,

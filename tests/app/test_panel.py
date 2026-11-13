@@ -165,12 +165,14 @@ class TestFirstRun(PanelCase):
         self.assertEqual("unsupported", out["sentence"]["state"])  # marked
         self.assertEqual([{"code": "number", "words": "40%"}], out["sentence"]["issues"])  # and why
         jid = self.post("/api/v1/jobs", {"company": "감마클라우드", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # a job to export for
-        self.wait_task(f"analyze:{jid}")  # its analysis is one more undo step
+        self.wait_task(f"analyze:{jid}")  # its analysis belongs to the job's own step: none of its own, so the toast's Undo still takes the job back
+        self.assertTrue((self.tmp / "data" / "workspace" / "jobs" / jid / "plan.json").is_file())  # the analysis wrote its plan
         r = self.post("/api/v1/jobs/export", {"job": jid, "lang": "ko"}, expect=400)  # never exported
         self.assertEqual("unsupported:1", r["what"])  # one sentence without evidence
-        steps = [s["label"]["code"] for s in self.get("/api/v1/history")["steps"][:3]]  # the newest three changes
-        self.assertEqual(["undo_analysis", "undo_add_job", "undo_sentence"], steps)  # the analysis, the job, the edit
-        self.post("/api/v1/history/undo", {"steps": 3})  # all three taken back at once
+        steps = [s["label"]["code"] for s in self.get("/api/v1/history")["steps"][:2]]  # the newest two changes
+        self.assertEqual(["undo_add_job", "undo_sentence"], steps)  # the job (with its analysis), the edit
+        self.post("/api/v1/history/undo", {"steps": 2})  # both taken back at once
+        self.assertFalse((self.tmp / "data" / "workspace" / "jobs" / jid).exists())  # the job's folder went with its plan
         self.assertEqual(0, self.resume()["counts"]["unsupported"])  # every sentence has evidence again
         out = self.post("/api/v1/sentences/edit", {"sid": sid, "text": "단일 애플리케이션에서 승인 기능을 떼어 내 ==승인 경로를 독립 배포 단위로== 만들었다."})  # reworded within the evidence
         self.assertEqual("edited", out["sentence"]["state"])  # changed, still covered
@@ -348,7 +350,9 @@ class TestTracker(PanelCase):
         funnel = self.get("/api/v1/insights")["funnel"]
         self.assertGreaterEqual(funnel["interview"], 1)  # a recorded round is an interview reached, whatever the column
         # every stage's own day, as the progress tab edits them
-        self.post("/api/v1/tracker/edit", {"job": jid, "dates": {"preparing": "2026-10-01", "submitted": "2026-10-05", "interview": "nope"}})
+        # a day no calendar has is refused in words and changes nothing (0.9.2: it was dropped without a word)
+        self.post("/api/v1/tracker/edit", {"job": jid, "dates": {"preparing": "2026-10-01", "submitted": "2026-10-05", "interview": "nope"}}, expect=400)
+        self.post("/api/v1/tracker/edit", {"job": jid, "dates": {"preparing": "2026-10-01", "submitted": "2026-10-05"}})
         job = next(j for j in self.get("/api/v1/state")["jobs"] if j["id"] == jid)
         self.assertEqual("2026-10-01", job["dates"]["preparing"])
         self.assertEqual("2026-10-05", job["dates"]["submitted"])
@@ -1257,7 +1261,9 @@ class TestJobUndoAndBoard(unittest.TestCase):
         self.c.settle()
         self.c.post("/api/v1/tracker/edit", {"job": jid, "date": "2026-03-01"})  # a day
         for bad in ("abcd-efghi", "2026-02-30", "2026/03/01"):
-            self.c.post("/api/v1/tracker/edit", {"job": jid, "date": bad})  # refused quietly, the day stays
+            with self.assertRaises(RuntimeError) as no:  # refused in words (0.9.2: it was refused quietly), the day stays
+                self.c.post("/api/v1/tracker/edit", {"job": jid, "date": bad})
+            self.assertIn('"what": "date"', str(no.exception))
         st = self.c.api.ws.job(jid)
         self.assertEqual("2026-03-01", st["dates"][st["stage"]])  # only the real day was kept
 

@@ -146,10 +146,22 @@ def read_questions(api, jid: str) -> list[dict]:
     return (json.loads((api.ws.job_dir(jid) / "questions.json").read_text(encoding="utf-8")).get("questions") or []) if (api.ws.job_dir(jid) / "questions.json").is_file() else []
 
 
-def estimate(n_files: int, with_job: bool) -> dict:
-    """About how many agent calls and minutes a run takes, for the page to say before it starts."""
+def estimate(n_files: int, with_job: bool, agent: bool = True) -> dict:
+    """About how many agent calls and minutes a run takes, for the page to say before it starts. With no agent nothing is
+    written by a model: the run is the typesetting, a minute or two, and saying seven minutes for it read as a wrong clock."""
+    if not agent:  # profile files read as they are, then the PDFs
+        return {"calls": 0, "minutes": 2}
     calls = n_files + 6 + 3 + 7 + (1 + 3 + 1 + 2 * SCRIPTS if with_job else 0)  # reading, writing, English, figures, then the posting's analysis, letter, map and scripts
     return {"calls": calls, "minutes": max(5, round(calls * 0.45))}  # about half a minute a call, seen on real runs
+
+
+def read_json_file(path: Path) -> dict:
+    """A JSON object from a file, or {} when it is missing or not an object (the result's sentence is never worth a failed run)."""
+    try:
+        got = json.loads(Path(path).read_text(encoding="utf-8"))  # as written
+    except (OSError, ValueError):  # missing, or cut short
+        return {}
+    return got if isinstance(got, dict) else {}
 
 
 RUNS_KEPT = 12  # finished runs the page lists, newest first
@@ -235,7 +247,10 @@ class Run:
             self.t._set(key, state="error", error={"code": "unexpected", "detail": type(exc).__name__})
             raise  # the caller says which step failed
         got = self.t.state().get(key) or {}  # how it ended
-        return {"state": "done"} if got.get("state") in ("done", "running") else {"state": (got.get("error") or {}).get("code") or "failed"}  # running: it set nothing, which counts as done
+        if got.get("state") in ("done", "running"):  # running: it set nothing, which counts as done
+            return {"state": "done"}
+        err = got.get("error") or {}  # the task's own reason: its code, and the cleaned detail some codes carry
+        return {"state": err.get("code") or "failed", "detail": str(err.get("detail") or "")[:200]}
 
     def stopped(self) -> bool:
         """The person asked the run to stop."""
@@ -405,11 +420,16 @@ class Run:
                 res = self.task_result(f"build:{jid}", lambda: self.t._build(jid, lang, theme, max_pages, with_cover=with_cover, write_cover=with_cover))  # the panel's own build
                 if res.get("state") == "done":  # typeset and checked
                     made.append(lang)
-                else:  # the build's own reason, such as a missing name or translation
-                    self.problems.append({"step": "typeset", "why": res.get("state"), "lang": lang})
+                else:  # the build's own reason, such as a missing name or translation, with its detail for the result's sentence
+                    self.problems.append({"step": "typeset", "why": res.get("state"), "lang": lang, **({"detail": res["detail"]} if res.get("detail") else {})})
             except (Exception, SystemExit) as exc:  # noqa: BLE001  one language may fail alone, also when the engine exits with a message
                 log.exception("autopilot typeset %s failed", lang)
                 self.problems.append({"step": "typeset", "why": type(exc).__name__, "lang": lang})
+        if with_cover:  # a posting's run writes its letter with the build: one that did not come out is said on the result, not left for the person to find missing
+            for lang in made:  # each edition made
+                letter = (read_json_file(self.t.build_dir(jid, lang) / "build.json").get("cover")) or None  # the build's record of its letter (None: no letter step on this PC)
+                if letter and letter.get("state") not in ("done", "drafted"):  # written and typeset, or written with no typesetting here: anything else was not written
+                    self.problems.append({"step": "cover", "why": letter.get("error") or letter.get("state") or "failed", "lang": lang})
         self.step("typeset", "done" if made else "failed", ", ".join(made) if made else next((p["why"] for p in self.problems if p["step"] == "typeset"), ""))
         return made  # for the copies and the tiles
 

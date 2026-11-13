@@ -60,6 +60,10 @@ class DeckSourceTests(Builds):
         rec = self.record(a, "-general")  # what the edition says it was made from
         self.assertEqual(a.tasks.deck_stamp(), rec["deck_src"])  # the source, by its stamp
         self.assertFalse(a.stale("-general", rec))  # current
+        pyc = a.ws.path("deck") / "tools" / "__pycache__" / "check.cpython-310.pyc"  # a run of the deck's own checks leaves bytecode
+        pyc.parent.mkdir(parents=True, exist_ok=True)
+        pyc.write_bytes(b"\x00bytecode")
+        self.assertFalse(a.stale("-general", rec))  # no change to the slides: still current
         (a.ws.path("deck") / "slides.txt").write_text("a slide changed", encoding="utf-8")  # the person edits their slides
         self.assertTrue(a.stale("-general", rec))  # the deck it wrote is stale now
         self.assertFalse(a.stale("-general", {k: v for k, v in rec.items() if k != "deck_src"}))  # one made before there was a source stays as it was

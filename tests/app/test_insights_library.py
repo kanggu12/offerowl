@@ -107,6 +107,26 @@ class TestInsightsAndLibrary(PanelCase):
                 if r.get(k):
                     self.assertTrue(r[k]["path"].startswith("/api/v1/"))
 
+    def test_the_kit_lists_its_scripts_not_its_workings(self):
+        """The Library's interview kit rows are the scripts: the agent's drafts file (never its rejected scenes), not the
+        settings and texts the panel writes into every kit; Insights counts the questions a draft answers apart."""
+        self.post("/api/v1/interview/kit", {"job": self.jid, "lang": "ko"})   # the question map, on this PC
+        api = self.srv.RequestHandlerClass.panel   # the running API
+        drafts = api.ws.path("out", "interview", self.jid, "drafts")   # where the agent's drafts go
+        drafts.mkdir(parents=True, exist_ok=True)
+        scene = "# drafts\n\n## D. 인성\n\n### D1. 자기소개 / Tell me about yourself.\n\n**면접관** Tell me about yourself.\n**해석** 자기소개 부탁드립니다.\n**나** I build payment backends.\n**해석** 결제 백엔드를 만듭니다.\n"
+        (drafts / "drafts-1.md").write_text(scene, encoding="utf-8")
+        (drafts / "drafts-1.rejected.md").write_text("rejected\n", encoding="utf-8")   # a side file the check keeps
+        rows = [r for r in self.get("/api/v1/library")["rows"] if r["group"] == "kit"]
+        names = {r["name"] for r in rows}
+        self.assertIn("drafts-1.md", names)   # the drafts are listed
+        self.assertFalse(names & {"kit.json", "names.txt", "portfolio.txt", "resume.txt", "drafts-1.rejected.md"}, names)   # the workings and the rejected scenes are not
+        row = next(r for r in rows if r["name"] == "drafts-1.md")
+        self.assertTrue(row["note"].get("draft"))   # said to be the agent's
+        self.assertEqual(scene.encode("utf-8"), self.raw_get(row["open"])[1])   # and it opens that very file
+        ready = next(r for r in self.get("/api/v1/insights")["ready"] if r["job"] == self.jid)
+        self.assertIn("draft", ready["coverage"] or {})   # the drafts' questions counted apart, as the map draws them
+
     def test_refuses_what_is_not_its_file(self):
         for path in (f"/api/v1/jobs/{q(self.jid)}/kit/..", f"/api/v1/jobs/{q(self.jid)}/kit/out/secret.md",   # no climbing out, only the made files
                      f"/api/v1/jobs/{q(self.jid)}/sent/resume.pdf",   # nothing was sent: no copy to give

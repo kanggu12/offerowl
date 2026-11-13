@@ -416,6 +416,10 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   const GAP = 16, VGAP = 12, BOARD_MAX = 24;                                        // gaps in px (the panel's own between cards), answers on a board
   let FSB = clamp(Number(store.get("fs", 13)) || 13, 12, 15);                       // the one type size, from the settings (12 to 15 px)
   let COLW = [22, 25, 29].includes(Number(store.get("colw", 25))) ? Number(store.get("colw", 25)) : 25;   // column width in ems
+  // a heading that names no question ("### D1. 질문 / Tell me about yourself."): the question's own words stand for it in the
+  // contents and on its card, or every script of the contents read "질문". The engine keeps the title as written (search)
+  const PLAIN_TITLE = /^(질문|문항|question|q)$/i;
+  const titleOf = (it) => (PLAIN_TITLE.test(String(it.tko || "").trim()) && it.ten ? it.ten : it.tko);
 
   function tip(r) {                                                                 // tooltip text with the two halves of the score
     const parts = [fmt("tip_keywords", { n: Math.round(r.kn * 100) })];
@@ -430,8 +434,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const g = secStarts.has(n) ? GROUP_OF.get(groupOf(it)) : null;                   // the section this card starts, said over it
     return `<article class="kit-card${best ? " best" : ""}" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}">` +
       (g ? `<div class="kit-sec" data-c="${cat(isRef(g) ? letterOf(g) : g.name[0])}">${keyLabel(g)}</div>` : "") +
-      `<div class="kit-ch" title="${esc(tip(r))}"><span class="kit-id id">${esc(it.id)}</span><span class="kit-t">${esc(it.tko)}</span>` +
-      `${it.ten ? `<span class="kit-te">${esc(it.ten)}</span>` : ""}</div>` +
+      `<div class="kit-ch" title="${esc(tip(r))}"><span class="kit-id id">${esc(it.id)}</span><span class="kit-t">${esc(titleOf(it))}</span>` +
+      `${it.ten && titleOf(it) !== it.ten ? `<span class="kit-te">${esc(it.ten)}</span>` : ""}</div>` +   // the English under it, unless it is the title already
       `${best && weak ? WEAK_LINE : ""}<div class="kit-body">${render(it.md, !it.key)}</div></article>`;   // the scene only
   }
   let measureBox = null;                                                            // an off-screen copy of the board for measuring cards before placing them
@@ -569,7 +573,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const el = elRank;
     const rowOf = (k) => { const it = ITEMS[board[k].i];
       return `<button type="button" class="kit-row" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}" title="${esc(tip(board[k]))}">` +
-        `<span class="kit-id">${esc(it.id)}</span><span class="kit-t">${esc(it.tko)}</span></button>`; };
+        `<span class="kit-id">${esc(it.id)}</span><span class="kit-t">${esc(titleOf(it))}</span></button>`; };
     el.innerHTML = boardOrder.map(rowOf).join("");
     if (!el.clientHeight || el.scrollHeight <= el.clientHeight + 1) return;         // it all fits (one layout)
     // whole rows only, never a cut-off line, and the last place says how many more there are; it goes to the first of them.
@@ -602,7 +606,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     lastW = el.clientWidth; lastH = el.clientHeight;                                // fitted to this room: not fitted again for the same room
   }
   function tocHtml(el, folded) {                                                    // the contents boxes: open groups with their items, then the folded groups as rows
-    const title = (it, g) => it.tko.startsWith(g + ":") ? it.tko.slice(g.length + 1).trim() : it.tko;   // no heading repeated in its own rows
+    const title = (it, g) => { const x = titleOf(it); return x.startsWith(g + ":") ? x.slice(g.length + 1).trim() : x; };   // no heading repeated in its own rows
     const row = (g) => {                                                            // one row that opens a whole group
       const k = isRef(g) ? letterOf(g) : g.name[0];                                 // the letter its items start with
       const hd = headOf(g.name), plain = g.name.replace(/^[A-Z]\.\s+/, "");        // its name without its letter (the row shows the letter)

@@ -151,6 +151,17 @@ def issue_codes(found: list) -> list[dict]:
     return out  # for the sentence's issues
 
 
+def as_written(issues: list[dict], text: str) -> list[dict]:
+    """Findings' words as the sentence writes them: the fact check compares in lower case, so "XYZ" came back as "xyz", and
+    the inspector quoted words the person never typed. Each name of a list ("a, b") is looked up on its own."""
+    plain = text.replace("==", "")  # the words as they read
+
+    def one(w: str) -> str:  # one name, in the sentence's own letters when it is there
+        m = re.search(re.escape(w), plain, re.I) if w else None
+        return m.group(0) if m else w
+    return [{**i, "words": ", ".join(one(w.strip()) for w in str(i["words"]).split(","))} if i.get("words") and i.get("code") != "claim" else i for i in issues]
+
+
 def ym_number(v) -> int | None:
     """A year and month as one number to sort by (2022.03 -> 202203), or None when unreadable (src/profile_loader.js ym)."""
     m = re.match(r"(\d{4})(?:[./-](\d{1,2}))?", str(v or ""))  # 2022.03, 2022-3, 2022
@@ -374,7 +385,7 @@ class Resume:
                 out.append({"code": "claim", "words": str(i.get("claim", "")), "said": str(i.get("hedge", ""))})  # both words
             elif i["code"] in words:  # a fact the evidence lacks; wording is the person's to choose
                 out.append({"code": words[i["code"]], "words": str(i.get("detail") or i.get("id") or "")})  # as found
-        return out  # [] when the evidence still covers it
+        return as_written(out, text)  # [] when the evidence still covers it; the words in the sentence's own letters
 
     def add_drafted(self, sid: str, text: str, link: dict) -> str:
         """Register a sentence the draft wrote: its evidence from the ids it cited, and the checks again if it was edited."""
@@ -390,7 +401,8 @@ class Resume:
         else:  # as the draft wrote it, after the checks
             state = "ok"  # as the evidence says
         self.sent[sid] = {"text": text, "state": state, "evidence": self.draft_evidence(link), "issues": issues, "kind": "draft",  # the record the page reads
-                          "locked": sid in self.locks, "drafted": True}  # the inspector says who wrote it
+                          "locked": sid in self.locks, "drafted": True,  # the inspector says who wrote it
+                          "changed": bool(link.get("edited")) and not link.get("typed")}  # changed after the draft, whatever its evidence now says
         return sid  # for the block
 
     def evidence_of(self, sid: str) -> tuple[list[dict], str]:
@@ -460,14 +472,15 @@ class Resume:
             found = factcheck.unsupported(text.replace("==", ""), evid, check_latin=not self.translated)  # new numbers, tools, names
             claim = getattr(factcheck, "claim_issues", None)  # the claim-strength rule, where the engine has it
             found += claim(text.replace("==", ""), evid) if claim else []  # "led" where the evidence says "helped"
-            issues = issue_codes(found)  # as codes
+            issues = as_written(issue_codes(found), text)  # as codes, in the sentence's own letters
             if re.fullmatch(r"(roles|education)\.\d+", sid):  # a company or a school named in a table row
                 name = re.sub(r"\s*\([^)]*\)\s*$", "", text).strip()  # without its place in brackets
                 if name and re.sub(r"\s+", "", name) not in re.sub(r"\s+", "", evid) and not any(i["code"] == "org" for i in issues):  # a name the evidence never writes
                     issues.append({"code": "org", "words": name})  # a company or school is a fact: it must come from the evidence
             state = "unsupported" if issues else "edited"  # inside the evidence, or not
         self.sent[sid] = {"text": text, "state": state, "evidence": ev, "issues": issues, "kind": kind,  # the record the page reads
-                          "locked": sid in self.locks}  # later drafts keep it
+                          "locked": sid in self.locks,  # later drafts keep it
+                          "changed": bool(edited) and state != "typed"}  # its fact was changed, whatever its evidence now says
         return sid  # for the block
 
     def paragraph(self, base_sid: str, text) -> list[str]:
@@ -666,7 +679,7 @@ class Resume:
             self.blocks.append({"type": "motivation", "sids": sids,  # its sentences
                                 "paras": split if at == len(sids) else [sids]})  # its paragraphs, when the sentences fall on their boundaries
         counts = {"sentences": len(self.sent), "unsupported": sum(1 for s in self.sent.values() if s["state"] == "unsupported"),  # the totals
-                  "edited": sum(1 for s in self.sent.values() if s["state"] == "edited"),
+                  "edited": sum(1 for s in self.sent.values() if s.get("changed")),  # every sentence changed after it was written, with evidence or not
                   "locked": sum(1 for s in self.sent.values() if s["locked"])}  # the margin's counts
         return {"kind": "resume", "lang": L, "theme": self.theme, "job": self.job, "colors": THEMES[self.theme],  # the model
                 "labels": {k: W[k] for k in ("period", "org", "dept", "role", "tenure", "school", "major", "degree", "cat", "tech", "resume", "name", "kind")},  # table heads; the table form's title and name row

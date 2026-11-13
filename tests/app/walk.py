@@ -569,7 +569,7 @@ def main() -> int:  # 0 only when nothing was found
             (data / "workspace" / "ask").mkdir(parents=True, exist_ok=True)  # the history's folder, as the first ask makes it
             (data / "workspace" / "ask" / "history.json").write_text(json.dumps(asked, ensure_ascii=False), encoding="utf-8")
             page.evaluate("for (const k of Object.keys(UI.docs)) if (k.startsWith('ask|')) delete UI.docs[k]; UI.askKey = null; drawAsk()")  # read again on the next open
-            page.click("#askbar .ask-fab")  # opened from the prompt at the window's bottom right (a phone: the bar along the foot), as a person does: Escape gives the focus back to it
+            page.click("#askbar .ask-fab")  # opened from the floating button at the window's bottom right (a phone too), as a person does: Escape gives the focus back to it
             w.wait("document.querySelectorAll('#askpanel .ask-item').length === 2")  # both asks drawn
             w.shoot("ask_open")  # the sheet at the window's right edge (a phone: from the foot): the agent, its lamp, the asks, the box
             page.keyboard.press("Escape"); w.settle()  # closed back into its key, which takes the focus

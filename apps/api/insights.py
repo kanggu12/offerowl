@@ -376,7 +376,8 @@ def summary(api, today: date | None = None) -> dict:
 
 
 def kit_coverage(api, jid: str) -> tuple[dict | None, int]:
-    """({strong, weak, none} of the kit's likely questions, scripts) for one job's interview kit, or (None, 0)."""
+    """({strong, draft, weak, none} of the kit's likely questions, scripts) for one job's interview kit, or (None, 0). A question
+    an agent's draft answers is counted as such: left out, a kit of drafts read as a map with nothing answered."""
     from . import studio                                                            # the interview board
     try:
         kd = api.ws.job_dir(jid) / "interview"                                      # the kit's notes
@@ -392,7 +393,7 @@ def kit_coverage(api, jid: str) -> tuple[dict | None, int]:
     if not b.get("ready"):                                                          # no kit folder yet
         return None, 0
     c = Counter(q.get("coverage") or "none" for cat in b.get("categories") or [] for q in cat.get("questions") or [])
-    out = ({k: c.get(k, 0) for k in ("strong", "weak", "none")}, len(b.get("scripts") or []))
+    out = ({k: c.get(k, 0) for k in ("strong", "draft", "weak", "none")}, len(b.get("scripts") or []))   # the drafts apart, as the map draws them
     for k in [k for k in KIT_CACHE if k[0] == jid]:                                 # the job's older numbers go
         del KIT_CACHE[k]
     KIT_CACHE[key] = out

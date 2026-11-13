@@ -32,32 +32,7 @@ class Exports:
         lock = st.get("locked") if isinstance(st.get("locked"), dict) else None  # what was submitted, if it was
         if lock and lock.get("lang") == lang and lock.get("folder"):  # submitted in this language: those exact copies are what goes
             return self.export_sent(job_id, lang, lock)
-        out_dir = self.build_dir(job_id, lang)  # the edition
-        rec = read_json(out_dir / "build.json", {})  # what the build checked
-        cover = rec.get("cover") if isinstance(rec.get("cover"), dict) else {}  # the letter's own result
-        if rec.get("issues") or cover.get("issues"):  # a document that failed its checks is never sent, the letter included
-            raise ValueError("checks_failed")  # the page points at the problems
-        hashes = rec.get("hashes") or {}  # the bytes that were checked
-        for f in ("resume.pdf", "deck.pdf", "cover.pdf"):  # every PDF that may go
-            if (out_dir / f).is_file() and (f not in hashes or file_hash(out_dir / f) != hashes[f]):  # never checked (an edition from before the checked delivery has no record), or changed after its check
-                raise ValueError("changed")  # the page says to make the PDFs again
-        import pdfmeta  # src/pdfmeta.py: the title and the author a reader shows
-        for f in hashes:  # before anything is copied: a PDF that still carries no title of its own (an older build) is made again
-            if not (out_dir / f).is_file():  # a document not made this time
-                continue
-            try:
-                meta = pdfmeta.read(out_dir / f)  # what a reader shows in its title bar
-            except Exception:  # noqa: BLE001  a file this cannot read is not sent either
-                meta = {}
-            if not meta.get("title") or not meta.get("author") or re.fullmatch(r"owl_(?:cover_)?[0-9a-f]{8}.*", meta.get("title") or ""):  # no title, or the build's name
-                raise ValueError("changed")  # the page says to make the PDFs again
-        blind = rec.get("blind") is True  # a blind edition
-        if blind:  # nothing it covers may show in what goes: its words, its titles, its links
-            found = self.blind_leaks(out_dir, [f for f in ("resume.pdf", "deck.pdf", "cover.pdf") if f in hashes and (out_dir / f).is_file()])
-            if found is None:  # a PDF whose text could not be read is never taken for a clean one
-                raise ValueError("blind_unread")
-            if found:  # a covered name still shows
-                raise ValueError(f"blind_leak:{len(found)}")  # how many patterns, for the page's words
+        out_dir, rec, hashes, blind = self.checked(job_id, lang)  # what may go, or the reason nothing may
         from . import delivery  # the Word-ready Word files, the PowerPoint copy, the portfolio kept on the Desktop
         settings = self.card.settings_fn()  # what the person asked for
         extras = settings.get("export_extras") is True  # Word and text files too, only when asked
@@ -110,6 +85,39 @@ class Exports:
                 (dest / name).unlink(missing_ok=True)
             raise
         return names  # the names, never the folder
+
+    def checked(self, job_id: str, lang: str) -> tuple:
+        """(the edition's folder, its build record, the hashes of the bytes checked, whether it is blind) once every check
+        that guards what leaves the workspace passed: the export and the lock both ask, so a copy frozen as submitted (which
+        export_sent later copies without checking again) passed the same checks as one exported. Raises ValueError with the
+        reason the page words: checks_failed, changed, blind_unread or blind_leak:<n>."""
+        out_dir = self.build_dir(job_id, lang)  # the edition
+        rec = read_json(out_dir / "build.json", {})  # what the build checked
+        cover = rec.get("cover") if isinstance(rec.get("cover"), dict) else {}  # the letter's own result
+        if rec.get("issues") or cover.get("issues"):  # a document that failed its checks is never sent, the letter included
+            raise ValueError("checks_failed")  # the page points at the problems
+        hashes = rec.get("hashes") or {}  # the bytes that were checked
+        for f in ("resume.pdf", "deck.pdf", "cover.pdf"):  # every PDF that may go
+            if (out_dir / f).is_file() and (f not in hashes or file_hash(out_dir / f) != hashes[f]):  # never checked (an edition from before the checked delivery has no record), or changed after its check
+                raise ValueError("changed")  # the page says to make the PDFs again
+        import pdfmeta  # src/pdfmeta.py: the title and the author a reader shows
+        for f in hashes:  # before anything is copied: a PDF that still carries no title of its own (an older build) is made again
+            if not (out_dir / f).is_file():  # a document not made this time
+                continue
+            try:
+                meta = pdfmeta.read(out_dir / f)  # what a reader shows in its title bar
+            except Exception:  # noqa: BLE001  a file this cannot read is not sent either
+                meta = {}
+            if not meta.get("title") or not meta.get("author") or re.fullmatch(r"owl_(?:cover_)?[0-9a-f]{8}.*", meta.get("title") or ""):  # no title, or the build's name
+                raise ValueError("changed")  # the page says to make the PDFs again
+        blind = rec.get("blind") is True  # a blind edition
+        if blind:  # nothing it covers may show in what goes: its words, its titles, its links
+            found = self.blind_leaks(out_dir, [f for f in ("resume.pdf", "deck.pdf", "cover.pdf") if f in hashes and (out_dir / f).is_file()])
+            if found is None:  # a PDF whose text could not be read is never taken for a clean one
+                raise ValueError("blind_unread")
+            if found:  # a covered name still shows
+                raise ValueError(f"blind_leak:{len(found)}")  # how many patterns, for the page's words
+        return out_dir, rec, hashes, blind
 
     def blind_names(self, who: str, where: str, lang: str) -> tuple:
         """A blind edition's file name parts: the person's name and the company's or edition's name, each left out when the
@@ -182,6 +190,7 @@ class Exports:
                  if (out_dir / f).is_file()}  # what there is
         if "resume.pdf" not in files:  # no resume, nothing to lock
             return None  # the endpoint answers bad_request
+        self.checked(job_id, lang)  # what the export would refuse is never frozen as sent: export_sent copies it later unchecked
         rec = self.ws.freeze(job_id, files)  # the copies
         rec["lang"] = lang  # which edition was locked
         if (read_json(out_dir / "build.json", {}) or {}).get("blind") is True:  # a blind edition was what went out

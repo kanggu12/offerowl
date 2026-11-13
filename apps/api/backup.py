@@ -67,6 +67,16 @@ def _checked(z: zipfile.ZipFile) -> None:
         raise ValueError("too_large")  # the page says so
 
 
+def aside_name(root: Path) -> Path:
+    """Where the workspace goes aside before a restore: beside it, named by the time, with a number when a restore made
+    in the same second holds that name (the rename would fail on it, or on an empty one take its place)."""
+    stamp = time.strftime("%Y%m%d-%H%M%S")  # when, to the second
+    kept, n = root.with_name(f"{root.name}-before-restore-{stamp}"), 2  # the plain name first
+    while kept.exists():  # taken by an earlier restore
+        kept, n = root.with_name(f"{root.name}-before-restore-{stamp}-{n}"), n + 1  # the next number
+    return kept
+
+
 def restore(ws: Workspace, data) -> str:
     """Put a backup in the workspace's place: `data` is its bytes, or the file it was written to (the panel writes an upload
     to a file, so a large backup never sits whole in memory). Returns the name of the folder that keeps the workspace as it was."""
@@ -76,7 +86,7 @@ def restore(ws: Workspace, data) -> str:
         raise ValueError("not_a_backup") from exc  # the page says so
     root = ws.root  # the workspace's folder
     new = root.with_name(f"{root.name}.restoring-{os.getpid()}")  # beside it, on the same disk, so the swap is one rename
-    kept = root.with_name(f"{root.name}-before-restore-{time.strftime('%Y%m%d-%H%M%S')}")  # never deleted: the person may want it back
+    kept = aside_name(root)  # never deleted: the person may want it back
     with z:  # closed in every case
         _checked(z)  # before anything is written
         shutil.rmtree(new, ignore_errors=True)  # what a stopped restore left
@@ -88,6 +98,7 @@ def restore(ws: Workspace, data) -> str:
             shutil.rmtree(new / ".history", ignore_errors=True)  # undo steps name files of the workspace they came from: a backup carries none
             Workspace(new)  # the layout, for a backup made before a folder was added: a file where a folder belongs stops here
             with ws.lock:  # no write lands between the two renames
+                kept = aside_name(root)  # named again now: a restore made in the same second took the first name meanwhile
                 retried(root.rename, kept)  # the workspace as it was, aside
                 try:
                     retried(new.rename, root)  # the backup in its place

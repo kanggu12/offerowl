@@ -12,17 +12,16 @@
 
 <p align="center">
   <a href=".github/workflows/ci.yml"><img alt="CI: GitHub Actions" src="docs/assets/badges/ci.svg"></a>
-  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.9.1" src="docs/assets/badges/release.svg"></a>
+  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.9.2" src="docs/assets/badges/release.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="docs/assets/badges/license.svg"></a>
   <img alt="Runs on Windows, macOS and Linux" src="docs/assets/badges/runs-on.svg">
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick start</a> &nbsp;|&nbsp;
-  <a href="#features">Features</a> &nbsp;|&nbsp;
+  <a href="#what-it-does">What it does</a> &nbsp;|&nbsp;
   <a href="#how-it-works">How it works</a> &nbsp;|&nbsp;
-  <a href="#guides">Guides</a> &nbsp;|&nbsp;
-  <a href="#open-source">Open source</a>
+  <a href="#guides">Guides</a>
 </p>
 
 <p align="center">
@@ -73,12 +72,12 @@ docker compose -f deploy/docker/compose.yaml up -d --build
 **Python** 3.10 or newer
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.9.1/offerowl-0.9.1-py3-none-any.whl
+pipx install https://github.com/kanggu12/offerowl/releases/download/v0.9.2/offerowl-0.9.2-py3-none-any.whl
 offerowl panel --open
 ```
 
-To write, Offerowl uses the AI agent you are signed in to: sign in to
-[Claude Code](https://code.claude.com/docs/en/setup) once, or use Codex or a local model. With no AI at all, an Offerowl
+To write, Offerowl uses the AI agent you are signed in to: [Claude Code](https://github.com/anthropics/claude-code) or
+[Codex](https://github.com/openai/codex), or a local model (Ollama, vLLM, LM Studio). With no AI at all, an Offerowl
 profile file still becomes PDFs. [docs/INSTALL.md](docs/INSTALL.md) has the Kubernetes chart (one person's, or several
 people's, each with an Offerowl of their own), updating, removing and what to choose if your system warns about the
 unsigned app; [docs/OFFLINE.md](docs/OFFLINE.md) covers networks with no internet.
@@ -86,7 +85,7 @@ unsigned app; [docs/OFFLINE.md](docs/OFFLINE.md) covers networks with no interne
 [What it needs](docs/INSTALL.md#what-you-need): Windows, macOS or Linux, 8 GB of memory, and Edge or Chrome (Chromium on Linux)
 to print the PDFs.
 
-## Features
+## What it does
 
 - **Nothing to type.** Files and folders are the input: PDF, Word, PowerPoint, text, photos of pages, a zip, LinkedIn's
   export, a posting's link, a screenshot of the form with its questions and limits.
@@ -165,32 +164,17 @@ products of Anthropic and OpenAI; Offerowl is an independent project.
 
 ## Guides
 
-| Guide | What it covers |
-|:---|:---|
-| [User guide](docs/README.md) | The panel, from your first files to a finished application |
-| [Installing](docs/INSTALL.md), [closed networks](docs/OFFLINE.md) | Every way to run it, updating and removing |
-| [Command line](docs/USAGE.md) | Every command, for scripts and automation, and the blind edition's table |
-| [Interview kit](docs/INTERVIEW.md) | The question map, scripts, search, practice, cue cards, the interview deck and the talk |
-| [Documents](docs/DOCUMENTS.md) | The resume's and the deck's parts, editions you bring in, the profile format |
-| [Drafting from evidence](docs/WRITING.md) | How every sentence is retrieved, written and checked |
-| [Architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md) | The code, the data, the HTTP API and what was measured |
+- [User guide](docs/README.md): the panel, from your first files to a finished application
+- [Installing](docs/INSTALL.md) and [closed networks](docs/OFFLINE.md): every way to run it, updating and removing
+- [Command line](docs/USAGE.md): every command, for scripts and automation, and the blind edition's table
+- [Interview kit](docs/INTERVIEW.md): the question map, scripts, search, practice, cue cards, the interview deck and the talk
+- [Documents](docs/DOCUMENTS.md): the resume's and the deck's parts, editions you bring in, the profile format
+- [Drafting from evidence](docs/WRITING.md): how every sentence is retrieved, written and checked
+- [Architecture](docs/ARCHITECTURE.md) and [decisions](docs/DECISIONS.md): the code, the data, the HTTP API and what was measured
 
-## Open source
+## Contributing
 
-Offerowl is MIT licensed and built in the open. Most of it runs with no model and no account: the tests use stand-in
-backends and fictional people.
-
-- **Report a bug or ask for a feature** in [Issues](https://github.com/kanggu12/offerowl/issues/new/choose).
-- **Change the code.** [CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the tests and recipes:
-
-  ```bash
-  OFFEROWL_NET=1 render/run.sh npm ci     # the typesetting libraries, once
-  ./offerowl selftest                     # build the fictional example end to end and check it
-  python3 -m unittest discover -s tests/cli
-  ```
-
-- **See what changed** in [CHANGELOG.md](CHANGELOG.md), and report a security problem through
-  [SECURITY.md](.github/SECURITY.md).
+Bug reports and changes are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the tests and how a change reaches a release.
 
 ## License
 

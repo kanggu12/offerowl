@@ -397,34 +397,42 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
 
 
 def stack(prof, lang, path, navy):
-    """Hierarchy figure (the reference stack figure): layer name on the left, skills and where on the right, darker toward the bottom"""
+    """Hierarchy figure (the reference stack figure): each layer's name on an arrow plate, the plates stepping out toward the
+    bottom like a staircase of layers and darker as they go down, the skills and where they were used in a pale box on the
+    right. The plates of equal width drawn from 2026-11-03 read as a plain list; the stepped arrows are the figure the
+    author's submitted resumes carried (2026-10-16) and asked for again (2026-11-13)."""
     layers = (prof.get("summary") or {}).get("layers") or []
     layers = [r for r in layers if isinstance(r, (list, tuple)) and r]
     if not layers:
         return None
     n = len(layers)
-    row, gap = 38, 4
+    row, gap = 38, 4  # a layer's height and the room between two
+    step, tip, pad = 6 * S, 8 * S, 10  # how much shorter each plate above is, the arrow tip's depth, the name's left inset
     H = (row * n + gap * (n - 1)) * S
     im = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(im)
-    lw = int(W * 0.27)  # left column wide enough for English layer names on one line
-    for i, item in enumerate(layers):
-        name, tech, where = [str(v) for v in (list(item) + ["", "", ""])[:3]]
+    f, ft, fw = font(12.5, True), font(11.5, True), font(10.5)
+    rows = [[str(v) for v in (list(item) + ["", "", ""])[:3]] for item in layers]  # name, skills, where
+    # the bottom plate's width: a quarter of the figure (English names a little more), and wide enough that every name
+    # fits its own plate, the top one being the shortest
+    lw = int(W * (0.27 if lang == "en" else 0.25))
+    lw = max([lw] + [int(d.textlength(name, font=f) + 2 * pad * S + (n - 1 - i) * step) for i, (name, _, _) in enumerate(rows)])
+    right = lw + tip + 7 * S  # the pale boxes start a clear gap past the longest plate's tip (a hair's gap read as a slip: 2026-10-26)
+    for i, (name, tech, where) in enumerate(rows):
         y0 = i * (row + gap) * S
         y1 = y0 + row * S
-        c = mix(navy, max(0, .30 - i * .075))  # darker toward the bottom, never past the base color
-        d.rounded_rectangle([0, y0, lw, y1], radius=3 * S, fill=c)
-        pad = 12  # left inset of both columns
-        f, ft, fw = font(12.5, True), font(11.5, True), font(10.5)
+        c = mix(navy, .30 - i * (.30 / max(1, n - 1)))  # lighter at the top, the theme's own navy at the bottom; white words keep 4.5:1 on the lightest
+        end = lw - (n - 1 - i) * step  # where this plate's body ends: each plate above is shorter
+        d.polygon([(0, y0), (end, y0), (end + tip, (y0 + y1) / 2), (end, y1), (0, y1)], fill=c)  # the arrow plate
         b = d.textbbox((0, 0), name, font=f)  # center the name by its ink height (fonts differ in top room)
         draw_text(d, (pad * S, y0 + (row * S - (b[3] - b[1])) / 2 - b[1]), name, "white", f)
-        d.rounded_rectangle([lw + 10 * S, y0, W, y1], radius=3 * S, fill=TINT)
+        d.rounded_rectangle([right, y0, W, y1], radius=3 * S, fill=TINT)
         # The two right lines (skills, where) sit as one block centered in the row, 6 apart
         b1, b2 = d.textbbox((0, 0), tech or " ", font=ft), d.textbbox((0, 0), where or " ", font=fw)
         h1, h2, lead = b1[3] - b1[1], b2[3] - b2[1], 6 * S
         top = y0 + (row * S - (h1 + lead + h2)) / 2
-        draw_text(d, (lw + (10 + pad) * S, top - b1[1]), tech, navy, ft)
-        draw_text(d, (lw + (10 + pad) * S, top + h1 + lead - b2[1]), where, GREY, fw)
+        draw_text(d, (right + 12 * S, top - b1[1]), tech, navy, ft)
+        draw_text(d, (right + 12 * S, top + h1 + lead - b2[1]), where, GREY, fw)
     path.parent.mkdir(parents=True, exist_ok=True)
     im.save(path, dpi=(96 * S, 96 * S))
     return path
