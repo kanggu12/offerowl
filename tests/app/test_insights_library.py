@@ -123,7 +123,7 @@ class TestInsightsAndLibrary(PanelCase):
         self.assertFalse(names & {"kit.json", "names.txt", "portfolio.txt", "resume.txt", "drafts-1.rejected.md"}, names)   # the workings and the rejected scenes are not
         row = next(r for r in rows if r["name"] == "drafts-1.md")
         self.assertTrue(row["note"].get("draft"))   # said to be the agent's
-        self.assertEqual(scene.encode("utf-8"), self.raw_get(row["open"])[1])   # and it opens that very file
+        self.assertEqual((drafts / "drafts-1.md").read_bytes(), self.raw_get(row["open"])[1])   # and it opens that very file, byte for byte (CRLF on Windows, where write_text wrote it so)
         ready = next(r for r in self.get("/api/v1/insights")["ready"] if r["job"] == self.jid)
         self.assertIn("draft", ready["coverage"] or {})   # the drafts' questions counted apart, as the map draws them
 
