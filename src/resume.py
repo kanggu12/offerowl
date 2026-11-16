@@ -815,7 +815,38 @@ def cmd_build(args: list[str]) -> int:
     if not blind.on():  # a blind edition has no plain words: a Word or text file cannot carry the bars
         for f in build_plain(pos[0], cfg):  # the same words for a job site that reads a file by itself
             print(f)
-    return check(pos[0], cfg, pdf, deck)  # check right after building
+    rc = check(pos[0], cfg, pdf, deck)  # check right after building
+    return max(rc, cross(pos[0], cfg, pdf, deck))  # and across the documents, as the panel's build does
+
+
+def cross(profile: str, cfg: str | None, pdf: pathlib.Path, deck: pathlib.Path | None) -> int:
+    """The checks across the documents of one build, as the panel runs them (docs/DOCUMENTS.md "Checks across documents"):
+    the resume against its deck (src/check_parity.py edition), and a blind edition against its ordinary twin, typeset here
+    from the same profile and settings with no bars (src/check_blind.py). Prints what they say; 1 when one found a defect."""
+    import blind  # src/blind.py: is this a blind edition, and with which table
+    out, job = job_file(profile, cfg)  # the settings as the build wrote them, with the output name
+    c = load_cfg(cfg)  # for the style pack
+    style = c.get("style") or "default"  # a shipped pack's name, or the path of the person's own
+    if "/" in style or "\\" in style or style.endswith(".json"):  # a file: staged where the container sees it
+        style = rel(style)
+    r = sh(["python3", "src/check_parity.py", "edition", rel(profile), job, rel(str(pdf)), *([rel(str(deck))] if deck else []), "--style", style])
+    print((r.stdout + r.stderr).strip())
+    rc = 1 if r.returncode == 1 else 0  # a defect; a check that could not read the profile says so and leaves the build's own verdict
+    if not blind.on():  # an ordinary edition has no twin
+        return rc
+    twin_cfg = dict(c, out=out + "_twin")  # the same settings under another name
+    twin_cfg.pop("blind", None)  # what an edition was brought in as gives way to what this build is
+    f = ROOT / "output" / "_inputs" / f"{out}_twin.cfg.json"  # where the twin's settings are written
+    f.write_text(json.dumps(twin_cfg, ensure_ascii=False), encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("OFFEROWL_BLIND")}  # no bars
+    twin = build(profile, str(f), env)  # the twin's resume
+    twin_deck = build_deck(profile, str(f), env) if deck else None  # and its deck
+    table = os.environ.get("OFFEROWL_BLIND_TABLE") or "src/blind.json"  # the table the bars were made with
+    files = [rel(str(x)) for x in (twin.with_suffix(".docx"), pathlib.Path(str(twin_deck)[:-4] + ".html") if twin_deck else None) if x and x.is_file()]  # its words
+    r = sh(["python3", "src/check_blind.py", "layout", rel(str(twin)), rel(str(pdf)), *([rel(str(twin_deck)), rel(str(deck))] if twin_deck else []),
+            "--table", table, "--files", *files])
+    print((r.stdout + r.stderr).strip())
+    return max(rc, 1 if r.returncode == 1 else 0)
 
 
 def cmd_selftest(args: list[str]) -> int:

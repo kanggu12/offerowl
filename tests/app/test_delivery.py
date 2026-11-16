@@ -282,7 +282,8 @@ class DeskPortfolio(Edition):
         self.a.set_settings({"desk_portfolio": True})
         for p in (mock.patch.object(resume, "build", side_effect=build), mock.patch.object(resume, "build_deck", side_effect=build_deck),
                   mock.patch.object(resume, "build_plain", side_effect=SystemExit("no plain words")),
-                  mock.patch.object(self.a.tasks, "_check", return_value=([], [])), mock.patch.object(self.a.tasks, "engine_ready", return_value="")):
+                  mock.patch.object(self.a.tasks, "_check", return_value=([], [])), mock.patch.object(self.a.tasks, "engine_ready", return_value=""),
+                  mock.patch.object(self.a.tasks, "cross_checks", return_value={"issues": [], "notes": [], "checks": [], "polish": [], "matched": None})):  # tests/app/test_compare.py runs them
             p.start()
             self.addCleanup(p.stop)
         (self.desk / "홍길동 포트폴리오.pdf").unlink()  # gone from the Desktop since

@@ -15,10 +15,13 @@ from support import LAUNCHER, ROOT, SRC
 
 sys.path.insert(0, str(SRC))
 sys.path.insert(0, str(ROOT))  # apps/: the edition command's messages
+import baseline  # noqa: E402  its messages
+import check_blind  # noqa: E402  its messages
 import check_claims  # noqa: E402  its messages
 import check_documents  # noqa: E402  its messages
 import check_ledger  # noqa: E402  its messages
 import check_pages  # noqa: E402  its messages
+import check_parity  # noqa: E402  its messages
 import check_render  # noqa: E402  its messages
 import draft  # noqa: E402  its messages
 import ingest  # noqa: E402  its messages
@@ -48,6 +51,9 @@ TABLES = {
     "check_ledger": (check_ledger.MSG, SRC / "check_ledger.py"),
     "check_pages": (check_pages.MSG, SRC / "check_pages.py"),
     "check_render": (check_render.MSG, SRC / "check_render.py"),
+    "check_parity": (check_parity.MSG, SRC / "check_parity.py"),
+    "check_blind": (check_blind.MSG, SRC / "check_blind.py"),
+    "baseline": (baseline.MSG, SRC / "baseline.py"),
     "draft": (draft.MSG, SRC / "draft.py"),
     "ingest": (ingest.MSG, SRC / "ingest.py"),
     "ocr_selfcheck": (ocr_selfcheck.MSG, SRC / "ocr_selfcheck.py"),

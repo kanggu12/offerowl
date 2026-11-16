@@ -116,6 +116,7 @@ const UI = {                                                                    
   theme: localStore("offerowl-doctheme") || "navy",                                 // the resume's colour pack
   maxPages: Number(localStore("offerowl-maxpages") || 3),                           // the page limit
   maxPagesChosen: localStore("offerowl-maxpages") !== null,                          // picked in this browser; else an edition made before keeps its own limit
+  changesOpen: null,                                                                // the edition whose picture of changed pages is open ("<id>|<lang>", docs.js changesBand)
   cover: localStore("offerowl-cover") !== "0",                                      // tailoring writes the cover letter too
   typeset: localStore("offerowl-typeset") === "1",                                  // tailoring makes the PDFs too
   tab: "evidence",                                                                  // the inspector's tab
@@ -353,6 +354,9 @@ function errorText(e) {                                                         
   if (/^unsupported:(\d+)/.test(what)) return tn(what.split(":")[1], "{n} sentence has no evidence. Fix it before exporting.", "{n} sentences have no evidence. Fix them before exporting.");
   if (/^blind_leak:(\d+)/.test(what)) return tn(what.split(":")[1], "{n} pattern of your table still shows in the blind edition, so nothing was exported. Add it to what the table covers and make the PDFs again.",   // a covered name in a PDF's text, title or link
     "{n} patterns of your table still show in the blind edition, so nothing was exported. Add them to what the table covers and make the PDFs again.");
+  if (/^parity:(\d+)$/.test(what)) return tn(what.split(":")[1], "This edition says {n} thing otherwise than the edition in the language your facts are written in, so nothing was exported. Make both editions' PDFs again to see where.",   // a translation held to its source (apps/api/task_compare.py)
+    "This edition says {n} things otherwise than the edition in the language your facts are written in, so nothing was exported. Make both editions' PDFs again to see where.");
+  if (what === "parity_unchecked") return t("The two languages' editions could not be compared, so nothing was exported. Make the PDFs again.");   // a check that did not run is never taken for passed
   if (/^blind_pattern:\w+:\d+$/.test(what)) { const [, list, n] = what.split(":"); return t("Pattern {n} of {list} in that table cannot be used. Fix it and pick the file again.", { n, list }); }   // the first pattern Python or JavaScript would read otherwise
   if (what === "busy" && e.status === 503) return t("Offerowl is answering many requests at once. Try again in a moment.");   // every slot still taken after two tries (src/ownport.py)
   const words = {

@@ -99,6 +99,7 @@ function problemWords(code) {                                                   
   if (refusedWords(code)) return refusedWords(code);                                // a Word or PowerPoint file kept home by its own check
   if (/^blind_leak:\d+$/.test(code)) return t("Not sent: a name the blind edition covers still shows");   // the blind edition's check, with its count
   if (code === "blind_unread") return t("Not sent: the blind edition's text could not be read");   // nothing read is never taken for clean
+  if (/^parity:\d+$/.test(code) || code === "parity_unchecked") return t("Not sent: it says otherwise than the edition in your facts' language");   // a translation held to its source
   const info = errorInfo(code);                                                     // the panel's reasons (name_missing, renderer_missing ...)
   return info.msg === errorInfo("unexpected").msg && code !== "unexpected" ? t("Did not work") : info.msg;   // a known one in words, else plainly (errorInfo makes a new object each time: compare the words)
 }
@@ -116,6 +117,7 @@ function problemWhy(p) {                                                        
   if (!code || /^\d+$/.test(code)) return "";                                       // a count is no reason
   if (refusedWords(code)) return refusedWords(code);                                // a Word or PowerPoint file kept home by its own check
   if (/^blind_leak:\d+$/.test(code)) return t("A name the blind edition covers still shows.");
+  if (/^parity:\d+$/.test(code) || code === "parity_unchecked") return t("It says otherwise than the edition in your facts' language. Documents shows where.");
   const SAID = { checks_failed: t("They did not pass their checks. Documents shows which."), changed: t("They changed after their checks."),
     copy_unreadable: t("The copy did not read back."), blind_unread: t("The blind edition's text could not be read."), answers_need_attention: t("An answer still needs your fix."),
     failed: t("The agent stopped part way."), agent_stopped: t("The agent stopped part way."), needs_agent: errorInfo("agent_unavailable").msg, agent_unavailable: errorInfo("agent_unavailable").msg,
@@ -546,7 +548,7 @@ function resultCard(run) {                                                      
   const grid = docTiles(run);                                                       // the PDFs, by language and document
   const tiles = grid.rows.length && grid.kinds.length;                              // anything to show
   const files = run.files || [];                                                    // the copies on the Desktop
-  const probs = (run.problems || []).filter((p) => p.step !== "export" || ["checks_failed", "changed", "copy_unreadable", "answers_need_attention", "blind_unread"].includes(p.why) || /^blind_leak:\d+$/.test(p.why) || refusedWords(p.why))   // what went wrong; the copying only when it was refused, a Word or PowerPoint file too
+  const probs = (run.problems || []).filter((p) => p.step !== "export" || ["checks_failed", "changed", "copy_unreadable", "answers_need_attention", "blind_unread"].includes(p.why) || /^blind_leak:\d+$/.test(p.why) || /^parity:\d+$/.test(p.why) || p.why === "parity_unchecked" || refusedWords(p.why))   // what went wrong; the copying only when it was refused, a Word or PowerPoint file too
     .filter((p, i, all) => p.lang || !all.some((q) => q.step === p.step && q.lang))   // a step's line with no language beside its lines per language says the same thing again
     .filter((p, i, all) => all.findIndex((q) => q.step === p.step && q.lang === p.lang && q.why === p.why) === i);   // and once each
   const det = S.details || {};                                                      // what "Your details" holds now

@@ -153,6 +153,9 @@ def problems(table) -> list:
     for k in ("mask_fill", "mark_fill"):  # the bar's and the band's colours
         if k in table and not (isinstance(table[k], str) and COLOR.fullmatch(table[k])):
             out.append(f"{k}:shape")
+    keep = table.get("mask_keep", [])  # mask patterns kept on purpose for words no edition prints yet (src/check_blind.py names none of them)
+    if not isinstance(keep, list) or len(keep) > MAX_PATTERNS or not all(isinstance(x, str) and len(x) <= MAX_PATTERN for x in keep):
+        out.append("mask_keep:shape")
     unlink = table.get("contacts_unlink", [])  # contact labels whose link goes
     if not isinstance(unlink, list) or len(unlink) > 50 or not all(isinstance(x, str) and len(x) <= MAX_WORDS for x in unlink):
         out.append("contacts_unlink:shape")
@@ -170,7 +173,7 @@ def problems(table) -> list:
 
 def kept(table: dict) -> dict:
     """The keys of a table that are kept (what a person's file holds beyond them stays out of the workspace)."""
-    keys = ("_comment",) + LISTS + ("mask_fill", "mark_fill", "contacts_unlink", "logo_mask", "footer", "banner")  # src/blind.json's keys
+    keys = ("_comment",) + LISTS + ("mask_keep", "mask_fill", "mark_fill", "contacts_unlink", "logo_mask", "footer", "banner")  # src/blind.json's keys
     return {k: table[k] for k in keys if k in table}
 
 

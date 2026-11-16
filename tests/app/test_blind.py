@@ -159,11 +159,13 @@ class Builds(Person):
     """Builds with the typesetting stood in for: each step records the environment it was given."""
 
     def stand_in(self, a):
-        """resume.build, build_deck and build_plain, the check and the page pictures stood in for. self.calls gets (step,
-        the environment's OFFEROWL_BLIND* names, whether the named table was there at that moment)."""
+        """resume.build, build_deck and build_plain, the check, the checks across documents and the page pictures stood in for.
+        self.calls gets (step, the environment's OFFEROWL_BLIND* names, whether the named table was there at that moment); a
+        blind edition's ordinary twin is typeset as steps "twin" and "twin_deck" (its settings name it ..._twin)."""
         self.calls = []  # every step, in order
-        out = self.tmp / "made"  # what the steps "make"
-        out.mkdir(exist_ok=True)
+        (ROOT / "output").mkdir(exist_ok=True)  # the engine's folder, where real builds make their PDFs
+        out = pathlib.Path(tempfile.mkdtemp(prefix="made-", dir=str(ROOT / "output")))  # what the steps "make": in the engine's folder, as the
+        self.addCleanup(shutil.rmtree, out, True)  # typesetting writes them, so no check stages a copy of them into output/_inputs
         lock = threading.Lock()  # two builds at once write here
 
         def seen(step, env):  # what one step was given
@@ -177,12 +179,15 @@ class Builds(Person):
             write_pdf(f, [[(72, 72, 12, text)]])
             return f
 
+        def twin(cfg):  # the settings of a blind edition's ordinary twin (task_compare.py blind_twin)
+            return bool(cfg) and str((read_json(pathlib.Path(cfg), {}) or {}).get("out") or "").endswith("_twin")
+
         def build(profile, cfg=None, env=None):
-            seen("resume", env)
+            seen("twin" if twin(cfg) else "resume", env)
             return made("resume", "Gildong Hong")
 
         def build_deck(profile, cfg=None, env=None):
-            seen("deck", env)
+            seen("twin_deck" if twin(cfg) else "deck", env)
             return made("deck", "Portfolio")
 
         def build_plain(profile, cfg=None, env=None):
@@ -197,7 +202,8 @@ class Builds(Person):
 
         for p in (mock.patch.object(resume, "build", side_effect=build), mock.patch.object(resume, "build_deck", side_effect=build_deck),
                   mock.patch.object(resume, "build_plain", side_effect=build_plain), mock.patch.object(a.tasks, "_check", side_effect=check),
-                  mock.patch.object(a.tasks, "_previews", return_value=1), mock.patch.object(a.tasks, "engine_ready", return_value="")):
+                  mock.patch.object(a.tasks, "_previews", return_value=1), mock.patch.object(a.tasks, "engine_ready", return_value=""),
+                  mock.patch.object(a.tasks, "cross_checks", return_value={"issues": [], "notes": [], "checks": [], "polish": [], "matched": None})):  # tests/app/test_compare.py runs them
             p.start()
             self.addCleanup(p.stop)
 
@@ -223,9 +229,11 @@ class EnvTests(Builds):
             for t in runs:
                 t.join(60)
         blind = [c for c in self.calls if c[1]]  # the steps that got switches
-        plain = [c for c in self.calls if not c[1]]  # and those that got none
+        plain = [c for c in self.calls if not c[1] and not c[0].startswith("twin")]  # and those that got none, but the blind edition's twin
         self.assertEqual(["resume", "deck", "check"], [c[0] for c in blind])  # the blind edition's three, and no plain words
         self.assertEqual(["resume", "deck", "check", "plain"], [c[0] for c in plain])  # the ordinary one's, plain words too
+        self.assertEqual(["twin", "twin_deck"], [c[0] for c in self.calls if c[0].startswith("twin")])  # the blind edition's ordinary twin, for its layout check
+        self.assertFalse(any(c[1] for c in self.calls if c[0].startswith("twin")))  # typeset without a blind switch
         for _, env, there in blind:  # each blind step got the edition's own switches
             self.assertEqual("1", env["OFFEROWL_BLIND"])
             self.assertEqual("ko", env["OFFEROWL_BLIND_LANG"])
@@ -302,7 +310,7 @@ class LeftOutTests(Builds):
         with mock.patch.object(a.tasks, "_cover", side_effect=AssertionError("a blind edition writes no letter")):
             a.tasks._build(jid, "ko", "navy", 3, True, False, True)  # blind, with the letter asked for
         rec = self.record(a, jid)
-        self.assertEqual(["resume", "check"], [c[0] for c in self.calls])  # the resume typeset from the words; no deck drawn in place of theirs
+        self.assertEqual(["resume", "twin", "check"], [c[0] for c in self.calls])  # the resume typeset from the words, and its twin; no deck drawn in place of theirs
         self.assertEqual({"blind_own_file", "blind_no_deck", "blind_no_cover"}, set(rec["notes"]))  # each said
         self.assertEqual(0, rec["slides"])  # no deck
         self.assertIsNone(rec["cover"])  # no letter

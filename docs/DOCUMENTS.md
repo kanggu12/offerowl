@@ -1,12 +1,14 @@
 # The documents
 
 What Offerowl makes and how each document is put together: the parts of the resume and the deck, the editions you bring
-in, the portfolio deck and its figures, cover letters, and the profile file every document is drawn from.
+in, the portfolio deck and its figures, cover letters, what one application's documents are held to together, and the
+profile file every document is drawn from.
 
 - [Resume and deck parts](#resume-and-deck-parts)
 - [Editions you bring in](#editions-you-bring-in)
 - [The portfolio deck](#the-portfolio-deck)
 - [Cover letters](#cover-letters)
+- [Checks across documents](#checks-across-documents)
 - [The profile format](#the-profile-format)
 
 ## Resume and deck parts
@@ -107,6 +109,8 @@ lines ([Printed words](WRITING.md#printed-words)), a style pack can hold an edit
 - **What the pages show** (`pages`, [What the pages show](WRITING.md#what-the-pages-show)): an application's last page filled with
   facts, no hole in a middle page, the career summary on page 1, the bands' words and logos at their middles, and each company's lines
   following its tenure.
+- **What it is held to beside it** ([Checks across documents](#checks-across-documents)): the edition in the other language, the
+  deck beside the resume, a blind edition's ordinary twin, and the pages of the copy that last went out.
 
 What the typesetting set is read from the sidecar `src/layout.js` writes beside the document (`<name>.highlights.json`): the
 highlights and paragraphs for the line checks, and `parts` for these rules (the section titles in print order, the figures placed with
@@ -648,6 +652,116 @@ OFFEROWL_RENDER_TESTS=1 python3 -m unittest discover -s tests/cover  # also rend
 
 The model tests replace `llm.run` with a stand-in that answers from a table, so the plan, the draft, the repair round and
 the skeleton path run without a model.
+
+## Checks across documents
+
+An application's documents are written apart and drift apart: a fact fixed in the Korean edition is missing from the English
+one, a period changed in the resume is old on its slide, a blind edition's bar pushes a line elsewhere, a build changes a page
+nobody meant to change. Besides each document's own checks, every build holds an edition to the documents beside it. Each
+finding carries a code and its values: the panel words it in the person's language and lists it with the build's own
+findings, the defects over the pages (they keep the PDFs home) and the notes to polish in the quieter band.
+
+### The Korean and the English edition
+
+When an application has editions in both languages, each build compares them (`src/check_parity.py langs`). Sentences in
+two languages cannot be compared, so what is compared is what both editions say alike, taken from what each prints: the
+profile it was typeset from, read by the loader the resume and the deck read (`src/profile_loader.js`), with the job's own
+choices (`projectOrder`, `competencyDrop`, a project marked `resume: false`). No name of anyone's is written into the check.
+
+| What both editions must say alike | Code |
+|---|---|
+| how many companies, projects of each company, schools, competencies, other sections, entries of each list, about-me parts, and the overview's cards, selected projects and hierarchy rows | `parity_roles`, `parity_items`, `parity_education`, `parity_competencies`, `parity_sections`, `parity_entries`, `parity_about`, `parity_overview` |
+| each company's, project's and school's period, and the service's | `parity_period` |
+| a field one edition prints and the other leaves empty: a company's department, place, title, note, badge and description; a school's second line, major, degree and note | `parity_field` |
+| the tools of the skills table | `parity_skills` |
+| registration and patent numbers (seven digits and more, compared by their first nine, since one language writes a kind code after them and the other zeros) | `parity_numbers` |
+| the dates of each list of the other sections, in order | `parity_dates` |
+| every Latin word of a Korean text (a tool, a product, a company) in the English text of the same place, and the words of the pack's glossary | `parity_words` |
+| the sentences of each about-me part: fewer in English means one was left out | `parity_sentences` |
+
+A project with fewer English sentences, and a list whose English adds an entry with no date (a native language), are notes to
+polish. The edition in the language the facts are written in (an own edition's first language, else the profile's) is the
+source: its build lists the differences as notes, and the other edition's build lists them as defects. The export of the
+other edition compares the two again as they are at that moment, so a source made again later holds the translation to its
+new words: it is refused with `parity:<n>` (`n` differences), or `parity_unchecked` when the comparison could not run.
+
+### The resume and its deck
+
+`src/check_parity.py edition` holds a resume and the deck beside it to one another:
+
+| What | Code |
+|---|---|
+| a project slide (`kind: "project"` in the deck's measurement, or a slide of a company with no kind, as a deck source may write it) names a project of the profile: its title starts with the project's name, in any language the profile has. A slide that stands for several projects, or for work the profile does not list, is kept apart by the pack's `deck_only` | `deck_unpaired` |
+| the period the resume prints for the slide's project is one of the periods on the slide | `deck_period` |
+| for a project whose name holds a word of the pack's `whole_period`, the resume prints the slide's whole period, every spell of it | `deck_whole_period` |
+| the deck's page uses the resume's colours: the theme's name fill, accent, band and rule, and the highlight (`FFF0A0`) | `deck_theme` |
+| the two PDFs share a font family | `deck_font` |
+| a dated list the pack's `newest_first` names runs newest first; a table whose first cells name kinds (first author, co-author) runs newest first within each kind | `dates_order` |
+
+A deck Offerowl draws prints the resume's names, periods, colours and faces by construction; the check matters most for a
+deck written from your own deck source (`deck/`). A portfolio you made as a PDF is yours as it is and is not measured.
+
+### A blind edition and its ordinary twin
+
+A blind edition is typeset a second time without its bars, from the same profile and settings (its twin: the resume, and
+the deck when Offerowl draws one). `src/check_blind.py` then holds the blind edition to it:
+
+- **The bars move nothing.** Every word the bars leave must stand where the twin has it, within 1.5 pt across and 1.2 pt down
+  (the band's paragraph lowers page 1 by about 1 pt), on as many pages. Each word is paired with the nearest word of the same
+  text on the same page, closest pairs first, within 40 pt. The band at the top of page 1 (18 pt) and the footer (28 pt) are
+  left out. A bar of the wrong width, or one that broke over two lines, moves the words after it: `blind_moved`,
+  `blind_pushed`, `blind_pages`. A twin that could not be typeset leaves the bars unchecked, which is never taken for passed:
+  `blind_unchecked`.
+- **Every pattern matches something.** A mask pattern is tied to the words it was written for; once they are rewritten it
+  matches nothing and the words it was meant to cover go out uncovered. The patterns are tried on the twin's own words (its
+  Word file run by run and paragraph by paragraph, and the deck's page node by node), and the ones that matched are kept with
+  the edition (`blind_matched.json` beside its `build.json`). A pattern that no blind edition made with the same table matched is
+  named in a note to polish (`blind_unmatched`): it may be meant for an edition not made blind yet. The table's `mask_keep`
+  lists patterns kept on purpose, which are never named ([A blind edition](USAGE.md#a-blind-edition)).
+
+### The pages that went out
+
+When an edition goes out (exported to the Desktop, or locked as submitted), its page pictures are kept as its baseline
+(`src/baseline.py`), in the edition's folder beside its previews (`baseline/`, and `baseline_blind/` for its blind edition, whose
+bars are no change to the ordinary copy): two thirds of the previews' size, each colour
+channel rounded to six levels, about 40 KB a page and 20 KB a slide. Every later build of the edition puts its pictures in the
+same form and compares them pixel by pixel. One reader draws the same page the same way, so an unchanged page is the same
+picture in this form, while a changed letter, a highlight moved or a line broken elsewhere is not. The build's record says
+what changed (`changes` in `build.json`):
+
+```json
+"changes": {"since": "2026-11-13 10:00", "why": "export", "picture": true,
+            "docs": {"resume": {"before": 3, "after": 3, "pages": [2]}, "deck": {"before": 16, "after": 16, "pages": []}}}
+```
+
+`preview/changes.png` beside the previews shows each changed band, the copy that went out on the left and the build on the
+right. A page added or taken away counts as changed. A baseline drawn by another PDF reader cannot be compared pixel by
+pixel, and the record says so (`reader_changed`). In the panel the changes are a band over the pages, with **See what changed**
+and **Keep these pages as the baseline**; the same key is `POST /api/v1/jobs/baseline` and `offerowl baseline accept <job>`
+([The command line](USAGE.md#commands)).
+
+### The style pack's `parity` object
+
+The person's own words for these checks, in the style pack ([Style packs](WRITING.md#style-packs)); the panel checks the object
+when the pack is added.
+
+```json
+"parity": {
+ "aliases": {"DB": ["database"], "SSO": ["single sign-on"]},
+ "glossary": [["백업", "backup"], ["무중단", "without (?:downtime|interruption)|zero-downtime"]],
+ "deck_only": ["Platform work at a glance"],
+ "whole_period": ["Payments platform"],
+ "newest_first": ["Awards", "Talks", "Publications"]
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `aliases` | a Latin word of the Korean edition and the English words that may stand for it |
+| `glossary` | `[Korean pattern, English pattern]`: when a Korean text holds the first, its English text must hold the second |
+| `deck_only` | titles of slides that stand for no single project of the resume |
+| `whole_period` | words of project names whose resume period must be the slide's whole period |
+| `newest_first` | words of the names of the lists that must run newest first (a list grouped by kind, or ordered by weight, is left as it is) |
 
 ## The profile format
 
