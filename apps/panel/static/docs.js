@@ -646,6 +646,7 @@ function viewDocuments(host) {                                                  
     blindBand(b),                                                                   // a blind edition says what its pages are
     checksBand(b),                                                                  // the checks its typeset pages failed, which keep them home
     polishBand(b),                                                                  // and what they would polish, which does not
+    changesBand(b, ed),                                                             // the pages changed since the copy that last went out
     docBody(m, j));
   // one main key in sight: an empty page's own next step, or the Save of a sentence being edited in the inspector, outranks the head's
   if (UI.editing || host.querySelector(".btn.primary")) $("dochead").querySelectorAll(".btn.primary").forEach((k) => k.classList.remove("primary"));
@@ -667,6 +668,23 @@ const CHECK_WORDS = {
   hl_missing: "A highlight was not found on the page: '{text}'", last_word: "A paragraph ends on '{tail}' alone: '…{end}'",
   para_missing: "A paragraph was not found on the page: '{text}…'", no_words: "No words could be read from the PDF, so its lines were not measured.",
   deck_tool: "The deck's own check {tool}: {what}", deck_tool_failed: "The deck's own check {tool} did not run: {what}",
+  // the checks across documents (src/check_parity.py, src/check_blind.py): the other language, the deck, a blind edition's twin
+  parity_roles: "Companies: {ko} in the Korean edition, {en} in the English one.", parity_items: "{where}: {ko} projects in the Korean edition, {en} in the English one.",
+  parity_education: "Schools: {ko} in the Korean edition, {en} in the English one.", parity_competencies: "Core competencies: {ko} in the Korean edition, {en} in the English one.",
+  parity_sections: "Other sections: {ko} in the Korean edition, {en} in the English one.", parity_entries: "{where}: {ko} entries in the Korean edition, {en} in the English one.",
+  parity_about: "About-me parts: {ko} in the Korean edition, {en} in the English one.", parity_overview: "The overview's {what}: {ko} in the Korean edition, {en} in the English one.",
+  parity_period: "{where}: the Korean edition prints {ko}, the English one {en}.", parity_field: "{where}: the Korean edition prints '{ko}' where the English one prints '{en}'.",
+  parity_words: "{where}: the English edition does not say {words}, which the Korean one does.", parity_sentences: "{where}: {ko} sentences in Korean, {en} in English.",
+  parity_skills: "Skills only one edition lists. Korean: {ko}. English: {en}.", parity_numbers: "Numbers only one edition prints (patents and the like). Korean: {ko}. English: {en}.",
+  parity_dates: "{where}: dates {ko} in the Korean edition, {en} in the English one.", dates_order: "{where}: its dates do not run newest first ({dates}).",
+  deck_unpaired: "Slide {n} '{title}' names no project of your profile. Give it the resume's name for that project, or list it in your rules' deck_only.",
+  deck_period: "Slide {n} '{title}': the resume prints {period}, the slide {deck}.", deck_whole_period: "Slide {n} '{title}': the resume prints {period}, not the slide's whole period {deck}.",
+  deck_theme: "The deck does not use the resume's colours: {missing}.", deck_font: "The deck's fonts ({deck}) share no family with the resume's ({resume}).",
+  blind_pages: "The blind edition has {after} pages where the ordinary one has {before}: its bars moved the text.",
+  blind_moved: "Words the bars moved from their place in the ordinary edition: {n}. The first is '{word}' on page {page} ({dx} pt across, {dy} pt down).",
+  blind_pushed: "Words the bars pushed out of their place in the ordinary edition: {n}. The first is '{word}' on page {page}.",
+  blind_unmatched: "Patterns of your blind table that match nothing in your blind editions: {n}. What they were written for may go out uncovered: {patterns}",
+  blind_unchecked: "The blind edition's bars were not checked: its ordinary twin could not be typeset.",
   // 0.10.0: phrases fixed once, the edition against the profile, the shape kept, and what the pages show (docs/WRITING.md)
   claim_retired: "A phrase taken out once is printed again: '{old}'{instead} ({why})", claim_shared: "It speaks of '{topic}' without the phrase every edition uses: '{phrase}' ({why})",
   claim_proposal: "Work that ended as a proposal reads as done: '{near}' ({why})", claim_anchor: "A rule of your phrases rests on words your profile no longer has: '{words}' ({rule})",
@@ -687,14 +705,16 @@ const CHECK_WORDS = {
   volume_density: "{org} has {density} lines a month, {times} times the median {median} (at most {limit}).",
   volume_section: "The section '{title}' was not found, so the lines per company were not measured.",
   volume_band: "The band of {name} was found {n} times, so the lines per company were not measured." };
+const OVERVIEW_PARTS = { cards: "cards", highlights: "selected projects", layers: "hierarchy rows" };   // parity_overview's part, in the page's words
 const BAND_PARTS = { name: "company name", place: "place of work", period: "period of work", badge: "company badge", title: "band title" };   // the part of a band the band check measured
 function checkWords(x) {                                                            // one finding in the page's words
   if (typeof x === "string") return x === "check_failed" ? t("The checks did not run.") : x;   // a line as the checks wrote it
   if (!x || !CHECK_WORDS[x.code]) return (x && x.text) || "";                       // no code of the page's own: as written
   const size = x.code === "hl_size" ? (docLang() === "en" ? tn(x.size, "{n} word", "{n} words") : t("{n} letters", { n: x.size })) : "";   // a highlight's size in the edition's unit
+  const what = x.code === "parity_overview" && OVERVIEW_PARTS[x.part] ? t(OVERVIEW_PARTS[x.part]) : x.what;   // the overview's part in the page's language, not the check's
   const instead = x.code === "claim_retired" && x.new ? t(", write '{new}'", { new: x.new }) : "";   // what the phrase was fixed to, when the rules say
   const part = x.code === "band_off" && BAND_PARTS[x.which] ? t(BAND_PARTS[x.which]) : x.part;   // the band's part, in the page's words
-  return t(CHECK_WORDS[x.code], { ...x, size, instead, part });
+  return t(CHECK_WORDS[x.code], { ...x, size, what, instead, part });
 }
 function checksBand(b) {                                                            // the checks a typeset edition failed: what keeps its PDFs from going out
   const coded = b && Array.isArray(b.checks) && b.checks.length ? b.checks : null;  // the findings with their codes, when the build kept them
@@ -710,6 +730,32 @@ function polishBand(b) {                                                        
   return h("div", { class: "band info", role: "status" }, h("p", { text: t("Worth a look before you send them:") }),
     h("ul", { class: "checklist" }, items.slice(0, 5).map((x) => h("li", { text: checkWords(x) }))),
     items.length > 5 ? h("p", { class: "hint", text: t("{n} more", { n: items.length - 5 }) }) : null);
+}
+// The pages an edition changed since the copy that last went out (its baseline: apps/api/task_compare.py), above the pages:
+// which pages of which document, the picture of the changed bands on a click, and the key that keeps these pages as the baseline
+const CHANGED_ONE = { resume: "Resume: page {pages}", deck: "Portfolio deck: slide {pages}", cover: "Cover letter: page {pages}" };   // one page changed
+const CHANGED_PAGES = { resume: "Resume: pages {pages}", deck: "Portfolio deck: slides {pages}", cover: "Cover letter: pages {pages}" };   // several, as many pages as before
+const CHANGED_COUNT = { resume: "Resume: pages {pages} ({before} pages before, {after} now)", deck: "Portfolio deck: slides {pages} ({before} slides before, {after} now)",
+  cover: "Cover letter: pages {pages} ({before} pages before, {after} now)" };   // a page added or taken away
+const SINCE = { export: "Changed since the copy you exported on {at}:", submitted: "Changed since the copy you submitted on {at}:", accepted: "Changed since the pages you kept on {at}:" };
+function changesBand(b, ed) {
+  const c = b && b.changes, lang = docLang();                                       // the comparison the build made, and the edition's language
+  if (!c || !ed || (job() && job().locked)) return null;                             // no baseline yet; a submitted application is not made again
+  const keep = h("button", { class: "btn small", type: "button", onclick: () => act("/api/v1/jobs/baseline", { job: ed.id, lang }, t("These pages are the baseline now.")),
+    text: t("Keep these pages as the baseline") });                                 // a change that was meant: compared with these from now on
+  if (c.reader_changed) return h("div", { class: "band info", role: "status" }, h("p", { text: t("Another PDF reader drew the pages you kept, so they cannot be compared with these.") }), keep);
+  const lines = Object.entries(c.docs || {}).filter(([doc, d]) => d && (d.pages || []).length && CHANGED_PAGES[doc]).map(([doc, d]) =>   // the documents with a changed page
+    t((d.before !== d.after ? CHANGED_COUNT : d.pages.length === 1 ? CHANGED_ONE : CHANGED_PAGES)[doc], { pages: d.pages.join(", "), before: d.before, after: d.after }));   // a page added or taken away says the counts
+  if (!lines.length) return null;                                                   // nothing changed
+  const open = UI.changesOpen === ed.id + "|" + lang;                               // the picture is shown
+  const v = enc(Object.values(b.hashes || {}).join("") || b.at || "");               // a new build's picture is never the browser's older one
+  return h("div", { class: "band info", role: "status" }, h("p", { text: t(SINCE[c.why] || SINCE.export, { at: c.since || "" }) }),
+    h("ul", { class: "checklist" }, lines.map((x) => h("li", { text: x }))),
+    c.picture ? h("button", { class: "btn small", type: "button", "aria-expanded": open ? "true" : "false", onclick: () => { UI.changesOpen = open ? null : ed.id + "|" + lang; render(); },
+      text: open ? t("Hide what changed") : t("See what changed") }) : null, keep,
+    open && c.picture ? h("div", { class: "shots deck" }, h("a", { href: `/api/v1/jobs/${enc(ed.id)}/files/${lang}/preview/changes.png?v=${v}`, target: "_blank", rel: "noopener",
+      title: t("Open it at full size") }, h("img", { class: "shot", src: `/api/v1/jobs/${enc(ed.id)}/files/${lang}/preview/changes.png?v=${v}`, loading: "lazy",
+      alt: t("The changed parts of the pages: before on the left, now on the right") }))) : null);   // a click shows the picture at its own size
 }
 function buildBand(ed) {                                                            // the last PDFs of an edition failed: the reason, and the key that fixes it
   const bt = ed ? task("build:" + ed.id) : {};

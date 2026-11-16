@@ -20,5 +20,6 @@
    "Name and contacts masked"
   ]
  },
- "mask_whole": []
+ "mask_whole": [],
+ "mask_keep": []
 }

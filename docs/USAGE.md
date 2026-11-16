@@ -60,7 +60,9 @@ python3 src/figure_draft.py propose ~/my-application/profile.json   # (optional)
 | `init <folder> [--force] [--dry-run]` | Copies the example profile and a settings file into `<folder>`. Existing files are kept unless you add `--force`; `--dry-run` only lists what would be written | nothing |
 | `ingest <folder or file>...` | Reads PDF, DOCX, PPTX and images (OCR) and proposes fact candidates, each with a quote that must really be in the source | AI backend |
 | `draft write\|check\|jd\|translate\|figures <profile.json>` | Asks the AI backend for sentences, job-posting fit, an English profile or figure data, each kept in a new file beside the profile; `check` holds a drafted profile against its evidence again, with no model. Every suggestion goes through the fact check | AI backend |
-| `build <profile.json> [job.json]` | Builds the resume and the deck into `output/`, and the resume in plain words for job sites that read a file (`<out>_plain.docx`, `<out>_plain.txt`), then runs the document check | Docker, or Chrome or Edge ([What you need](#what-you-need)) |
+| `build <profile.json> [job.json]` | Builds the resume and the deck into `output/`, and the resume in plain words for job sites that read a file (`<out>_plain.docx`, `<out>_plain.txt`), then runs the document check and the checks across documents: the resume against its deck, and a blind edition (`OFFEROWL_BLIND=1`) against its ordinary twin, which it typesets too ([Checks across documents](DOCUMENTS.md#checks-across-documents)) | Docker, or Chrome or Edge ([What you need](#what-you-need)) |
+| `baseline show\|accept <job> [--lang ko\|en]` | What the last build of an edition (`-general` for the general one) changed since the copy that last went out, page by page, or that build kept as the new baseline: the panel's band and its key, through the same API (`POST /api/v1/jobs/baseline`). Exit 1 when a page changed ([The pages that went out](DOCUMENTS.md#the-pages-that-went-out)) | a panel's data folder (`--data DIR`) |
+| `baseline compare <old.pdf> <new.pdf> [--picture out.png] [--json out.json]` | Two PDFs of one document compared page by page, as the panel compares an edition with its baseline: the pages that changed, and a picture of the changed bands, before \| now. Exit 1 when a page changed | Pillow, and poppler or pypdfium2 |
 | `cover ...` | Builds a cover letter from a profile and a job posting | see `offerowl cover --help` |
 | `interview ...` | Prepares the interview kit: question map, scenes, audits, search view, cue cards, the interview deck and the talk ([INTERVIEW.md](INTERVIEW.md)) | see `offerowl interview --help` |
 | `panel` | Opens the local web panel | see `offerowl panel --help` |
@@ -74,8 +76,8 @@ python3 src/figure_draft.py propose ~/my-application/profile.json   # (optional)
 | `llm [--list \| --probe <backend>]` | Shows which AI backend is in use and why; `--probe` makes one tiny test call | nothing |
 | `doctor [--json] [--only ...]` | Checks what Offerowl needs on this PC and says what to do about what is missing | nothing |
 
-`cover`, `interview`, `panel`, `edition`, `api`, `mcp` and `doctor` are separate programs (`src/cover.py`, `src/interview/cli.py`,
-`apps/panel/server.py`, `apps/api/editions.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`), and `import` and `export` are `src/write_jsonresume.py`.
+`cover`, `interview`, `panel`, `edition`, `api`, `mcp`, `doctor` and `baseline` are separate programs (`src/cover.py`, `src/interview/cli.py`,
+`apps/panel/server.py`, `apps/api/editions.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`, `src/baseline.py`), and `import` and `export` are `src/write_jsonresume.py`.
 The launcher passes your arguments and the exit code through. When a file is missing it prints "not installed", names
 the file, and exits with code 3.
 
@@ -190,6 +192,7 @@ The table says what to cover. `src/blind.json` ships empty, so it covers nothing
   "mask": ["Alphapay", "Beta ?Commerce", "gildong@example\\.com", "\\d+ GPUs"],
   "mask_whole": ["gildong@example\\.com"],
   "leak": ["Gamma Labs"],
+  "mask_keep": ["Beta ?Commerce"],
   "contacts_unlink": ["Email"],
   "footer": {"ko": "블라인드 버전", "en": "Blind version"},
   "banner": {"ko": ["블라인드", "이름과 연락처를 가린 판"], "en": ["BLIND", "Name and contacts masked"]},
@@ -204,6 +207,9 @@ The table says what to cover. `src/blind.json` ships empty, so it covers nothing
 - `leak`: words that must never show in a blind edition. They are not covered; the export refuses the PDFs when one shows. Each is
   a word as written, not a pattern (`500+` is five hundred and more), and a word that starts with a Latin letter counts only on its
   own, so `NCI` is not found inside `COMPETENCIES`.
+- `mask_keep`: `mask` patterns kept on purpose for words no edition prints yet. Every build of a blind edition tries the table's
+  patterns on its words, and a pattern that no blind edition matched is named in a note (a pattern written for words that were
+  since rewritten covers nothing); the patterns listed here are not named.
 - `contacts_unlink`: contact labels whose link is taken off. A contact whose value or address a `mask` pattern covers loses its link
   too, since a bar hides the words and not the link.
 - `footer`, `banner`, `mask_fill`, `mark_fill`: the label in each footer, the two parts of the page-one band, the bars' colour and
@@ -228,6 +234,13 @@ drawn one), the cover letter, which is written to one company by name, and the p
 
 What it does not cover: logo tiles and monograms, and pictures you brought in, such as screenshots on the deck's slides. The logos
 of a name you cover stay as they are.
+
+Every build of a blind edition typesets its ordinary twin too (the same words with no bars) and holds the blind pages to it:
+every word the bars leave must stand where the twin has it, on as many pages, so a bar of the wrong width or one broken over
+two lines is a defect ([A blind edition and its ordinary twin](DOCUMENTS.md#a-blind-edition-and-its-ordinary-twin)). On the
+command line the same check is `python3 src/check_blind.py layout <ordinary.pdf> <blind.pdf>`, and
+`python3 src/check_blind.py masks <table.json> <file>...` names the patterns that match nothing in the ordinary editions' Word
+files, deck pages or PDFs.
 
 Before a blind edition goes to the Desktop, its PDFs are read: when a `leak` word or a `mask` pattern shows in their text, the title
 or author of any revision of the file, an outline entry or a link's address, nothing is exported and the panel says how many

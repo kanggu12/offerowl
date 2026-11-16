@@ -19,7 +19,7 @@ from .tasks import LANGS, THEMES, desktop_dir, open_in_files  # options and the 
 
 log = logging.getLogger("offerowl.api")  # the API's log
 JSON = "application/json; charset=utf-8"  # most answers
-FILE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/files/(ko|en)/(preview/[rdc]-\d+\.png|resume\.pdf|resume\.txt|deck\.pdf|cover\.pdf)$")  # an edition's files
+FILE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/files/(ko|en)/(preview/[rdc]-\d+\.png|preview/changes\.png|resume\.pdf|resume\.txt|deck\.pdf|cover\.pdf)$")  # an edition's files, and the picture of what it changed since its baseline
 DECK = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/deck/(ko|en)$")  # a job's deck as it will print, for the canvas
 FIGURE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/figures/(ko|en)/(timeline|stack|logo_[A-Za-z0-9_-]{1,80})\.png$")  # a picture the printed resume carries, for the canvas
 JOBFILE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/(posting|sent/[A-Za-z0-9_.-]{1,80}|kit/(?:out/)?[A-Za-z0-9_.%()-]{1,240})$")  # a job's posting, a copy that went out, a file of its interview kit
@@ -389,6 +389,9 @@ class Router:
             if rec is None:  # that edition was never made
                 raise ValueError("not_built")  # nothing to freeze
             return {"locked": rec}  # the frozen files and their hashes
+        if path == "/api/v1/jobs/baseline":  # the edition's last build kept as the pages later builds are compared with (task_compare.py)
+            jid = a.need_job(req)  # which job, or -general and a named edition
+            return {"baseline": t.accept_baseline(jid, lang_of(req.get("lang")))}  # when, and how many pages of each document
         if path == "/api/v1/editions":  # a named general edition (no posting, off the board)
             return {"job": a.add_edition(req)}  # its id: the other job routes take it
         if path == "/api/v1/jobs/own":  # a resume the person already wrote for this job, brought in whole

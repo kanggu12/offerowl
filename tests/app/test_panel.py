@@ -991,7 +991,7 @@ class TestKoreanTable(unittest.TestCase):
             used |= set(re.findall(r'\bt\(\s*"((?:[^"\\]|\\.)*)"', js))  # t("...") calls
             for one, many in re.findall(r'\btn\([^,]+,\s*"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"', js):  # tn(n, "one", "many"): both forms
                 used |= {one, many}  # each needs its Korean
-            for name in ("KIND", "STAGE", "RATING", "CATEGORY", "ISSUE", "RATING_COUNT", "COVERAGE", "MARGIN_NAME", "WHERE", "STEP_WORDS", "RUN_STEPS", "RESULT", "BLIND_NOTES", "PARTS"):  # tables whose values go through t()
+            for name in ("KIND", "STAGE", "RATING", "CATEGORY", "ISSUE", "RATING_COUNT", "COVERAGE", "MARGIN_NAME", "WHERE", "STEP_WORDS", "RUN_STEPS", "RESULT", "BLIND_NOTES", "PARTS", "CHECK_WORDS", "OVERVIEW_PARTS", "CHANGED_ONE", "CHANGED_PAGES", "CHANGED_COUNT", "SINCE"):  # tables whose values go through t()
                 m = re.search(r"const %s = \{(.*?)\};" % name, js, re.S)  # the table's body
                 if m:  # the table lives in this file
                     used |= set(re.findall(r':\s*"([^"]+)"', m.group(1)))  # its values

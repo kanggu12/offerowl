@@ -227,7 +227,7 @@ function paneKey(name) {                                                        
     // dragged 40 px wider no longer count: each drew the canvas again, and the frame's page with it, emptying its search box
     framed ? kitFrameDocs() : UI.docsVer, S.materials, S.photo, S.engine, S.engine_needs, S.due, typeof Notification === "undefined" ? "" : Notification.permission, PHONE.matches,
     framed ? 0 : Math.round(($("canvas").clientWidth || 0) / 40), taskMarks(), S.runs, S.agent, S.agent_calls,
-    UI.sending]);                                                                   // a run's clock moves in place (make.js data-since), not by a redraw
+    UI.sending, UI.changesOpen]);                                                   // a run's clock moves in place (make.js data-since), not by a redraw; the picture of changed pages opened or closed
 }
 function drawPane(el, name, fn) {                                                   // one pane, kept when nothing changed
   const key = paneKey(name);                                                        // what it would show

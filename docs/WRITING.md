@@ -326,6 +326,13 @@ name the ledger (`"ledger": "<profile.json>"`) and the edition's kind (`"edition
 src/check_documents.py <profile.json> <resume.pdf> [deck.pdf] --style <pack> --ledger <profile.json> --edition job` runs it on PDFs
 already made.
 
+### Across documents
+
+A pack's `parity` object holds the person's own words for the checks that hold an application's documents together: the
+Korean and the English edition, and the resume and its deck. `aliases` and `glossary` say what the English may say for a Korean
+word, `deck_only` and `whole_period` name slides and projects, and `newest_first` names the lists that must run newest first.
+[Checks across documents](DOCUMENTS.md#checks-across-documents) says what each check looks at and the shape of each key.
+
 ## Cover letters
 
 - **Weak lines get a paragraph** when the model judged them partly shown (a compiler requirement shown by porting work,

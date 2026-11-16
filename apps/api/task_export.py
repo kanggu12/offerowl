@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path  # paths
+import logging  # the panel's log
 import re  # names and patterns
 import shutil  # copies and tool lookup
 import tempfile  # temporary folders
@@ -11,6 +12,7 @@ from .facts import clean_name  # noqa: E402
 from .stamps import file_hash  # noqa: E402
 from .workspace import read_json, sha256, today  # noqa: E402
 
+log = logging.getLogger("offerowl.panel")  # the panel's log
 
 
 class Exports:
@@ -84,13 +86,17 @@ class Exports:
             for name in written:
                 (dest / name).unlink(missing_ok=True)
             raise
+        try:  # these pages are what went out: a later build says which of them it changed (task_compare.py)
+            self.keep_baseline(job_id, lang, "export")
+        except Exception:  # noqa: BLE001  the copies went; a baseline that could not be kept is said in the log
+            log.exception("baseline of %s %s not kept", job_id, lang)
         return names  # the names, never the folder
 
     def checked(self, job_id: str, lang: str) -> tuple:
         """(the edition's folder, its build record, the hashes of the bytes checked, whether it is blind) once every check
         that guards what leaves the workspace passed: the export and the lock both ask, so a copy frozen as submitted (which
         export_sent later copies without checking again) passed the same checks as one exported. Raises ValueError with the
-        reason the page words: checks_failed, changed, blind_unread or blind_leak:<n>."""
+        reason the page words: checks_failed, changed, parity:<n>, parity_unchecked, blind_unread or blind_leak:<n>."""
         out_dir = self.build_dir(job_id, lang)  # the edition
         rec = read_json(out_dir / "build.json", {})  # what the build checked
         cover = rec.get("cover") if isinstance(rec.get("cover"), dict) else {}  # the letter's own result
@@ -110,6 +116,9 @@ class Exports:
                 meta = {}
             if not meta.get("title") or not meta.get("author") or re.fullmatch(r"owl_(?:cover_)?[0-9a-f]{8}.*", meta.get("title") or ""):  # no title, or the build's name
                 raise ValueError("changed")  # the page says to make the PDFs again
+        bad = self.parity_now(job_id, lang)  # a translation is held to its source as both are now (task_compare.py)
+        if bad:  # it says less than the source, or otherwise
+            raise ValueError(f"parity:{len(bad)}")  # how many differences, for the page's words
         blind = rec.get("blind") is True  # a blind edition
         if blind:  # nothing it covers may show in what goes: its words, its titles, its links
             found = self.blind_leaks(out_dir, [f for f in ("resume.pdf", "deck.pdf", "cover.pdf") if f in hashes and (out_dir / f).is_file()])
@@ -201,4 +210,8 @@ class Exports:
             st["stage"] = "submitted"  # on the board
             st.setdefault("dates", {})["submitted"] = today()  # the day it was submitted
             self.ws.save_job(st)  # the board moves with it
+        try:  # these pages are what went out (task_compare.py)
+            self.keep_baseline(job_id, lang, "submitted")
+        except Exception:  # noqa: BLE001  the copies are frozen; a baseline that could not be kept is said in the log
+            log.exception("baseline of %s %s not kept", job_id, lang)
         return rec  # the record the toast and the card read

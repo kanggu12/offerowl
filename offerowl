@@ -6,7 +6,7 @@
   ./offerowl <command> --help    one command
 
 init, ingest, draft, build, selftest and llm live in src/resume.py and are called as functions from here.
-cover, interview, panel, api, edition, mcp and doctor are separate programs: this launcher runs one when its file exists and says
+cover, interview, panel, api, edition, mcp, doctor and baseline are separate programs: this launcher runs one when its file exists and says
 "not installed" when it does not. open is here: it finds the panel that runs on this PC and shows it in the browser.
 On Windows start it with `python offerowl`.
 """
@@ -30,9 +30,10 @@ COMPONENTS = {
     "edition": "apps/api/editions.py",  # an application's own edition started from another edition's words, as the panel's key does (docs/DOCUMENTS.md)
     "mcp": "apps/mcp/__main__.py",  # tools for AI agents over MCP, driving the running panel (docs/MCP.md)
     "doctor": "src/doctor.py",  # checks what Offerowl needs on this PC (docs/INSTALL.md)
+    "baseline": "src/baseline.py",  # the pages an edition changed since the copy that last went out, and keeping a build as that copy (docs/DOCUMENTS.md)
 }
 DATA_COMMANDS = ("import", "export")  # JSON Resume in and out, served by src/write_jsonresume.py
-ORDER = ["init", "ingest", "draft", "build", "cover", "interview", "panel", "open", "edition", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # the order of a first application
+ORDER = ["init", "ingest", "draft", "build", "baseline", "cover", "interview", "panel", "open", "edition", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # the order of a first application
 NOT_INSTALLED_EXIT = 3  # a distinct exit code, so that scripts can tell "not there" from "failed"
 
 # Messages of the launcher itself, in both languages (tests/cli checks that the keys and placeholders match).
@@ -52,6 +53,7 @@ MSG = {
         "cmd_api": "Call Offerowl's API: serve it alone, or one endpoint from the shell",
         "cmd_mcp": "Serve Offerowl's tools to an AI agent over MCP (stdio), driving the running panel",
         "cmd_doctor": "Check what Offerowl needs on this PC and what to do about what is missing",
+        "cmd_baseline": "Show the pages an edition changed since the copy that last went out, or keep its last build as that copy",
         "cmd_import": "Read a JSON Resume file into a new profile",
         "cmd_export": "Write a profile as a JSON Resume file",
         "not_installed_tag": "(not installed)",
@@ -80,6 +82,7 @@ MSG = {
         "cmd_api": "Offerowl API를 따로 띄우거나 명령줄에서 한 번 부른다",
         "cmd_mcp": "AI 에이전트에게 Offerowl 도구를 MCP(stdio)로 내준다. 돌고 있는 패널을 움직인다",
         "cmd_doctor": "이 PC에서 Offerowl에 필요한 것을 점검하고, 빠진 것은 어떻게 할지 알려 준다",
+        "cmd_baseline": "마지막으로 나간 사본에서 판의 어느 쪽이 바뀌었는지 보거나, 마지막 빌드를 그 사본으로 삼는다",
         "cmd_import": "JSON Resume 파일을 새 프로필로 읽는다",
         "cmd_export": "프로필을 JSON Resume 파일로 쓴다",
         "not_installed_tag": "(아직 설치되지 않음)",

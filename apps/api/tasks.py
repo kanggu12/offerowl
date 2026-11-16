@@ -37,6 +37,7 @@ from .task_own import OwnEdition, OWN_FORM_KEYS  # noqa: E402,F401  Tasks' part 
 from .task_kit import Kits, KIT_KEEP, KIT_GRACE, SCRIPTS_AT_ONCE, SCRIPT_WORKERS  # noqa: E402,F401  Tasks' part in apps/api/task_kit.py
 from .task_export import Exports  # noqa: E402,F401  Tasks' part in apps/api/task_export.py
 from .task_answers import AnswerTasks  # noqa: E402,F401  Tasks' part in apps/api/task_answers.py
+from .task_compare import Comparisons  # noqa: E402,F401  Tasks' part in apps/api/task_compare.py: twin, other language, deck, baseline
 
 log = logging.getLogger("offerowl.panel")  # the panel's log
 THEMES = ("navy", "teal", "mono", "wine", "forest", "slate")  # src/themes.json's packs
@@ -166,7 +167,7 @@ def ledger_for_resume(prof: dict, style: dict, compact: int = 0, drop: int = 0) 
     return {**prof, "sections": out} if prof.get("sections") else prof
 
 
-class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
+class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
     """Every long task of one panel. state() is what the panel shows."""
 
     def __init__(self, ws: Workspace, facts: Facts, card):
@@ -973,6 +974,11 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
                     own_deck = None if blind else self._own_pdf(job_id, "deck", lang, out_dir)  # the job's own deck file, if any
                     deck = own_deck or resume.build_deck(str(out_dir / "profile.json"), str(out_dir / "job.json"), env)
                     from_source = bool(deck_src) and own_deck is None  # written from the person's deck source
+                twin = None  # a blind edition's ordinary twin, for its layout check (task_compare.py)
+                if blind and not mine:  # the resume Offerowl typeset with bars, and the deck it drew with them
+                    twin_env = {**self.blind_env(lang, False), **({"OFFEROWL_DECK_SOURCE": deck_src} if deck_src else {})}  # no bars, the same deck source
+                    self._set(key, step="checking")  # the step the page shows: the twin is made for the check
+                    twin = self.blind_twin(out_dir, name, twin_env, deck is not None)
             except (SystemExit, Exception) as exc:  # resume.py stops with the tool's output; anything else (a file the system refused, a timeout) ends the build the same way
                 text = str(exc)  # the tool's output, or the error's own words
                 if isinstance(exc, SystemExit):  # the tool said why
@@ -991,6 +997,9 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
             limit = max_pages if own is None else max(max_pages, pdfmeta.pages(pdf))
             issues, notes = ([], ["own_file"]) if mine else self._check(str(out_dir / "profile.json"), pdf, deck, limit, env)
             checks, polish = ([], []) if mine else self.read_checks(pdf)  # the same findings with their codes, for the panel's own words
+            cross = None if mine else self.cross_checks(job_id, lang, out_dir, name, Path(pdf), Path(str(deck)) if deck else None, env, twin)  # its other language, its deck, its twin
+            if cross:  # what they found joins the edition's own findings
+                issues, notes, checks, polish = issues + cross["issues"], notes + cross["notes"], checks + cross["checks"], polish + cross["polish"]
             if deck and from_source and deck_src:  # a deck written from the person's source: the checks that source ships, on this deck
                 more = self._deck_tools(Path(str(deck)), deck_src, env)
                 issues += [x["text"] for x in more]  # the deck's issues: they keep the documents home as its own checks would
@@ -1044,6 +1053,14 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks):
                 "own": self.own_stamp(job_id),  # and from which own edition or files, when the job has them
                 "maxPages": max_pages, "cover": cover, "draft": self.draft_stamp(job_id),  # what the panel shows; the draft it was made from
                 "checks": checks, "polish": polish}  # the findings with their codes: the panel words them in the person's language
+        changes = self.compare_baseline(job_id, lang, out_dir, hashes, blind)  # the pages changed since the copy that last went out (task_compare.py)
+        if changes is not None:  # the edition has a baseline
+            info["changes"] = changes
+        from .task_compare import MATCHED  # beside the record, out of the state the panel polls
+        if blind and cross and cross.get("matched") is not None:  # the patterns this blind edition's words took, for the next one's check
+            write_json(out_dir / MATCHED, cross["matched"])
+        else:  # an ordinary edition, or one whose twin was not checked, took none
+            (out_dir / MATCHED).unlink(missing_ok=True)
         if blind:  # a blind edition says so, and which table its bars came from (another table makes it stale)
             info.update(blind=True, blind_table=self.blind_stamp())
         if deck and from_source:  # its deck was written from the person's deck source: which one (another makes it stale)

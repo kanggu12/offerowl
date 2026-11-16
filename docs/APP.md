@@ -212,6 +212,13 @@ scaled down to the width (a pinch enlarges them).
   writing a second one.
 - A submitted application's export gives its frozen copies byte for byte, Word files included, as they were frozen: the lock keeps the
   build's own Word file, and the Word-ready copy made from it is the same bytes each time.
+- **What changed since the copy that went out.** The pages of an export or a lock are kept as the edition's baseline, and every
+  later make of the edition compares its pages with them. A band over the pages names the changed pages of each document
+  ("Changed since the copy you exported on ..."), **See what changed** opens a picture of each changed band, the copy that went out
+  on the left and the new pages on the right, and **Keep these pages as the baseline** makes the new pages the ones compared with
+  from now on, for a change you meant ([The pages that went out](DOCUMENTS.md#the-pages-that-went-out)). The checks that hold the
+  edition to its other language, to its deck and, for a blind edition, to its ordinary twin list their findings with the build's
+  own ([Checks across documents](DOCUMENTS.md#checks-across-documents)).
 - With a job in view the resume follows its plan: the skill groups the job needs lead, its strengths step back and
   its projects come in its order. The head says "For {job}" when the edition was written or brought in for the job, and
   "the general resume as it is" while the job has none of its own.
