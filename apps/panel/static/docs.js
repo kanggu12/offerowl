@@ -630,7 +630,7 @@ function viewDocuments(host) {                                                  
       h("span", { class: "sub", text: (j ? (ownForJob ? t("For {job}", { job: jobName }) : t("For {job}: the general resume as it is", { job: jobName })) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it"))
         + (from ? " · " + t("Started from {name}", { name: from.name || from.job }) : "") }),   // and where its words came from
       startKey(),                                                                   // beside what the edition prints: start it from another edition's words
-      h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn)),   // the page's actions beside its title, as one group; Export and its lock on one row
+      h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), depthKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn)),   // the page's actions beside its title, as one group; Export and its lock on one row
       named() ? h("button", { class: "btn small quiet danger edrm", type: "button", "data-key": "edition-remove", "aria-label": t("Remove the edition {name}", { name: named().name }),   // a named edition: off the list, into the Trash; at the row's end, away from its name and the keys that make it
         onclick: () => removeAct("/api/v1/jobs/remove", { job: named().id }, t("Removed the edition {name}. It waits in the trash.", { name: named().name })) }, icon("trash"), t("Remove this edition")) : null),
     // what is shown; why export waits at the row's right (under the keys it came and went, and the head jumped 27 px); the
@@ -957,7 +957,7 @@ function writeBand(m) {                                                         
   const ed = edition(), d = m.draft, tk = ed ? task("write:" + ed.id) : {};         // the edition, its draft, the writing now
   if (!ed || (job() && job().locked)) return null;                                  // nothing to write for: no edition, or it was submitted
   if ((ed.own || []).includes(docLang()) || ownFileIn(ed)) return null;            // the person's own edition or file: written already, printed as it is
-  if (tk.state === "running" || task("tailor:" + ed.id).state === "running") return h("div", { class: "band ai" }, pill("busy", t("Writing the resume from your evidence")), h("span", { class: "hint", text: t("This can take several minutes.") }));  // shown while it runs, on its own or as part of tailoring
+  if (tk.state === "running" || task("tailor:" + ed.id).state === "running") return h("div", { class: "band ai" }, pill("busy", t([tk.step, task("tailor:" + ed.id).step].includes("reviewing_depth") ? "Reviewing each project's depth" : "Writing the resume from your evidence")), h("span", { class: "hint", text: t("This can take several minutes.") }));  // shown while it runs, on its own or as part of tailoring, and the draft's last stage, the depth review
   const error = tk.state === "error" ? band(tk.error.code, { retry: () => writeResume(ed.id) }) : null;  // why the last try stopped
   const own = d && d.own;                                                           // this edition's own draft
   if (d && d.stale) return h("div", { class: "band" }, h("p", { text: t("Your facts changed after this was written. Write it again to use them.") }),  // the facts moved on

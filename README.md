@@ -96,6 +96,10 @@ to print the PDFs.
 - **What you made stays yours.** A resume written for one job, a Word file, the PDF you sent, a portfolio you wrote as code:
   each comes in as it is ([editions you bring in](docs/DOCUMENTS.md#editions-you-bring-in): through the API, or the workspace's
   `deck/` folder), and what was sent stays byte for byte.
+- **Depth, not only truth.** Each project item and slide is reviewed for what it leaves out (what made the work hard, the
+  alternative set aside, why the result came about), rated strong, adequate or thin by what its words state, and gets a
+  sentence from your evidence or a question only you can answer; thin items come first. An agent driving Offerowl follows a
+  shipped [procedure](docs/MCP.md#the-procedure) that makes thin items a gate and keeps your corrections as rules.
 - **Blind editions.** The names you choose under bars of their own width, and an export that refuses a PDF where one still shows.
 - **Ready for Word and PowerPoint.** Word files with their fonts inside and the PDF's line heights, the deck as slides; where
   this PC has Office, each is opened there first and must come out with the same pages.

@@ -17,6 +17,10 @@ The answers:
 - the resume draft (src/write_resume.py): each text is an evidence unit's own words, and the English says only that the
   work was done as recorded, so it claims nothing the evidence must back.
 - the deck's figures (src/figure_draft.py): a pipeline per project for the main slot and the side, its steps the evidence's own words.
+- the depth review (src/depth_review.py): each unit's core parts quoted from its own sentences: what made it hard from the
+  first sentence that says how it was hard (none: not said), then the decision and why it worked from the others in order;
+  an item that misses a part and whose evidence says more gets that block as a sentence for its first missing part, and
+  every other missing part is asked.
 - the profile's translation (src/draft.py task_translate): each Korean word becomes "word".
 - the probe of llm.py: {"ok": true}.
 """
@@ -131,6 +135,58 @@ def write_parts(prompt: str) -> dict:
     return {"parts": []}  # a repair: what failed stays failed, and the draft drops it
 
 
+# the stand-in's words for a depth review, in the language the prompt asks for (a Korean edition is reviewed in Korean: its
+# sheet and the guide's pictures showed these English questions under Korean headings)
+DEPTH_ASK = {"en": {"hard": "What made this hard?", "decision": "What did you decide, and what did you set aside?", "mechanism": "Why did it work?"},
+             "ko": {"hard": "무엇이 이 일을 어렵게 했나요?", "decision": "무엇을 정했고, 무엇을 택하지 않았나요?", "mechanism": "왜 그 결과가 났나요?"}}
+DEPTH_SAID = {"en": {"more": "The evidence says more than the words.", "none": "It is not said."},
+              "ko": {"more": "근거에 글보다 많은 내용이 있습니다.", "none": "글에 쓰여 있지 않습니다."}}
+
+
+class StandInStop(RuntimeError):
+    """The stand-in stops, as an agent that stopped part way: the CLI front end exits with an error."""
+
+
+def depth_mode() -> str:
+    """How the stand-in answers a depth review, so a walk can show the sheet's other states: "stop" (the agent stops part way)
+    or "skip" (its answer leaves every unit but the first out), from a file in the stand-in's home; none: answered in full."""
+    f = Path.home() / ".offerowl-standin-depth"  # the walk's own home, never a person's
+    try:
+        return f.read_text(encoding="utf-8").strip() if f.is_file() else ""
+    except OSError:  # unreadable: answered in full
+        return ""
+
+
+def depth(prompt: str) -> dict:
+    """The depth review (src/depth_review.py): for each unit, what made it hard quoted from its first sentence that says how
+    it was hard (the review's own rule, depth_review.shows_difficulty: a sentence that only names the situation is not it),
+    then the decision and why it worked from its other sentences in order, so the verdict follows the unit's words. An item
+    that misses a part and whose evidence holds a block its words do not say gets that block's own words as a sentence for its
+    first missing part (the rewrite passes the checks by construction); every other missing part is asked, which only the
+    person can answer."""
+    from depth_review import shows_difficulty  # src/ is on the path (above): the same reading of what was hard
+    lang = "ko" if re.search(r"\bin Korean\b", prompt[:600]) else "en"  # the language the review is written in (the prompt names it)
+    ask, said_ = DEPTH_ASK[lang], DEPTH_SAID[lang]  # its questions and its words
+    out = []  # one answer per unit
+    for head, body in re.findall(r"^### (\S+) \|[^\n]*\n(.*?)(?=^### |\Z)", prompt.partition("\nUnits:\n")[2].partition("\nReturn JSON only")[0], re.M | re.S):  # each unit
+        printed, _, ev = body.partition("Evidence (id, then text):")  # its words, and its evidence
+        rows = re.findall(r"^\[([^\]\n]+)\] (.+)$", ev, re.M)  # [id] text
+        fresh = [(i, t) for i, t in rows if len(t) >= 12 and said(t) and said(t) not in printed and " : " not in t and not i.startswith("role:")]  # what the words do not say yet
+        lines = re.findall(r"^- (.+)$", printed, re.M) if "Printed sentences:" in printed else re.split(r"(?<=[.!?])\s", printed.partition("Words on the page:")[2].strip())  # an item's sentences, a page's
+        lines = [x.replace("==", "").strip() for x in lines if len(x.replace("==", "").strip()) >= 6]  # each long enough to quote
+        hard = next((x for x in lines if shows_difficulty(x)), "")  # the first sentence that says how it was hard, if any
+        rest = [x for x in lines if x != hard]  # the others, in order
+        stated = {"hard": hard, "decision": rest[0] if rest else "", "mechanism": rest[1] if len(rest) > 1 else ""}  # as the words hold them
+        missing = [p for p in ask if not stated[p]]  # the parts its words do not state
+        found = []  # its findings: none for a strong unit
+        if missing and fresh and head.startswith("item:"):  # its evidence says more: the first missing part from that block
+            i, t = fresh[0]  # the first such block
+            found.append({"code": missing.pop(0), "missing": said_["more"], "way": "rewrite", "replaces": "", "text": said(t), "ev": [i], "names": {}})
+        found += [{"code": p, "missing": said_["none"], "way": "ask", "question": ask[p]} for p in missing]  # the person's to answer
+        out.append({"id": head, "stated": stated, "findings": found})
+    return {"units": out}
+
+
 def translate(prompt: str) -> dict:
     """The profile's translation (src/draft.py task_translate): each Korean word becomes "word", so numbers, Latin names and
     the shape of a table survive, and nothing new is claimed."""
@@ -226,6 +282,14 @@ def answer(prompt: str) -> str:
         return json.dumps({"projects": []})  # no chart: the stand-in claims no number of its own
     if "Propose figure data for portfolio slides" in prompt:  # src/figure_draft.py
         return json.dumps(figures(prompt), ensure_ascii=False)  # one figure per project
+    if "of one person's job application in" in prompt and '{"units": [' in prompt:  # src/depth_review.py (its units list evidence too, so it is asked first)
+        mode = depth_mode()  # the walk shows the sheet's other states this way
+        if mode == "stop":  # an agent that stops part way
+            raise StandInStop("the stand-in stopped, as an agent that stops part way would")
+        got = depth(prompt)  # a rewrite from the evidence's own words, and a question
+        if mode == "skip":  # an answer that leaves every unit but the first out
+            got["units"] = got["units"][:1]
+        return json.dumps(got, ensure_ascii=False)
     if "Evidence (id, then text):" in prompt:  # src/write_resume.py
         return json.dumps(write_parts(prompt), ensure_ascii=False)  # every part from the evidence's own words
     if "Whose documents are these?" in prompt:  # apps/api/autopilot.py, the contact step
@@ -302,7 +366,11 @@ def as_claude(argv: list) -> int:
         return 0
     if "-p" in argv:  # one prompt on stdin, the answer on stdout
         prompt = sys.stdin.read()  # the prompt comes on stdin, as llm.py sends it
-        text = answer(prompt)  # the answer's text
+        try:
+            text = answer(prompt)  # the answer's text
+        except StandInStop as exc:  # an agent that stops: an error, as the CLI's own
+            print(str(exc), file=sys.stderr)
+            return 1
         if "json" in argv:  # --output-format json: the CLI's result object, with its usage
             print(json.dumps({"type": "result", "is_error": False, "result": text, "total_cost_usd": 0,
                               "usage": {"input_tokens": len(prompt) // 4, "output_tokens": len(text) // 4}, "modelUsage": {"claude-opus-5-5": {}}}, ensure_ascii=False))

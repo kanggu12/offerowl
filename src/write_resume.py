@@ -58,6 +58,7 @@ MSG = {  # one table per language with the same keys; t() falls back to English
         "done": "write: {parts} drafted in {langs}; {kept} texts kept, {dropped} dropped, {calls} model calls -> {out}  (record {rec})",
         "stopped": "No model answered ({why}). Nothing was drafted; the profile is unchanged.",
         "stopped_mid": "The model stopped part way ({why}). The parts drafted so far were kept.",
+        "depth_calls": "depth review next: {n} model calls, at most {limit} (OFFEROWL_DEPTH_CALLS or --depth-calls sets the limit; --no-depth skips the review)",
         "drop": "  dropped {at} [{lang}]: {why}",
         "check_head": "resume check: {n} sentences in {fields} fields",
         "check_line": "  [{mark}] {name}: {detail}",
@@ -74,11 +75,15 @@ MSG = {  # one table per language with the same keys; t() falls back to English
         "i_highlight": "highlight: {detail}", "i_ending": "Korean sentence ends like prose ({detail})",
         "i_routine": "the highlight reads as a routine duty ({detail})", "i_title_end": "the title does not end with a work noun ({detail})",
         "i_unlinked": "text without evidence: {detail}", "i_edited": "the text changed after drafting; draft it again or link its evidence",
+        "i_retired": "a phrase the person retired: '{detail}'{instead} ({why})", "i_retired_instead": "; write '{new}' instead",
+        "i_proposal": "it speaks of work that ended as a proposal without saying so ({why})",
+        "i_circumstance": "a circumstance where the work should be: '{detail}'",
     },
     "ko": {
         "done": "초안: {parts} 를 {langs} 로 씀; 글 {kept}개 남김, {dropped}개 버림, 모델 호출 {calls}번 -> {out}  (기록 {rec})",
         "stopped": "모델이 답하지 않았다({why}). 아무것도 쓰지 않았고 프로필은 그대로다.",
         "stopped_mid": "모델이 중간에 멈췄다({why}). 그때까지 쓴 부분은 남겼다.",
+        "depth_calls": "이어서 깊이 검토: 모델 호출 {n}번, 많아야 {limit}번(한도는 OFFEROWL_DEPTH_CALLS 나 --depth-calls, 검토를 건너뛰려면 --no-depth)",
         "drop": "  버림 {at} [{lang}]: {why}",
         "check_head": "이력서 검사: 칸 {fields}개, 문장 {n}개",
         "check_line": "  [{mark}] {name}: {detail}",
@@ -95,6 +100,9 @@ MSG = {  # one table per language with the same keys; t() falls back to English
         "i_highlight": "노란 강조: {detail}", "i_ending": "문장이 서술형으로 끝난다({detail})",
         "i_routine": "강조가 당연한 업무로 읽힌다({detail})", "i_title_end": "제목이 일 명사로 끝나지 않는다({detail})",
         "i_unlinked": "근거 없는 글: {detail}", "i_edited": "초안 뒤에 글이 바뀌었다. 다시 쓰거나 근거를 다시 단다",
+        "i_retired": "고쳐 둔 표현이다: '{detail}'{instead} ({why})", "i_retired_instead": ", 쓸 말은 '{new}'",
+        "i_proposal": "제안으로 끝난 일을 제안이라 하지 않았다({why})",
+        "i_circumstance": "한 일 자리에 상황을 썼다: '{detail}'",
     },
 }
 
@@ -118,14 +126,17 @@ def issue(code: str, **kw) -> dict:
 
 def issue_text(i: dict) -> str:
     """The message of one issue in the user's language."""
-    return t("i_" + i["code"], **{k: v for k, v in i.items() if k != "code"})  # the issue's fields fill the placeholders
+    kw = {k: v for k, v in i.items() if k != "code"}  # the issue's fields fill the placeholders
+    if i["code"] == "retired":  # what to write instead, when the person said
+        kw["instead"] = t("i_retired_instead", new=i["new"]) if i.get("new") else ""
+    return t("i_" + i["code"], **kw)
 
 
 # Issue codes by level. Fact and style issues drop a text, claim issues drop it after the repair round, polish is only reported.
 FACT_CODES = {"empty", "unknown_id", "no_ev", "frame_where", "number", "number_word", "name", "org", "name_src"}  # a fact the evidence lacks: the text is dropped
-STYLE_CODES = {"banned_char", "banned_pattern", "banned_word", "coined", "too_long", "highlight"}  # a wording the pack forbids: the text is dropped
-CLAIM_CODES = {"claim"}  # stronger than the evidence
-POLISH_CODES = {"ending", "routine", "title_end"}  # worth a look, never a reason to drop
+STYLE_CODES = {"banned_char", "banned_pattern", "banned_word", "coined", "too_long", "highlight", "retired"}  # a wording the pack forbids, or one the person retired: the text is dropped
+CLAIM_CODES = {"claim", "proposal"}  # stronger than the evidence, or a proposal written as done work
+POLISH_CODES = {"ending", "routine", "title_end", "circumstance"}  # worth a look, never a reason to drop
 
 # the style pack
 
@@ -194,6 +205,7 @@ def load_style(spec: str | None = None, hints=()) -> dict:
     if res["numbers"] not in ("forbid", "evidence"):  # an unknown policy would silently allow numbers
         raise SystemExit("style resume.numbers must be forbid or evidence")  # fail early rather than let numbers through
     st["resume"] = res  # the merged options
+    st["claims"] = raw.get("claims") if isinstance(raw.get("claims"), dict) else {}  # the phrases the person fixed once: a draft never prints them again (docs/WRITING.md)
     return st
 
 
@@ -343,6 +355,26 @@ def style_issues(text: str, lang: str, kind: str, style: dict) -> list:
     return bad
 
 
+def claims_issues(text: str, lang: str, kind: str, style: dict) -> list:
+    """The pack's phrases fixed once (its claims object, src/check_claims.py) held at draft time, so a correction the person made
+    never comes back in a new draft: a retired phrase printed again, and work that ended as a proposal written without the word
+    that says so. A circumstance written where the work should be (src/factcheck.py) is a note to polish."""
+    import check_claims as CC  # the same rows and the same matching as every build's document check
+    claims = style.get("claims") or {}  # the person's table, empty in the default pack
+    out = []  # the issues
+    for row in CC.rows_of(claims, "retired", lang):  # a phrase taken out once
+        m = CC.find(str(row[0]), text)  # printed again?
+        if m:  # the repair is told what to write instead, and why
+            out.append(issue("retired", detail=m.group(0), new=str(row[1]) if isinstance(row[1], str) else "", why=str(row[2]) if len(row) > 2 else ""))
+    if kind in ("title", "short"):  # a name claims nothing: what a sentence says of the work is held below
+        return out
+    for row in CC.rows_of(claims, "proposal", lang):  # work that ended as a proposal
+        if CC.find(str(row[0]), text) and not CC.find(str(row[1]), text):  # it speaks of the work without the word
+            out.append(issue("proposal", detail=str(row[0])[:40], why=str(row[2]) if len(row) > 2 else ""))
+    out += [issue("circumstance", detail=c) for c in F.circumstances(text)[:1]]  # the first one is enough to say
+    return out
+
+
 def text_issues(text: str, lang: str, ids: list, names: dict, ctx: Ctx, *, kind: str, frame: bool = False,
                 limit: int | None = None, marks: tuple = (0, 0)) -> list:
     """Everything wrong with one text in one language. `kind` names the part (item, title, short, desc, headline, intro,
@@ -371,6 +403,7 @@ def text_issues(text: str, lang: str, ids: list, names: dict, ctx: Ctx, *, kind:
         for c in F.claim_issues(plain, ctx.blocks(good, plain)):  # each claim class of the sentence against the cited blocks
             bad.append(issue("claim", detail=F.claim_text(c, ui_lang()), claim=c["claim"], hedge=c["hedge"], quote=c["quote"]))  # the message, the class, the qualifier and the quoted evidence
     bad += style_issues(text, lang, kind, ctx.style)  # wording
+    bad += claims_issues(plain, lang, kind, ctx.style)  # the phrases the person fixed once, and circumstances
     if limit and length_of(text, lang) > limit:  # longer than the part allows
         bad.append(issue("too_long", detail=f"{length_of(text, lang)} > {limit}"))  # the part's own limit
     room = {"stat": ctx.style["resume"].get("stat_en_chars", 16), "pathkey": ctx.style["resume"].get("path_key_en_chars", 38)}.get(kind)  # the letters a narrow place holds in English
@@ -1456,8 +1489,21 @@ def cmd_write(a) -> int:
         return 2
     out = pathlib.Path(a.out) if a.out else src.with_name(f"{src.stem}.draft.json")  # beside the input, never over it
     write_json(out, new)  # the new profile
+    if not a.no_depth and not rec["stopped"]:  # the drafting run's last stage: what each item still leaves out (src/depth_review.py)
+        import depth_review as DR  # the review
+        limit = a.depth_calls if a.depth_calls is not None else DR.call_limit()  # the calls it may take: the option, else the setting, else its default
+        asking = ask is not None or llm.chosen(a.backend)[0] != "none"  # whether a model is asked at all
+        print(t("depth_calls", n=min(DR.calls_needed(new, langs[0]), limit) if asking else 0, limit=limit), flush=True)  # said before it runs: the review costs calls of its own
+        try:
+            seen = DR.review(new, langs[0], style=style, ask=ask, backend=a.backend, raw=raw, max_calls=limit)  # the first language written: the source of the other
+        except Stopped as e:  # the replay ran out, or the model stopped: the draft stands
+            seen = {"counts": {}, "calls": 0, "notes": ["stopped"], "stopped": str(e)[:200]}
+        rec["depth"] = {k: seen.get(k) for k in ("lang", "counts", "calls", "notes", "units")}  # kept with the record: findings and their ways on
+        import io  # its lines are printed after the draft's own summary
+        said = io.StringIO()  # the review's head line and what it could not do; `depth_review.py show` prints the findings
+        DR.print_review({**seen, "units": []}, said)
     recp = pathlib.Path(a.record) if a.record else ROOT / "output" / "_draft" / f"{src.stem}.write.json"  # the record's default place
-    write_json(recp, rec)  # every text, every drop, the check
+    write_json(recp, rec)  # every text, every drop, the check, the depth review
     if a.raw and not raw:  # no answer came back: an empty file says so
         write_json(a.raw, {"schema": SCHEMA_RECORD, "answers": []})  # the file exists either way
     kept = sum(1 for e in rec["texts"] if not e.get("gone"))  # texts that survived
@@ -1466,6 +1512,8 @@ def cmd_write(a) -> int:
         print(t("drop", at=d["at"], lang=d["lang"], why="; ".join(issue_text(i) for i in d["issues"])[:160]))  # the reasons in plain words
     if rec["stopped"]:  # the model stopped part way
         print(t("stopped_mid", why=rec["stopped"][:160]))  # say so
+    if rec.get("depth"):  # the run's last stage
+        print(said.getvalue(), end="")  # what each item still leaves out, in counts
     print_check(rec["check"])  # the independent check; its last line is the verdict
     return 2 if rec["stopped"] else (0 if rec["check"]["ok"] else 1)
 
@@ -1496,6 +1544,8 @@ def main(argv=None) -> int:
     w.add_argument("--record", help="the draft record (default output/_draft/<profile>.write.json)")  # where the record goes
     w.add_argument("--raw", help="keep the model's answers here, for audit and replay")  # the answers, for replay
     w.add_argument("--replay", help="use stored answers instead of the model")  # a replay instead of the model
+    w.add_argument("--no-depth", action="store_true", help="skip the depth review at the end of the run")  # the review costs calls of its own
+    w.add_argument("--depth-calls", type=int, help="model calls the depth review may take (default: OFFEROWL_DEPTH_CALLS, else 8)")  # the review's limit
     c = sub.add_parser("check", help="check a drafted profile against its evidence")  # checking a drafted profile
     c.add_argument("profile")  # the drafted profile
     c.add_argument("--style")  # the style pack

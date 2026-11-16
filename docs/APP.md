@@ -183,6 +183,19 @@ scaled down to the width (a pinch enlarges them).
   of another edition: the panel's own sheet lists the editions with words of their own, the named editions first, and the one you pick is
   copied as it is now; the head then says "Started from" it. A job with words of its own already is replaced only after the sheet has said
   what it has, and one undo takes the copy back ([Starting from another edition](DOCUMENTS.md#starting-from-another-edition)).
+- **Review each project's depth**, a key in the head, opens a sheet at the window's right edge (on a phone, from the foot) with
+  the edition's depth review: each project item and deck page with what it leaves out, said by its code in the panel's
+  language and in the agent's words under it ([The depth review](WRITING.md#the-depth-review)). Items the agent rated come in
+  groups by their verdict, with the fit's lamps: **Thin: fill these first** (two or more of what made it hard, the decision
+  and its alternative, and why it worked are not said; each missing one is marked **Fill first**, and the item says
+  **Filled** once each is used, answered or left), **Adequate: suggestions**, then **Strong** by title. A finding the evidence can
+  fill offers its sentence (**Use this sentence**: the canvas's own edit, one undo step); one it cannot asks its question, and
+  **Keep the answer as a fact** keeps the person's words as a fact of that project (a deck page that names no project first
+  asks which project it is about). **Leave it** keeps a finding left while the item's words stay the same. With no agent on,
+  the sheet says that only the checks that need none ran, beside **Turn on the agent**; a review that could not run says why
+  with its fix (translate, turn on the agent, try again), and parts left unread say whether the call limit, a stop or the
+  agent's answer left them out. The first press reviews an edition that has none yet; a drafting run reviews what it wrote as
+  its last stage.
 - **Blind edition** ("블라인드판"), a switch beside "Make PDFs", makes the edition in view again with the names of your table under
   bars of their width, a red band on page one and a label in every footer ([docs/USAGE.md](USAGE.md#a-blind-edition)), and shows
   the typeset pages. A band above them says that they are the blind edition, what it left out (your own portfolio file; your own
@@ -571,8 +584,14 @@ python3 apps/desktop/app.py --check                  # the desktop app's own che
   and a Word file are printed in the render container where its image is built (skipped elsewhere), and the converter's command
   is checked without Docker.
 - `test_mcp.py`: the MCP server of `offerowl mcp` against a real panel on the fictional example: the protocol over stdio through
-  the launcher, every reading tool, tailoring, the kit and its search, board moves and reminders, read-only mode, the
-  address check, and the error a missing panel gives ([MCP.md](MCP.md)).
+  the launcher, every reading tool, tailoring, the kit and its search, board moves and reminders, the procedure, the depth
+  review's tools and a rule kept, read-only mode, the address check, and the error a missing panel gives ([MCP.md](MCP.md)).
+- `test_depth.py`: the depth review on the fictional example with a stand-in: every printed item read with its evidence, an
+  answer kept as a line of its project's ledger (and the canvas's evidence) that one undo takes back, a rewrite through the
+  canvas's checks, a question or an item written again taking none, a left finding kept left until its words change, the
+  rule-based checks with no agent, an item thinner than the copy that went out, an export keeping its words, the review as a
+  draft's last stage, a correction kept as a rule, verdicts (thin first, the gate counted again as the person answers or
+  leaves) and `offerowl depth`.
 - `test_interview_views.py`: what the interview tab's own parts read, on the fictional example: every script with its words
   in the panel's language, the deck's scripts in the printed deck's order, the talk's script and its slides' pictures (by
   their place only), a 304 for an unchanged view or deck, and a 404 that says so for a job with no kit or no talk.
@@ -586,7 +605,9 @@ python3 apps/desktop/app.py --check                  # the desktop app's own che
 - `walk.py` drives Chromium. It times the first look (the make view, then the example person's resume), then measures
   every state (Make with the example, the resume, a selected sentence, an edit and an
   unsupported sentence, the profile, a fact being edited and one being typed in, the job form, the fit, the tailored job, the resume for
-  the job, the cover letter without an agent, the typeset view without a PDF, the interview board and its scripts, the
+  the job, the cover letter without an agent, the typeset view without a PDF, the depth review's sheet with the agent off and as a
+  draft's last stage (thin items first, a rewrite used, an answer kept, a thin item filled, an agent that stopped, an answer that
+  left parts out, a review that could not run), the interview board and its scripts, the
   kit's contents and a question's answers, its deck, practice's setup, a question and its feedback, the presentation's
   script, the job's materials with a note open,
   the tracker's board and timeline, the Library and its Trash with the question before deleting for good and a removal's

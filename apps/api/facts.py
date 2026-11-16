@@ -257,6 +257,8 @@ def _apply_edit(draft: dict, c: dict, e: dict) -> None:
         item.update(title=title, org=org, start=start or item.get("start", ""), end=end if (start or end) else item.get("end"))  # dates read the way review.py reads them
     elif kind == "project" and isinstance(item, dict):  # a project
         item.update(title=title, period=period, summary=statement if "statement" in e else item.get("summary", ""))  # the summary only when it was edited
+        if isinstance(e.get("evidence"), list):  # the entries it rests on, which the canvas reads with it (docs/DOCUMENTS.md "The profile format")
+            item["evidence"] = list(e["evidence"])
     elif kind == "education" and isinstance(item, dict):  # a school
         start, end = review.period(period)  # dates
         if title != c.get("title"):  # the card shows "major degree" as one title: an edited title replaces both
@@ -318,7 +320,7 @@ def _remove(draft: dict, refs: list) -> None:
 def edited(c: dict, edits: dict) -> dict:
     """A candidate with the person's edits laid over it."""
     e = edits.get(c["cid"]) or {}  # the edited fields
-    return {**c, **{k: v for k, v in e.items() if k in ("kind", "org", "period", "title", "statement")}}  # shown fields only
+    return {**c, **{k: v for k, v in e.items() if k in ("kind", "org", "period", "title", "statement", "evidence")}}  # shown fields, and the entries an item rests on
 
 
 def build_with_evidence(base: dict | None, cands: list, status: dict, edits: dict, details: dict) -> tuple[dict, dict]:
@@ -389,6 +391,8 @@ def evidence_map(draft: dict, tags: dict, texts: dict, details: dict) -> dict:
             add(f"roles.{ri}", c)  # they rest on it too
         for pi, pr in enumerate(r.get("projects") or []):  # its projects
             add(f"roles.{ri}.projects.{pi}", tags.get(id(pr)) or pr.get("cand"))  # imported or read from a file
+            for c in (pr.get("cand_lines") or {}):  # the person's answers kept as lines of its ledger (src/review.py accept)
+                add(f"roles.{ri}.projects.{pi}", c)  # they are its evidence too
     for ei, e in enumerate(draft.get("education") or []):  # schools
         add(f"education.{ei}", tags.get(id(e)) or e.get("cand"))  # imported or read from a file
     for si, sk in enumerate(draft.get("skills") or []):  # skill groups
@@ -564,6 +568,8 @@ class Facts:
         """The person's version of a fact (only the shown fields)."""
         ed = self.edits()  # current
         clean = {k: str(v)[:2000] for k, v in fields.items() if k in ("kind", "org", "period", "title", "statement")}  # bounded
+        if isinstance(fields.get("evidence"), list):  # the entries a project item rests on (a depth review's rewrite cites them)
+            clean["evidence"] = [str(x)[:80] for x in fields["evidence"] if isinstance(x, str) and x.strip()][:24]  # ids, bounded
         if isinstance(fields.get("rows"), list):  # a key project card's rows, edited on the canvas
             clean["rows"] = [[str(x)[:600] for x in r][:3] for r in fields["rows"] if isinstance(r, (list, tuple))][:8]  # bounded rows
         if clean:  # nothing to save otherwise
@@ -587,6 +593,8 @@ class Facts:
         c = {k: str(fields.get(k) or "")[:2000] for k in ("kind", "org", "period", "title", "statement")}  # the fields
         if c["kind"] not in ("role", "project", "education", "skill", "paper", "patent", "award", "certificate", "other"):  # only the kinds the review rules know
             c["kind"] = "other"  # unknown kinds are listed as other
+        if c["kind"] == "project" and re.fullmatch(r"[\w.:#-]{1,80}", str(fields.get("project") or "")):  # an answer about a project already there (the depth review's)
+            c["project"] = str(fields["project"])  # it becomes one more line of that project's ledger (src/review.py accept)
         c.update(origin="typed", quote=c["statement"] or c["title"], source={"material": "", "name": ""})  # typed by them
         c["cid"] = review.cid(c)  # the same id rule as ingested facts
         self.add_candidates([c])  # listed

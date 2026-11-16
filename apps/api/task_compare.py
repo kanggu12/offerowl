@@ -8,8 +8,9 @@ edition in the other language, its own deck, and the pages of the copy that last
     the export holds to the source as it is at that moment.
   - The resume is compared with its deck (src/check_parity.py edition): the slides' project names and periods, the colours
     and the fonts.
-  - The pages of the copy that last went out (export, lock) are kept small (src/baseline.py), and every later build says
-    which pages changed since, with a picture of the changed bands; POST /api/v1/jobs/baseline keeps a build as the new one.
+  - The pages of the copy that last went out (export, lock) are kept small (src/baseline.py), with the profile they were
+    typeset from, and every later build says which pages changed since, with a picture of the changed bands; POST
+    /api/v1/jobs/baseline keeps a build as the new one. The depth review reads the kept profile (apps/api/depth.py).
 """
 from __future__ import annotations
 
@@ -289,6 +290,8 @@ class Comparisons:
         else:  # in the render container
             import json  # the record as an argument
             got = self._baseline_run("keep", previews, kept, ["--record", json.dumps(record, ensure_ascii=False), "--only", ",".join(sorted(only))])
+        if got is not None and (out_dir / "profile.json").is_file():  # the words these pages were typeset from, kept with them: the depth review holds
+            shutil.copyfile(out_dir / "profile.json", kept / "profile.json")  # a later edition to what went out (apps/api/depth.py went_out)
         if got is not None:  # the edition shows no changes until a build differs from it
             (previews / CHANGES).unlink(missing_ok=True)
             with _record_lock:

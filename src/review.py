@@ -24,9 +24,11 @@ ROLE_FIELDS = ("title", "start", "end")  # fields a role candidate fills
 MSG = {  # what this step says, in both languages with the same keys
     "en": {"bad_profile": "this is not a profile in the expected form", "bad_field": "{field} is not in the expected form",
            "no_org": "Company not set", "role_kept": "This role already has a title and dates, so they were left as they are. If they differ, change them in the draft",
+           "project_gone": "The project this fact belongs to is not in the profile any more, so it was kept as evidence only and prints nowhere",
            "need_name": "Please fill in your name", "need_email": "Please fill in your email", "need_role": "Please add at least one role"},
     "ko": {"bad_profile": "프로필 꼴이 다르다", "bad_field": "{field} 꼴이 다르다",
            "no_org": "소속 미정", "role_kept": "이미 직무와 기간이 있어 바꾸지 않았다. 다르면 초안에서 고친다",
+           "project_gone": "이 사실이 속한 프로젝트가 프로필에 없어 근거로만 남기고 어디에도 인쇄하지 않았다",
            "need_name": "이름을 채워 주세요", "need_email": "이메일을 채워 주세요", "need_role": "경력을 하나 넣어 주세요"},
 }
 
@@ -119,6 +121,18 @@ def _role(draft: dict, cand: dict, c: str) -> dict:
     return r
 
 
+def _project(draft: dict, pid) -> dict | None:
+    """The project of a draft with this id: its own id, else the place id the drafts give a project without one
+    (role key and position, as src/write_resume.py project_id writes it)."""
+    pid = str(pid or "")
+    for ri, r in enumerate(draft.get("roles") or [], 1):  # numbered from 1, as the drafts number roles
+        rk = re.sub(r"\s+", " ", re.sub(r"==|\*\*", "", str(r.get("key") or r.get("org") or f"role{ri}"))).strip().replace(" ", "_")  # its key, as cover.units_of makes it
+        for pi, p in enumerate(r.get("projects") or [], 1):  # its projects
+            if isinstance(p, dict) and str(p.get("id") or f"{rk}-{pi}") == pid:  # the one named
+                return p
+    return None
+
+
 def accept(draft: dict, cand: dict, c: str = None) -> str:
     """Put one candidate into the draft. The same candidate is never added twice. Returns one result line (the reason, when
     some field could not be filled)"""
@@ -138,9 +152,23 @@ def accept(draft: dict, cand: dict, c: str = None) -> str:
         if not filled:
             return t("role_kept")
     elif kind == "project":  # project: a bullet under that company
+        target = _project(draft, cand.get("project")) if cand.get("project") else None  # an answer about a project already there
+        if target is not None:  # one more line of that project's ledger: the next draft may cite it, the canvas counts it as its evidence
+            line = "- " + " ".join(str(cand.get("statement") or cand.get("title") or "").split())  # the person's words as a ledger bullet
+            body = target.get("body_md")  # the ledger text, one for both languages or one per language
+            if isinstance(body, dict):  # a ledger written per language: the fact holds for both
+                target["body_md"] = {k: (str(v or "").rstrip() + "\n" + line).strip() for k, v in body.items()}
+            else:  # one text
+                target["body_md"] = (str(body or "").rstrip() + "\n" + line).strip()
+            target.setdefault("cand_lines", {})[c] = line  # what this fact added, for reject() and the evidence map
+            return ""
+        if cand.get("project"):  # it names a project that is not there (gone, or an id of another edition): an answer never prints by itself
+            return t("project_gone")
         r = _role(draft, cand, c)
-        r["projects"].append({"id": "c" + c, "title": cand.get("title", ""), "period": cand.get("period", ""),
-                              "summary": cand.get("statement", ""), "cand": c})
+        p = {"id": "c" + c, "title": cand.get("title", ""), "period": cand.get("period", ""), "summary": cand.get("statement", ""), "cand": c}
+        if isinstance(cand.get("evidence"), list) and cand["evidence"]:  # the entries an edited item rests on
+            p["evidence"] = list(cand["evidence"])
+        r["projects"].append(p)
     elif kind == "education":  # education: one row of the table
         draft["education"].append({"school": cand.get("org", ""), "major": cand.get("title", ""), "degree": "",
                                    "start": start, "end": end or "", "cand": c})
@@ -173,6 +201,12 @@ def reject(draft: dict, c: str) -> None:
     keep_roles = []
     for r in draft["roles"]:
         r["projects"] = [p for p in r.get("projects", []) if p.get("cand") != c]
+        for p in r["projects"]:  # a line an answer added to a project's ledger
+            line = (p.get("cand_lines") or {}).pop(c, None)  # what it added
+            if line is not None:  # its line goes, the rest of the ledger stays
+                body = p.get("body_md")
+                drop = lambda text: "\n".join(x for x in str(text or "").split("\n") if x != line).strip()  # noqa: E731  that line only
+                p["body_md"] = {k: drop(v) for k, v in body.items()} if isinstance(body, dict) else drop(body)
         filled = r.get("filled", {}).pop(c, None)
         if filled:  # of the fields this candidate filled, reset only those a person did not change
             for f, v in filled.items():

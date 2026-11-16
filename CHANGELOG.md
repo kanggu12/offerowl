@@ -6,6 +6,44 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+The writing harness: the drafting step, a review of each item's depth, and the procedure an agent works in, held together so
+a correction made once stays made.
+
+### Added
+
+- **The depth review.** Each project item an edition prints and each page of its last deck is read for what it leaves out:
+  the scope, what made the work hard, the decision and the alternative set aside, why the result came about, the names the
+  evidence holds, routine work dressed up, circumstances written as achievements, and what the copy that went out said that
+  the edition lost. Each finding offers a sentence that cites the item's evidence and passes the draft's own checks, or a
+  question for the person, whose answer is kept as a fact of that project for the next draft
+  ([WRITING.md](docs/WRITING.md#the-depth-review)). It runs as a drafting run's last stage, from Documents (**Review each
+  project's depth**, a sheet at the window's right edge), through the API, `offerowl depth` and the MCP tools. With no agent,
+  circumstances and lost names are still found. No finding stops an export, and an answer never prints by itself. A review
+  takes eight calls at most (`OFFEROWL_DEPTH_CALLS`; `draft write --depth-calls`), and `draft write` says them before it runs.
+- **A verdict per item.** The agent quotes the words that state what made the work hard, the decision and its alternative,
+  and why it worked; a part counts only when its words are found in the item, and a quote for what made it hard that only
+  names the starting situation (a setting, the equipment, the material or a state, with no word of how it was hard) does not
+  count. Three stated is strong (no findings but names
+  and routine), one missing adequate, two or three thin. Thin items come first in the sheet, the API, `offerowl depth` and
+  `depth_findings`, and the procedure makes their missing parts a gate: each fixed from the evidence or answered by the
+  person before the edition goes out; the rest are suggestions.
+- **The procedure.** A step-by-step way to make or strengthen an application, each step with its gate and its MCP tool, API
+  route and command: the MCP tool `procedure`, a Claude Code skill folder (`apps/mcp/skills/offerowl-application/`) and an
+  `AGENTS.md` for the other agents ([MCP.md](docs/MCP.md#the-procedure)).
+- **Corrections kept as rules.** `POST /api/v1/style/rule` (MCP `remember_rule`) adds one row to the claims of the writing
+  rules in use, `GET /api/v1/style` reads them; a draft now holds them too: a retired phrase is rewritten or dropped and a
+  proposal written as done work goes back like a claim.
+- MCP tools for the steps that had none: `checks`, `editions`, `start_edition`, `write_resume` and `lock_submitted`.
+- A project item may name the ledger entries it rests on (`evidence: [ids]`), which the canvas counts as its evidence.
+
+### Changed
+
+- The drafting prompts ask the scope for what made the work hard, the decision for the alternative and the result for its
+  mechanism, each only as the evidence states it, and keep circumstances out and the person's own forms (a title with two
+  positions or a gloss) whole. On the fictional example the first round sent 14 texts to repair where it sent 20.
+- An export and a lock keep the edition's profile beside its baseline pages, so a later review can say what an item lost.
+- A typed fact may name a project (`project`): it becomes one more line of that project's evidence.
+
 ## [0.10.0] - 2026-11-17
 
 Checks on what an edition says and on how its documents agree: phrases fixed once, the edition against your profile, what

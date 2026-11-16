@@ -24,7 +24,7 @@ DECK = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/deck/(ko|en)$")  # a j
 FIGURE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/figures/(ko|en)/(timeline|stack|logo_[A-Za-z0-9_-]{1,80})\.png$")  # a picture the printed resume carries, for the canvas
 JOBFILE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/(posting|sent/[A-Za-z0-9_.-]{1,80}|kit/(?:out/)?[A-Za-z0-9_.%()-]{1,240})$")  # a job's posting, a copy that went out, a file of its interview kit
 SOURCE = re.compile(r"^/api/v1/materials/(m\d{1,6})$")  # a file brought in for the profile, as it came
-JOBPART = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)(?:/(fit|interview|interview/view|interview/deck|talk|talk/script))?$")  # one job, its fit, its interview board, what the script view and the deck read, its talk or the talk's script
+JOBPART = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)(?:/(fit|interview|interview/view|interview/deck|talk|talk/script|depth))?$")  # one job, its fit, its interview board, what the script view and the deck read, its talk or the talk's script, its depth review
 TALKSLIDE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/talk/slides/(\d{1,3})\.png$")  # a picture of one of the talk's slides, by its place, for the script the panel draws
 MATERIAL = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/materials(?:/(m\d{1,6})(?:/(preview|pages/(\d{1,4})\.png))?)?$")  # a job's materials, one of them, its preview or a page picture of it
 
@@ -223,6 +223,9 @@ class Router:
                 return 200, got, JSON
             if m.group(2) == "talk":  # the presentation interview: its brief, and the talk when it is made
                 return 200, a.tasks.talk_state(jid), JSON
+            if m.group(2) == "depth":  # the edition's depth review (apps/api/depth.py), each unit marked when its words changed since
+                from . import depth  # read on demand
+                return 200, depth.view(a.tasks, jid, lang_of(q.get("lang"))), JSON
             job = next((j for j in a.jobs_view() if j["id"] == jid), None)  # its card with the summary
             if job is None:  # the general edition or a named one: an edition, not an application with a card
                 raise NotFound(path)
@@ -264,7 +267,9 @@ class Router:
         if path == "/api/v1/reminders.ics":  # every open reminder for the person's calendar
             return 200, tracker.ics(a.jobs_view()).encode("utf-8"), "text/calendar; charset=utf-8"  # a file to open
         if path == "/api/v1/history":  # the undo steps
-            return 200, {"steps": a.ws.history()}, JSON  # newest first
+            return 200, {"steps": a.ws.history()}, JSON
+        if path == "/api/v1/style":  # the writing rules in use: their name and the pack as written, claims included (the harness's memory)
+            return 200, a.style_read(), JSON  # newest first
         m = re.fullmatch(r"/api/v1/schema/([a-z]+)", path)  # the data model, for tools
         if m:  # one schema by name
             from core.schema import validate  # the names
@@ -389,6 +394,17 @@ class Router:
             if rec is None:  # that edition was never made
                 raise ValueError("not_built")  # nothing to freeze
             return {"locked": rec}  # the frozen files and their hashes
+        if path == "/api/v1/jobs/depth":  # the depth review of an edition: what each project item and deck page leaves out (apps/api/depth.py)
+            jid = a.need_job(req)  # which job, or -general and a named edition; a submitted one may be read too (its words inform the next)
+            return {"started": t.depth(jid, lang_of(req.get("lang"))), "task": f"depth:{jid}"}  # the task's key
+        if path in ("/api/v1/jobs/depth/answer", "/api/v1/jobs/depth/apply", "/api/v1/jobs/depth/leave"):  # what the person does with one finding
+            from . import depth  # the finding's actions
+            jid, lang, fid = a.need_job(req), lang_of(req.get("lang")), str(req.get("finding") or "")  # which edition and which finding
+            if path.endswith("/answer"):  # an answer to its question, kept as a fact of its project (a page that names none says which): one undo step
+                return depth.answer(a.tasks, jid, lang, fid, req.get("text"), str(req.get("project") or "") or None)
+            if path.endswith("/apply"):  # its rewrite in place of the sentence it replaces: one undo step (refused once submitted)
+                return depth.apply(a.tasks, jid, lang, fid)
+            return depth.leave(a.tasks, jid, lang, fid)  # left as it is: one undo step
         if path == "/api/v1/jobs/baseline":  # the edition's last build kept as the pages later builds are compared with (task_compare.py)
             jid = a.need_job(req)  # which job, or -general and a named edition
             return {"baseline": t.accept_baseline(jid, lang_of(req.get("lang")))}  # when, and how many pages of each document
@@ -483,6 +499,8 @@ class Router:
             name = a.add_style(req)  # checked and kept
             a.set_settings({"style": name})  # in use from now on
             return {"style": name}  # the name it is kept under
+        if path == "/api/v1/style/rule":  # one correction of the person's kept as a rule of the pack in use, so it never comes back (the harness's memory)
+            return a.add_rule(req)  # {style, list, lang, rows}: checked like a whole pack, one undo step
         if path == "/api/v1/onboarding":  # where the first run stands
             a.set_onboarding(req)  # kept with the workspace
             return None  # the new state is the whole answer

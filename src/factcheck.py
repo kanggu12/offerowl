@@ -281,6 +281,33 @@ def claim_text(issue: dict, lang: str | None = None) -> str:
     return f"says '{issue['word']}' but the evidence says '{issue['said']}': {issue['quote'][:80]}"  # English message
 
 
+# ---------------------------------------------------------------- circumstances
+# A circumstance is no achievement: "the only developer", "alone", "a team of five", "right after joining" say how the person
+# stood, not what the person did. The drafting step reports them, and the depth review asks for the work in their place. Only
+# the person's own circumstance counts: the scale of what was built or served ("임직원 3,000명 조직", "a 10,000-person
+# organisation", "500만 명이 쓰는 앱") is the work's size, never flagged; a team's headcount is a team of a few dozen at most.
+CIRCUMSTANCE = (  # Korean and English patterns alike: a Korean edition may print English words too
+    r"유일한\s*(?:개발\s*인력|개발자|엔지니어|인력|담당자?|구성원|멤버)", r"(?:초기|창업|창립)\s*(?:멤버|구성원|인력|개발\s*인력|개발자)",  # the only one, a founding member
+    r"(?<![가-힣])혼자(?:서)?(?![가-힣])", r"(?<![가-힣])홀로(?!그램)", r"(?:단독으로|1인으로|한\s*명이)\s*(?:개발|구축|설계|운영|맡|담당|진행|수행|만들)",  # alone (a hologram is no person)
+    r"1인\s*(?:개발|운영|체제)", r"첫\s*(?:번째\s*)?(?:개발자|엔지니어|직원|채용)",  # a one-person shop, the first hire
+    r"(?<![\d,.])\d{1,2}\s*명(?:의|으로|짜리)?\s*(?:개발\s*)?팀", r"입사(?:\s*직후|하자마자|\s*\d+\s*(?:개월|주|일)\s*만에|\s*첫\s*(?:해|달|주))", r"합류(?:\s*직후|하자마자)",  # a team's headcount (an organisation's size is the work's scale), a join date
+    r"\b(?:the\s+)?(?:only|sole|lone|first|single|founding)\s+(?:\w+\s+)?(?:developer|engineer|programmer|hire|employee|member)\b",  # the only, sole or first engineer
+    r"\bsingle-?handedly\b", r"\b(?:by myself|on my own)\b", r"\b(?:worked|working)\s+(?:\w+\s+)?alone\b", r"\bsolo\s+(?:developer|engineer|founder)\b",  # alone (never "the approval path alone", which is about the path)
+    r"\bteam of (?:\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\b(?![,.]\d)", r"(?<![\d,.])\b\d{1,2}-(?:person|member|engineer)\s+(?:team|squad|crew)\b",  # a team's headcount, never an organisation's size
+    r"\b(?:right |soon )?after joining\b", r"\bwithin \w+ (?:days|weeks|months) of joining\b")  # a join date
+CIRCUMSTANCE_RE = [re.compile(p, re.I) for p in CIRCUMSTANCE]  # compiled once
+
+
+def circumstances(text: str) -> list:
+    """The circumstance phrases a text prints, as written, the first of each pattern, in the patterns' order."""
+    out = []  # phrases
+    for rx in CIRCUMSTANCE_RE:  # every pattern
+        m = rx.search(text or "")  # the first place it stands
+        if m and m.group(0) not in out:  # once each
+            out.append(m.group(0))  # as printed
+    return out
+
+
 # ---------------------------------------------------------------- names across languages
 # A Korean profile names a client 알파페이 and an English letter writes Alpha Pay. A glossary pair lets the checker accept the
 # English spelling when the Korean one stands in the cited evidence (and the reverse), without the writer declaring it.

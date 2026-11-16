@@ -227,7 +227,7 @@ function paneKey(name) {                                                        
     // dragged 40 px wider no longer count: each drew the canvas again, and the frame's page with it, emptying its search box
     framed ? kitFrameDocs() : UI.docsVer, S.materials, S.photo, S.engine, S.engine_needs, S.due, typeof Notification === "undefined" ? "" : Notification.permission, PHONE.matches,
     framed ? 0 : Math.round(($("canvas").clientWidth || 0) / 40), taskMarks(), S.runs, S.agent, S.agent_calls,
-    UI.sending, UI.changesOpen]);                                                   // a run's clock moves in place (make.js data-since), not by a redraw; the picture of changed pages opened or closed
+    UI.sending, UI.changesOpen, UI.depthOpen]);                                     // a run's clock moves in place (make.js data-since), not by a redraw; the picture of changed pages opened or closed; the depth sheet's key says it is open
 }
 function drawPane(el, name, fn) {                                                   // one pane, kept when nothing changed
   const key = paneKey(name);                                                        // what it would show
@@ -307,6 +307,7 @@ document.addEventListener("keydown", (e) => {                                   
     if (UI.menu || UI.agentPop) { const menu = UI.menu; UI.menu = false; UI.agentPop = false; render();   // the bar is drawn anew: its keys are found after
       const k = menu ? $("more") : document.querySelector(".barchip"); if (k) k.focus({ preventScroll: true }); return; }
     if (UI.askOpen && typeof askToggle === "function") { askToggle(false); return; }   // the command bar, wherever the keyboard is: it closes into its key, which takes the focus
+    if (UI.depthOpen && typeof depthClose === "function") { depthClose(); return; }  // the depth review's sheet, the same way
     if (UI.adding && UI.view === "jobs" && (S.jobs || []).length) { UI.adding = false; render();   // the posting's form (with no job yet it is the page itself, and stays)
       const k = document.querySelector('[data-key="jobs-add"]'); if (k) k.focus({ preventScroll: true }); return; }
     if (UI.editing) { UI.editing = false; render(); const s = UI.sel && document.querySelector(`[data-sid="${CSS.escape(UI.sel)}"]`); if (s) s.focus({ preventScroll: true }); return; }   // the sentence
@@ -322,7 +323,7 @@ document.addEventListener("click", (e) => {                                     
   if (UI.menu && !e.target.closest("#menu") && !e.target.closest("#more")) { UI.menu = false; render(); }
   if (UI.agentPop && !e.target.closest(".barpop")) { UI.agentPop = false; render(); }
 });
-$("scrim").addEventListener("click", () => { UI.drawer = false; if (UI.askOpen) askToggle(false); render(); });   // a tap beside the drawer, or beside the open command bar, closes it
+$("scrim").addEventListener("click", () => { UI.drawer = false; if (UI.askOpen) askToggle(false); UI.depthOpen = null; render(); });   // a tap beside the drawer, the open command bar or the depth sheet closes it
 $("filepick").addEventListener("change", (e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) makeFrom({ files: f }); });  // picked files start a run
 $("scenepick").addEventListener("change", async (e) => {                         // interview scenes written before, into the job in view
   const files = [...e.target.files]; e.target.value = ""; if (!files.length || !UI.scenesFor) return;

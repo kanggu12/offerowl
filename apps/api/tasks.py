@@ -189,6 +189,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
         self._lang = (None, "")  # (the profile file's stamp, its language): profile_lang reads the profile again only when it changed
         self.write_ask = None  # a test's stand-in for the model in the resume draft
         self.figure_ask = None  # and in the figure step
+        self.depth_ask = None  # and in the depth review (apps/api/depth.py)
         self.kit_srvs = {}  # job -> (its own kit server, the agent it was given) for the panel's /kit/<job>/, the most recent last (kit_url)
         self.kit_lock = threading.Lock()  # one start at a time: two first requests never bind two servers for one job
         self.autopilot_stop = threading.Event()  # the person asked a run of apps/api/autopilot.py to stop
@@ -405,9 +406,40 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
         self._set(key, step="writing_resume")  # the step the page shows
         got = self._write(job_id, lang, every=True)  # asked for: every part written again
         if got["state"] == "done":  # written
+            got["depth"] = self._depth_stage(key, job_id, lang)  # the drafting run's last stage: what each item still leaves out
             self._set(key, state="done", step="", result=got)  # the page shows the counts
         else:  # no agent, or it never answered
             self._set(key, state="error", error={"code": "agent_unavailable" if got["state"] == "needs_agent" else "agent_stopped"})  # the band says which
+
+    def depth(self, job_id: str, lang: str = "ko") -> bool:
+        """The depth review of an edition (task "depth:<job>", apps/api/depth.py): what each project item and deck page leaves out."""
+        return self.start(f"depth:{job_id}", self._depth_task, job_id, lang)  # one per edition at a time
+
+    def _depth_task(self, job_id: str, lang: str) -> None:
+        key = f"depth:{job_id}"  # this task
+        self._set(key, step="reviewing_depth")  # the step the page shows
+        from . import depth  # the review
+        try:
+            rec = depth.run(self, job_id, lang, ask=self.depth_ask, key=key)  # the agent in use, else the checks that need none
+        except ValueError as exc:  # no English profile yet, say
+            self._set(key, state="error", error={"code": str(exc), "lang": lang})  # the band names the fix, on the sheet of that language
+            return
+        except Exception as exc:  # noqa: BLE001  a review that broke: the sheet says so with a retry, the trace goes to the log
+            log.exception("depth review of %s %s failed", job_id, lang)
+            self._set(key, state="error", error={"code": "unexpected", "detail": type(exc).__name__, "lang": lang})
+            return
+        self._set(key, state="done", step="", result=depth.summary(rec))  # the page reads the review itself
+
+    def _depth_stage(self, key: str, job_id: str, lang: str) -> dict | None:
+        """The depth review as the last stage of a drafting run (the write and tailor tasks): its summary, or None when it could
+        not run (the draft stands either way: a review never stops one)."""
+        from . import depth  # the review
+        self._set(key, step="reviewing_depth")  # the step the page shows
+        try:
+            return depth.summary(depth.run(self, job_id, lang, ask=self.depth_ask, key=key))
+        except Exception:  # noqa: BLE001  a review that broke is said in the log; the draft is kept
+            log.exception("depth review of %s %s failed", job_id, lang)
+            return None
 
     def draw_figures(self, job_id: str, lang: str = "ko") -> bool:
         """The deck's figures, drawn from each printed project's evidence (task "figures:<job>")."""
@@ -1599,7 +1631,8 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
             log.exception("interview kit for %s failed", job_id)  # the trace for the log
             parts["interview"], result_iv = "failed", {}  # the page says so
         stops = [k for k, v in parts.items() if v == "failed"] + (["scripts"] if result_iv.get("stopped") else [])  # what the agent did not finish
-        self._set(key, state="done", step="", parts=parts, result={"interview": result_iv, "stopped": stops})  # all three answered, and what to try again
+        depth_seen = self._depth_stage(key, job_id, lang) if wrote["state"] == "done" else None  # the drafting run's last stage, with the deck it made
+        self._set(key, state="done", step="", parts=parts, result={"interview": result_iv, "stopped": stops, "depth": depth_seen})  # all three answered, and what to try again
 
     REGEN_WAYS = {  # a direction the person picks with one press, never types: how the rewrite should change the sentence
         "shorter": "Make it clearly shorter: keep the action and the change, drop the rest.",

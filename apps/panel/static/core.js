@@ -378,7 +378,13 @@ function errorText(e) {                                                         
     job: t("That application is not there any more. It may be in the Trash."),
     // 0.10.0: an edition started from another one's words (apps/api/editions.py)
     from: t("The edition you picked is not there any more. It may be in the Trash."), no_edition: t("That edition has no words of its own to start from."),
-    same_edition: t("An edition cannot start from itself."), own_exists: t("It got an edition of its own meanwhile. Start it again to see what would be replaced.") };
+    same_edition: t("An edition cannot start from itself."), own_exists: t("It got an edition of its own meanwhile. Start it again to see what would be replaced."),
+    // 0.11.0: the depth review's findings (apps/api/depth.py) and the rules kept from the person's corrections
+    depth_no_rewrite: t("That finding has no words to use, or they were used already."), depth_changed: t("The item was written again since the review. Review it again."),
+    depth_unsupported: t("The item's evidence does not hold those words, so they were not used. Answer its question instead."),
+    depth_finding: t("That finding is not in the review any more. Open the review again."), depth_none: t("This edition has no review yet."),
+    depth_no_project: t("That answer names no project, so it was not kept: an answer never prints by itself. Pick the project the page is about."),
+    rule: t("That rule is not in the shape your writing rules keep.") };
   if (words[what]) return words[what];                                              // a known refusal
   if (e.status >= 400 && e.status < 500 && what !== "bad_request") return t("That could not be done. Open the page again and try once more.");   // a refusal with no words of its own: never "a problem on this PC"
   return errorInfo(e.message === "bad_request" ? "unexpected" : e.message).msg;    // the general words
