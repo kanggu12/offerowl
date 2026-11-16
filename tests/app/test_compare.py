@@ -12,6 +12,7 @@ import json  # profiles, reports, records
 import os  # the renderer setting
 import pathlib  # paths
 import shutil  # is node here
+import subprocess  # a check run by hand, as a console runs it
 import sys  # the import path
 import tempfile  # a folder per test
 import unittest  # the runner
@@ -393,6 +394,26 @@ class PanelCompareTests(Builds):
             self.edition(a, "-general", "en", example("en"))  # made again from a whole translation
             self.assertEqual(1, len(a.tasks.export("-general", "en")))
         self.assertFalse(list((ROOT / "output" / "_inputs").glob("parity_*")))  # nothing of the person's stays in the engine's folder
+
+    @unittest.skipUnless(NODE, "Node.js is not on this PC")
+    def test_the_checks_read_through_a_pipe_in_a_windows_code_page(self):
+        # Windows gives a child's output pipe the code page cp1252, and a finding that names a Korean word stopped the check
+        # before it wrote its report: the export said the pair was unchecked, the build found nothing (0.10.0's Windows run)
+        a = self.person()
+        with mock.patch.dict(os.environ, {"OFFEROWL_RENDERER": "html", "PYTHONIOENCODING": "cp1252"}):  # the children inherit it
+            en = example("en")
+            en["roles"][0]["projects"] = en["roles"][0]["projects"][:2]  # the translation lost a project: a finding in Korean words
+            ko_dir, en_dir = self.edition(a, "-general", "ko", example("ko")), self.edition(a, "-general", "en", en)
+            self.assertEqual(1, len(a.tasks.parity_now("-general", "en")))  # read through the panel's own call, not 'unchecked'
+            rep = self.tmp / "parity.json"  # the command run by hand in such a console
+            argv = [sys.executable, "src/check_parity.py", "langs", str(ko_dir / "profile.json"), str(ko_dir / "job.json"),
+                    str(en_dir / "profile.json"), str(en_dir / "job.json"), "--report", str(rep)]
+            r = subprocess.run(argv, cwd=ROOT, capture_output=True, env=dict(os.environ))  # its bytes as they come
+            self.assertEqual(1, r.returncode, r.stderr.decode("utf-8", "replace")[-800:])  # a defect, never a crash
+            self.assertEqual(1, len(json.loads(rep.read_text(encoding="utf-8"))["defects"]))  # the report was written
+            r.stdout.decode("utf-8")  # and what it printed is UTF-8, whatever the code page said
+        a.tasks._clean_engine("-general", "ko", ko_dir)  # nothing left in the engine's folder
+        a.tasks._clean_engine("-general", "en", en_dir)
 
     @unittest.skipUnless(NODE, "Node.js is not on this PC")
     def test_a_build_s_checks_across_documents(self):

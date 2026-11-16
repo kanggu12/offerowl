@@ -615,5 +615,14 @@ def main(argv=None) -> int:
     return 1 if any(not b.polish for b in found) else 0  # a defect fails; a note does not
 
 
+def utf8_stdio() -> None:
+    """Print UTF-8 whatever the console's code page: the findings name Korean words, and a Windows pipe or console in cp1252
+    stopped the check at the first Hangul letter, before it wrote its report (the panel then took the check as not run)."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):  # a text stream of this Python, not a test's replacement
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 if __name__ == "__main__":
+    utf8_stdio()  # before anything is printed
     sys.exit(main())
