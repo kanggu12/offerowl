@@ -6,6 +6,8 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-17
+
 The writing harness: the drafting step, a review of each item's depth, and the procedure an agent works in, held together so
 a correction made once stays made.
 
@@ -598,7 +600,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/kanggu12/offerowl/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/kanggu12/offerowl/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/kanggu12/offerowl/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/kanggu12/offerowl/compare/v0.9.0...v0.9.1
