@@ -1,7 +1,9 @@
 """A browser walk through the panel on the fictional example: the make view and the example person (timed to the first resume), the workspace
 with the evidence of a sentence, an edit the evidence does not cover, the profile, a job with its fit, tailoring, the
 interview studio, the job's own materials and its presentation, a job's resume started from a named edition's words (the key, its sheet, the
-head after it, the sheet before a replace), the tracker with reminders, every inspector tab and the menu, then the agent's own states through
+head after it, the sheet before a replace), the depth review's sheet (with the agent off, and as a draft's last stage: thin items first,
+a rewrite used and an answer kept, a thin item filled, an agent that stopped, an answer that left parts out, a review that could not
+run), the tracker with reminders, every inspector tab and the menu, then the agent's own states through
 the stand-in, the agent's panel, the command bar open with a day's asks, the setup guide (its four steps the first time, and again from the menu), and a whole automatic
 run from a dropped file to the PDFs. Every state is measured (tests/app/audit.js) at 2560x1440, 1440x900 and a 390-pixel phone, light and
 dark, Korean and English, and kept as a screenshot.
@@ -320,6 +322,20 @@ def main() -> int:  # 0 only when nothing was found
             w.wait("resumeModel() && resumeModel().counts.unsupported === 0")  # all with evidence again
             page.evaluate("UI.sel = null; render()")  # nothing selected
 
+            # ---- the depth review with the agent off: its key opens the sheet at the window's right edge and reviews at once, with the
+            # checks that need no agent; a sentence written with a circumstance ("alone") is found, with its question and the answer's box
+            sid = page.evaluate("Object.keys(resumeModel().sentences).find((k) => resumeModel().sentences[k].text.startsWith('주문 장애 유형별'))")  # an item's sentence
+            w.api("/api/v1/sentences/edit", {"sid": sid, "text": "주문 장애 유형별 대응 절차를 혼자 문서로 만들고 당번 교육에 썼다.", "lang": "ko"})  # as a person might write it
+            w.wait("resumeModel() && Object.values(resumeModel().sentences).some((s) => s.text.includes('혼자'))", 20)  # the canvas has it
+            page.click("[data-key=depth-open]")  # the key in the head, as a person presses it
+            w.wait("document.querySelector('#depthpanel .depth-unit textarea')", 30)  # reviewed, and its question drawn
+            w.shoot("depth_no_agent")  # the sheet: the band that says only the rule-based checks ran, the circumstance and its question
+            page.keyboard.press("Escape"); w.settle()  # closed, the keyboard back on its key
+            w.wait("document.activeElement && document.activeElement.dataset.key === 'depth-open'")  # where the person was
+            page.evaluate("document.activeElement.blur()")  # no ring in the next pictures
+            w.api("/api/v1/undo", {})  # the sentence as it was
+            w.wait("resumeModel() && !Object.values(resumeModel().sentences).some((s) => s.text.includes('혼자'))", 20)
+
             # ---- the profile
             page.evaluate("go('profile'); UI.filter = 'kept'; render()"); w.settle()  # the facts kept
             w.shoot("profile_facts")  # details, files, facts
@@ -533,6 +549,46 @@ def main() -> int:  # 0 only when nothing was found
             w.wait("((sentenceOf(UI.sel) || {}).text || '').startsWith('Moved the service and cut 97%') && sentenceOf(UI.sel).state === 'unsupported'", 20)  # checked: the evidence has no such number
             w.api("/api/v1/undo", {})  # back
             w.wait("(sentenceOf(UI.sel) || {}).state === 'ok'", 20)  # one undo step
+
+            # ---- the depth review as the draft's last stage (the stand-in reviewed what it wrote): the sheet with its rewrites and
+            # questions; then one rewrite used and one answer kept as a fact, each said where it stood
+            page.evaluate("UI.sel = null; render()"); w.settle()  # nothing selected
+            page.click("[data-key=depth-open]")  # the review the draft's run made
+            w.wait("document.querySelector('#depthpanel [data-key^=depth-use-]') && document.querySelector('#depthpanel .depth-unit textarea')", 30)  # its rewrite and its question
+            w.shoot("depth_findings")  # thin items first with what they leave out, then adequate, then the strong by title: a rewrite to use and questions to answer
+            page.locator("#depthpanel [data-key^=depth-use-]").first.click(); w.settle(900)  # a rewrite used: the sentence takes its place
+            page.locator("#depthpanel .depth-unit textarea").first.fill("승인 경로만 따로 배포하자 승인 요청이 몰려도 배포가 승인을 멈추지 않았다")  # the person's own words
+            page.locator("#depthpanel button:has-text('답을 사실로 남기기')").first.click(); w.settle(900)  # kept as a fact of that project
+            w.wait("document.querySelectorAll('#depthpanel .depth-f.done').length >= 2", 20)  # both said where they stood
+            w.shoot("depth_used", prep="document.getElementById('toast').classList.remove('show')")  # the used rewrite and the kept answer, with their lamps
+            page.locator("#depthpanel .depth-unit.thin").first.locator(".depth-f:not(.done) button:has-text('그대로 두기')").first.click(); w.settle(900)  # the thin item's other missing part left, as the person decides
+            w.wait("document.querySelector('#depthpanel .depth-unit.thin .depth-passed')", 20)  # its gate is passed: each missing part answered or left
+            w.shoot("depth_gate_passed", prep="document.getElementById('toast').classList.remove('show')")  # the thin item says it is filled, its verdict kept until the next review
+            page.keyboard.press("Escape"); w.settle()  # closed
+            page.evaluate("document.activeElement && document.activeElement.blur()")  # no ring in the next pictures
+            w.api("/api/v1/undo", {}); w.api("/api/v1/undo", {}); w.api("/api/v1/undo", {})  # the leave, the answer and the rewrite taken back, for the rest of the walk
+
+            # ---- the sheet's other states: an agent that stops part way, an answer that leaves parts out, a review that cannot run
+            flag = home / ".offerowl-standin-depth"  # the stand-in reads it (apps/api/standin.py depth_mode); the walk's own home
+            done = "task('depth:' + edition().id).state === 'done'"  # the review ran to its end, whatever it found
+            flag.write_text("stop", encoding="utf-8")  # the agent stops
+            page.click("[data-key=depth-open]"); w.settle()  # the sheet, with the last review
+            page.evaluate("depthRun()"); w.settle(600); w.wait(done, 60); w.settle(1200)  # reviewed again: the agent stopped
+            w.wait("document.querySelector('#depthpanel .band[role=alert]')", 30)  # the stop's band with its retry
+            w.shoot("depth_stopped")  # what was not read, and why
+            flag.write_text("skip", encoding="utf-8")  # the agent's answer leaves parts out
+            page.evaluate("depthRun()"); w.settle(600); w.wait(done, 60); w.settle(1200)  # reviewed again
+            w.wait("!document.querySelector('#depthpanel .band[role=alert]')", 30)  # no stop this time
+            w.shoot("depth_unread")  # the parts the answer left out, said as such
+            flag.unlink()  # answered in full again
+            page.keyboard.press("Escape"); w.settle()
+            page.evaluate("UI.docLang = 'en'; render()"); w.settle()  # the English edition: no profile in English yet
+            page.click("[data-key=depth-open]")  # the key starts a first review, which cannot run
+            w.wait("document.querySelector('#depthpanel .band[role=alert]')", 30)  # its band, with the fix
+            w.shoot("depth_failed")  # the review that could not run, and the way on
+            page.keyboard.press("Escape"); w.settle()
+            page.evaluate("UI.docLang = 'ko'; render()"); w.settle()  # back to the Korean edition for the rest of the walk
+            page.evaluate("document.activeElement && document.activeElement.blur()")  # no ring in the next pictures
 
             # ---- the deck: the offer to draw its figures, then the drawing
             page.evaluate("UI.sel = null; UI.doc = 'deck'; UI.mode = 'live'; render()"); w.wait("document.querySelector('.deckframe iframe')", 30); w.settle(800)  # the deck's tab, with its slides

@@ -97,7 +97,10 @@ const TOOL_WORDS = { status: "Read the status", list_jobs: "Read the application
   interview_search: "Searched the scripts", form_answers: "Read the form answers", tracker: "Read the board", insights: "Read the insights",
   library: "Read the library", task: "Read a task", add_job: "Added a posting", make_documents: "Made the documents", build_pdfs: "Made the PDFs",
   export_documents: "Exported the documents", make_interview_kit: "Made the interview kit", write_interview_scripts: "Wrote the interview scripts",
-  move_job: "Moved an application", log_round: "Recorded an interview", add_fact: "Put in a fact", reminder: "Set a reminder" };
+  move_job: "Moved an application", log_round: "Recorded an interview", add_fact: "Put in a fact", reminder: "Set a reminder",
+  checks: "Read the checks", editions: "Read the editions", procedure: "Read the procedure", depth_findings: "Read the depth review",
+  start_edition: "Started an edition from another", write_resume: "Wrote the resume", lock_submitted: "Locked what was sent", depth_review: "Reviewed each project's depth",
+  answer_depth: "Kept an answer as a fact", apply_depth_rewrite: "Used a rewrite", leave_depth_finding: "Left a finding as it is", remember_rule: "Kept a rule of your writing" };
 function toolWords(x) {                                                             // a tool's step in words; another tool keeps its own name, spaced
   const name = String(x).replace(/^.*__/, "");                                      // mcp__offerowl__list_jobs: the tool's own part
   return TOOL_WORDS[name] ? t(TOOL_WORDS[name]) : name.replace(/_/g, " ");

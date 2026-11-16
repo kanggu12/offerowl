@@ -17,14 +17,15 @@ import unittest  # the runner
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ and core/ are found from here
-from apps.mcp.server import Panel, Server, search, slide_text  # noqa: E402  the server under test and its shaping parts
+from apps.mcp.server import Panel, Server, compact_depth, search, slide_text  # noqa: E402  the server under test and its shaping parts
 from apps.panel import server as panel_server  # noqa: E402  the real panel it talks to
 
 POSTING = ROOT / "tests" / "app" / "fixtures" / "posting_ko.md"  # a fictional posting
 READS = ["status", "list_jobs", "get_job", "job_fit", "read_document", "document_file", "deck", "interview_board",
-         "interview_search", "form_answers", "tracker", "insights", "library", "task"]  # the reading tools, in the table's order
-WRITES = ["add_job", "make_documents", "build_pdfs", "export_documents", "make_interview_kit", "write_interview_scripts",
-          "move_job", "log_round", "add_fact", "reminder"]  # the writing tools
+         "interview_search", "form_answers", "checks", "editions", "procedure", "depth_findings", "tracker", "insights", "library", "task"]  # the reading tools, in the table's order
+WRITES = ["add_job", "start_edition", "write_resume", "make_documents", "build_pdfs", "export_documents", "lock_submitted", "make_interview_kit", "write_interview_scripts",
+          "move_job", "log_round", "depth_review", "answer_depth", "apply_depth_rewrite", "leave_depth_finding", "remember_rule",
+          "add_fact", "reminder"]  # the writing tools
 
 
 def free_port() -> int:
@@ -293,6 +294,61 @@ class TestWrites(McpCase):
         self.assertEqual("follow up", r["text"])  # kept
         bad = self.call("reminder", job=self.job, at="tomorrow", text="x")  # not a date
         self.assertTrue(bad["isError"])  # the API's refusal
+
+
+class TestHarness(McpCase):
+    """The writing harness through the tools: the procedure, the depth review and its findings, an answer kept as evidence,
+    a finding left, and a correction kept as a rule (0.11.0). The agent is off: the review's checks that need none run."""
+
+    def test_1_the_procedure_names_every_step_s_tool(self):
+        text = self.call_ok("procedure")  # the shipped procedure, as text
+        for name in ("start_edition", "write_resume", "depth_review", "depth_findings", "answer_depth", "apply_depth_rewrite", "remember_rule", "export_documents"):  # the steps' tools
+            self.assertIn(name, text)
+
+    def test_2_review_answer_leave_and_remember(self):
+        self.assertFalse(self.call_ok("depth_findings", job="-general")["reviewed"])  # nothing reviewed yet
+        self.assertEqual({"ko": {"made": False}}, self.call_ok("checks", job="-general", lang="ko"))  # no PDFs made yet: said, not empty
+        doc = self.call_ok("read_document", kind="resume")  # the general resume, sentence by sentence
+        sid = next(s["sid"] for s in doc["sentences"] if s["text"].startswith("주문 장애 유형별"))  # one item's sentence
+        self.mcp.panel.post("/api/v1/sentences/edit", {"sid": sid, "text": "주문 장애 유형별 대응 절차를 혼자 문서로 만들고 당번 교육에 썼다.", "lang": "ko"})  # a circumstance, as a person might write
+        out = self.call_ok("depth_review", job="-general")  # the review
+        self.assertEqual("depth:-general", out["task"])
+        self.assertEqual("done", self.call_ok("task", key=out["task"], wait=120)["state"])
+        got = self.call_ok("depth_findings", job="-general")
+        self.assertTrue(got["reviewed"])
+        self.assertFalse(got["agent"])  # no backend: the rule-based checks only, said
+        self.assertIn("no_agent", got["notes"])
+        unit = next(u for u in got["units"] if any(f["code"] == "depth_circumstance" for f in u["findings"]))
+        f = next(f for f in unit["findings"] if f["code"] == "depth_circumstance")
+        self.assertEqual(("ask", "혼자"), (f["way"], f["quote"]))
+        self.assertTrue(self.call_ok("answer_depth", job="-general", finding=f["id"], text="장애 유형을 결제, 재고, 배송으로 나눠 대응 순서를 정했다")["cid"])
+        bad = self.call("apply_depth_rewrite", job="-general", finding=f["id"])  # a question has no words to use
+        self.assertTrue(bad["isError"])
+        self.assertIn("depth_no_rewrite", bad["content"][0]["text"])
+        self.assertEqual(f["id"], self.call_ok("leave_depth_finding", job="-general", finding=f["id"])["finding"])
+        rule = self.call_ok("remember_rule", list="retired", row=["혼자 문서로", "문서로", "the procedures were the team's"], lang="ko")  # the correction, kept
+        self.assertEqual(("rules", 1), (rule["style"], rule["rows"]))
+
+
+class TestDepthSummary(unittest.TestCase):
+    """What depth_findings hands an agent: thin units first with their verdict and gate, the strong by title (no panel)."""
+
+    def test_thin_first_with_its_gate_and_the_strong_by_title(self):
+        rec = {"at": "2026-11-17 09:00", "lang": "ko", "agent": True, "calls": 1, "counts": {"thin": 1, "strong": 1}, "now": {"open": 2, "gates": 1}, "units": [
+            {"id": "item:nara-1", "kind": "item", "title": "가상은행 분석 플랫폼 이관", "where": "나라클라우드", "verdict": "thin", "missing": ["hard", "mechanism"], "findings": [
+                {"id": "f1", "code": "depth_hard", "way": "ask", "state": "open", "gate": True, "verdict": "thin", "question": "무엇이 어려웠나요?"},
+                {"id": "f2", "code": "depth_names", "way": "ask", "state": "open", "gate": False, "verdict": "thin", "question": "어느 고객이었나요?"}]},
+            {"id": "item:dasom-1", "kind": "item", "title": "사내 배포 파이프라인", "where": "다솜", "verdict": "strong", "missing": [], "findings": []}]}
+        got = compact_depth(rec)
+        u = got["units"][0]
+        self.assertEqual(("item:nara-1", "thin", ["hard", "mechanism"], True), (u["unit"], u["verdict"], u["missing"], u["gate"]))
+        self.assertEqual([True, None], [f.get("gate") for f in u["findings"]])  # the gate is marked; a suggestion carries no mark
+        self.assertEqual([{"title": "사내 배포 파이프라인", "verdict": "strong"}], got["clean"])
+        self.assertEqual({"open": 2, "gates": 1}, got["now"])  # what is still open, counted as the person acts
+        page = compact_depth({**rec, "projects": [{"pid": "nara-1", "title": "가상은행 분석 플랫폼 이관"}], "units": [{"id": "slide:4", "kind": "slide", "title": "목차", "verdict": None,
+                                                                                                                   "findings": [{"id": "f9", "code": "depth_hard", "way": "ask", "state": "open"}]}]})
+        self.assertEqual((None, True), (page["units"][0]["project"], page["units"][0]["needs_project"]))  # an unpaired page: its answer needs a project
+        self.assertEqual("nara-1", page["projects"][0]["pid"])  # the ones it may name
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 # Writing: drafts from evidence
 
 A profile in the ledger form ([The profile format](DOCUMENTS.md#the-profile-format)) holds facts, not resume sentences. This page describes the step that writes every part
-the resume prints from those facts, the checks every drafted sentence passes, the style packs that carry a person's
-writing rules, the claim-strength check, how the cover letter uses them, and JSON Resume import and export.
+the resume prints from those facts, the checks every drafted sentence passes, the depth review that says what a true sentence
+still leaves out, the style packs that carry a person's writing rules, the claim-strength check, how the cover letter uses
+them, and JSON Resume import and export.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/diagram-sentence-dark.svg">
@@ -28,7 +29,7 @@ writing rules, the claim-strength check, how the cover letter uses them, and JSO
 | Selected projects | `summary.highlights` | challenge, action and result rows; the result row has one highlight; the place line ("Nara Cloud  2024 ~ 2025") is computed, not written |
 | Core competencies | `competencies` | four to six (the pack decides), each `{name, text, evidence}`; `evidence` is the projects its cited blocks belong to |
 | Company line | `roles[].desc` | one sentence per role, from the role's head and context blocks |
-| Work-history items | `roles[].projects[].title`, `short`, `summary` | one item is one project; sentences in the order scope, decision, result; exactly one highlight per item |
+| Work-history items | `roles[].projects[].title`, `short`, `summary` | one item is one project; sentences in the order scope, decision, result ([The rubric](#the-rubric)); exactly one highlight per item |
 | About me | `about` | the pack's number of sections (three by default), an optional quote box |
 | Motivation | `motivation` | two or three sentences; a sentence about the company may only use the posting's own text |
 | Deck cover and overview | `summary.stats`, `summary.focus`, `roles[].journey`, `summary.contents`, `summary.glance` | four proof tiles `[value, note]`, four focus columns `[title, line]` and a career path station per printed role `{phase, line, key}` for the deck's cover, one line over the contents and one over the career at a glance; no highlight |
@@ -39,6 +40,27 @@ profile loader (`src/profile_loader.js`) reads for each edition. Projects the dr
 
 With `--job`, every part is written for that posting. Without it, only the parts the profile lacks are written, and
 what the person wrote stays. `--parts items,summary,competencies,about,deck` picks parts by hand.
+
+### The rubric
+
+What the prompts ask of each part, in `src/prompts/write_items.md` and the rules every prompt shares (`write_rules.md`):
+
+- **Scope** says what the person was responsible for and the situation, and what made the work hard when the evidence says:
+  a constraint, the scale, a failure and its cost, requirements that pulled against each other, or what did not work first.
+- **Decision** says what the person decided and how, with the alternative set aside when the evidence holds one.
+- **Result** says what came of it and why it worked: the mechanism in technical terms. The selected-project cards' result
+  row and the deck's proof tiles say it too when the evidence does.
+- **Which projects lead**: those whose evidence holds a difficulty, a decision and a result with its mechanism.
+- **Never invented**: a difficulty, a reason, an alternative or a mechanism the evidence does not state is never written.
+  When the evidence holds none, the item says less, and the depth review asks the person.
+- **Circumstances are not achievements**: the only, first or sole developer, working alone, a team's size, the day the
+  person joined. The work stands in their place.
+- **The person's own forms stand**: a job title with two positions or a gloss in parentheses is written whole, and a
+  phrase the person's rules keep is never rewritten (below).
+
+A part added to a prompt can make the fields it already wrote worse, so each addition is one clause. One real draft of the
+fictional example before and after the rubric (the six calls of a draft): 184 and 182 texts, 20 and 14 sent to repair on
+the first round, none dropped, both passing their check; the items now open on the situation that made the work hard.
 
 ### Stages and calls
 
@@ -83,9 +105,9 @@ Each language of each text is held against the text of the ids it cites:
 | Level | Codes | Effect |
 |---|---|---|
 | facts | `unknown_id`, `no_ev`, `frame_where`, `number`, `number_word`, `name`, `org`, `name_src`, `empty` | dropped after the repair round |
-| style | `banned_char`, `banned_pattern`, `banned_word`, `coined`, `too_long`, `highlight` | dropped after the repair round |
-| claims | `claim` | sent to repair; dropped when still too strong |
-| polish | `ending` (a Korean item ending like prose), `routine` (a highlight that reads as a routine duty), `title_end` | reported only |
+| style | `banned_char`, `banned_pattern`, `banned_word`, `coined`, `too_long`, `highlight`, `retired` (a phrase the person's pack retired) | dropped after the repair round |
+| claims | `claim`, `proposal` (work the pack says ended as a proposal, written as done) | sent to repair; dropped when still too strong |
+| polish | `ending` (a Korean item ending like prose), `routine` (a highlight that reads as a routine duty), `title_end`, `circumstance` (the only developer, alone, a team's size, a join date) | reported only |
 
 - **Numbers** follow the pack: `evidence` (the default) allows a number the cited evidence states; `forbid` allows none
   in the prose. A product name that starts with digits (`389DS`) is a name; a figure with a unit (`400Gbps`) is a number.
@@ -98,6 +120,9 @@ Each language of each text is held against the text of the ids it cites:
 - **Both editions say the same thing**: a sentence that fails in one language is dropped in both.
 - **One item is one project**: a sentence of an item may not cite another project's blocks; such ids are removed before
   the check.
+- **Phrases fixed once** hold while drafting: a text that prints a phrase of the pack's `claims.retired` goes to the repair
+  round with the words to write instead, and one that speaks of a `claims.proposal` topic without its word goes back as a
+  claim ([Phrases fixed once](#phrases-fixed-once)). The pack's rows never enter a prompt: the checks hold them.
 
 `draft check` repeats all of it on a drafted profile and also reports text that no linked sentence covers (`unlinked`, or
 `edited` when the field changed after drafting). Its last line is the verdict, for example
@@ -112,6 +137,92 @@ What the checks stopped when the AI backend drafted for the fictional example:
 </picture>
 
 <sub>Measured by `tools/measure.py`, replaying one recorded run of the AI backend.</sub>
+
+## The depth review
+
+The checks above hold every sentence to its evidence. A sentence can be true and still say nothing a hiring engineer can
+weigh ("ran the payment platform"). The depth review (`src/depth_review.py`, its prompt `src/prompts/depth_review.md`)
+reads each project item the edition prints and each page of its last deck, in one language, and says what each leaves out.
+
+| Code | What is missing |
+|---|---|
+| `depth_scope` | what the person was responsible for, and the situation |
+| `depth_hard` | what made the work hard: a constraint, the scale, a failure and its cost, requirements that pulled against each other, what did not work first |
+| `depth_decision` | what the person decided, and the alternative set aside |
+| `depth_mechanism` | why the result came about, in technical terms |
+| `depth_names` | the systems, tools, clients and places the evidence names, where the words stay general |
+| `depth_routine` | routine work written as an achievement |
+| `depth_circumstance` | a circumstance written where the work should be |
+| `depth_thinner` | a difficulty, a mechanism or names that the copy that went out printed and the edition lost |
+
+Each unit the agent reads also gets a **verdict** on the three core parts: what made the work hard, the decision and the
+alternative it beat, and why the result came about. The agent copies the printed words that state each part; a part counts
+as stated only when those words are found in the unit (marks, quotation marks, hyphens and Korean spacing aside; a quote
+that skips words with "..." holds its pieces in their order, four letters each at least), so the verdict follows a rule, not
+a word the model picks. The same words count for one part only, and one sentence never states all three: when every quote
+stands in one sentence, the last part does not count. A quote for what made the work hard does not count when it only names
+where the work began: its last word is a setting, the equipment, the material or a state ("scattered metadata", "a slow
+query", "a closed network") and no word in it says how the work was hard ("could not", "stayed at", "took three days", "had
+to", "at once", "because"; `depth_review.is_situation`, in both languages). Such a quote is a starting situation, and the part
+counts as not said:
+
+| Verdict | Rule | Its findings |
+|---|---|---|
+| **thin** | two or three parts not stated | one for each missing part: **the gate** (fixed from the evidence or answered before the edition goes out), the rest suggestions |
+| **adequate** | one part not stated | one for the missing part, the others only where they matter: suggestions |
+| **strong** | all three stated | none of the agent's but `depth_names` and `depth_routine`, when they matter; the two checks that need no agent still say a circumstance or a lost name |
+
+A stated part takes no finding; a missing part always has one (the agent's, else the part's own question). Units are listed
+thin first (the most parts missing first), then adequate, then any the agent did not rate, then strong. Without an agent no
+unit has a verdict. A quote that did not count is kept on the unit (`refused`, and why in `refused_why`: `not_in_words`,
+`situation`, `repeated`, `one_sentence`), so a reader sees why a part the agent called stated counts as missing.
+
+- **Two ways on.** A finding is a **rewrite** when the item's evidence holds what is missing: one sentence that replaces a
+  printed one or follows the last, citing the evidence, held to the draft's own checks (facts, names, claim strength, the
+  pack's words); a rewrite that fails them, or cites what the item was not shown, is never offered and the finding becomes a
+  **question** for the person ("What made this hard? What failed first? Why did it work?").
+- **An answer becomes evidence, never a line of its own.** The person's answer is kept as a typed fact of that project: one
+  more line of its ledger, which the next draft may cite and the canvas counts as the item's evidence. A deck page that names
+  no project asks which project the answer belongs to; an answer with no project, or whose project is gone, is refused
+  (`depth_no_project`), and so is one on a submitted application (`locked`). Using a rewrite edits the sentence through the
+  canvas's own path and records the blocks it cites as the item's evidence (one undo step); on an English edition translated
+  from a Korean profile, only a sentence a draft wrote takes a rewrite, as the canvas refuses the rest (`edit_in_korean`).
+- **What the person did is kept apart.** Used, answered and left live in `depth.<lang>.acts.json`, never in the review: a
+  review that finishes while the person acts keeps what they did, an undo takes back that step only, and a later review of
+  the same words keeps each finding used, answered or left.
+- **What each unit is read with.** Its project's own ledger blocks, the entries it names in `evidence: [ids]`, its role's
+  context, and for an item with no ledger of its own (a resume written by hand beside a ledger of the same company) the
+  role's projects that the resume does not print, best match first. A deck page is paired with the project its title names:
+  the page's first lines that hold words must hold most of one project's title (its rare words weighing more), well ahead of
+  any other; a page that names two alike, or none, stays unpaired.
+- **Without an agent**, two checks still run: circumstance phrases (in both languages) and the names, tools and
+  organisations the copy that went out printed and the edition lost. A circumstance is the person's own (the only or first
+  developer, alone, a team's headcount, a join date), never the scale of the work ("an organisation of 3,000"); in an English
+  edition a lost name is a word that looks like one (Kubernetes, AWS, PostgreSQL), never an ordinary word. The review says
+  that the rest did not run.
+- **Against the copy that went out.** An export and a lock keep the edition's words beside its baseline pages
+  ([The pages that went out](DOCUMENTS.md#the-pages-that-went-out)); a lock's frozen copy counts too, the newer one first.
+  Items are matched by their project's id only: another project with the same title is not the same item.
+- **Calls.** One per batch of units (about 36,000 characters), eight at most for one review unless `OFFEROWL_DEPTH_CALLS`
+  says otherwise (`draft write --depth-calls N` too; `draft write` says the count before the review runs, and `--no-depth`
+  skips it). Units left unread are counted with their reason: the call limit, an agent that stopped, or an answer that left
+  them out. `python3 src/depth_review.py review <profile.json> --count` says how many calls a review would make.
+- **The gate is the procedure's, not the export's.** No finding stops an export. The procedure an agent works in makes a
+  thin unit's missing parts its gate and the rest suggestions ([MCP.md](MCP.md#the-procedure)); the review's `now` counts
+  the findings still open and the thin units whose gate is still open, as the person acts on them.
+
+It runs as the last stage of a drafting run (the panel's write and tailor tasks, `draft write` unless `--no-depth`), on
+demand from Documents (**Review each project's depth**, whose sheet opens at the window's right edge), through the API
+(`POST /api/v1/jobs/depth` and the finding's `answer`, `apply` and `leave`), the command line and the MCP tools:
+
+```bash
+./offerowl depth review gamma                     # the edition of the job gamma, Korean (--lang en for English)
+./offerowl depth show general                      # the general edition's last review, thin units first (`general`: a shell reads -general as an option)
+./offerowl depth answer gamma f3a9c1d2e4 "..."     # the person's answer, kept as a fact of that project (--project ID for a page that names none)
+./offerowl depth apply gamma f0b1c2d3e4            # a rewrite in place of the sentence it replaces
+./offerowl depth leave gamma f0b1c2d3e4            # left as it is
+python3 src/depth_review.py review profile.json --deck deck.pdf --against sent.json   # a profile on disk, its deck and what went out
+```
 
 ## Claim strength
 
@@ -231,6 +342,10 @@ The panel words every finding by its code in the person's language (`--report` w
 defects over the pages, which keep the PDFs home as before, and the notes to polish in a quieter band.
 
 ### Phrases fixed once
+
+The person's corrections are how the harness remembers: each one becomes a row of these lists (in the panel's Style tab as a
+new pack, or one row at a time through `POST /api/v1/style/rule`, the MCP tool `remember_rule`), which every draft and every
+build reads from then on.
 
 A sentence corrected against the facts tends to come back in the next edition written from an older one, and an edition
 corrected alone leaves the others saying it the old way. The pack's `claims` object keeps the corrections, and every build's
@@ -387,8 +502,9 @@ because the resume prints months.
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests/write    # drafting with a stand-in model, claim strength, style packs, JSON Resume
+python3 -m unittest discover -s tests/write    # drafting with a stand-in model, claim strength, style packs, the depth review, JSON Resume
 python3 -m unittest discover -s tests/cover    # the cover letter, with the gap tests in test_cover_gaps.py
+python3 -m unittest tests/app/test_depth.py    # the depth review in the panel's API and its command line, with a stand-in
 ```
 
 The stand-in (`tests/write/standin.py`) answers for a fictional ledger (`tests/write/fixtures/ledger_ko.json`) and plants

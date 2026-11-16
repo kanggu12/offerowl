@@ -87,7 +87,8 @@ Browser tests need Playwright: `pip install playwright && python3 -m playwright 
 |:---|:---|---:|
 | Anything (syntax and lint) | `python3 tests/cli/lint.py` | seconds |
 | The launcher, settings, messages, a backend | `python3 -m unittest discover -s tests/cli` | seconds |
-| Drafting, claim strength, style packs, JSON Resume | `python3 -m unittest discover -s tests/write` | seconds |
+| Drafting, claim strength, style packs, the depth review, JSON Resume | `python3 -m unittest discover -s tests/write` | seconds |
+| The depth review in the panel's API, its command line and the procedure's MCP tools | `python3 -m unittest tests/app/test_depth.py tests/app/test_mcp.py` | seconds |
 | The cover letter | `python3 -m unittest discover -s tests/cover` | seconds |
 | The interview kit | `python3 -m unittest discover -s tests/interview` | seconds |
 | The panel or the API | `python3 -m unittest discover -s tests/app` (the Playwright tests skip without it) | seconds |

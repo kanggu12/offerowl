@@ -425,6 +425,7 @@ class Resume:
             out.append({"unit": c, "quote": text_of(f.get("quote")), "where": where,  # the fact's own quote
                         "file": text_of(src.get("name")) if f.get("origin") != "typed" else ""})  # a file name, never a path; typed facts have none
             kind = kind or ("typed" if f.get("origin") == "typed" else text_of(f.get("kind")))  # the first fact's kind
+        out += self.named_evidence(sid)  # the ledger entries the item names as its evidence
         return out, kind  # [] when nothing backs it
 
     def evidence_text(self, sid: str) -> str:
@@ -448,7 +449,27 @@ class Resume:
                         item = None  # nothing more
                         break  # stop walking
                 parts.append(json.dumps(item, ensure_ascii=False) if isinstance(item, (dict, list)) else text_of(item))  # every word it holds
+        parts += [q["quote"] for q in self.named_evidence(sid)]  # the ledger entries the item names as its evidence (a depth review's rewrite)
         return "\n".join(p for p in parts if p)  # one text
+
+    def named_evidence(self, sid: str) -> list[dict]:
+        """The entries a project item names in its `evidence: [ids]` (the ledger projects or blocks it rests on, which a depth
+        review's rewrite adds), each as an evidence entry: its text, and the project it belongs to."""
+        item = self.at(self.place_of(sid))  # the item the sentence belongs to
+        refs = [str(x) for x in (item.get("evidence") or [])] if isinstance(item, dict) and isinstance(item.get("evidence"), list) else []  # what it names
+        if not refs:  # most items name nothing: their facts are their evidence
+            return []
+        import cover as C  # the units
+        import write_resume as W  # the ledger as it was before any draft
+        if getattr(self, "_named_units", None) is None:  # first use: the units of the profile drawn (draft_units keeps the draft's own)
+            self._named_units = C.units_of(W.ledger_view(self.prof), self.lang)
+        U = self._named_units  # the units
+        out = []  # one entry per named entry
+        for ref in refs:  # each named entry
+            for uid in (U["proj"].get(ref) or ([ref] if ref in U["index"] else [])):  # a project's blocks, or one block
+                u = U["index"][uid]  # the unit
+                out.append({"unit": uid, "quote": u["text"], "where": (U["heads"].get(u["pid"]) or "").split(" | ")[1] if u.get("pid") and " | " in (U["heads"].get(u["pid"]) or "") else "", "file": ""})  # its words, under its project's title
+        return out
 
     def add(self, sid: str, text: str) -> str:
         """Register one sentence with its evidence and state. Returns its id."""

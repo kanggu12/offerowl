@@ -13,7 +13,7 @@ import unittest  # the test framework (standard library, nothing to install)
 
 from support import LAUNCHER, ROOT, clean_env, run_launcher
 
-COMMANDS = ["init", "ingest", "draft", "build", "baseline", "cover", "interview", "panel", "open", "edition", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # what --help must list
+COMMANDS = ["init", "ingest", "draft", "depth", "build", "baseline", "cover", "interview", "panel", "open", "edition", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # what --help must list
 
 
 def help_names(text: str) -> list:
@@ -173,7 +173,7 @@ class LaterPhaseProgramsTest(unittest.TestCase):
     def test_help_marks_the_missing_programs(self):
         r = run_launcher("--help", env=clean_env(OFFEROWL_LANG="en"), root=self.root)
         marked = [line.split()[0] for line in r.stdout.splitlines() if "(not installed)" in line]
-        self.assertEqual(marked, ["baseline", "cover", "interview", "panel", "edition", "api", "mcp", "doctor"])  # the copy holds none of the component programs
+        self.assertEqual(marked, ["depth", "baseline", "cover", "interview", "panel", "edition", "api", "mcp", "doctor"])  # the copy holds none of the component programs
 
     def test_installed_programs_get_their_arguments_cwd_and_exit_code(self):
         # A plain script: arguments arrive as typed, the working folder is the user's, the exit code comes back.

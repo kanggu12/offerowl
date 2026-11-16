@@ -722,7 +722,8 @@ the deck when Offerowl draws one). `src/check_blind.py` then holds the blind edi
 ### The pages that went out
 
 When an edition goes out (exported to the Desktop, or locked as submitted), its page pictures are kept as its baseline
-(`src/baseline.py`), in the edition's folder beside its previews (`baseline/`, and `baseline_blind/` for its blind edition, whose
+(`src/baseline.py`), with the profile they were typeset from (`profile.json`: what the depth review holds a later edition to,
+[The depth review](WRITING.md#the-depth-review)), in the edition's folder beside its previews (`baseline/`, and `baseline_blind/` for its blind edition, whose
 bars are no change to the ordinary copy): two thirds of the previews' size, each colour
 channel rounded to six levels, about 40 KB a page and 20 KB a slide. Every later build of the edition puts its pictures in the
 same form and compares them pixel by pixel. One reader draws the same page the same way, so an unchanged page is the same
@@ -797,7 +798,7 @@ These are the fields that `src/resume_form.js` (the resume) and `src/deck_slides
 | `person` | `name` and `email` are required. `name_en`, `phone`, `tagline`, `links[]` ([name, visible text, address]) |
 | `summary` | `headline` (one line), `intro.{ko,en}` (paragraph) |
 | `roles[]` | `org`, `title`, `dept`, `place`, `start`, `end` (null while still employed, an empty string or no field when unknown), `projects[]` |
-| `roles[].projects[]` | `id`, `title`, `period`, `summary` (one or two sentences; `==phrase==` is the yellow highlight). For the portfolio: `points[]` (bullets on the left of the slide), `figure` (`{type:"flow", steps:[[title, description]]}`, `{type:"compare", unit, beforeLabel, afterLabel, rows:[[metric, before, after]]}`, `{type:"layers", rows:[[layer, content]]}`, each with an optional `caption`). A project with a figure takes one slide in the deck |
+| `roles[].projects[]` | `id`, `title`, `period`, `summary` (one or two sentences; `==phrase==` is the yellow highlight), `evidence` (optional: the ids of the ledger projects or blocks the item rests on, which the canvas reads with it; a depth review's rewrite adds them). For the portfolio: `points[]` (bullets on the left of the slide), `figure` (`{type:"flow", steps:[[title, description]]}`, `{type:"compare", unit, beforeLabel, afterLabel, rows:[[metric, before, after]]}`, `{type:"layers", rows:[[layer, content]]}`, each with an optional `caption`). A project with a figure takes one slide in the deck |
 | `education[]` | `school`, `major`, `degree`, `start`, `end` (null while still enrolled, an empty string or no field when unknown) |
 | `skills[]` | `category`, `items[]` |
 | `sections[]` | `title`, `title_en`, `items[]` (lists such as certificates and awards) |

@@ -2301,3 +2301,45 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 .viewhead > .edstart { margin: -3px 0 0 -6px; }                                     /* its words on the subtitle's baseline: centred, a 28 px key set them 1.4 px lower (measured) */
 @media (min-width: 860px) { .viewhead > .docacts { margin-left: auto; } }
 @media (max-width: 859px) { .viewhead > .btn.edstart { flex: 0 1 auto; margin: 0; padding-inline: 0; } }   /* on a phone, under the words, from their left edge */
+
+/* the depth review's sheet (depth.js): flush with the window's right edge from the top bar's foot, as the command bar's is; on a
+   tablet or a phone it rises from the foot. A finding is its words, a quote is a line beside its words, the keys stand under it */
+#depthsheet { position: fixed; top: var(--bar-h); right: 0; bottom: 0; z-index: 61; display: flex; pointer-events: none; }
+#depthsheet:empty { display: none; }
+#depthsheet > * { pointer-events: auto; }
+.depth-panel { display: flex; flex-direction: column; width: min(520px, calc(100vw - 32px)); height: 100%; background: var(--solid); border: 0; border-left: 1px solid var(--line-2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); box-shadow: var(--float); animation: ask-in var(--t-mid) var(--ease) both; }
+html[data-motion="off"] .depth-panel, .depth-panel.stay { animation: none !important; }   /* it slides in on opening only */
+.depth-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.depth-head > svg { width: 16px; height: 16px; color: var(--ink-2); }
+.depth-sub { font-size: 12px; color: var(--ink-3); }
+.depth-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
+.depth-sum, .depth-empty { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+.depth-unit { display: grid; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.depth-unit h3 { margin: 0; font-size: 14px; line-height: 1.4; }
+.depth-where { margin: -6px 0 0; font-size: 12px; color: var(--ink-3); }
+.depth-f { display: grid; gap: 6px; }
+.depth-f + .depth-f { padding-top: 10px; border-top: 1px solid var(--line); }       /* findings of one item, divided by a hairline */
+.depth-code { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.45; }
+.depth-missing { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+.depth-rw { margin: 0; padding: 2px 0 2px 10px; border-left: 2px solid var(--focus); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.depth-q { margin: 0; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.depth-f .field textarea { min-height: 64px; font-size: 13px; }
+.depth-keys { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.depth-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--ink-2); }
+.depth-clean { margin: 0; }
+.depth-tally { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }                  /* the verdicts at a glance, with the fit's lamps: met, in part, not met */
+.depth-group { display: grid; gap: 2px; padding-top: 4px; }                           /* a verdict's heading over its units, thin first */
+.depth-group h2 { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.depth-group .hint { margin: 0; }
+.depth-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 0; font-size: 12.5px; color: var(--ink-2); }   /* the unit's verdict and what its words do not say */
+.depth-gate { margin-right: 6px; font-size: 11.5px; font-weight: 600; color: var(--met-none); }   /* a thin unit's missing part: the one colour that asks first */
+.depth-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.depth-foot .hint { margin: 0; }
+body:has(#depthpanel) #scrim { display: block; position: fixed; inset: var(--bar-h) 0 0 0; z-index: 34; background: rgba(0, 0, 0, .3); }   /* the page dims behind the sheet; a tap closes it (app.js) */
+:root[data-theme="dark"] body:has(#depthpanel) #scrim { background: rgba(0, 0, 0, .6); }
+body:has(#depthpanel) #askbar { display: none; }                                    /* one sheet at that edge at a time */
+@media (max-width: 860px) {                                                         /* a tablet or a phone: from the foot across the screen, as the command bar's */
+  #depthsheet { top: auto; left: 0; height: 78dvh; }
+  .depth-panel { width: 100%; border-left: 0; border-top: 1px solid var(--line-2); }
+  body:has(#depthpanel) #scrim { inset: 0; } }

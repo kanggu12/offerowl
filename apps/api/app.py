@@ -305,6 +305,60 @@ class Api:
         write_json(self.ws.path("style", f"{name}.json"), pack)  # kept with the workspace (and its backups)
         return name  # the page selects it
 
+    def style_read(self) -> dict:
+        """The writing rules in use (GET /api/v1/style): their name ("default" for Offerowl's own), whether they are the
+        person's own, and the pack as written, its claims included: what an agent reads before it adds a correction."""
+        spec = self.tasks.style_spec()  # "default", or the path of the person's pack
+        f = ROOT / "src" / "style" / "default.json" if spec == "default" else Path(spec)  # the file
+        pack = read_json(f, {})  # as written
+        return {"style": "default" if spec == "default" else f.stem, "own": spec != "default", "pack": pack if isinstance(pack, dict) else {}}
+
+    def add_rule(self, req: dict) -> dict:
+        """One correction of the person's kept as a row of the claims of the pack in use (docs/WRITING.md "Phrases fixed once"),
+        so a draft never writes it again and every build holds the documents to it: {list: retired | shared | proposal, row:
+        [pattern, text, why] (and the ledger words), lang: ko | en | both}. While Offerowl's own pack is in use the row goes into
+        the person's own pack "rules" (made from it the first time), which is chosen from then on. The whole pack is checked as
+        a new one is (add_style), so a pattern that does not compile is refused here. One undo step. Returns {style, list, lang,
+        rows}: the pack's name and the rows that list holds now in that language."""
+        import copy  # the pack is changed on a copy
+        kind, lang, row = str(req.get("list") or ""), str(req.get("lang") or "both"), req.get("row")  # what is asked
+        if kind not in ("retired", "shared", "proposal") or lang not in ("ko", "en", "both"):  # the lists and languages there are
+            raise ValueError("rule")
+        if not (isinstance(row, list) and 2 <= len(row) <= 4 and all(isinstance(x, str) and len(x) <= 400 for x in row[:3])
+                and str(row[0]).strip() and (len(row) < 4 or isinstance(row[3], (str, list)))):  # [pattern, text, why] and the ledger words
+            raise ValueError("rule")
+        row = [str(x).strip() if isinstance(x, str) else x for x in row]  # no edge spaces in a pattern
+        cur = self.style_read()  # the pack in use
+        name = cur["style"] if cur["own"] else "rules"  # the person's own pack, or the one made for their rules
+        base = cur["pack"] if cur["own"] else (read_json(self.ws.path("style", "rules.json"), None) or cur["pack"])  # what the row joins
+        pack = copy.deepcopy(base)  # changed on a copy: the file is written only once the whole pack passed
+        claims = pack.setdefault("claims", {}) if isinstance(pack.get("claims", {}), dict) else {}  # the table
+        pack["claims"] = claims  # a broken value is replaced, never kept
+        have = claims.get(kind)  # one list for both languages, one per language, or none
+        if lang == "both":  # the rule holds in either edition
+            if isinstance(have, dict):  # kept per language: the row joins each
+                for k in ("ko", "en"):
+                    have.setdefault(k, [])
+                    if row not in have[k]:
+                        have[k].append(row)
+            else:  # one list
+                claims[kind] = (have or []) + ([row] if row not in (have or []) else [])
+        else:  # one language
+            if isinstance(have, list):  # one list for both: it stays for both, and the row joins one side
+                claims[kind] = {k: list(have) + ([row] if k == lang and row not in have else []) for k in ("ko", "en")}
+            else:  # per language already, or none yet
+                side = (have or {}).setdefault(lang, []) if isinstance(have, dict) else None
+                if side is None:
+                    claims[kind] = {lang: [row]}
+                elif row not in side:
+                    side.append(row)
+        with self.ws.change({"code": "undo_rule", "title": row[0][:60]}, [f"style/{name}.json"]):  # one undo step
+            name = self.add_style({"name": name, "pack": pack})  # checked as a new pack is, and kept
+        self.set_settings({"style": name})  # in use from now on
+        now = (pack["claims"].get(kind) or [])  # the list as kept
+        n = len(now.get("ko" if lang == "both" else lang) or []) if isinstance(now, dict) else len(now)  # its rows in that language
+        return {"style": name, "list": kind, "lang": lang, "rows": n}
+
     def blind_view(self) -> dict:
         """What the panel shows of the mask table of the blind edition: whether it is the person's own (else Offerowl's, which
         covers nothing), how many patterns each of its lists holds, and its stamp (what an edition's bars were made with)."""

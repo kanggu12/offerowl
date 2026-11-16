@@ -549,7 +549,7 @@ function docsPart(j, tk) {                                                      
     tk.state === "error" ? band(tk.error.code, { retry: () => tailorJob(j.id) }) : null,
     tk.state === "done" && tk.result && (tk.result.stopped || []).length ? band("agent_stopped", { retry: () => tailorJob(j.id) }) : null);  // part of it did not come back: the same band, with a retry
 }
-const STEP_WORDS = { queued: "Starting", waiting_turn: "Waiting for the task before it to finish", writing_resume: "Writing the resume from your evidence", drawing_figures: "Drawing the figures from your evidence", analysis: "Ordering the resume for this job", asking_agent: "Asking the agent", matching_words: "Matching the posting by its words",  // what a running task is doing now
+const STEP_WORDS = { queued: "Starting", waiting_turn: "Waiting for the task before it to finish", writing_resume: "Writing the resume from your evidence", reviewing_depth: "Reviewing each project's depth", drawing_figures: "Drawing the figures from your evidence", analysis: "Ordering the resume for this job", asking_agent: "Asking the agent", matching_words: "Matching the posting by its words",  // what a running task is doing now
   typesetting_resume: "Typesetting the resume", writing_cover: "Writing the cover letter", typesetting_cover: "Typesetting the cover letter", interview_kit: "Making the interview questions" };
 function tailorJob(jid) {                                                           // one action for all three documents
   return act("/api/v1/jobs/tailor", { job: jid, lang: docLang(), theme: UI.theme, maxPages: UI.maxPages, cover: UI.cover, typeset: UI.typeset && !S.engine });

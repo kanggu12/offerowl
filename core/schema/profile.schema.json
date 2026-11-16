@@ -58,7 +58,9 @@
                 "summary": {"$ref": "#/$defs/text", "description": "One or two sentences; ==phrase== is the highlighter."},
                 "points": {"type": "array", "items": {"$ref": "#/$defs/text"}},
                 "figure": {"type": "object"},
-                "cand": {"type": "string", "description": "The fact (candidate id) this project came from, when it was read from a file."}
+                "cand": {"type": "string", "description": "The fact (candidate id) this project came from, when it was read from a file."},
+                "evidence": {"type": "array", "items": {"type": "string"}, "description": "The ledger projects or blocks the item rests on, which the canvas reads with it (a depth review's rewrite adds them)."},
+                "cand_lines": {"type": "object", "description": "The person's answers kept as lines of this project's ledger, each under the fact that added it."}
               }
             }
           },

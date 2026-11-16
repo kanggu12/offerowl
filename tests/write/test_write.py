@@ -251,6 +251,29 @@ class CommandLineTests(unittest.TestCase):  # draft.py write and check
             self.assertIn("No model answered", r.stdout)  # the message says so
             self.assertFalse(out.exists())  # nothing was written
 
+    def test_draft_write_says_the_depth_review_s_calls_before_it_runs_and_keeps_its_limit(self):  # the review costs calls of its own
+        import contextlib  # the command's printed words
+        import io  # caught in memory
+        from unittest import mock  # one test's environment
+        with tempfile.TemporaryDirectory() as tmp, Model(**{"depth-review": {"units": []}}) as m:  # every call answered here; the review's answers leave units out
+            src = pathlib.Path(tmp) / "ledger.json"  # the fictional ledger as a file
+            src.write_text(json.dumps(LEDGER, ensure_ascii=False), encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), mock.patch.dict(os.environ, {"OFFEROWL_LANG": "en", "OFFEROWL_DEPTH_CALLS": "5"}), \
+                    mock.patch.object(llm, "chosen", lambda backend=None: ("stand-in", None)):  # a model is there, whatever this PC has
+                W.main(["write", str(src), "-o", str(pathlib.Path(tmp) / "x.draft.json"), "--record", str(pathlib.Path(tmp) / "x.write.json"),
+                        "--style", PRIVATE, "--langs", "ko", "--depth-calls", "1"])
+            text = out.getvalue()
+            self.assertIn("depth review next: 1 model calls, at most 1 (", text)  # the option outranks the setting
+            self.assertLess(text.index("depth review next:"), text.index("depth review (ko):"))  # said before the review ran
+            self.assertEqual(1, sum(1 for c in m.calls if c[0] == "depth-review"))  # and it kept to the limit
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), mock.patch.dict(os.environ, {"OFFEROWL_LANG": "en"}), \
+                    mock.patch.object(llm, "chosen", lambda backend=None: ("stand-in", None)):
+                W.main(["write", str(src), "-o", str(pathlib.Path(tmp) / "y.draft.json"), "--record", str(pathlib.Path(tmp) / "y.write.json"),
+                        "--style", PRIVATE, "--langs", "ko", "--no-depth"])
+            self.assertNotIn("depth review", out.getvalue())  # --no-depth: no review, no calls of its own
+
     def test_draft_check_passes_a_drafted_profile_and_fails_an_edited_one(self):  # the verdict is the last line
         new, _, _ = run_draft()  # one run
         with tempfile.TemporaryDirectory() as tmp:  # a scratch folder
@@ -287,6 +310,56 @@ class StyleTests(unittest.TestCase):  # style packs
     def test_a_missing_pack_stops(self):  # a typo must never switch the rules off
         with self.assertRaises(SystemExit):  # a missing pack
             W.load_style("no-such-pack")  # stops the run
+
+
+class RubricTests(unittest.TestCase):  # 0.11.0: the drafting rubric and the person's corrections held at draft time
+    def test_the_items_prompt_asks_for_the_difficulty_the_alternative_and_the_mechanism(self):  # each said once, and only from the evidence
+        _, _, m = run_draft()  # one run
+        items = m.calls[0][1]  # the items prompt
+        self.assertIn("what made the work hard: a constraint, the scale, a failure and its cost", items)  # the scope's difficulty
+        self.assertIn("with the alternative set aside", items)  # the decision's alternative
+        self.assertIn("why it worked, the mechanism in technical terms", items)  # the result's mechanism
+        self.assertIn("Prefer projects whose evidence holds a difficulty", items)  # which projects lead
+        self.assertIn("Each part says only what its evidence states", items)  # never invented
+        self.assertIn("difficulties, alternatives, mechanisms or numbers that it does not state", items)  # the shared rule
+        self.assertIn("Circumstances are not achievements", items)  # the only developer, alone, a team's size, a join date
+        self.assertIn("a job title with two positions or with a gloss in parentheses is written whole", items)  # the person's own forms
+        summary = m.calls[1][1]  # the summary prompt carries the same rules and asks the result row for its mechanism
+        self.assertIn("Circumstances are not achievements", summary)
+        self.assertIn("why it worked, with exactly one ==highlight==", summary)
+
+    def pack(self, claims: dict) -> dict:
+        """The private pack with a claims object of the test's own."""
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-claims-"))  # a folder of its own
+        self.addCleanup(shutil.rmtree, tmp, True)  # gone afterwards
+        raw = json.loads(pathlib.Path(PRIVATE).read_text(encoding="utf-8"))  # the private pack as written
+        f = tmp / "claims.json"  # the same pack with the claims
+        f.write_text(json.dumps({**raw, "claims": claims}, ensure_ascii=False), encoding="utf-8")
+        return W.load_style(str(f))  # read as every draft reads a pack
+
+    def test_a_phrase_the_person_retired_never_comes_back_in_a_draft(self):  # repaired, else dropped in both languages
+        st = self.pack({"retired": {"ko": [["온콜 로테이션 정립", "온콜 로테이션 문서화", "it was written down, not set up"]]}})
+        new, rec, m = run_draft(style=st)  # the stand-in writes the retired phrase and cannot fix it
+        gone = [d for d in rec["dropped"] if any(i["code"] == "retired" for i in d["issues"])]  # dropped for it
+        self.assertEqual(["project.nara-2.summary"], [d["at"] for d in gone])
+        repair = next(p for t, p in m.calls if t == "write-repair")  # the repair was told what to write instead
+        self.assertIn("온콜 로테이션 문서화", repair)
+        nara2 = next(p for p in new["roles"][0]["projects"] if p["id"] == "nara-2")  # both editions say the same: the sentence is gone from both
+        self.assertNotIn("로테이션 정립", nara2["summary"]["ko"])
+        self.assertNotIn("Set the on-call rotation", nara2["summary"]["en"])
+
+    def test_a_proposal_written_as_done_work_and_a_circumstance(self):  # a claim sent to repair, and a note to polish
+        st = self.pack({"proposal": [["Kubernetes", "제안|[Pp]ropos", "the move was proposed, then done with the team"]]})
+        ctx = W.Ctx(LEDGER, st)  # the fictional ledger
+        codes = lambda text, lang, ids, kind="item": [i["code"] for i in W.text_issues(text, lang, ids, {}, ctx, kind=kind, marks=(0, 1))]
+        self.assertIn("proposal", codes("분석 플랫폼을 Kubernetes로 이관", "ko", ["nara-1#2", "nara-1#3"]))  # the proposal written as done
+        self.assertNotIn("proposal", codes("분석 플랫폼의 Kubernetes 이관 설계안을 제안", "ko", ["nara-1#2"]))  # it says so
+        self.assertNotIn("proposal", codes("Kubernetes 이관", "ko", ["nara-1#2"], kind="title"))  # a title claims nothing
+        self.assertIn("proposal", W.CLAIM_CODES)  # repaired, then dropped like a claim stronger than its evidence
+        found = codes("GitLab과 Jenkins로 혼자 배포 파이프라인 구축", "ko", ["dasom-1#1"])
+        self.assertIn("circumstance", found)  # alone: the work belongs there
+        self.assertIn("circumstance", W.POLISH_CODES)  # a note, never a reason to drop
+        self.assertFalse(W.hard([{"code": "circumstance"}]))
 
 
 if __name__ == "__main__":  # run this file alone

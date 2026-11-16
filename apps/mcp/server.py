@@ -181,6 +181,35 @@ def slide_text(page: str) -> list[str]:
     return out  # in order
 
 
+def compact_depth(rec: dict) -> dict:
+    """An edition's depth review cut to what an agent acts on, thin units first: each unit that has findings with its verdict
+    (strong, adequate or thin), the core parts its words do not state, and whether it is the gate (thin); every finding with
+    its id, code, way, state, whether it is part of the gate, what is missing and its rewrite or question; the units with
+    nothing missing by title and verdict only."""
+    if rec.get("none"):  # never reviewed
+        return {"reviewed": False, "hint": "run depth_review for this edition first"}
+    units, clean = [], []  # the units with findings, and those without
+    for u in rec.get("units") or []:  # thin first, as the API lists them
+        fs = []  # its findings, cut
+        for f in u.get("findings") or []:
+            g = {k: f[k] for k in ("id", "code", "way", "state", "gate", "missing", "question", "quote", "lost") if f.get(k)}  # what it says; gate only when it is one
+            if isinstance(f.get("rewrite"), dict):  # the words to use, and what they rest on
+                g["rewrite"] = {k: f["rewrite"].get(k) for k in ("replaces", "text", "ev")}
+            fs.append(g)
+        if fs:  # something is missing
+            units.append({"unit": u.get("id"), "kind": u.get("kind"), "title": u.get("title"), "where": u.get("where"), "verdict": u.get("verdict"),
+                          "missing": u.get("missing") or [], "gate": u.get("verdict") == "thin", "changed": bool(u.get("changed")),
+                          **({"project": u["pid"]} if u.get("pid") else {"project": None, "needs_project": u.get("kind") == "slide"}), "findings": fs})  # an unpaired page's answer names its project
+        else:  # nothing missing
+            clean.append({"title": u.get("title"), "verdict": u.get("verdict")})
+    return {"reviewed": True, "at": rec.get("at"), "lang": rec.get("lang"), "agent": rec.get("agent"), "calls": rec.get("calls"), "counts": rec.get("counts"),
+            "now": rec.get("now"), "notes": rec.get("notes"), "stale": bool(rec.get("stale")), "went_out": rec.get("went_out"), "units": units, "clean": clean,
+            "projects": rec.get("projects") or []}  # the items an unpaired page's answer may belong to
+
+
+PROCEDURE = Path(__file__).resolve().parent / "skills" / "offerowl-application" / "SKILL.md"  # the procedure an agent works in (the harness)
+
+
 def clip(text: str) -> str:
     """An answer's text within TEXT_MAX characters, saying so when it was cut."""
     return text if len(text) <= TEXT_MAX else text[:TEXT_MAX] + f"\n... (cut at {TEXT_MAX} characters)"  # never silently cut
@@ -355,6 +384,42 @@ class Server:
             return {"questions": [{k: q.get(k) for k in ("id", "text", "limit", "unit", "answer", "state", "cites", "issues", "at")}
                                   for q in j.get("questions") or []]}
 
+        @tool("checks", "What the checks found in an edition's last PDFs, per language: the defects that keep them home (`checks`, "
+                        "`issues`), the notes to polish, the pages changed since the copy that went out (`changes`), and whether the "
+                        "facts moved on since (`stale`). Works for an application, a named edition and '-general'.",
+              S({"job": JOB, "lang": LANG}, ("job",)))
+        def checks(a):
+            jid = need(a, "job")  # which edition
+            st = p.get("/api/v1/state")  # the general and the named editions are in the state
+            every = [*(p.get("/api/v1/jobs").get("jobs") or []), st.get("general") or {}, *(st.get("editions") or [])]  # where an edition may be
+            ed = next((e for e in every if e.get("id") == jid), None)  # the one asked for
+            if ed is None:  # not there
+                raise PanelError(f"no edition {jid}; see list_jobs, or '-general'")
+            keep = ("at", "pages", "slides", "issues", "checks", "polish", "changes", "notes", "stale", "blind", "maxPages")  # what an agent acts on
+            langs = [a["lang"]] if a.get("lang") else list(LANGS)  # one language, or both
+            return {lang: ({k: b.get(k) for k in keep if k in b} if (b := (ed.get("builds") or {}).get(lang)) else {"made": False}) for lang in langs}
+
+        @tool("editions", "The editions with words of their own that an application's resume can start from (named editions "
+                          "first, then applications, newest words first), and with `job` what that one has now.",
+              S({"job": JOB}))
+        def editions(a):
+            return p.get("/api/v1/editions", job=a.get("job") or None)  # the list and the target
+
+        @tool("procedure", "How to make or strengthen an application with Offerowl, step by step, with the checks that gate each "
+                           "step and the tool for each: read it before you write or change a document.", S({}))
+        def procedure(a):
+            return PROCEDURE.read_text(encoding="utf-8") if PROCEDURE.is_file() else "the procedure is not in this copy of Offerowl"  # the shipped text
+
+        @tool("depth_findings", "An edition's last depth review, thin units first: each project item and deck page with its verdict "
+                                "(strong, adequate or thin, by which of what made the work hard, the decision and its alternative, and why "
+                                "it worked its words state) and what it leaves out, each finding with its id, a rewrite that cites the "
+                                "evidence or a question for the person, and its state. A thin unit's findings marked `gate` are fixed "
+                                "from evidence or answered by the person before the edition goes out; the rest are suggestions. "
+                                "`changed` marks an item written again since the review; `now` counts what is still open.",
+              S({"job": JOB, "lang": LANG}, ("job",)))
+        def depth_findings(a):
+            return compact_depth(p.get(f"/api/v1/jobs/{jpath(need(a, 'job'))}/depth", lang=a.get("lang") or "ko"))  # the review as the page reads it
+
         @tool("tracker", "The board's columns with each card, the timeline, and the reminders that are due.", S({}))
         def tracker(a):
             tr = p.get("/api/v1/tracker")  # the board, the timeline and what is due
@@ -419,6 +484,21 @@ class Server:
             out = p.post("/api/v1/jobs", {k: a[k] for k in ("posting", "url", "company", "role") if a.get(k)})  # the new job
             return {"job": out.get("job"), "task": f"analyze:{out.get('job')}"}  # its id and the analysis to wait for
 
+        @tool("start_edition", "Start an application's (or a named edition's) own edition from another edition's words, as the "
+                               "panel's Start from another edition does; `replace` only after the person agreed to replace the words "
+                               "it has (editions says what they are). One undo step.",
+              S({"job": JOB, "from": {"type": "string", "description": "the edition to start from, as editions lists it"},
+                 "replace": {"type": "boolean"}}, ("job", "from")), read=False)
+        def start_edition(a):
+            return p.post("/api/v1/jobs/own/copy", {"job": need(a, "job"), "from": need(a, "from"), "replace": a.get("replace") is True})
+
+        @tool("write_resume", "Write an edition's resume from the evidence with the AI backend (task write:<job>; '-general' for the "
+                              "general edition): every part again, the locked sentences kept, and the depth review as its last stage.",
+              S({"job": JOB, "lang": LANG}, ("job",)), read=False)
+        def write_resume(a):
+            out = p.post("/api/v1/jobs/write", {"job": need(a, "job"), "lang": a.get("lang") or "ko"})  # started
+            return {"started": out.get("started"), "task": out.get("task")}
+
         @tool("make_documents", "Tailor a job's resume, cover letter and interview kit together with the AI backend, from the "
                                 "kept evidence. Returns the task key (tailor:<job>); wait for it with `task`.",
               S({"job": JOB, "lang": LANG, "theme": THEME, "max_pages": {"type": "integer", "minimum": 1, "maximum": 7},
@@ -444,6 +524,14 @@ class Server:
         def export_documents(a):
             out = p.post("/api/v1/jobs/export", {"job": need(a, "job"), "lang": a.get("lang")})  # the copies
             return {"exported": out.get("exported"), "refused": out.get("refused") or []}  # the names written, and any held back
+
+        @tool("lock_submitted", "Freeze what an application sent, once the person says they submitted it: exact copies and their "
+                                "hashes are kept with the job and its card moves to submitted. Refused while a sentence lacks evidence "
+                                "or a check failed. Never on your own judgment. One undo step.",
+              S({"job": JOB, "lang": LANG}, ("job",)), read=False)
+        def lock_submitted(a):
+            out = p.post("/api/v1/jobs/lock", {"job": need(a, "job"), "lang": a.get("lang") or "ko"})  # the frozen copies
+            return {"locked": out.get("locked")}
 
         @tool("make_interview_kit", "Make a job's interview question map now, without tailoring the rest (no AI backend).",
               S({"job": JOB, "lang": LANG}, ("job",)), read=False)
@@ -492,13 +580,51 @@ class Server:
             body = {k: a[k] for k in ("job", "kind", "at", "asked", "notes", "id", "remove") if k in a}  # as sent
             return {"round": p.post("/api/v1/tracker/round", body).get("round")}  # the round as kept
 
+        @tool("depth_review", "Review an edition's depth now with the AI backend (task depth:<job>; with no backend, only the checks "
+                              "that need none): each printed project item and the last deck's pages. Read it with depth_findings.",
+              S({"job": JOB, "lang": LANG}, ("job",)), read=False)
+        def depth_review(a):
+            out = p.post("/api/v1/jobs/depth", {"job": need(a, "job"), "lang": a.get("lang") or "ko"})  # started
+            return {"started": out.get("started"), "task": out.get("task")}
+
+        @tool("answer_depth", "Keep the person's answer to a depth finding's question as a fact of that project (their own words, "
+                              "never yours): the next draft can cite it; it never prints by itself. A deck page that names no project "
+                              "needs `project` (an item's id from depth_findings' `projects`, as the person says). One undo step.",
+              S({"job": JOB, "lang": LANG, "finding": {"type": "string"}, "text": {"type": "string"}, "project": {"type": "string"}}, ("job", "finding", "text")), read=False)
+        def answer_depth(a):
+            return p.post("/api/v1/jobs/depth/answer", {"job": need(a, "job"), "lang": a.get("lang") or "ko", "finding": need(a, "finding"), "text": need(a, "text"),
+                                                        "project": a.get("project") or ""})
+
+        @tool("apply_depth_rewrite", "Use a depth finding's rewrite in place of the sentence it replaces, through the canvas's own "
+                                     "checks. Refused for a question, a deck page, a submitted application or an item written again since. One undo step.",
+              S({"job": JOB, "lang": LANG, "finding": {"type": "string"}}, ("job", "finding")), read=False)
+        def apply_depth_rewrite(a):
+            return p.post("/api/v1/jobs/depth/apply", {"job": need(a, "job"), "lang": a.get("lang") or "ko", "finding": need(a, "finding")})
+
+        @tool("leave_depth_finding", "Leave a depth finding as it is, when the person decides so: later reviews keep it left while the "
+                                     "item's words stay the same. One undo step.",
+              S({"job": JOB, "lang": LANG, "finding": {"type": "string"}}, ("job", "finding")), read=False)
+        def leave_depth_finding(a):
+            return p.post("/api/v1/jobs/depth/leave", {"job": need(a, "job"), "lang": a.get("lang") or "ko", "finding": need(a, "finding")})
+
+        @tool("remember_rule", "Keep one of the person's corrections as a rule of their writing rules' claims, so no draft writes it "
+                               "again and every build holds the documents to it: `retired` [old pattern, new words, why], `shared` "
+                               "[topic pattern, phrase pattern, why] (every general edition says the topic so), `proposal` [topic "
+                               "pattern, word pattern, why] (work that ended as a proposal says so). Patterns are Python regular "
+                               "expressions. One undo step.",
+              S({"list": {"type": "string", "enum": ["retired", "shared", "proposal"]}, "row": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 4},
+                 "lang": {"type": "string", "enum": ["ko", "en", "both"], "description": "the editions it holds in (default both)"}}, ("list", "row")), read=False)
+        def remember_rule(a):
+            return p.post("/api/v1/style/rule", {"list": need(a, "list"), "row": [str(x) for x in a.get("row") or []], "lang": a.get("lang") or "both"})
+
         @tool("add_fact", "Add a fact the person states (for example something they told after an interview): its kind, "
                           "organisation, period, title and statement. It is kept as typed, its own words its evidence. One undo step.",
               S({"kind": {"type": "string", "enum": ["role", "project", "education", "skill", "paper", "patent", "award", "certificate", "other"]},
-                 "org": {"type": "string"}, "period": {"type": "string"}, "title": {"type": "string"}, "statement": {"type": "string"}},
+                 "org": {"type": "string"}, "period": {"type": "string"}, "title": {"type": "string"}, "statement": {"type": "string"},
+                 "project": {"type": "string", "description": "a project's id: the fact becomes one more line of that project's evidence"}},
                 ("kind", "statement")), read=False)
         def add_fact(a):
-            body = {k: a[k] for k in ("kind", "org", "period", "title", "statement") if isinstance(a.get(k), str)}  # the fields
+            body = {k: a[k] for k in ("kind", "org", "period", "title", "statement", "project") if isinstance(a.get(k), str)}  # the fields
             return {"cid": p.post("/api/v1/facts/add", body).get("cid")}  # the new fact's id
 
         @tool("reminder", "Add a reminder to a job (`at` YYYY-MM-DD and `text`), or mark one done or remove it (`id`).",
@@ -549,7 +675,9 @@ class Server:
                                          "serverInfo": {"name": "offerowl", "title": "Offerowl", "version": version()},
                                          "instructions": "Offerowl turns one evidence-backed profile into a resume, a deck, a cover letter "
                                                          "and an interview kit. Call `status` first, then `list_jobs`. Write tools start "
-                                                         "tasks in the running panel; wait for them with `task`."})
+                                                         "tasks in the running panel; wait for them with `task`. Before you make or "
+                                                         "strengthen an application's documents, read `procedure`: the steps, their checks "
+                                                         "and the tool for each."})
             if method == "ping":  # liveness
                 return self.result(mid, {})
             if method == "tools/list":  # the tools, all on one page
