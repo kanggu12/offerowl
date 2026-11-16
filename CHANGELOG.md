@@ -6,6 +6,55 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-17
+
+Checks on what an edition says and on how its documents agree: phrases fixed once, the edition against your profile, what
+the pages show, the Korean and the English editions, the resume and its deck, a blind edition and its ordinary twin, and the
+pages that went out. And a new application can start from the words of another edition.
+
+### Added
+
+- **Start an application from another edition.** A new application can start from the sentences you keep up to date as a
+  named edition, or from an earlier application's own edition, and then be rewritten for its posting. The facts, edits,
+  locks, languages and layout choices are copied as they are now; the profile and its evidence are built again with your
+  details as they are now, and the edition says where it came from. Documents has **Start from another edition** beside
+  its head, and `offerowl edition list|start` and `POST /api/v1/jobs/own/copy` do the same
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#starting-from-another-edition)).
+- **Phrases fixed once.** A style pack keeps the phrases you retired and the ones you settled on: a retired phrase never
+  comes back, a general edition says one topic with one phrase, and work that ended as a proposal says so. A rule whose
+  words are no longer in your profile is reported as stale ([WRITING.md](docs/WRITING.md#phrases-fixed-once)).
+- **The edition against your profile.** Printed periods, names and list entries are checked against the profile, with the
+  words every edition must hold, the core projects and, in a general edition, the items each company keeps (an application
+  drops some for its posting on purpose). The shape is kept too: the section
+  order, the figures, the about-me parts, the job titles' form and a skills table of stacks only
+  ([WRITING.md](docs/WRITING.md#the-edition-against-the-profile)).
+- **What the pages show.** An application's last page is filled, no middle page has a hole, the career summary sits on
+  page 1, the company and about-me bands are centred and each company's lines follow its tenure
+  ([WRITING.md](docs/WRITING.md#what-the-pages-show)).
+- **The Korean and the English edition agree.** When an edition is made in both languages they are compared: counts,
+  periods, filled fields, skills, patent numbers and list dates, and every Latin word of the Korean text appears in the
+  English one (the style pack's aliases and glossary help). The language your words are written in is the source: its
+  differences are notes, the other edition's are defects, and that edition is not exported until it agrees
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#the-korean-and-the-english-edition)).
+- **The resume and its deck agree.** The deck's project slides carry the resume's project names and periods, its theme's
+  colours and font, and the lists you name run newest first
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#the-resume-and-its-deck)).
+- **A blind edition is checked against its ordinary twin.** A blind build also typesets the edition without bars: every word
+  it leaves uncovered stays in place, on the same number of pages. A mask pattern no blind edition matches is noted, unless
+  the table's new `mask_keep` names it ([DOCUMENTS.md](docs/DOCUMENTS.md#a-blind-edition-and-its-ordinary-twin)).
+- **See what changed since the pages went out.** An export or a lock keeps the pages as small pictures, and every later
+  build marks the pages that changed and draws them side by side. Documents shows **See what changed** and **Keep these
+  pages as the baseline**; `offerowl baseline show|accept|compare` and `POST /api/v1/jobs/baseline` do the same
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#the-pages-that-went-out)).
+- `offerowl build` runs the checks across documents too.
+
+### Fixed
+
+- Editing or locking an application's own words is one step of the workspace's undo history, so Undo no longer takes back
+  the change before it. Bringing an edition in is one undo step too, and undoing it a second time no longer deletes the
+  files brought in for the job. An edition's files are replaced with its printed profile last, so the panel never finds a
+  job without one.
+
 ## [0.9.2] - 2026-11-13
 
 What independent reviews of 0.9.1 found (the first run, the Documents area, the rest of the panel, the server and the
@@ -511,7 +560,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/kanggu12/offerowl/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/kanggu12/offerowl/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/kanggu12/offerowl/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/kanggu12/offerowl/compare/v0.8.1...v0.9.0
