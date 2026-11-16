@@ -6,6 +6,19 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-11-17
+
+The release files, named one way.
+
+### Changed
+
+- Every release file is named in lower case and says what it is, `offerowl-<version>-...`: the desktop app is
+  `offerowl-<version>-<system>-<machine>` (`.exe` on Windows, `.zip` on macOS, and on Linux a `.tar.gz` that holds the
+  program `offerowl` and keeps its execute bit through a browser's download), the Helm chart
+  `offerowl-<version>-helm-chart.tgz`, and the checksums `offerowl-<version>-sha256sums.txt`. The Python wheel and source
+  archive keep the names Python's tools read. [INSTALL.md](docs/INSTALL.md#1-the-desktop-app) says what each file is, and
+  its download links name the version. Earlier releases keep their files as they were.
+
 ## [0.11.0] - 2026-11-17
 
 The writing harness: the drafting step, a review of each item's depth, and the procedure an agent works in, held together so
@@ -600,7 +613,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/kanggu12/offerowl/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/kanggu12/offerowl/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/kanggu12/offerowl/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/kanggu12/offerowl/compare/v0.9.1...v0.9.2
