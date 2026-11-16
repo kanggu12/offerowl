@@ -199,7 +199,9 @@ def sh(cmd: list[str], env: dict | None = None) -> subprocess.CompletedProcess:
     this Python, since Windows has no python3 command"""
     if local():
         full = [sys.executable] + cmd[1:] if cmd[:1] == ["python3"] else cmd
-        env = dict(env or os.environ, PYTHONDONTWRITEBYTECODE="1")  # no .pyc files in the repository, as run.sh does
+        # no .pyc files in the repository, as run.sh does; and the tools print UTF-8, as this reads them: on Windows a pipe is
+        # cp1252 by default, and a check that printed a Korean word there stopped before it wrote its report
+        env = dict(env or os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
     elif sys.platform == "win32":  # OFFEROWL_RENDERER=container on Windows: run.sh cannot start here
         raise SystemExit(t("container_on_windows"))
     else:
