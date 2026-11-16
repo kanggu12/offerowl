@@ -20,12 +20,12 @@ maker's server cannot work there, and this page says which parts those are.
 
 | Way | Files | Also needed on the closed side |
 |:---|:---|:---|
-| The app | `Offerowl-<system>-<machine>`, about 55 MB | Edge, Chrome or Chromium, for PDFs |
+| The app | `offerowl-<version>-<system>-<machine>` (`.exe`, `.zip` or `.tar.gz`), about 55 MB | Edge, Chrome or Chromium, for PDFs |
 | A container | the image as one compressed file, about 600 MB (about 1.5 GB once loaded), and `deploy/docker/compose.yaml` | Docker with Compose |
-| A Helm chart | the image, and `offerowl-<version>.tgz` | a registry the cluster pulls from. The chart needs this one image and no other, its test pod included |
+| A Helm chart | the image, and `offerowl-<version>-helm-chart.tgz` | a registry the cluster pulls from. The chart needs this one image and no other, its test pod included |
 | The Python package | the wheel, Pillow and pypdfium2, and `node_modules`, for the same system, machine and Python version | Python 3.10 or newer, Node.js 22 or newer, Edge, Chrome or Chromium |
 
-Check the files against the release's `SHA256SUMS` before you carry them across, as [installing](INSTALL.md#1-the-desktop-app)
+Check the files against the release's `offerowl-<version>-sha256sums.txt` before you carry them across, as [installing](INSTALL.md#1-the-desktop-app)
 shows.
 
 ## The app
@@ -67,7 +67,7 @@ docker load -i offerowl-app-0.11.0.tar.gz
 docker tag ghcr.io/kanggu12/offerowl-app:0.11.0 registry.internal/offerowl-app:0.11.0
 docker push registry.internal/offerowl-app:0.11.0
 
-helm install offerowl ./offerowl-0.11.0.tgz --namespace offerowl --create-namespace \
+helm install offerowl ./offerowl-0.11.0-helm-chart.tgz --namespace offerowl --create-namespace \
   --set image.repository=registry.internal/offerowl-app --set image.tag=0.11.0 \
   --set ai.backend=openai-compat --set ai.url=http://models.internal:11434 --set ai.model=<model name>
 ```

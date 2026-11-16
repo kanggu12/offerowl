@@ -433,7 +433,7 @@ Run `offerowl doctor` first if you installed the package. It says what is missin
 | The cover letter says it needs the agent | Turn the agent on: a letter is written, not assembled |
 | "Port in use" | Another program holds 8797. Stop it, or use `--port N` |
 | The panel answers 403 | The address bar must say `127.0.0.1` or `localhost`, and the panel's own port |
-| Windows warns about an unknown publisher | The files are not code-signed yet. Choose **More info**, then **Run anyway**, after checking the file against `SHA256SUMS` |
+| Windows warns about an unknown publisher | The files are not code-signed yet. Choose **More info**, then **Run anyway**, after checking the file against the release's `offerowl-<version>-sha256sums.txt` |
 | A file gives no facts and says it has no text | It is probably a scan. Use the container, install Tesseract, or copy its text into a text file |
 | A page runs long or a figure is cut | The check names the page. Shorten the sentence on the canvas or raise the page limit under **Style** |
 

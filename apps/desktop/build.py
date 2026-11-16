@@ -27,6 +27,7 @@ import ast  # the imports of the bundled sources
 import os  # the separator of --add-data
 import platform  # the machine name
 import re  # the package's version
+import tarfile  # the Linux program in a .tar.gz, which keeps its execute bit
 import shutil  # clean build folders
 import subprocess  # PyInstaller and the check
 import sys  # the running Python
@@ -135,7 +136,7 @@ def mac_bundle(exe: Path, machine: str, version: str, out: Path, work: Path, min
         print(f"no icon in the bundle: {exc}")  # said in the build's log
     if sys.platform == "darwin":  # the signature macOS on Apple silicon needs before it starts anything, with no developer account
         subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(root)], check=True)  # ad hoc, over the whole bundle
-    named = out / f"Offerowl-macos-{machine}.zip"  # the file to hand out
+    named = out / f"offerowl-{version}-macos-{machine}.zip"  # the file to hand out: lower case, the version, the system and the machine
     named.unlink(missing_ok=True)  # an old one must not pass for a new one
     with zipfile.ZipFile(named, "w", zipfile.ZIP_DEFLATED) as z:  # Finder's Archive Utility reads the modes back
         for f in sorted(p for p in root.rglob("*") if p.is_file()):  # every file, in a fixed order
@@ -188,12 +189,22 @@ def main(argv: list[str] | None = None) -> int:  # one command builds the app an
     system = {"win32": "windows", "darwin": "macos"}.get(sys.platform, "linux")  # system names people know, for the file name
     # one name per architecture, whatever the OS calls it
     machine = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}.get(platform.machine().lower(), platform.machine().lower())
-    named = DIST / f"Offerowl-{system}-{machine}{'.exe' if WINDOWS else ''}"  # the file to hand out
+    version = package_version()  # every file handed out names its version, in lower case: offerowl-<version>-<system>-<machine>
     if system == "macos":  # a bundle a person can open from Finder
         import sysconfig  # where this build's packages are installed
-        named = mac_bundle(exe, machine, package_version(), DIST, WORK, minimum_macos(Path(sysconfig.get_paths()["platlib"])))  # the zip, with the version and the oldest macOS
-    else:  # the file itself
-        shutil.copy2(exe, named)  # the checked file itself, under its release name; copy2 keeps its execute bit
+        named = mac_bundle(exe, machine, version, DIST, WORK, minimum_macos(Path(sysconfig.get_paths()["platlib"])))  # the zip, with the version and the oldest macOS
+    elif WINDOWS:  # the program itself
+        named = DIST / f"offerowl-{version}-windows-{machine}.exe"  # its release name
+        shutil.copy2(exe, named)  # the checked file itself
+    else:  # Linux: a browser's download drops a bare program's execute bit, an archive keeps it
+        plain = DIST / "offerowl"  # the program as it runs here: the end-to-end test starts this one
+        shutil.copy2(exe, plain)  # the checked file itself; copy2 keeps its execute bit
+        named = DIST / f"offerowl-{version}-linux-{machine}.tar.gz"  # its release name
+        with tarfile.open(named, "w:gz") as tar:  # one entry: the program, as offerowl
+            info = tar.gettarinfo(str(plain), arcname="offerowl")  # its size and kind
+            info.mode, info.uid, info.gid, info.uname, info.gname, info.mtime = 0o755, 0, 0, "", "", 0  # executable, no owner of this PC, a fixed date
+            with open(plain, "rb") as fh:  # its bytes
+                tar.addfile(info, fh)
     print(f"wrote {named} ({named.stat().st_size / 1e6:.1f} MB)")  # CI and the log show what was made, and how large
     return 0  # exit 0 tells CI the build passed
 

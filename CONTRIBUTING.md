@@ -101,7 +101,7 @@ Browser tests need Playwright: `pip install playwright && python3 -m playwright 
 | The deck and its figures | `python3 tests/deck/run.py` | minutes |
 | The app, an image, the chart, the package | `python3 -m unittest discover -s tests/packaging` | under a minute |
 | The app image and the chart, running | `docker build -f deploy/docker/Dockerfile -t offerowl-app:local .` (with the network), then `tests/packaging/image_smoke.sh --selftest`, `tests/packaging/offline_e2e.sh` and `tests/packaging/chart_e2e.sh` (kind, helm and kubectl; it pulls kind's node image once) | minutes |
-| The one-file app | `pip install -r apps/desktop/requirements-build.txt`, `python apps/desktop/build.py`, then `python3 tests/desktop/e2e.py --app dist/Offerowl-linux-x64 --out /tmp/e2e` | minutes |
+| The one-file app | `pip install -r apps/desktop/requirements-build.txt`, `python apps/desktop/build.py`, then `python3 tests/desktop/e2e.py --app dist/offerowl --out /tmp/e2e` | minutes |
 | A decision backend | `python3 -m unittest discover -s tests/decide` | seconds |
 | Everything a document goes through | `./offerowl selftest` | under a minute |
 
