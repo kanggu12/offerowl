@@ -42,22 +42,22 @@ chart carry no Claude Code or Codex, so they use a model server or none.
 **Windows** (PowerShell)
 
 ```powershell
-iwr https://github.com/kanggu12/offerowl/releases/latest/download/Offerowl-windows-x64.exe -OutFile Offerowl.exe -UseBasicParsing
-.\Offerowl.exe
+iwr https://github.com/kanggu12/offerowl/releases/download/v0.11.0/offerowl-0.11.0-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
+.\offerowl.exe
 ```
 
 **macOS** (Apple silicon; on Intel, `arm64` becomes `x64`)
 
 ```bash
-curl -fLO https://github.com/kanggu12/offerowl/releases/latest/download/Offerowl-macos-arm64.zip
-ditto -x -k Offerowl-macos-arm64.zip . && open Offerowl.app
+curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.11.0/offerowl-0.11.0-macos-arm64.zip
+ditto -x -k offerowl-0.11.0-macos-arm64.zip . && open Offerowl.app
 ```
 
 **Linux** (x86-64)
 
 ```bash
-curl -fLo offerowl https://github.com/kanggu12/offerowl/releases/latest/download/Offerowl-linux-x64
-chmod +x offerowl && ./offerowl
+curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.11.0/offerowl-0.11.0-linux-x64.tar.gz | tar -xz
+./offerowl
 ```
 
 The panel opens in your browser. The icon by the clock opens it again, opens the data folder, or quits. Sign in to Claude
@@ -68,20 +68,33 @@ code-signed yet, so the system asks once:
 
 | System | File | What to choose |
 |:---|:---|:---|
-| Windows | `Offerowl-windows-x64.exe` | **More info**, then **Run anyway** |
-| macOS, Apple silicon | `Offerowl-macos-arm64.zip` | macOS 15 or newer: **System Settings**, **Privacy & Security**, **Open Anyway**. macOS 13 and 14: right-click the app, **Open**, then **Open** again |
-| macOS, Intel | `Offerowl-macos-x64.zip` | the same |
-| Linux | `Offerowl-linux-x64` | the file's **Properties**, **Allow executing as a program** |
+| Windows | `offerowl-0.11.0-windows-x64.exe` | **More info**, then **Run anyway** |
+| macOS, Apple silicon | `offerowl-0.11.0-macos-arm64.zip` | macOS 15 or newer: **System Settings**, **Privacy & Security**, **Open Anyway**. macOS 13 and 14: right-click the app, **Open**, then **Open** again |
+| macOS, Intel | `offerowl-0.11.0-macos-x64.zip` | the same |
+| Linux | `offerowl-0.11.0-linux-x64.tar.gz` | nothing: unpacked, `offerowl` keeps its execute bit |
 
-**Check the download.** The release lists a SHA-256 for each file in `SHA256SUMS`, and GitHub records where each was built:
+**What each file of a release is.** Every name is lower case: the version, then the system and the machine where they matter.
+
+| File | What it is |
+|:---|:---|
+| `offerowl-0.11.0-windows-x64.exe` | the desktop app for Windows on x86-64 |
+| `offerowl-0.11.0-macos-arm64.zip`, `offerowl-0.11.0-macos-x64.zip` | the desktop app for macOS on Apple silicon, and on Intel |
+| `offerowl-0.11.0-linux-x64.tar.gz` | the desktop app for Linux on x86-64: one program, `offerowl` |
+| `offerowl-0.11.0-helm-chart.tgz` | the Helm chart for Kubernetes, the same as `oci://ghcr.io/kanggu12/charts/offerowl` |
+| `offerowl-0.11.0-py3-none-any.whl` | the Python package for `pipx install`: `py3-none-any` is Python's own tag for any system and machine |
+| `offerowl-0.11.0.tar.gz` | the Python package's source, in the form Python's tools read |
+| `offerowl-0.11.0-sha256sums.txt` | the SHA-256 of every file above |
+
+**Check the download.** The release lists a SHA-256 for each file in `offerowl-0.11.0-sha256sums.txt`, and GitHub records where each
+was built:
 
 ```bash
-sha256sum -c --ignore-missing SHA256SUMS
-gh attestation verify Offerowl-linux-x64 --repo kanggu12/offerowl
+sha256sum -c --ignore-missing offerowl-0.11.0-sha256sums.txt
+gh attestation verify offerowl-0.11.0-linux-x64.tar.gz --repo kanggu12/offerowl
 ```
 
 On Windows, compare `Get-FileHash Offerowl.exe` with its line. The files are built and checked on Windows, on macOS (Apple
-silicon and Intel) and on Linux. The image has no line in `SHA256SUMS`; GitHub's record of where it was built is checked by
+silicon and Intel) and on Linux. The image has no line in the checksums file; GitHub's record of where it was built is checked by
 name: `gh attestation verify oci://ghcr.io/kanggu12/offerowl-app:0.11.0 --repo kanggu12/offerowl`.
 
 **Options.** `--no-browser`, `--no-tray` (no notification area), `--port N`, and `--check` (a throwaway copy with a stand-in

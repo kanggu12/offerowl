@@ -43,22 +43,22 @@ Pick your system, paste, and drop your files on the page that opens.
 **Windows** (PowerShell)
 
 ```powershell
-iwr https://github.com/kanggu12/offerowl/releases/latest/download/Offerowl-windows-x64.exe -OutFile Offerowl.exe -UseBasicParsing
-.\Offerowl.exe
+iwr https://github.com/kanggu12/offerowl/releases/download/v0.11.0/offerowl-0.11.0-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
+.\offerowl.exe
 ```
 
 **macOS** (Apple silicon; on Intel, `arm64` becomes `x64`)
 
 ```bash
-curl -fLO https://github.com/kanggu12/offerowl/releases/latest/download/Offerowl-macos-arm64.zip
-ditto -x -k Offerowl-macos-arm64.zip . && open Offerowl.app
+curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.11.0/offerowl-0.11.0-macos-arm64.zip
+ditto -x -k offerowl-0.11.0-macos-arm64.zip . && open Offerowl.app
 ```
 
 **Linux** (x86-64)
 
 ```bash
-curl -fLo offerowl https://github.com/kanggu12/offerowl/releases/latest/download/Offerowl-linux-x64
-chmod +x offerowl && ./offerowl
+curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.11.0/offerowl-0.11.0-linux-x64.tar.gz | tar -xz
+./offerowl
 ```
 
 **Docker**

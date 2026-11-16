@@ -155,12 +155,13 @@ class DesktopTest(unittest.TestCase):
 
     def test_it_keeps_the_files_build_py_names(self):
         upload = [s for s in steps(self.job) if s.get("uses", "").startswith("actions/upload-artifact")][0]
-        self.assertEqual(upload["with"]["path"], "dist/Offerowl-*")
+        self.assertEqual(upload["with"]["path"], "dist/offerowl-*")
         self.assertEqual(upload["with"]["if-no-files-found"], "error")
         self.assertIn("runner.os", upload["with"]["name"])  # one artifact name per system
         self.assertIn("runner.arch", upload["with"]["name"])  # and per architecture (two macOS builds)
         build_py = (ROOT / "apps" / "desktop" / "build.py").read_text(encoding="utf-8")
-        self.assertIn('f"Offerowl-{system}-{machine}', build_py)
+        for name in ('f"offerowl-{version}-macos-{machine}.zip"', 'f"offerowl-{version}-windows-{machine}.exe"', 'f"offerowl-{version}-linux-{machine}.tar.gz"'):
+            self.assertIn(name, build_py)  # lower case, the version, the system and the machine
 
     def test_the_panels_tests_run_on_every_system_but_the_intel_mac(self):
         matrix = self.job["strategy"]["matrix"]["include"]
@@ -231,10 +232,10 @@ class ReleaseTest(unittest.TestCase):
 
     def test_the_binaries_and_the_checksums_are_attached_and_signed(self):
         files = [s for s in steps(self.release) if s.get("uses", "").startswith("softprops/action-gh-release")][0]["with"]["files"]
-        for want in ("dist/app/Offerowl-*", "dist/SHA256SUMS", "offerowl-${{ steps.v.outputs.version }}.tgz"):
+        for want in ("dist/app/offerowl-*", "-sha256sums.txt", "offerowl-${{ steps.v.outputs.version }}-helm-chart.tgz"):
             self.assertIn(want, files)
         download = [s for s in steps(self.release) if s.get("uses", "").startswith("actions/download-artifact")][0]["with"]
-        self.assertEqual(download["pattern"], "Offerowl-*")  # what desktop.yml uploads
+        self.assertEqual(download["pattern"], "offerowl-app-*")  # what desktop.yml uploads
         self.assertIn("sha256sum", " ".join(scripts(self.doc)))
         attest = [s for s in steps(self.release) if s.get("uses", "").startswith("actions/attest-build-provenance")]
         self.assertEqual(len(attest), 2)  # the image, and the files

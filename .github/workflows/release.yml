@@ -3,7 +3,8 @@
 # - the Helm chart as an OCI artifact in the same registry, and as a .tgz;
 # - the Python package (a wheel and a source archive);
 # - the desktop app for Windows, macOS and Linux (desktop.yml);
-# all attached to the GitHub release with a SHA256SUMS file and GitHub's signed record of where each file was built.
+# all attached to the GitHub release, named offerowl-<version>-..., in lower case, with a checksums file
+# (offerowl-<version>-sha256sums.txt) and GitHub's signed record of where each file was built.
 #
 # Before anything is published, the checks of the tagged commit run, the chart is installed on a throwaway cluster
 # (chart-e2e.yml), and the desktop app is built and started with --check on each system (desktop.yml).
@@ -155,33 +156,34 @@ jobs:
           helm package deploy/helm/offerowl --version "${VERSION}" --app-version "${VERSION}" --destination dist
           echo "${TOKEN}" | helm registry login ghcr.io -u "${ACTOR}" --password-stdin
           helm push "dist/offerowl-${VERSION}.tgz" "oci://ghcr.io/${OWNER}/charts"
+          mv "dist/offerowl-${VERSION}.tgz" "dist/offerowl-${VERSION}-helm-chart.tgz"  # the release file says what it is
 
       # --- the desktop app, built by the desktop job
       - name: The desktop app's files
         uses: actions/download-artifact@v7
         with:
-          pattern: Offerowl-*
+          pattern: offerowl-app-*
           path: dist/app
           merge-multiple: true
 
       # The app is not code-signed yet: a checksum file and GitHub's own record of where each file was built are what a
-      # download can be checked against (sha256sum -c SHA256SUMS; gh attestation verify FILE --repo OWNER/offerowl)
+      # download can be checked against (sha256sum -c offerowl-VERSION-sha256sums.txt; gh attestation verify FILE --repo OWNER/offerowl)
       - name: Checksums of the files the release carries
         env:
           VERSION: ${{ steps.v.outputs.version }}
         run: |
           cd dist
-          { sha256sum "offerowl-${VERSION}.tgz" "offerowl-${VERSION}-py3-none-any.whl" "offerowl-${VERSION}.tar.gz"
-            (cd app && sha256sum Offerowl-*); } > SHA256SUMS
-          cat SHA256SUMS
+          { sha256sum "offerowl-${VERSION}-helm-chart.tgz" "offerowl-${VERSION}-py3-none-any.whl" "offerowl-${VERSION}.tar.gz"
+            (cd app && sha256sum offerowl-*); } > "offerowl-${VERSION}-sha256sums.txt"
+          cat "offerowl-${VERSION}-sha256sums.txt"
       - name: Where each file was built, signed by GitHub
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
-            dist/offerowl-${{ steps.v.outputs.version }}.tgz
+            dist/offerowl-${{ steps.v.outputs.version }}-helm-chart.tgz
             dist/offerowl-${{ steps.v.outputs.version }}-py3-none-any.whl
             dist/offerowl-${{ steps.v.outputs.version }}.tar.gz
-            dist/app/Offerowl-*
+            dist/app/offerowl-*
       - name: The release notes, from this version's section of CHANGELOG.md
         run: python3 .github/release_notes.py "${GITHUB_REF_NAME}" > release-notes.md
       - name: GitHub release
@@ -190,8 +192,8 @@ jobs:
           body_path: release-notes.md
           prerelease: ${{ steps.v.outputs.prerelease == 'true' }}
           files: |
-            dist/offerowl-${{ steps.v.outputs.version }}.tgz
+            dist/offerowl-${{ steps.v.outputs.version }}-helm-chart.tgz
             dist/offerowl-${{ steps.v.outputs.version }}-py3-none-any.whl
             dist/offerowl-${{ steps.v.outputs.version }}.tar.gz
-            dist/app/Offerowl-*
-            dist/SHA256SUMS
+            dist/app/offerowl-*
+            dist/offerowl-${{ steps.v.outputs.version }}-sha256sums.txt

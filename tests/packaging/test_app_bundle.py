@@ -32,7 +32,7 @@ class BundleTest(unittest.TestCase):
         self.assertEqual(BUILD.package_version(), package_version())  # pyproject.toml has no version line of its own: it is dynamic
 
     def test_the_name_is_the_one_the_release_collects(self):
-        self.assertEqual(self.named.name, "Offerowl-macos-arm64.zip")  # release.yml takes Offerowl-*
+        self.assertEqual(self.named.name, "offerowl-1.2.3-macos-arm64.zip")  # lower case, the version, the system, the machine: release.yml takes offerowl-*
 
     def test_the_program_keeps_its_execute_bit(self):
         info = self.zip.getinfo("Offerowl.app/Contents/MacOS/Offerowl")  # the program's entry

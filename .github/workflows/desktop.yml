@@ -94,10 +94,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install -y poppler-utils
-          python tests/desktop/e2e.py --app dist/Offerowl-linux-x64 --out e2e-out
+          python tests/desktop/e2e.py --app dist/offerowl --out e2e-out
       - uses: actions/upload-artifact@v7
         with:
-          name: Offerowl-${{ runner.os }}-${{ runner.arch }}
-          path: dist/Offerowl-*
+          name: offerowl-app-${{ runner.os }}-${{ runner.arch }}
+          path: dist/offerowl-*
           if-no-files-found: error
           retention-days: 14

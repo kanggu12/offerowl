@@ -96,12 +96,14 @@ class AgreementTest(unittest.TestCase):
             self.assertEqual([x for x in found if x], [version], found)
 
     def test_the_desktop_files_are_the_ones_the_build_names(self):
-        possible = {f"Offerowl-{system}-{machine}{ {'windows': '.exe', 'macos': '.zip'}.get(system, '') }"
+        version = package_version()  # the release files name it
+        possible = {f"offerowl-{version}-{system}-{machine}{ {'windows': '.exe', 'macos': '.zip', 'linux': '.tar.gz'}[system] }"
                     for system in ("windows", "macos", "linux") for machine in ("x64", "arm64")}
-        named = set(re.findall(r"`(Offerowl-[\w.-]+)`", section(SECTIONS["desktop"])))
+        named = set(re.findall(r"`(offerowl-[\d.]+-(?:windows|macos|linux)-[\w.-]+)`", section(SECTIONS["desktop"])))
         self.assertEqual(len(named), 4)
         self.assertLessEqual(named, possible)
-        self.assertTrue({n for n in named if n.startswith("Offerowl-windows")} == {"Offerowl-windows-x64.exe"})
+        self.assertEqual({n for n in named if "-windows-" in n}, {f"offerowl-{version}-windows-x64.exe"})
+        self.assertFalse(re.search(r"Offerowl-(?:windows|macos|linux)", GUIDE))  # no file of the old, mixed-case names
 
     def test_the_rows_of_the_doctor_table_are_the_rows_the_doctor_prints(self):
         table = section(SECTIONS["doctor"])

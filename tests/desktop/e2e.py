@@ -4,8 +4,8 @@
 clean environment with a temporary home, make the example person's resume, deck and cover letter through the panel's HTTP
 API the way the panel does, stop it, start it again, and keep the files.
 
-  python3 tests/desktop/e2e.py --app dist/Offerowl-linux-x64 --out <folder>
-  python3 tests/desktop/e2e.py --app dist/Offerowl-linux-x64 --out <folder> --poppler   # with poppler on the PATH too
+  python3 tests/desktop/e2e.py --app dist/offerowl --out <folder>
+  python3 tests/desktop/e2e.py --app dist/offerowl --out <folder> --poppler   # with poppler on the PATH too
   python3 tests/desktop/e2e.py compare --run <folder> --repo <checkout with node_modules> # the container build of the same inputs
 
 What it checks, each printed as `ok`, `FAIL` or `note` (the last line is `e2e: N checks, M failed`):
