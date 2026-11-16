@@ -185,11 +185,11 @@ class PrintedRulesTests(unittest.TestCase):
         self.assertIn("instead", self.codes("Instead of importing tools, we wrote them.", self.STRICT, lang="en"))
 
     def test_the_line_rules_come_from_the_pack(self):
-        rules = CD.line_rules({"resume": {"highlight": {"ko": [10, 22]}}, "printed": {"lines": "fail", "highlight_names": ["KOTRA"]}}, "ko")
+        rules = CD.line_rules({"resume": {"highlight": {"ko": [10, 22]}}, "printed": {"lines": "fail", "highlight_names": ["ORBIT"]}}, "ko")
         self.assertEqual((10, 22), rules["hl_range"])
         self.assertFalse(rules["polish"])  # defects
-        self.assertTrue(rules["names"].search("KOTRA 과제"))
-        self.assertFalse(rules["names"].search("KOTRAX"))  # a longer word is not the name
+        self.assertTrue(rules["names"].search("ORBIT 과제"))
+        self.assertFalse(rules["names"].search("ORBITX"))  # a longer word is not the name
         self.assertTrue(CD.line_rules({}, "ko")["polish"])  # notes to polish unless the pack says otherwise
 
 
@@ -217,13 +217,13 @@ class LineChecksTests(unittest.TestCase):
         self.assertEqual({"highlights": 1, "found": 1, "paragraphs": 2, "measured": 2}, seen)  # measured, not passed over
 
     def test_seeded_defects_are_found(self):
-        lines = [[("KOTRA와", 10, 50), ("함께", 55, 80), ("만든", 85, 110), ("수출", 115, 140), ("상담", 145, 170), ("창구를", 175, 210)],
+        lines = [[("ORBIT와", 10, 50), ("함께", 55, 80), ("만든", 85, 110), ("수출", 115, 140), ("상담", 145, 170), ("창구를", 175, 210)],
                  [("열었고", 10, 40), ("대기를", 45, 80), ("줄였다", 85, 120)],
                  [("배포", 10, 40), ("경로를", 45, 80), ("하나로", 85, 120), ("묶어", 125, 150), ("팀이", 155, 180), ("함께", 185, 210)],
                  [("썼다.", 10, 40)]]
-        data = {"highlights": ["창구를 열었고", "KOTRA와 함께 만든 수출 상담", "없는 강조"],   # broken, a name and too long for 6..12, missing
-                "paras": ["KOTRA와 함께 만든 수출 상담 창구를 열었고 대기를 줄였다", "배포 경로를 하나로 묶어 팀이 함께 썼다."]}
-        codes, seen = self.run_on(lines, data, hl_range=(6, 12), names=CL.name_pattern(["KOTRA"], []))
+        data = {"highlights": ["창구를 열었고", "ORBIT와 함께 만든 수출 상담", "없는 강조"],   # broken, a name and too long for 6..12, missing
+                "paras": ["ORBIT와 함께 만든 수출 상담 창구를 열었고 대기를 줄였다", "배포 경로를 하나로 묶어 팀이 함께 썼다."]}
+        codes, seen = self.run_on(lines, data, hl_range=(6, 12), names=CL.name_pattern(["ORBIT"], []))
         for code in ("hl_broken", "hl_name", "hl_size", "hl_missing", "last_word"):
             self.assertIn(code, codes, codes)
         self.assertEqual(2, seen["found"])

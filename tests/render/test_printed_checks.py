@@ -21,7 +21,7 @@ import resume  # noqa: E402  the typesetting
 
 # every rule for printed words on, the line checks as defects, and a name that never goes inside a highlight
 STRICT = {"banned_chars": "", "banned_patterns": [], "printed": {"comma_after_endings": True, "instead": True, "not_a_but_b": 0, "latin_and": True,
-                                                                 "repeated_words": True, "lines": "fail", "highlight_names": ["KOTRA"]}}
+                                                                 "repeated_words": True, "lines": "fail", "highlight_names": ["ORBIT"]}}
 
 
 def check(profile: pathlib.Path, pdf: pathlib.Path, style: str) -> tuple[int, dict]:
@@ -61,7 +61,7 @@ class PrintedChecksTests(unittest.TestCase):
 
     def test_seeded_defects_fail(self):
         prof = json.loads(resume.EXAMPLE.read_text(encoding="utf-8"))
-        prof["summary"]["intro"] = {"ko": prof["summary"]["intro"]["ko"] + " ==KOTRA 와 함께 수출 상담 창구를 처음 열어 대기 시간을 줄였다=="}   # a name in a long highlight
+        prof["summary"]["intro"] = {"ko": prof["summary"]["intro"]["ko"] + " ==ORBIT 와 함께 수출 상담 창구를 처음 열어 대기 시간을 줄였다=="}   # a name in a long highlight
         first = prof["roles"][0]["projects"][0]
         first["summary"] = first["summary"] + " TODO 숫자 넣기."  # an editing note left in
         seeded = self.tmp / "seeded.json"
