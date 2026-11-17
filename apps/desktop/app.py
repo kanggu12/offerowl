@@ -796,21 +796,30 @@ def smoke() -> int:  # the --smoke role, started by check() with the server's en
 
 def mcp_check(port: int) -> tuple[list[str], int]:  # run by check() against its own server
     """The agent's tools, started the way the command bar starts them (apps/api/ask.py mcp_server: this program as the
-    interpreter of apps/mcp/__main__.py, with the requests on its stdin): it must answer initialize and list its tools.
+    interpreter of apps/mcp/__main__.py, with the requests on its stdin) and the way an agent of the person's own starts
+    them (`<this program> mcp`, docs/MCP.md): each must answer initialize and list its tools.
     (the problems found, [] when there are none; the number of tools it listed)."""
     import types  # an object with the one attribute mcp_server reads
     sys.path.insert(0, str(ROOT))  # apps/, from the bundle or the checkout
     from apps.api import ask  # the command bar's own way of starting it
     cmd, args, extra = ask.mcp_server(types.SimpleNamespace(port=port))  # pointed at this check's server
+    bad, tools = mcp_talk([cmd, *args], {**os.environ, **extra}, "started as the command bar starts them")  # the panel's own way
+    me = [sys.executable] if FROZEN else [sys.executable, str(Path(__file__).resolve())]  # this program: the app, or this file in a checkout
+    more, also = mcp_talk([*me, "mcp", "--url", f"http://127.0.0.1:{port}"], dict(os.environ), "started as `offerowl mcp`")  # an agent of the person's own (docs/MCP.md)
+    return bad + more, (min(tools, also) if not (bad or more) else 0)  # both must answer with their tools
+
+
+def mcp_talk(command: list[str], env: dict, how: str) -> tuple[list[str], int]:
+    """Initialize and list the tools through one way of starting the MCP server: (the problems, the number of tools)."""
     msgs = [{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {},
                                                                             "clientInfo": {"name": "offerowl-check", "version": "0"}}},
             {"jsonrpc": "2.0", "method": "notifications/initialized"},  # no reply
             {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}]  # the tools the agent would get
     try:  # a server that never answers must fail the check, not hang it
-        done = subprocess.run([cmd, *args], input="\n".join(json.dumps(m) for m in msgs) + "\n", env={**os.environ, **extra},
+        done = subprocess.run(command, input="\n".join(json.dumps(m) for m in msgs) + "\n", env=env,
                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)  # stdin closes after the last line: it ends
     except subprocess.TimeoutExpired:  # no end in two minutes
-        return ["the agent's tools (MCP) did not end in 2 minutes"], 0
+        return [f"the agent's tools (MCP), {how}, did not end in 2 minutes"], 0
     replies = {}  # each answer by its id
     for line in done.stdout.splitlines():  # one JSON message per line
         try:
@@ -820,7 +829,7 @@ def mcp_check(port: int) -> tuple[list[str], int]:  # run by check() against its
         replies[msg.get("id")] = msg
     tools = (((replies.get(2) or {}).get("result") or {}).get("tools")) or []  # the list the agent would read
     if not (replies.get(1) or {}).get("result") or not tools:  # no handshake, or no tools
-        return [f"the agent's tools (MCP) did not answer: exit {done.returncode}: " + ((done.stderr or "") + (done.stdout or ""))[-600:]], 0
+        return [f"the agent's tools (MCP), {how}, did not answer: exit {done.returncode}: " + ((done.stderr or "") + (done.stdout or ""))[-600:]], 0
     return [], len(tools)  # it answered with its tools
 
 
@@ -889,7 +898,7 @@ def check() -> int:  # run by build.py on the built file
                 bad, tools = mcp_check(port)  # the command bar's tools
                 problems += bad
                 if not bad:
-                    notes.append(f"ok the agent's tools (MCP): {tools} tools, started as the command bar starts them")
+                    notes.append(f"ok the agent's tools (MCP): {tools} tools, started as the command bar starts them and as `offerowl mcp`")
             except Exception as exc:  # a broken API must fail the check, not crash it
                 problems.append(f"the panel's API: {type(exc).__name__}: {exc}")  # names the exception so the cause is visible
         mode = os.environ.get("OFFEROWL_CHECK_DOCUMENTS", "auto").strip().lower()  # auto: when the app carries Node.js; required: always, and a missing browser fails; off: never
@@ -926,7 +935,7 @@ def main(argv: list[str] | None = None) -> int:  # the one entry for the app and
     except Exception:  # noqa: BLE001  whatever it was, it is reported and not left to the bootloader
         report = traceback.format_exc()  # what happened
         print(report, file=sys.stderr)  # for the program that started this one
-        helper = bool(argv) and (argv[0].lower().endswith(".py") or argv[0] in ("--serve", "--smoke", "--check"))  # a process with no person at its screen
+        helper = bool(argv) and (argv[0].lower().endswith(".py") or argv[0] in ("--serve", "--smoke", "--check", "mcp"))  # a process with no person at its screen
         SHOW["browser"] = SHOW["browser"] and "--no-browser" not in argv   # an error before the options were read: the same rule
         try:  # the person's log, when the data folder can be written
             log = CappedLog(data_dir() / "logs" / "app.log")
@@ -940,7 +949,10 @@ def main(argv: list[str] | None = None) -> int:  # the one entry for the app and
 
 
 def roles(argv: list[str]) -> int:  # one process plays one of these
-    """The script interpreter, the server, the document check, the app's own check, or the app itself."""
+    """The script interpreter, the server, the document check, the app's own check, the agent's tools, or the app itself."""
+    if argv[:1] == ["mcp"]:  # an agent of the person's own starts Offerowl's tools: `claude mcp add offerowl -- <this program> mcp`
+        sys.path.insert(0, str(ROOT))  # apps/, from the bundle or the checkout
+        argv = [str(ROOT / "apps" / "mcp" / "__main__.py"), *argv[1:]]  # the file the command bar starts, run below as a script: its requests on the caller's pipes
     script = bool(argv) and not argv[0].startswith("-") and argv[0].lower().endswith(".py")  # started as `Offerowl script.py ...` by the engine
     for name, fd in (("stdout", 1), ("stderr", 2)):  # the two output streams
         if getattr(sys, name) is None:  # the Windows app is built with no console
