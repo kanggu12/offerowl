@@ -7,11 +7,11 @@ Four ways to run the same panel. Paste the block for yours; the panel opens in y
 | [The desktop app](#1-the-desktop-app) | most people | the file for your system; Edge or Chrome to print the PDFs |
 | [A container](#2-a-container-docker-compose) | one PC or a home server | Docker 24 or newer with Compose, and git |
 | [A Helm chart](#3-a-kubernetes-cluster-helm) | a Kubernetes cluster | Kubernetes 1.25 or newer, Helm 3.8 or newer |
-| [A Python package](#4-the-python-package) | the command line and scripts | Python 3.10 or newer (tested on 3.10 to 3.15) |
+| [From the source](#4-from-the-source) | the command line and scripts | Python 3.10 or newer (tested on 3.10 to 3.15) |
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/diagram-ways-dark.svg">
-  <img alt="Four ways to run Offerowl. The app is one file that starts the panel and its server on your PC and typesets with the browser you already have. The container runs the panel, the engine, the interview view and the typesetting tools together, with a volume for your files. The Helm chart runs the same in one pod with a volume claim, reached by a port-forward. The Python package gives the offerowl command and the panel, and typesets with Docker or with the browser already on your PC" src="assets/diagram-ways-light.svg" width="100%">
+  <img alt="Four ways to run Offerowl. The app is one file that starts the panel and its server on your PC and typesets with the browser you already have. The container runs the panel, the engine, the interview view and the typesetting tools together, with a volume for your files. The Helm chart runs the same in one pod with a volume claim, reached by a port-forward. From the source, the launcher gives every command and the panel, and typesets with Docker or with the browser already on your PC" src="assets/diagram-ways-light.svg" width="100%">
 </picture>
 
 If something is missing, `offerowl doctor` says what and how to fix it ([5](#5-the-doctor)). With no internet, see
@@ -24,16 +24,16 @@ If something is missing, `offerowl doctor` says what and how to fix it ([5](#5-t
 | System | Windows 10 or 11 (64-bit); macOS 13 or newer, Apple silicon or Intel; Linux on x86-64 with glibc 2.35 or newer (Ubuntu 22.04, Debian 12). The Docker image is built for x86-64 and ARM |
 | Memory | 8 GB; typesetting uses up to 4 GB while it runs |
 | Disk | about 200 MB for the app; 4 GB with Docker, whose typesetting image is about 1.5 GB |
-| Network | to download; to install the typesetting libraries once (the package); for Claude Code and Codex, a model server that is not on your PC, and a posting's link. Making documents works offline ([closed networks](OFFLINE.md)) |
+| Network | to download; to install the typesetting libraries once (the source); for Claude Code and Codex, a model server that is not on your PC, and a posting's link. Making documents works offline ([closed networks](OFFLINE.md)) |
 
 **Typesetting.** The app prints with the Edge, Chrome or Chromium already on your PC. The container and the chart carry their
-own LibreOffice and Chromium. The package uses Docker where it is installed, and the browser otherwise and on Windows (then
-it also needs Node.js 22 or newer, Pillow, and poppler or `pipx inject offerowl pypdfium2 pillow`). `OFFEROWL_RENDERER=html` or
+own LibreOffice and Chromium. The source uses Docker where it is installed, and the browser otherwise and on Windows (then
+it also needs Node.js 22 or newer, Pillow, and poppler or `python3 -m pip install pypdfium2 pillow`). `OFFEROWL_RENDERER=html` or
 `container` picks one (on Windows only `html`: `container` there stops and points to the browser or WSL); both give the same
 pages ([how they compare](ARCHITECTURE.md#the-renderer)).
 
 **The AI.** One backend at a time ([The AI backend](USAGE.md#the-ai-backend)): Claude Code or Codex you are signed in to, on
-the PC that runs the app or the package; a model server with an OpenAI-compatible address (Ollama, vLLM, LM Studio), for any
+the PC that runs the app or the source; a model server with an OpenAI-compatible address (Ollama, vLLM, LM Studio), for any
 way; or none, where you confirm the facts yourself and the documents are still made and checked. The container and the
 chart carry no Claude Code or Codex, so they use a model server or none.
 
@@ -81,8 +81,6 @@ code-signed yet, so the system asks once:
 | `offerowl-0.11.1-macos-arm64.zip`, `offerowl-0.11.1-macos-x64.zip` | the desktop app for macOS on Apple silicon, and on Intel |
 | `offerowl-0.11.1-linux-x64.tar.gz` | the desktop app for Linux on x86-64: one program, `offerowl` |
 | `offerowl-0.11.1-helm-chart.tgz` | the Helm chart for Kubernetes, the same as `oci://ghcr.io/kanggu12/charts/offerowl` |
-| `offerowl-0.11.1-py3-none-any.whl` | the Python package for `pipx install`: `py3-none-any` is Python's own tag for any system and machine |
-| `offerowl-0.11.1.tar.gz` | the Python package's source, in the form Python's tools read |
 | `offerowl-0.11.1-sha256sums.txt` | the SHA-256 of every file above |
 
 **Check the download.** The release lists a SHA-256 for each file in `offerowl-0.11.1-sha256sums.txt`, and GitHub records where each
@@ -265,30 +263,26 @@ stays.
 **Uninstall.** `helm uninstall offerowl --namespace offerowl` leaves the claim;
 `kubectl --namespace offerowl delete pvc offerowl-data` deletes your files for good.
 
-## 4. The Python package
+## 4. From the source
+
+The repository runs as it is, with Python 3.10 or newer and nothing to install first:
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.11.1/offerowl-0.11.1-py3-none-any.whl
-offerowl panel --open
+git clone --branch v0.11.1 https://github.com/kanggu12/offerowl && cd offerowl
+./offerowl panel --open
 ```
 
-The first time, the panel offers to install the typesetting libraries (once, with the network). `offerowl doctor` checks the
-rest and `offerowl --help` lists every command ([USAGE.md](USAGE.md)). From a checkout, in a virtual environment:
+On Windows the command is `python offerowl panel --open`. The first time, the panel offers to install the typesetting
+libraries (once, with the network). `./offerowl doctor` checks the rest and `./offerowl --help` lists every command
+([USAGE.md](USAGE.md)); a link to the launcher in a folder on your PATH (`ln -s "$PWD/offerowl" ~/.local/bin/offerowl`)
+makes it `offerowl` everywhere. Extras, for the Python that runs it: `python3 -m pip install pypdfium2 pillow` to read PDFs
+with no poppler; for the interview page checks, `python3 -m pip install playwright`, then `python3 -m playwright install
+chromium` (it downloads Chromium).
 
-```bash
-python3 -m venv ~/offerowl-venv && ~/offerowl-venv/bin/pip install .
-~/offerowl-venv/bin/offerowl panel --open
-```
+**Update.** `git fetch --tags`, `git checkout` the new tag, then `./offerowl doctor`.
 
-(On Windows the command is `offerowl-venv\Scripts\offerowl.exe`.) Extras: `pipx inject offerowl pystray pillow` for the
-`offerowl-app` icon by the clock, `pypdfium2 pillow` to read PDFs with no poppler; for the interview page checks,
-`pipx inject --include-apps offerowl playwright`, then `playwright install chromium` (it downloads Chromium). The package
-carries the engine as data; `OFFEROWL_ENGINE_ROOT=<folder>` uses the engine in a checkout instead.
-
-**Update.** `pipx install --force` with the new wheel's address, then `offerowl doctor`.
-
-**Uninstall.** `pipx uninstall offerowl`. Your files are in the data folder ([1](#1-the-desktop-app) lists it) and stay until
-you delete it.
+**Uninstall.** Delete the folder. Your files are in the data folder ([1](#1-the-desktop-app) lists it) and stay until you
+delete it.
 
 ## 5. The doctor
 
@@ -319,7 +313,7 @@ prints Korean.
   `server-console.log`; in a container, `docker compose -f deploy/docker/compose.yaml logs`; in a cluster,
   `kubectl --namespace offerowl logs deploy/offerowl`.
 - "Port in use" (`offerowl panel` says "port N is in use"): another program, or a panel already running, holds 8797.
-  `offerowl open` shows a panel that runs. Stop the other program, or pick another port: `--port N` for the app and the package,
+  `offerowl open` shows a panel that runs. Stop the other program, or pick another port: `--port N` for the app and the source,
   `OFFEROWL_PANEL_PORT` for the container, `service.panelPort` for the chart.
 - The panel answers 403 in a browser: the address bar must say `127.0.0.1` or `localhost` and the panel's own port. A
   port-forward or a published port with another number on your side is refused on purpose.

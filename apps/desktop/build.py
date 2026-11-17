@@ -51,7 +51,6 @@ DATA = [
     ("docs/assets/icon.svg", "docs/assets"),  # the icon and the wordmark the panel serves: the only pictures it reads
     ("docs/assets/logo-light.svg", "docs/assets"),
     ("docs/assets/logo-dark.svg", "docs/assets"),
-    ("deploy/python/offerowl/__init__.py", "deploy/python/offerowl"),  # the one place the version is written: the bar beside the wordmark reads it
     ("LICENSE", "."),  # the license, and the licenses of what the app carries (pystray among them, LGPL)
     ("docs/THIRD_PARTY_NOTICES.md", "docs"),
 ]
@@ -93,8 +92,8 @@ def icon(path: Path) -> Path:  # Windows wants an .ico for the exe
 
 
 def package_version() -> str:  # the version a macOS bundle carries
-    """The version written in deploy/python/offerowl/__init__.py, the one place it is set (pyproject.toml reads it from there)."""
-    text = (ROOT / "deploy" / "python" / "offerowl" / "__init__.py").read_text(encoding="utf-8")  # the package's own file
+    """The version written in src/version.py, the one place it is set."""
+    text = (ROOT / "src" / "version.py").read_text(encoding="utf-8")  # the one line that writes it
     return re.search(r'__version__\s*=\s*"([^"]+)"', text).group(1)  # tests/packaging keeps every other copy equal to it
 
 

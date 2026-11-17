@@ -390,7 +390,7 @@ In the container and the Helm chart, the folder is the data volume, and what goe
 
 To back up or move to another PC, copy the folder. To start over, quit Offerowl and delete it, which deletes your
 profile and documents for good. The panel leaves no copy in the engine's own folder. The `offerowl` commands write there, in `output/`, until you
-uninstall the package or delete that folder ([INSTALL.md](INSTALL.md#4-the-python-package)). [ARCHITECTURE.md](ARCHITECTURE.md#your-workspace) lists what is inside.
+delete that folder ([INSTALL.md](INSTALL.md#4-from-the-source)). [ARCHITECTURE.md](ARCHITECTURE.md#your-workspace) lists what is inside.
 
 In **Settings**, **Back up my files** has your browser save the whole workspace as one file. **Restore a backup** puts such a
 file in its place. The files you had stay in a folder beside it, so nothing is lost; the Trash lists that folder, to delete once
@@ -426,7 +426,7 @@ Run `offerowl doctor` first if you installed the package. It says what is missin
 
 | What you see | What to do |
 |:---|:---|
-| **Make PDFs** says typesetting is missing | The app needs Chrome or Edge. The Python package needs Docker, or Chrome or Edge with Node.js 22, which it uses by itself when Docker is not there |
+| **Make PDFs** says typesetting is missing | The app needs Chrome or Edge. From the source it needs Docker, or Chrome or Edge with Node.js 22, which it uses by itself when Docker is not there |
 | No agent is found | Install it, start Offerowl again, and press **Sign in** on the agent's panel |
 | A run says no job was found | The files hold no job you held. Add an old resume or notes about your work |
 | The result asks for your name or email | The files do not write it. Type it there and the PDFs are made again |
@@ -452,7 +452,7 @@ Run `offerowl doctor` first if you installed the package. It says what is missin
   and nothing is sent with the agent off ([what each call sends](ARCHITECTURE.md#what-is-sent-to-the-agent)).
 - **A posting's link** is fetched once from your PC, only from the public internet (each redirect is checked too), and only its text is kept.
 - **No telemetry.** Offerowl sends nothing about you or your use.
-- **The panel has no login**, so it refuses requests addressed to any other host and stays on your own PC: the app and the Python package listen on
+- **The panel has no login**, so it refuses requests addressed to any other host and stays on your own PC: the app and the source listen on
   127.0.0.1, the compose file publishes its ports on 127.0.0.1, and the Helm chart's Service stays inside the cluster.
   A Helm install exposes nothing by default, and an Ingress needs a login in front of it ([INSTALL.md](INSTALL.md#3-a-kubernetes-cluster-helm)).
 - **Practice recordings** are transcribed on your PC and never saved. Each session's text and feedback are kept in its output folder.

@@ -2,7 +2,7 @@
 # Write the README's badges into docs/assets/badges/: shields.io's static badges, kept as files. GitHub shows an image from
 # another site through a proxy that gives up after about four seconds, so a badge asked for as the page is shown can show
 # as a broken picture; a file in the repository is served without that proxy. Run it after the release's number is set in
-# deploy/python/offerowl/__init__.py:
+# src/version.py:
 #
 #   sh .github/badges.sh
 set -eu
@@ -13,8 +13,8 @@ dir=docs/assets/badges                    # where the README finds them
 mkdir -p "$dir"
 
 # the one place the version is written
-version=$(sed -n 's/^__version__ = "\([0-9][0-9.]*\)".*/\1/p' deploy/python/offerowl/__init__.py)
-[ -n "$version" ] || { echo "deploy/python/offerowl/__init__.py names no version" >&2; exit 1; }
+version=$(sed -n 's/^__version__ = "\([0-9][0-9.]*\)".*/\1/p' src/version.py)
+[ -n "$version" ] || { echo "src/version.py names no version" >&2; exit 1; }
 
 # badge NAME SPEC writes shields.io's static badge SPEC (label-message-color, spaces as %20, "|" as %7C) to NAME.svg,
 # whole or not at all

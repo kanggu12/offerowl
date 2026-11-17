@@ -123,9 +123,9 @@ def tmpdir(test: unittest.TestCase) -> pathlib.Path:
 
 
 def package_version() -> str:
-    """The version written in deploy/python/offerowl/__init__.py, the one place it is set"""
+    """The version written in src/version.py, the one place it is set"""
     import re
-    text = (DEPLOY / "python" / "offerowl" / "__init__.py").read_text(encoding="utf-8")
+    text = (ROOT / "src" / "version.py").read_text(encoding="utf-8")
     return re.search(r'__version__\s*=\s*"([^"]+)"', text).group(1)
 
 

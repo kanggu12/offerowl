@@ -69,11 +69,11 @@ docker compose -f deploy/docker/compose.yaml up -d --build
 ./offerowl open
 ```
 
-**Python** 3.10 or newer
+**From the source** (Python 3.10 or newer; on Windows, `python offerowl panel --open`)
 
 ```bash
-pipx install https://github.com/kanggu12/offerowl/releases/download/v0.11.1/offerowl-0.11.1-py3-none-any.whl
-offerowl panel --open
+git clone --branch v0.11.1 https://github.com/kanggu12/offerowl && cd offerowl
+./offerowl panel --open
 ```
 
 To write, Offerowl uses the AI agent you are signed in to: [Claude Code](https://github.com/anthropics/claude-code) or

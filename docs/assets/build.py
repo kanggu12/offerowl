@@ -612,7 +612,7 @@ def diagram_ways() -> Fig:
     f = Fig(900, 444, "Four ways to run Offerowl. The app is one file that starts the panel and its server on your PC and typesets "
                       "with the browser you already have. The container runs the panel, the engine, the interview view and the typesetting tools "
                       "together, with a volume for your files. The Helm chart runs the same in one pod with a volume claim, reached by "
-                      "a port-forward. The Python package gives the offerowl command and the panel, and typesets with Docker or with "
+                      "a port-forward. From the source, the launcher gives every command and the panel, and typesets with Docker or with "
                       "the browser already on your PC")
     cols = [("The app", "apps/desktop", [("layers", "ink3", "Panel and server", "the app's own Python"), ("globe", "ink3", "Your browser", "opens the panel"),
                                           ("agent", "orange", "AI backend", "Claude Code or Codex on this PC, or a local model"), ("file", "green", "Typesetting", "your own Chrome or Edge")]),
@@ -620,7 +620,7 @@ def diagram_ways() -> Fig:
                                          ("agent", "orange", "AI backend", "a local model server, or none"), ("folder", "blue", "Your files", "a volume")]),
             ("Kubernetes", "deploy/helm/offerowl", [("layers", "ink3", "One pod", "the same image as Docker"), ("link", "ink3", "Port-forward", "the panel on this PC"),
                                                     ("agent", "orange", "AI backend", "a model server in the cluster, or none"), ("folder", "blue", "Your files", "a volume claim")]),
-            ("Python package", "pyproject.toml", [("layers", "ink3", "offerowl", "every command and the panel"), ("file", "green", "Typesetting", "Docker, or the PC's own browser"),
+            ("From the source", "offerowl", [("layers", "ink3", "./offerowl", "every command and the panel"), ("file", "green", "Typesetting", "Docker, or the PC's own browser"),
                                                   ("agent", "orange", "AI backend", "Claude Code, Codex or a local model"), ("folder", "blue", "Your files", "the data folder")])]
     cw, gap = 206, 12  # column width and the space between columns
     for c, (title, code, parts) in enumerate(cols):
@@ -632,7 +632,7 @@ def diagram_ways() -> Fig:
             y = 86 + i * 78  # each row's top
             f.rule(x + 12, x + cw - 12, y)
             f.tile(x + 12, y + 12, ic, col)
-            f.text(x + 43, y + 28, t, size=13.5, weight=600, fill="ink", mono=(t == "offerowl"), box=(x + 43, x + cw - 12))
+            f.text(x + 43, y + 28, t, size=13.5, weight=600, fill="ink", mono=(t == "./offerowl"), box=(x + 43, x + cw - 12))
             for j, ln in enumerate(wrap(s, 12, cw - 24)):
                 f.text(x + 12, y + 49 + j * 16, ln, size=12, fill="ink3", box=(x + 12, x + cw - 12))
     f.legend(0, 418, [("tile", ("agent", "orange"), "the AI backend: the one part that may send text off your PC")], end=880)  # at the right

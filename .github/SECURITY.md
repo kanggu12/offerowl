@@ -21,6 +21,6 @@ Offerowl holds a person's career history and reads files and web pages they give
 - a file or a sentence that leaves the PC in a way the [user guide](../docs/README.md#12-security-and-privacy) does not describe;
 - an agent login or a model server's key that can be read from outside the server, or that reaches a log.
 
-The panel has no login. The app and the Python package listen on `127.0.0.1`. In the container and the pod it listens on every address
+The panel has no login. The app and the source listen on `127.0.0.1`. In the container and the pod it listens on every address
 inside its own network, and the compose file publishes its port on `127.0.0.1` only; the Helm chart's Service stays inside the cluster.
 Publishing its port to a network on purpose is outside what it is built to protect.

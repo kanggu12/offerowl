@@ -23,7 +23,7 @@ maker's server cannot work there, and this page says which parts those are.
 | The app | `offerowl-<version>-<system>-<machine>` (`.exe`, `.zip` or `.tar.gz`), about 55 MB | Edge, Chrome or Chromium, for PDFs |
 | A container | the image as one compressed file, about 600 MB (about 1.5 GB once loaded), and `deploy/docker/compose.yaml` | Docker with Compose |
 | A Helm chart | the image, and `offerowl-<version>-helm-chart.tgz` | a registry the cluster pulls from. The chart needs this one image and no other, its test pod included |
-| The Python package | the wheel, Pillow and pypdfium2, and `node_modules`, for the same system, machine and Python version | Python 3.10 or newer, Node.js 22 or newer, Edge, Chrome or Chromium |
+| The source | the source of the release's tag, Pillow and pypdfium2, and `node_modules`, for the same system, machine and Python version | Python 3.10 or newer, Node.js 22 or newer, Edge, Chrome or Chromium |
 
 Check the files against the release's `offerowl-<version>-sha256sums.txt` before you carry them across, as [installing](INSTALL.md#1-the-desktop-app)
 shows.
@@ -74,14 +74,14 @@ helm install offerowl ./offerowl-0.11.1-helm-chart.tgz --namespace offerowl --cr
 
 A registry that asks for a login takes `--set 'imagePullSecrets[0].name=<secret>'`.
 
-## The Python package
+## The source
 
-On a connected PC with the same system, machine and Python version (Pillow's wheels are made for one Python version), from a
-checkout of the release's tag:
+On a connected PC with the same system, machine and Python version (Pillow's wheels are made for one Python version), in a
+checkout of the release's tag (`git clone --branch v0.11.1 https://github.com/kanggu12/offerowl`):
 
 ```bash
 mkdir carry
-cp offerowl-0.11.1-py3-none-any.whl carry/       # from the Releases page
+git archive --format=tar.gz -o carry/offerowl.tar.gz HEAD   # the source of the tag
 pip download "pillow==13.0.0; python_version >= '3.11'" "pillow==12.3.0; python_version < '3.11'" "pypdfium2==5.14.0" -d carry   # the versions the release was tested with
 npm ci --omit=dev && tar -czf carry/node_modules.tar.gz node_modules
 ```
@@ -89,16 +89,15 @@ npm ci --omit=dev && tar -czf carry/node_modules.tar.gz node_modules
 Carry the folder. On the closed side:
 
 ```bash
+mkdir offerowl && tar -xzf carry/offerowl.tar.gz -C offerowl && tar -xzf carry/node_modules.tar.gz -C offerowl
 python3 -m venv ~/offerowl-venv
-~/offerowl-venv/bin/pip install --no-index --find-links carry offerowl "pillow==13.0.0; python_version >= '3.11'" "pillow==12.3.0; python_version < '3.11'" "pypdfium2==5.14.0"
-ENGINE=$(~/offerowl-venv/bin/python -c 'import offerowl, os; print(os.path.dirname(offerowl.__file__))')/engine
-tar -xzf carry/node_modules.tar.gz -C "$ENGINE"
-export OFFEROWL_RENDERER=html
-~/offerowl-venv/bin/offerowl doctor
-~/offerowl-venv/bin/offerowl panel --open
+~/offerowl-venv/bin/pip install --no-index --find-links carry "pillow==13.0.0; python_version >= '3.11'" "pillow==12.3.0; python_version < '3.11'" "pypdfium2==5.14.0"
+cd offerowl && export OFFEROWL_RENDERER=html
+~/offerowl-venv/bin/python offerowl doctor
+~/offerowl-venv/bin/python offerowl panel --open
 ```
 
-Keep `OFFEROWL_RENDERER=html` in every shell that starts Offerowl there (your shell's profile): on a PC with Docker the package
+Keep `OFFEROWL_RENDERER=html` in every shell that starts Offerowl there (your shell's profile): on a PC with Docker the source
 otherwise typesets in the render container, whose image is built with the network.
 
 ## A model inside the network
@@ -106,7 +105,7 @@ otherwise typesets in the render container, whose image is built with the networ
 Any server with an OpenAI-compatible address works: Ollama, vLLM, LM Studio. Fetch the model on a connected PC and carry it with the server: Ollama
 keeps its models in `~/.ollama/models`, and vLLM takes a model's folder.
 
-- **The app and the Python package:** in **Settings**, set **AI agent** to **Local model** and type the address and the model's name. Or set
+- **The app and the source:** in **Settings**, set **AI agent** to **Local model** and type the address and the model's name. Or set
   `OFFEROWL_LLM=openai-compat`, `OFFEROWL_LLM_URL` and `OFFEROWL_LLM_MODEL` before starting.
 - **A container:** set the same three in the shell or in a `.env` file beside the `compose.yaml` you carried.
 - **A Helm chart:** `ai.backend`, `ai.url` and `ai.model`, as above.

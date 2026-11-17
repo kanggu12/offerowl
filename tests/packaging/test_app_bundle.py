@@ -28,8 +28,8 @@ class BundleTest(unittest.TestCase):
         self.addCleanup(self.zip.close)  # closed before the folder goes
 
     def test_the_build_reads_the_version_from_the_one_place_it_is_written(self):
-        from pkg_support import package_version  # the version as the package has it
-        self.assertEqual(BUILD.package_version(), package_version())  # pyproject.toml has no version line of its own: it is dynamic
+        from pkg_support import package_version  # the version as src/version.py writes it
+        self.assertEqual(BUILD.package_version(), package_version())  # both read src/version.py
 
     def test_the_name_is_the_one_the_release_collects(self):
         self.assertEqual(self.named.name, "offerowl-1.2.3-macos-arm64.zip")  # lower case, the version, the system, the machine: release.yml takes offerowl-*

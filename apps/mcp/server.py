@@ -41,19 +41,15 @@ def default_url() -> str:
 
 
 def version() -> str:
-    """Offerowl's version, from the one place it is written (deploy/python/offerowl/__init__.py); the app image, which leaves that
-    folder out, says it in OFFEROWL_VERSION (deploy/docker/Dockerfile); "0" when this copy has neither."""
+    """Offerowl's version, from the one place it is written (src/version.py), or from OFFEROWL_VERSION where the app image
+    sets it (deploy/docker/Dockerfile); "0" when this copy has neither."""
     if os.environ.get("OFFEROWL_VERSION"):  # the image: its build wrote the version here
         return os.environ["OFFEROWL_VERSION"]
-    for f in (Path(__file__).resolve().parents[2] / "deploy" / "python" / "offerowl" / "__init__.py",  # a checkout
-              Path(__file__).resolve().parents[3] / "__init__.py"):  # the installed package: the engine sits in offerowl/engine/
-        try:
-            m = re.search(r'__version__\s*=\s*"([^"]+)"', f.read_text(encoding="utf-8"))  # the version line
-        except OSError:  # not there in this layout
-            continue  # the next place
-        if m:  # found
-            return m.group(1)  # e.g. 0.6.0
-    return "0"  # unknown, never a guess
+    try:  # src/version.py of this copy: a checkout, the desktop app or the image
+        m = re.search(r'__version__\s*=\s*"([^"]+)"', (Path(__file__).resolve().parents[2] / "src" / "version.py").read_text(encoding="utf-8"))
+    except OSError:  # not there: an incomplete copy
+        return "0"  # unknown, never a guess
+    return m.group(1) if m else "0"  # e.g. 0.6.0
 
 
 class PanelError(Exception):

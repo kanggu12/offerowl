@@ -29,14 +29,14 @@ files.
 | Render container | `render` | The image LibreOffice and Chromium typeset in (`Dockerfile`), and the script that runs one command in it (`run.sh`). |
 | Examples | `examples` | A fictional person, postings, a cover letter and an interview kit, used by the tests, the self-test and the pictures. |
 | Fonts | `fonts` | Pretendard, which the documents and the panel set their text in. |
-| Packaging | `deploy` | The app image, the Helm chart and the Python package ([INSTALL.md](INSTALL.md)). |
+| Packaging | `deploy` | The app image and the Helm chart ([INSTALL.md](INSTALL.md)). |
 | Tests | `tests` | One folder per part: `app`, `cli`, `cover`, `decide`, `deck`, `desktop`, `interview`, `packaging`, `parts`, `render`, `write`. |
 | Docs | `docs` | These guides; `docs/assets` holds their pictures and `build.py`, which draws them. |
 | Tools | `tools` | `measure.py`, which measures on the fictional example the numbers the docs' charts show. |
 | Project | `.github` | The CI and release workflows and the script that turns a changelog section into release notes, the issue and pull request forms, the code of conduct and the security policy. |
 
-At the root are only the launcher (`offerowl`, the one command), the files npm reads (`package.json`, `package-lock.json`)
-and pip reads (`pyproject.toml`), the project's own pages (`README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`), and
+At the root are only the launcher (`offerowl`, the one command), the files npm reads (`package.json`, `package-lock.json`),
+the project's own pages (`README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`), and
 git's two settings (`.gitignore`, `.gitattributes`).
 
 ## The way of a sentence
@@ -87,13 +87,13 @@ Where to start reading:
 | Which fields a document reads | [Resume and deck parts](DOCUMENTS.md#resume-and-deck-parts) and [The profile format](DOCUMENTS.md#the-profile-format) |
 
 The Python and JavaScript modules import each other by their place in the folder, so the same code runs from a checkout, in
-the container, in the Python package and inside the one-file app.
+the container and inside the one-file app.
 
 ## The ways to run
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/diagram-ways-dark.svg">
-  <img alt="Four ways to run Offerowl. The app is one file that starts the panel and its server on your PC and typesets with the browser you already have. The container runs the panel, the engine, the interview view and the typesetting tools together, with a volume for your files. The Helm chart runs the same in one pod with a volume claim, reached by a port-forward. The Python package gives the offerowl command and the panel, and typesets with Docker or with the browser already on your PC" src="assets/diagram-ways-light.svg">
+  <img alt="Four ways to run Offerowl. The app is one file that starts the panel and its server on your PC and typesets with the browser you already have. The container runs the panel, the engine, the interview view and the typesetting tools together, with a volume for your files. The Helm chart runs the same in one pod with a volume claim, reached by a port-forward. From the source, the launcher gives every command and the panel, and typesets with Docker or with the browser already on your PC" src="assets/diagram-ways-light.svg">
 </picture>
 
 The code is the same in each. What differs is who starts the server and what typesets:
@@ -107,7 +107,7 @@ The code is the same in each. What differs is who starts the server and what typ
   login, so several people are several Offerowls, never one panel shared.
 - **A container** counts as Offerowl's own image, where the tools are called directly, only when it carries LibreOffice;
   any other container (a dev container, a CI job's) is taken for a PC.
-- **The Python package** installs the whole engine folder as data and starts the launcher from there. It typesets with Docker
+- **The source** runs as it is, through the launcher `offerowl` at its root. It typesets with Docker
   where Docker is here, else with the PC's browser ([Which renderer runs](#which-renderer-runs)).
 
 ## Your workspace
@@ -538,7 +538,7 @@ version is read from the folder named after it next to the program.
 | Node.js | `resume_form.js`, `deck_slides.js` and `cover_form.js` write the DOCX and the deck page | the build stops and names Node.js |
 | Python with Pillow | `overview_figures.py` draws the timeline and the hierarchy figures | the build stops and names Pillow |
 | `node_modules` | the docx package (`OFFEROWL_NET=1 render/run.sh npm ci` once) | the build stops and names the libraries |
-| A PDF reader: poppler, or pypdfium2 with Pillow (`pipx inject offerowl pypdfium2 pillow`; the desktop app carries it) | the document check, the page previews and the self-test read the PDF (`src/pdftools.py`) | the check cannot run on that PC |
+| A PDF reader: poppler, or pypdfium2 with Pillow (`python3 -m pip install pypdfium2 pillow`; the desktop app carries it) | the document check, the page previews and the self-test read the PDF (`src/pdftools.py`) | the check cannot run on that PC |
 | LibreOffice, only for a Word file you bring in as an edition's own and for the pages of a job's Word or PowerPoint material | turns them into PDF on this PC | that edition's build stops and names LibreOffice; the material's preview answers `no_tools` |
 
 `render.py doctor` (and `resume.renderers()` from Python) reports the browser, Node.js, Pillow, the fonts and `node_modules`
