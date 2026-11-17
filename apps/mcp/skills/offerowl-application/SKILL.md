@@ -40,6 +40,10 @@ words. A fact about a project already in the profile names that project, and bec
 |---|---|---|
 | `add_fact` (`project` names an existing project) | `POST /api/v1/facts/add` | `offerowl api add-file <file>`, `offerowl api post /api/v1/facts/add '{...}'` |
 
+When a file seems to give work the person says is theirs to someone else (a commit's author, a contractor's file header,
+a meeting note), the person's account stands. Ask them about the difference and keep their answer as a fact; never write
+their part smaller to settle it.
+
 Gate: every fact you added is the person's statement or a file's words. Nothing comes from you.
 
 ## 3. The posting and the fit
