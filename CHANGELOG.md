@@ -6,6 +6,17 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-17
+
+A rule for the person's own part of the work.
+
+### Changed
+
+- A file that seems to give the person's own work to someone else (a commit's author, a contractor's file header, a
+  meeting note) no longer makes a draft, or a rewrite the depth review offers, write their part smaller than their
+  confirmed facts state it. The difference becomes a question for the person, and the agent's procedure says to ask it
+  and keep the answer as a fact ([MCP.md](docs/MCP.md#the-procedure)).
+
 ## [0.12.0] - 2026-11-17
 
 The desktop app starts the agent's tools, and Offerowl has no Python package any more: it runs as the app, a container,
@@ -632,7 +643,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/kanggu12/offerowl/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/kanggu12/offerowl/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/kanggu12/offerowl/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/kanggu12/offerowl/compare/v0.10.0...v0.11.0
