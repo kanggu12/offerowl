@@ -96,7 +96,7 @@ ENV HOME=/tmp \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Labels that registries and `docker inspect` show. The version is the one in deploy/python/offerowl/__init__.py
+# Labels that registries and `docker inspect` show. The version is the one in src/version.py
 # (tests/packaging keeps them equal).
 LABEL org.opencontainers.image.title="offerowl-app" \
       org.opencontainers.image.description="Offerowl: from one evidence-backed profile to a resume, a portfolio, a cover letter and an interview kit" \

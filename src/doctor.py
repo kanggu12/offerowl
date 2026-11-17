@@ -86,7 +86,7 @@ MSG = {
         # engine folders and libraries
         "engine_ok": "{path} (output folder writable)",
         "engine_bad": "{path} cannot be written, and the engine writes its output there",
-        "engine_bad_fix": "Install Offerowl somewhere you own: a virtual environment (pip install . in a checkout), or the checkout itself.",
+        "engine_bad_fix": "Run Offerowl from a folder you can write: a checkout of your own, or the desktop app.",
         "libs_ok": "the libraries of the resume and deck writers are installed",
         "libs_missing": "the libraries of the resume and deck writers are not installed in {path}",
         "libs_missing_fix": "Install them once (needs the network): {command}",
@@ -170,9 +170,9 @@ MSG = {
         # poppler
         "poppler_ok": "{reader} reads PDFs here",
         "poppler_missing": "nothing here reads PDFs: your old PDFs, the page previews and the checks need poppler or pypdfium2",
-        "poppler_fix_linux": "Install poppler (sudo apt install poppler-utils), or pypdfium2 (pip install pypdfium2 pillow where Offerowl is installed)",
-        "poppler_fix_mac": "Install poppler (brew install poppler), or pypdfium2 (pip install pypdfium2 pillow where Offerowl is installed)",
-        "poppler_fix_win": "Install pypdfium2: pip install pypdfium2 pillow where Offerowl is installed. The desktop app already has it.",
+        "poppler_fix_linux": "Install poppler (sudo apt install poppler-utils), or pypdfium2 (python3 -m pip install pypdfium2 pillow, for the Python that runs Offerowl)",
+        "poppler_fix_mac": "Install poppler (brew install poppler), or pypdfium2 (python3 -m pip install pypdfium2 pillow, for the Python that runs Offerowl)",
+        "poppler_fix_win": "Install pypdfium2: python -m pip install pypdfium2 pillow, for the Python that runs Offerowl. The desktop app already has it.",
         # summary
         "sum_ready": "Result: {warns} warning(s), no problem. Offerowl can make documents.",
         "sum_notready": "Result: {fails} problem(s), {warns} warning(s). The panel starts, but documents cannot be made until the FAIL lines are fixed.",
@@ -208,7 +208,7 @@ MSG = {
         "data_bad_fix": "폴더에 내 사용자의 쓰기 권한을 주거나, OFFEROWL_DATA_DIR을 내가 쓸 수 있는 폴더로 정한다.",
         "engine_ok": "{path} (output 폴더에 쓸 수 있다)",
         "engine_bad": "{path}에 쓸 수 없다. 엔진은 결과물을 여기에 쓴다",
-        "engine_bad_fix": "내가 쓸 수 있는 곳에 설치한다: 가상 환경(저장소 복사본에서 pip install .), 또는 저장소 복사본 그대로.",
+        "engine_bad_fix": "내가 쓸 수 있는 폴더에서 돌린다: 내 저장소 복사본, 또는 데스크톱 앱.",
         "libs_ok": "이력서와 덱 작성 라이브러리가 설치되어 있다",
         "libs_missing": "이력서와 덱 작성 라이브러리가 {path}에 설치되어 있지 않다",
         "libs_missing_fix": "한 번 설치한다(네트워크가 필요하다): {command}",
@@ -286,9 +286,9 @@ MSG = {
         "port_busy_fix": "포트 {port}을(를) 쓰는 프로그램을 끄거나, 패널을 다른 포트로 시작한다: offerowl panel --port <번호>.",
         "poppler_ok": "{reader}로 PDF를 읽는다",
         "poppler_missing": "PDF를 읽을 도구가 없다. 옛 PDF 읽기, 쪽 미리보기, 검사에 poppler나 pypdfium2가 필요하다",
-        "poppler_fix_linux": "poppler(sudo apt install poppler-utils)나 pypdfium2(Offerowl이 설치된 곳에서 pip install pypdfium2 pillow)를 설치한다",
-        "poppler_fix_mac": "poppler(brew install poppler)나 pypdfium2(Offerowl이 설치된 곳에서 pip install pypdfium2 pillow)를 설치한다",
-        "poppler_fix_win": "pypdfium2를 설치한다: Offerowl이 설치된 곳에서 pip install pypdfium2 pillow. 데스크톱 앱에는 이미 들어 있다.",
+        "poppler_fix_linux": "poppler(sudo apt install poppler-utils)나 pypdfium2(Offerowl을 돌리는 Python으로 python3 -m pip install pypdfium2 pillow)를 설치한다",
+        "poppler_fix_mac": "poppler(brew install poppler)나 pypdfium2(Offerowl을 돌리는 Python으로 python3 -m pip install pypdfium2 pillow)를 설치한다",
+        "poppler_fix_win": "pypdfium2를 설치한다: Offerowl을 돌리는 Python으로 python -m pip install pypdfium2 pillow. 데스크톱 앱에는 이미 들어 있다.",
         "sum_ready": "결과: 주의 {warns}개, 문제 없음. Offerowl이 문서를 만들 수 있다.",
         "sum_notready": "결과: 문제 {fails}개, 주의 {warns}개. 패널은 켜지지만 실패 줄을 고치기 전에는 문서를 만들 수 없다.",
         "bad_only": "모르는 검사 이름: {names}. 선택지: {choices}",
@@ -356,30 +356,21 @@ def panel_port() -> int:  # the port the panel will use
 
 
 def version(places=None) -> str:  # shown in the head line
-    """The version: the app image sets OFFEROWL_VERSION; a checkout and an installed package carry the one line that writes it
-    (deploy/python/offerowl/__init__.py, which is the package's own __init__.py once installed), as the panel and the MCP server
-    read it; package metadata only when neither is there. A build's leftover offerowl.egg-info beside a checkout names an older
-    version, so it is never read first."""
-    if os.environ.get("OFFEROWL_VERSION"):  # the image carries no package metadata, so it says which release it is
+    """The version: the app image sets OFFEROWL_VERSION; a checkout, the desktop app and the image carry the one line that
+    writes it (src/version.py), as the panel and the MCP server read it; "checkout" when this copy has neither."""
+    if os.environ.get("OFFEROWL_VERSION"):  # the image says which release it is
         return os.environ["OFFEROWL_VERSION"]
-    here = Path(__file__).resolve()  # src/doctor.py, or offerowl/engine/src/doctor.py once installed
-    if places is None:  # a checkout, then the package (a test names its own)
-        places = (here.parents[1] / "deploy" / "python" / "offerowl" / "__init__.py", here.parents[2] / "__init__.py")
+    if places is None:  # this copy's own line (a test names its own places)
+        places = (Path(__file__).resolve().parent / "version.py",)  # src/version.py, beside this file
     for f in places:
         try:
             m = re.search(r'__version__\s*=\s*"([^"]+)"', f.read_text(encoding="utf-8"))  # the version line
-        except OSError:  # not there in this layout
+        except OSError:  # not there in this copy
             continue
         if m:
             return m.group(1)  # e.g. 0.6.0
-    try:  # the metadata exists only for an installed package
-        from importlib.metadata import PackageNotFoundError, version as installed  # standard library
-        try:  # a checkout has no metadata
-            return installed("offerowl")  # for example 0.6.0
-        except PackageNotFoundError:  # not installed as a package
-            return "checkout"  # a folder of source files
-    except ImportError:  # a very old Python: cannot happen on 3.10+, kept so that the head line never fails
-        return "checkout"
+    return "checkout"  # a folder of source files with no version line
+
 
 
 def writable_dir(path: Path) -> bool:  # tries to write, because permission bits miss read-only mounts

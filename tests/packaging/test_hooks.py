@@ -58,10 +58,9 @@ class HookTest(unittest.TestCase):
         tree = ast.parse((ROOT / "apps" / "desktop" / "build.py").read_text(encoding="utf-8"))
         data = [n.value for n in ast.walk(tree) if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "DATA"][0]
         listed = {e.elts[0].value for e in data.elts}  # the source folders and files
-        # the folders, the three pictures the panel serves, and the licenses: what the package and the app image carry too
+        # the folders, the three pictures the panel serves, and the licenses: what the app image carries too
         needed = {"core", "src", "examples", "fonts", "docs/assets/icon.svg", "docs/assets/logo-light.svg", "docs/assets/logo-dark.svg",
-                  "LICENSE", "docs/THIRD_PARTY_NOTICES.md",
-                  "deploy/python/offerowl/__init__.py"} | {  # the version the bar beside the wordmark shows ("0" without it)
+                  "LICENSE", "docs/THIRD_PARTY_NOTICES.md"} | {  # src/ holds version.py, the version the bar beside the wordmark shows
             f"apps/{d.name}" for d in (ROOT / "apps").iterdir() if d.is_dir() and d.name != "desktop" and (d / "__init__.py").is_file()}
         if needed - listed:
             hook(self, f"apps/desktop/build.py: DATA lacks {sorted(needed - listed)}")

@@ -25,8 +25,9 @@ env:
 
 jobs:
   lint-and-cli-tests:
-    # Quick: a few seconds of work after the tools are installed. Run on every Python the package claims (pyproject.toml's
-    # classifiers, 3.10 to 3.15): a module or method one of them drops (3.15 dropped load_module()) fails here first.
+    # Quick: a few seconds of work after the tools are installed. Run on every Python Offerowl supports, from the oldest the
+    # doctor accepts (src/doctor.py MIN_PYTHON, 3.10) to 3.15: a module or method one of them drops (3.15 dropped
+    # load_module()) fails here first.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -78,11 +79,11 @@ jobs:
       - name: The deck's figure library
         run: python3 tests/deck/run.py
 
-  # ---- Packaging: the files that install Offerowl (deploy/, pyproject.toml, .github/workflows/, docs/INSTALL.md) ----
+  # ---- Packaging: the files that install Offerowl (deploy/, apps/desktop/, .github/workflows/, docs/INSTALL.md) ----
 
   packaging:
-    # Quick: nothing is built here except a wheel. The chart is rendered, the manifests and the workflows are validated,
-    # and tests/packaging checks the package, the image's recipe, the chart, the workflows and the install guide.
+    # Quick: nothing is built here. The chart is rendered, the manifests and the workflows are validated, and
+    # tests/packaging checks the version, the image's recipe, the chart, the workflows and the install guide.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -120,15 +121,16 @@ jobs:
       - name: Packaging tests
         run: python3 -m unittest discover -s tests/packaging -v
 
-  package-install:
-    # `pip install .` in a clean virtual environment on each system: the command starts, the doctor runs, and the
-    # installed engine is complete (the app's own check starts the panel and reads a file through the engine).
-    name: pip install on ${{ matrix.os }} with Python ${{ matrix.python }}
+  source:
+    # The source as docs/INSTALL.md runs it, on each system with the oldest and the newest Python: the launcher starts, the
+    # doctor runs, and the app's own check starts the panel, reads a file through the engine and starts the agent's tools
+    # both ways (apps/desktop/app.py --check).
+    name: the source on ${{ matrix.os }} with Python ${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-latest]
-        python: ["3.10", "3.15"]  # the oldest and the newest Python the package claims
+        python: ["3.10", "3.15"]  # the oldest Python Offerowl supports and the newest it is tested on
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
@@ -140,23 +142,16 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - name: Install the package in a clean virtual environment
-        shell: bash
-        run: |
-          python -m venv "${RUNNER_TEMP}/venv"
-          if [ -d "${RUNNER_TEMP}/venv/Scripts" ]; then BIN="${RUNNER_TEMP}/venv/Scripts"; else BIN="${RUNNER_TEMP}/venv/bin"; fi
-          echo "${BIN}" >> "$GITHUB_PATH"
-          "${BIN}/python" -m pip install .
       - name: offerowl --help
-        run: offerowl --help
+        run: python offerowl --help
       - name: offerowl doctor (a FAIL line is expected, since the runner has no typesetting libraries; the JSON must still be valid)
         shell: bash
         run: |
-          offerowl doctor || test $? -eq 1
-          offerowl doctor --json > doctor.json || test $? -eq 1
+          python offerowl doctor || test $? -eq 1
+          python offerowl doctor --json > doctor.json || test $? -eq 1
           python -c "import json; d = json.load(open('doctor.json')); assert d['checks'], d"
-      - name: The installed engine is complete (the app's own check)
-        run: python -c "from offerowl.cli import app_main; raise SystemExit(app_main(['--check']))"
+      - name: The app's own check, from the source
+        run: python apps/desktop/app.py --check
 
   app-image:
     # The app image built from this commit and started the way compose.yaml starts it (tests/packaging/image_smoke.sh):

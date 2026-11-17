@@ -99,7 +99,7 @@ Browser tests need Playwright: `pip install playwright && python3 -m playwright 
 | The Word and PowerPoint files the export writes, the portfolio kept on the Desktop | `python3 -m unittest tests/render/test_office.py tests/app/test_delivery.py` | seconds |
 | Resume parts, the full example | `python3 tests/parts/run.py` | minutes |
 | The deck and its figures | `python3 tests/deck/run.py` | minutes |
-| The app, an image, the chart, the package | `python3 -m unittest discover -s tests/packaging` | under a minute |
+| The app, an image, the chart, the version | `python3 -m unittest discover -s tests/packaging` | under a minute |
 | The app image and the chart, running | `docker build -f deploy/docker/Dockerfile -t offerowl-app:local .` (with the network), then `tests/packaging/image_smoke.sh --selftest`, `tests/packaging/offline_e2e.sh` and `tests/packaging/chart_e2e.sh` (kind, helm and kubectl; it pulls kind's node image once) | minutes |
 | The one-file app | `pip install -r apps/desktop/requirements-build.txt`, `python apps/desktop/build.py`, then `python3 tests/desktop/e2e.py --app dist/offerowl --out /tmp/e2e` | minutes |
 | A decision backend | `python3 -m unittest discover -s tests/decide` | seconds |
@@ -137,17 +137,17 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Which number.** A fix is a patch (0.1.1). A new feature that leaves profiles, settings and the API as they were is a
   minor (0.2.0). A change that asks people to change a profile, a setting or a call is a major. Before 1.0.0 a minor may
   also break something, and its notes say what.
-- **One place.** The version is set in `deploy/python/offerowl/__init__.py`. `tests/packaging` checks the copies against it
+- **One place.** The version is set in `src/version.py`. `tests/packaging` checks the copies against it
   and names any left behind.
 - **The steps.**
   1. Move what is under `## [Unreleased]` into a new `## [x.y.z] - YYYY-MM-DD` section, under `### Security` (first), `### Added`,
      `### Changed`, `### Fixed` or `### Removed`. Leave `## [Unreleased]` empty above it, and give each its link at the end of the file.
-  2. Write `x.y.z` in `deploy/python/offerowl/__init__.py`, `package.json` and `package-lock.json` (its two `version` lines),
+  2. Write `x.y.z` in `src/version.py`, `package.json` and `package-lock.json` (its two `version` lines),
      `deploy/helm/offerowl/Chart.yaml` (`version` and `appVersion`), `deploy/docker/Dockerfile` (`OFFEROWL_VERSION` and the
      `org.opencontainers.image.version` label), and the commands of README.md, [docs/INSTALL.md](docs/INSTALL.md) and
      [docs/OFFLINE.md](docs/OFFLINE.md). Run `sh .github/badges.sh` for the release badge (it fetches it from shields.io), then
      `python3 -m unittest discover -s tests/packaging`, and commit.
-  3. Push the tag `vx.y.z`. `.github/workflows/release.yml` checks that the tag, the package and the notes agree before it
+  3. Push the tag `vx.y.z`. `.github/workflows/release.yml` checks that the tag, `src/version.py` and the notes agree before it
      builds anything, then publishes the section as the release's notes.
 - **Before the tag.** Wait for `ci` on main, which runs every test on each Python. The release runs the desktop builds and
   the chart's cluster test itself and publishes nothing until they pass, so they need not be waited for twice; start them
@@ -315,7 +315,7 @@ The drawn pictures are pieces of the panel: the same desk, glass, icons and colo
 | `diagram-pieces` | Your files and the panel on the left; the Offerowl server in the middle (ingest, profile, plan, write, render, check); the one AI backend on the right (Claude Code, Codex or a local model); outputs on the far right (resume, deck, cover letter, interview kit) | none |
 | `diagram-sentence` | How one sentence is made: evidence, then draft, then fact check (stopped branch in red), then style pack, then render, then layout checks, then export | none |
 | `diagram-interview` | From the posting, resume and portfolio to the question map, the scenes, the audits (coverage, consistency), the search view and practice | none |
-| `diagram-ways` | Ways to run: the app, Docker, Kubernetes (Helm) and the Python package, each with what runs where | none |
+| `diagram-ways` | Ways to run: the app, Docker, Kubernetes (Helm) and the source, each with what runs where | none |
 | `diagram-modules` | The code as it is laid out: the programs a person starts, the engine by the part of the pipeline it serves, the interview kit | none |
 | `badges/*.svg` | The README's badges (release, license, systems): shields.io's static badges, kept as files because GitHub's image proxy gives up on a slow one | `sh .github/badges.sh`, the version from `deploy/python/offerowl/__init__.py` |
 | `screens-light.png`, `screens-dark.png` | Four views of the panel with the fictional person, two by two, each with a label and a line: Make (the band from the files to the documents), Profile, Documents (a sentence and its source), Applications (the fit) | `python3 docs/assets/scene.py DIR`, one good run of the example, then `python3 docs/assets/screens.py DIR` |
@@ -352,7 +352,7 @@ What is there, and what comes next. Plans change, and this section follows them.
 | Panel: one run from dropped files to PDFs on the Desktop, the agent's panel, the resume written from your facts, evidence on click, editing on the canvas, one-press rewrites, job fit, application questions read from the posting, a paste or a screenshot, tracker | Works; every state measured at 3 window sizes, light and dark, Korean and English |
 | Drafting with a fact check, claim strength and style packs | Works |
 | JSON Resume in and out | Works |
-| Ways to run: the app, a container, a Helm chart, a Python package | Works; the app needs no Docker |
+| Ways to run: the app, a container, a Helm chart, the source | Works; the app needs no Docker |
 | Renderer | The container's LibreOffice is the reference; the PC's browser matches its lines and pages, and only English justified lines differ slightly |
 | Decision models for steps that only decide | Measured, none adopted ([DECISIONS.md](docs/DECISIONS.md)) |
 

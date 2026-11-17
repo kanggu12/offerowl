@@ -1,7 +1,6 @@
 # A version tag (v1.2.3) publishes a release:
 # - the app image to the GitHub Container Registry, for linux/amd64 and linux/arm64;
 # - the Helm chart as an OCI artifact in the same registry, and as a .tgz;
-# - the Python package (a wheel and a source archive);
 # - the desktop app for Windows, macOS and Linux (desktop.yml);
 # all attached to the GitHub release, named offerowl-<version>-..., in lower case, with a checksums file
 # (offerowl-<version>-sha256sums.txt) and GitHub's signed record of where each file was built.
@@ -43,18 +42,18 @@ jobs:
           version: v3.16.4
       - name: Test tools
         run: python3 -m pip install flake8 pyyaml setuptools
-      - name: The tag names the version the package, the chart and the image carry
+      - name: The tag names the version src/version.py, the chart and the image carry
         run: |
           version="${TAG#v}"
-          have="$(python3 -c "import pathlib, re; print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', pathlib.Path('deploy/python/offerowl/__init__.py').read_text()).group(1))")"
-          if [ "$version" != "$have" ]; then echo "the tag says $version, the package says $have"; exit 1; fi
+          have="$(python3 -c "import pathlib, re; print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', pathlib.Path('src/version.py').read_text()).group(1))")"
+          if [ "$version" != "$have" ]; then echo "the tag says $version, src/version.py says $have"; exit 1; fi
       - name: The release has its notes in CHANGELOG.md (a version with no section stops here, before anything is built)
         run: python3 .github/release_notes.py "$TAG" > /dev/null
       - name: Syntax and lint
         run: python3 tests/cli/lint.py --require-tools
       - name: CLI tests
         run: python3 -m unittest discover -s tests/cli -v
-      - name: Packaging tests (the package, the image's recipe, the chart, the workflows, the install guide)
+      - name: Packaging tests (the version, the image's recipe, the chart, the workflows, the install guide)
         run: python3 -m unittest discover -s tests/packaging -v
 
   # What only a running cluster shows
@@ -128,16 +127,6 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
-      # --- the Python package
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - name: Wheel and source archive
-        run: |
-          python -m pip install build
-          python -m build --outdir dist
-          ls -l dist
-
       # --- the Helm chart
       - uses: azure/setup-helm@v5
         with:
@@ -173,7 +162,7 @@ jobs:
           VERSION: ${{ steps.v.outputs.version }}
         run: |
           cd dist
-          { sha256sum "offerowl-${VERSION}-helm-chart.tgz" "offerowl-${VERSION}-py3-none-any.whl" "offerowl-${VERSION}.tar.gz"
+          { sha256sum "offerowl-${VERSION}-helm-chart.tgz"
             (cd app && sha256sum offerowl-*); } > "offerowl-${VERSION}-sha256sums.txt"
           cat "offerowl-${VERSION}-sha256sums.txt"
       - name: Where each file was built, signed by GitHub
@@ -181,8 +170,6 @@ jobs:
         with:
           subject-path: |
             dist/offerowl-${{ steps.v.outputs.version }}-helm-chart.tgz
-            dist/offerowl-${{ steps.v.outputs.version }}-py3-none-any.whl
-            dist/offerowl-${{ steps.v.outputs.version }}.tar.gz
             dist/app/offerowl-*
       - name: The release notes, from this version's section of CHANGELOG.md
         run: python3 .github/release_notes.py "${GITHUB_REF_NAME}" > release-notes.md
@@ -193,7 +180,5 @@ jobs:
           prerelease: ${{ steps.v.outputs.prerelease == 'true' }}
           files: |
             dist/offerowl-${{ steps.v.outputs.version }}-helm-chart.tgz
-            dist/offerowl-${{ steps.v.outputs.version }}-py3-none-any.whl
-            dist/offerowl-${{ steps.v.outputs.version }}.tar.gz
             dist/app/offerowl-*
             dist/offerowl-${{ steps.v.outputs.version }}-sha256sums.txt

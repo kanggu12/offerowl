@@ -18,7 +18,7 @@ SECTIONS = {
     "desktop": "## 1. The desktop app",
     "container": "## 2. A container (Docker Compose)",
     "chart": "## 3. A Kubernetes cluster (Helm)",
-    "package": "## 4. The Python package",
+    "source": "## 4. From the source",
     "doctor": "## 5. The doctor",
 }
 
@@ -41,7 +41,7 @@ class StructureTest(unittest.TestCase):
             self.assertIn("\n" + title + "\n", GUIDE, title)
 
     def test_each_way_says_how_to_update_and_how_to_remove(self):
-        for key in ("desktop", "container", "chart", "package"):
+        for key in ("desktop", "container", "chart", "source"):
             text = section(SECTIONS[key])
             self.assertIn("**Update.**", text, key)
             self.assertIn("**Uninstall.**", text, key)

@@ -40,10 +40,13 @@ def scripts(doc: dict) -> list:
     return [s["run"] for job in doc["jobs"].values() for s in steps(job) if "run" in s]
 
 
-def claimed_pythons() -> list:
-    """The Python versions pyproject.toml's classifiers name, oldest first (read as text: tomllib is not in 3.10)"""
-    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    return sorted(re.findall(r'"Programming Language :: Python :: (3\.\d+)"', text), key=lambda v: int(v.split(".")[1]))
+PYTHONS = ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]  # every Python Offerowl is tested on, oldest first: a new one goes here and in ci.yml
+
+
+def oldest_python() -> str:
+    """src/doctor.py's MIN_PYTHON, the oldest Python the doctor accepts, as "3.10" (read as text, as the other files here are)"""
+    m = re.search(r"^MIN_PYTHON = \((\d+), (\d+)\)", (ROOT / "src" / "doctor.py").read_text(encoding="utf-8"), re.M)
+    return f"{m.group(1)}.{m.group(2)}"
 
 
 class WorkflowFilesTest(unittest.TestCase):
@@ -58,7 +61,7 @@ class WorkflowFilesTest(unittest.TestCase):
 
     def test_the_original_ci_jobs_are_still_there_and_the_packaging_jobs_were_added(self):
         jobs = load("ci")["jobs"]
-        for name in ("lint-and-cli-tests", "selftest", "packaging", "package-install", "app-image"):
+        for name in ("lint-and-cli-tests", "selftest", "packaging", "source", "app-image"):
             self.assertIn(name, jobs)
 
     def test_every_job_has_a_runner_and_a_time_limit(self):
@@ -192,7 +195,7 @@ class ReleaseTest(unittest.TestCase):
 
     def test_the_tag_must_name_the_version_the_package_carries(self):
         verify = " ".join(scripts({"jobs": {"verify": self.doc["jobs"]["verify"]}}))
-        self.assertIn("deploy/python/offerowl/__init__.py", verify)
+        self.assertIn("src/version.py", verify)
         self.assertIn("the tag says", verify)
 
     def test_the_image_is_pushed_to_ghcr_for_two_architectures(self):
@@ -224,11 +227,12 @@ class ReleaseTest(unittest.TestCase):
         self.assertIn("helm lint deploy/helm/offerowl", script)
         self.assertIn('repository: ghcr.io/${OWNER}/offerowl-app', script)  # the packaged chart names the published image
 
-    def test_the_python_package_is_built_and_attached(self):
-        self.assertIn("python -m build", " ".join(scripts(self.doc)))
+    def test_a_release_carries_no_python_package(self):
+        # the desktop app gives what only the wheel gave without a checkout (`offerowl mcp`); the rest runs from the source
+        self.assertNotIn("python -m build", " ".join(scripts(self.doc)))
         files = [s for s in steps(self.release) if s.get("uses", "").startswith("softprops/action-gh-release")][0]["with"]["files"]
-        self.assertIn("-py3-none-any.whl", files)
-        self.assertIn(".tar.gz", files)
+        self.assertNotIn(".whl", files)
+        self.assertNotIn("${{ steps.v.outputs.version }}.tar.gz", files)
 
     def test_the_binaries_and_the_checksums_are_attached_and_signed(self):
         files = [s for s in steps(self.release) if s.get("uses", "").startswith("softprops/action-gh-release")][0]["with"]["files"]
@@ -284,21 +288,23 @@ class CiTest(unittest.TestCase):
                      "docker compose -f deploy/docker/compose.yaml config --quiet", "kubeconform"):
             self.assertIn(want, text)
 
-    def test_pip_install_is_tried_on_the_three_systems_with_the_oldest_and_the_newest_python(self):
-        job = self.doc["jobs"]["package-install"]
+    def test_the_source_is_run_on_the_three_systems_with_the_oldest_and_the_newest_python(self):
+        job = self.doc["jobs"]["source"]
         self.assertEqual(job["strategy"]["matrix"]["os"], ["ubuntu-24.04", "macos-latest", "windows-latest"])
-        claimed = claimed_pythons()
-        self.assertEqual(job["strategy"]["matrix"]["python"], [claimed[0], claimed[-1]])  # the oldest and the newest it claims
+        self.assertEqual(job["strategy"]["matrix"]["python"], [PYTHONS[0], PYTHONS[-1]])  # the oldest and the newest it is tested on
         python = [s for s in steps(job) if s.get("uses", "").startswith("actions/setup-python")][0]["with"]["python-version"]
         self.assertEqual(python, "${{ matrix.python }}")
-        self.assertIn("python -m venv", " ".join(scripts({"jobs": {"j": job}})))
+        text = " ".join(scripts({"jobs": {"j": job}}))  # its commands, as docs/INSTALL.md gives them
+        self.assertIn("python offerowl --help", text)
+        self.assertIn("python apps/desktop/app.py --check", text)
+        self.assertNotIn("pip install .", text)  # there is no package to install
 
-    def test_the_quick_tests_run_on_every_python_the_package_claims(self):
-        claimed = claimed_pythons()
-        self.assertEqual(self.doc["jobs"]["lint-and-cli-tests"]["strategy"]["matrix"]["python"], claimed)  # none left untested
-        lower = re.search(r'requires-python = ">=(3\.\d+)"', (ROOT / "pyproject.toml").read_text(encoding="utf-8")).group(1)
-        self.assertEqual(lower, claimed[0])  # the oldest one named is the oldest pip installs it on
-        self.assertEqual(["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"], claimed)  # each one between, none skipped
+    def test_the_quick_tests_run_on_every_python_offerowl_supports(self):
+        self.assertEqual(self.doc["jobs"]["lint-and-cli-tests"]["strategy"]["matrix"]["python"], PYTHONS)  # none left untested
+        self.assertEqual(oldest_python(), PYTHONS[0])  # the oldest tested is the oldest the doctor accepts
+        self.assertEqual([int(v.split(".")[1]) for v in PYTHONS], list(range(10, 10 + len(PYTHONS))))  # each one between, none skipped
+        guide = (ROOT / "docs" / "INSTALL.md").read_text(encoding="utf-8")  # what a person reads
+        self.assertIn(f"Python {PYTHONS[0]} or newer (tested on {PYTHONS[0]} to {PYTHONS[-1]})", guide)
 
     def test_the_app_image_is_built_and_started_the_way_compose_starts_it(self):
         job = self.doc["jobs"]["app-image"]

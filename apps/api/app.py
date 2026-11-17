@@ -1073,6 +1073,6 @@ def app_version() -> str:
     """Offerowl's version for the bar beside the wordmark, from the one place it is written (as the MCP server reads it)."""
     global _VERSION
     if _VERSION is None:
-        from apps.mcp.server import version  # deploy/python/offerowl/__init__.py
+        from apps.mcp.server import version  # src/version.py
         _VERSION = version()
     return _VERSION

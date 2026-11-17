@@ -30,7 +30,6 @@ body:
         - Linux app
         - Docker
         - Helm chart on Kubernetes
-        - Python package
         - From a checkout
     validations:
       required: true

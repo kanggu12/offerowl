@@ -134,7 +134,7 @@ class ChecksTest(unittest.TestCase):
         with mock.patch.object(doctor, "writable_dir", return_value=False):
             r = doctor.check_engine()
         self.assertEqual(r.status, "fail")
-        self.assertIn("pip install .", r.fix)  # a place the person owns: there is no package to install by name
+        self.assertIn("a checkout of your own", r.fix)  # a place the person owns: their own checkout, or the desktop app
 
     # --- typesetting (docker, or the tools inside the container)
 
@@ -483,18 +483,15 @@ class MessagesTest(unittest.TestCase):
 
 
 class VersionTest(unittest.TestCase):
-    def test_the_image_the_installed_package_and_a_folder_each_say_their_own_version(self):
-        import importlib.metadata
-        env = {k: v for k, v in os.environ.items() if k != "OFFEROWL_VERSION"}
+    def test_the_image_and_a_folder_each_say_their_own_version(self):
+        env = {k: v for k, v in os.environ.items() if k != "OFFEROWL_VERSION"}  # the test's own environment
         with mock.patch.dict(os.environ, {**env, "OFFEROWL_VERSION": "9.9.9"}, clear=True):
             self.assertEqual(doctor.version(), "9.9.9")  # the app image
-        written = re.search(r'__version__\s*=\s*"([^"]+)"', (ROOT / "deploy" / "python" / "offerowl" / "__init__.py").read_text(encoding="utf-8")).group(1)
-        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(importlib.metadata, "version", return_value="0.0.1"):
-            self.assertEqual(doctor.version(), written)  # a checkout says the version its one line writes: a build's old egg-info beside it never wins
-        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(importlib.metadata, "version", return_value="1.2.3"):
-            self.assertEqual(doctor.version(places=()), "1.2.3")  # installed with pip, where only the metadata says it
-        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(importlib.metadata, "version", side_effect=importlib.metadata.PackageNotFoundError):
-            self.assertEqual(doctor.version(places=()), "checkout")  # neither: a folder of source files
+        written = re.search(r'__version__\s*=\s*"([^"]+)"', (ROOT / "src" / "version.py").read_text(encoding="utf-8")).group(1)
+        with mock.patch.dict(os.environ, env, clear=True):
+            self.assertEqual(doctor.version(), written)  # a checkout and the desktop app say the version its one line writes
+            self.assertEqual(doctor.version(places=()), "checkout")  # no version line: a folder of source files
+
 
 
 class CommandTest(unittest.TestCase):
