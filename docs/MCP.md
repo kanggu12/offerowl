@@ -17,9 +17,10 @@ Start the panel first (the app, `offerowl panel`, or the container). Then, from 
 claude mcp add offerowl -- "$PWD/offerowl" mcp
 ```
 
-With the Python package, `offerowl` is on PATH: `claude mcp add offerowl -- offerowl mcp`. On Windows the
-command is `python C:\path\to\offerowl mcp`. `claude mcp add --scope user offerowl -- ...` has it in every project; the
-option goes before `--`.
+On Windows, from the checkout: `claude mcp add offerowl -- python C:\path\to\offerowl mcp`. The desktop app starts them
+too, with no checkout: `claude mcp add offerowl -- <the app> mcp`, where `<the app>` is the program's full path
+(`C:\path\to\offerowl.exe`, `/path/to/offerowl` on Linux, `/path/to/Offerowl.app/Contents/MacOS/Offerowl` on macOS).
+`claude mcp add --scope user offerowl -- ...` has it in every project; the option goes before `--`.
 
 | Option | What it does |
 |:---|:---|
