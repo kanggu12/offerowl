@@ -6,6 +6,25 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-17
+
+The desktop app starts the agent's tools, and Offerowl has no Python package any more: it runs as the app, a container,
+a Helm chart, or from the source.
+
+### Added
+
+- The desktop app starts Offerowl's tools for an AI agent of your own: `claude mcp add offerowl -- <the app> mcp`, with no
+  checkout ([MCP.md](docs/MCP.md)). Its own check (`--check`) starts them that way too, beside the way the panel's command
+  bar does.
+
+### Removed
+
+- The Python package. A release carries no wheel or source archive, and `pyproject.toml` is gone. The one thing only the
+  wheel gave without a checkout, the agent's tools on PATH, the app now gives. To run Offerowl from the source, clone the
+  release's tag and start the launcher: `./offerowl panel --open` ([INSTALL.md](docs/INSTALL.md#4-from-the-source)). CI runs
+  that on Windows, macOS and Linux with the oldest and the newest Python, where it ran `pip install .`. The version is
+  written in `src/version.py`.
+
 ## [0.11.1] - 2026-11-17
 
 The release files, named one way.
@@ -613,7 +632,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/kanggu12/offerowl/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/kanggu12/offerowl/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/kanggu12/offerowl/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/kanggu12/offerowl/compare/v0.9.2...v0.10.0
