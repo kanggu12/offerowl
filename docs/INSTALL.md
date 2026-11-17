@@ -42,21 +42,21 @@ chart carry no Claude Code or Codex, so they use a model server or none.
 **Windows** (PowerShell)
 
 ```powershell
-iwr https://github.com/kanggu12/offerowl/releases/download/v0.12.0/offerowl-0.12.0-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
+iwr https://github.com/kanggu12/offerowl/releases/download/v0.12.1/offerowl-0.12.1-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
 .\offerowl.exe
 ```
 
 **macOS** (Apple silicon; on Intel, `arm64` becomes `x64`)
 
 ```bash
-curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.12.0/offerowl-0.12.0-macos-arm64.zip
-ditto -x -k offerowl-0.12.0-macos-arm64.zip . && open Offerowl.app
+curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.12.1/offerowl-0.12.1-macos-arm64.zip
+ditto -x -k offerowl-0.12.1-macos-arm64.zip . && open Offerowl.app
 ```
 
 **Linux** (x86-64)
 
 ```bash
-curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.12.0/offerowl-0.12.0-linux-x64.tar.gz | tar -xz
+curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.12.1/offerowl-0.12.1-linux-x64.tar.gz | tar -xz
 ./offerowl
 ```
 
@@ -68,32 +68,32 @@ code-signed yet, so the system asks once:
 
 | System | File | What to choose |
 |:---|:---|:---|
-| Windows | `offerowl-0.12.0-windows-x64.exe` | **More info**, then **Run anyway** |
-| macOS, Apple silicon | `offerowl-0.12.0-macos-arm64.zip` | macOS 15 or newer: **System Settings**, **Privacy & Security**, **Open Anyway**. macOS 13 and 14: right-click the app, **Open**, then **Open** again |
-| macOS, Intel | `offerowl-0.12.0-macos-x64.zip` | the same |
-| Linux | `offerowl-0.12.0-linux-x64.tar.gz` | nothing: unpacked, `offerowl` keeps its execute bit |
+| Windows | `offerowl-0.12.1-windows-x64.exe` | **More info**, then **Run anyway** |
+| macOS, Apple silicon | `offerowl-0.12.1-macos-arm64.zip` | macOS 15 or newer: **System Settings**, **Privacy & Security**, **Open Anyway**. macOS 13 and 14: right-click the app, **Open**, then **Open** again |
+| macOS, Intel | `offerowl-0.12.1-macos-x64.zip` | the same |
+| Linux | `offerowl-0.12.1-linux-x64.tar.gz` | nothing: unpacked, `offerowl` keeps its execute bit |
 
 **What each file of a release is.** Every name is lower case: the version, then the system and the machine where they matter.
 
 | File | What it is |
 |:---|:---|
-| `offerowl-0.12.0-windows-x64.exe` | the desktop app for Windows on x86-64 |
-| `offerowl-0.12.0-macos-arm64.zip`, `offerowl-0.12.0-macos-x64.zip` | the desktop app for macOS on Apple silicon, and on Intel |
-| `offerowl-0.12.0-linux-x64.tar.gz` | the desktop app for Linux on x86-64: one program, `offerowl` |
-| `offerowl-0.12.0-helm-chart.tgz` | the Helm chart for Kubernetes, the same as `oci://ghcr.io/kanggu12/charts/offerowl` |
-| `offerowl-0.12.0-sha256sums.txt` | the SHA-256 of every file above |
+| `offerowl-0.12.1-windows-x64.exe` | the desktop app for Windows on x86-64 |
+| `offerowl-0.12.1-macos-arm64.zip`, `offerowl-0.12.1-macos-x64.zip` | the desktop app for macOS on Apple silicon, and on Intel |
+| `offerowl-0.12.1-linux-x64.tar.gz` | the desktop app for Linux on x86-64: one program, `offerowl` |
+| `offerowl-0.12.1-helm-chart.tgz` | the Helm chart for Kubernetes, the same as `oci://ghcr.io/kanggu12/charts/offerowl` |
+| `offerowl-0.12.1-sha256sums.txt` | the SHA-256 of every file above |
 
-**Check the download.** The release lists a SHA-256 for each file in `offerowl-0.12.0-sha256sums.txt`, and GitHub records where each
+**Check the download.** The release lists a SHA-256 for each file in `offerowl-0.12.1-sha256sums.txt`, and GitHub records where each
 was built:
 
 ```bash
-sha256sum -c --ignore-missing offerowl-0.12.0-sha256sums.txt
-gh attestation verify offerowl-0.12.0-linux-x64.tar.gz --repo kanggu12/offerowl
+sha256sum -c --ignore-missing offerowl-0.12.1-sha256sums.txt
+gh attestation verify offerowl-0.12.1-linux-x64.tar.gz --repo kanggu12/offerowl
 ```
 
 On Windows, compare `Get-FileHash Offerowl.exe` with its line. The files are built and checked on Windows, on macOS (Apple
 silicon and Intel) and on Linux. The image has no line in the checksums file; GitHub's record of where it was built is checked by
-name: `gh attestation verify oci://ghcr.io/kanggu12/offerowl-app:0.12.0 --repo kanggu12/offerowl`.
+name: `gh attestation verify oci://ghcr.io/kanggu12/offerowl-app:0.12.1 --repo kanggu12/offerowl`.
 
 **Options.** `--no-browser`, `--no-tray` (no notification area), `--port N`, and `--check` (a throwaway copy with a stand-in
 agent reads one file, makes the example's documents, and stops). [APP.md](APP.md) describes the panel.
@@ -126,7 +126,7 @@ first build takes several minutes; later starts take seconds. `./offerowl open` 
 A published image instead of a build (the version is on the Releases page):
 
 ```bash
-OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.12.0 docker compose -f deploy/docker/compose.yaml up -d
+OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.12.1 docker compose -f deploy/docker/compose.yaml up -d
 ```
 
 Settings come from your shell or from a `.env` file next to `deploy/docker/compose.yaml`:
@@ -163,7 +163,7 @@ The volume stays.
 ## 3. A Kubernetes cluster (Helm)
 
 ```bash
-helm install offerowl oci://ghcr.io/kanggu12/charts/offerowl --version 0.12.0 --namespace offerowl --create-namespace
+helm install offerowl oci://ghcr.io/kanggu12/charts/offerowl --version 0.12.1 --namespace offerowl --create-namespace
 kubectl --namespace offerowl port-forward svc/offerowl 8797:8797
 ```
 
@@ -174,8 +174,8 @@ port on both sides. `helm test offerowl --namespace offerowl` asks its health ch
 From a checkout, with an image you built and pushed where the cluster can pull it:
 
 ```bash
-docker build -f deploy/docker/Dockerfile -t registry.example.com/offerowl-app:0.12.0 .
-docker push registry.example.com/offerowl-app:0.12.0
+docker build -f deploy/docker/Dockerfile -t registry.example.com/offerowl-app:0.12.1 .
+docker push registry.example.com/offerowl-app:0.12.1
 helm install offerowl deploy/helm/offerowl --namespace offerowl --create-namespace --set image.repository=registry.example.com/offerowl-app
 ```
 
@@ -268,7 +268,7 @@ stays.
 The repository runs as it is, with Python 3.10 or newer and nothing to install first:
 
 ```bash
-git clone --branch v0.12.0 https://github.com/kanggu12/offerowl && cd offerowl
+git clone --branch v0.12.1 https://github.com/kanggu12/offerowl && cd offerowl
 ./offerowl panel --open
 ```
 
