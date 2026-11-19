@@ -238,9 +238,15 @@ def norm_period(p) -> str:
     return " ".join(s.split())
 
 
+SPACED_DATE = re.compile(r"(?<![\d.])((?:\d ?){3}\d) ?\. ?(\d) ?(\d)(?!\d)")  # '2 0 1 7.0 3', '2 0 31 .1 2': a letter-spaced year-month as a PDF reader groups it
+
+
 def dates(text: str) -> list:
-    """The year-months a text holds, in order, as YYYY.MM."""
-    return [f"{y}.{int(m):02d}" for y, m in re.findall(r"((?:19|20)\d{2})[.\-/](\d{1,2})(?!\d)", str(text or ""))]
+    """The year-months a text holds, in order, as YYYY.MM. A letter-spaced one counts too: a deck that prints a project's period
+    with wide letter spacing reads back as '2 0 1 7.0 3 ~ 2 0 1 7.1 1', and missing it left only the dates of the slide's
+    figures to compare (a project's prototype month taken for its period)."""
+    text = SPACED_DATE.sub(lambda m: m.group(1).replace(" ", "") + "." + m.group(2) + m.group(3), str(text or ""))  # the digits joined again
+    return [f"{y}.{int(m):02d}" for y, m in re.findall(r"((?:19|20)\d{2})[.\-/](\d{1,2})(?!\d)", text)]
 
 
 def latin_tokens(text: str) -> set:

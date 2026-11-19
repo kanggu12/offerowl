@@ -295,6 +295,17 @@ class EditionTests(unittest.TestCase):
         self.assertEqual(([], 1), self.codes(deck))  # the resume's period is one of the slide's
         self.assertEqual((["deck_whole_period"], 1), self.codes(deck, {"parity": {"whole_period": ["authorization"]}}))  # unless it must print them all
 
+    def test_a_letter_spaced_period_is_read_beside_a_figure_s_dates(self):
+        # a deck that prints the period with wide letter spacing reads back digit by digit; the figure's own month must not stand for it
+        self.assertEqual(["2017.03", "2017.11", "2017.06"], CP.dates("2 0 1 7.0 3 ~ 2 0 1 7.1 1 pilot 2017.06"))
+        self.assertEqual(["2017.02", "2017.05", "2031.12"], CP.dates("2 0 1 7 .0 2 ~ 2 0 1 7.0 5, 2 0 31 .1 2"))  # the reader's groups vary
+        self.assertEqual(["2023.01", "2023.09"], CP.dates("2023.01 2023.09"))  # dates side by side stay two
+        self.assertEqual([], CP.dates("2019 2020 1 2 3 4"))  # years alone and loose digits are no dates
+        deck = self.deck([("project", "Alpha Pay", "Payment authorization service redesign", "2 0 2 3.0 1 - 2 0 2 3.0 9  pilot 2023.05")])
+        self.assertEqual(([], 1), self.codes(deck))
+        deck = self.deck([("project", "Alpha Pay", "Payment authorization service redesign", "2 0 2 3.0 2 - 2 0 2 3.0 9  pilot 2023.05")])
+        self.assertEqual((["deck_period"], 1), self.codes(deck))  # a spaced period that differs is still a finding
+
     def test_colours_and_fonts_apart(self):
         deck = self.deck([("project", "Alpha Pay", "Payment authorization service redesign", "2023.01 - 2023.09")], font="Times-Roman",
                          html="<style>:root { --navy: #123456 }</style>")
