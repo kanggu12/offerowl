@@ -14,7 +14,7 @@
 // that are not companies (they follow the company chapters). docs/DOCUMENTS.md has the details
 const fs = require("fs");                          // files
 const path = require("path");                      // paths
-const { Deck, h } = require("./portfolio/deck");   // the slide frame and HTML helpers
+const { Deck, h, rampSteps } = require("./portfolio/deck");   // the slide frame, HTML helpers and how many ramp steps the colour set names
 const G = require("./profile_loader");            // one profile loader for resume, deck and figures
 const CH = require("./deck_figures");            // figure templates drawn with the shared drawing parts
 const ST = require("./deck_structure");         // chapters, contents, rail and project headers
@@ -302,7 +302,7 @@ function build(profilePath, cfg = {}) {              // one deck from a profile 
   const yearsOf = r => { const a = String(r.start || "").slice(0, 4), b = r.end === null ? "" : String(r.end || "").slice(0, 4); return b && b !== a ? `${a}${lang === "en" ? " - " : " ~ "}${b}` : a; };   // the edition's range mark
   // The career path strip, oldest role first, when any role has a journey line
   const path_ = chapters && roles.some(r => r.journey) ? ST.journey([...roles].reverse().filter(r => r.journey || (r.projects || []).some(p => p.deck !== false)).map(r => ({ phase: (r.journey || {}).phase, years: yearsOf(r),   // a short job with no slide has no station either
-    name: r.short || r.org, logo: tile(r.logoId), title: r.titleLong || r.title, line: (r.journey || {}).line, key: (r.journey || {}).key }))) : "";   // each role's name, logo, title and line
+    name: r.short || r.org, logo: tile(r.logoId), title: r.titleLong || r.title, line: (r.journey || {}).line, key: (r.journey || {}).key })), rampSteps(cfg.theme)) : "";   // each role's name, logo, title and line
   const tlPng = chapters && !path_ ? figFile("timeline_deck") : null;   // else the resume build's flat timeline image
   const tlSvg = path_ || tlPng ? "" : timeline(roles, prof.education || []);   // else the simple timeline drawn here
   const focus = chapters && (S.focus || []).length >= 3 ? S.focus.slice(0, 4) : coverCards(S, roles);   // three or four focus columns in the chapter layout, else the three cover cards

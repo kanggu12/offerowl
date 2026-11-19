@@ -185,6 +185,15 @@ const glyphsOf = body => {
   return require("./draw").glyphTable([...chars]);
 };
 
+// A colour set's sequential tones, ramp1, ramp2, ... from light to dark, as "#RRGGBB" in order: read up to the first missing or
+// malformed step, and only a run of three or more counts (theme_ramp in src/overview_figures.py reads them the same way, so the
+// deck's cover and the overview's bars take the same steps). null for a set without one
+function rampOf(t) {
+  const steps = [];                                  // the steps found so far
+  for (let k = 1; /^[0-9A-Fa-f]{6}$/.test(String(t["ramp" + k] || "")); k++) steps.push("#" + String(t["ramp" + k]).toUpperCase());   // the next step while it is a colour
+  return steps.length >= 3 ? steps : null;           // two steps make no ramp
+}
+
 // The tones of a colour set, for the deck's stylesheet (themeFileCss) and for its figures and slides (themeMap) alike: one
 // derivation, so a box drawn in a figure and the slide around it never disagree. A tone the set names itself (its optional keys
 // deep, paper, n2, n3, b1 to b5, hair, label and ink2: src/themes.json) is used as it is; the others come from its dark colour and
@@ -219,6 +228,7 @@ function palette(name) {
     // The amber and teal categories' pale steps, the figures' own unless the set names its own (a pale accent too close to them)
     a3: own("a3") || C.a3, a4: own("a4") || C.a4, t3: own("t3") || C.t3, t4: own("t4") || C.t4,
     named: new Set(Object.keys(t)),                    // the keys the set names, so a set that names none of these changes nothing
+    ramp: rampOf(t),                                   // its sequential steps, light to dark, or null (the overview figures read the same keys)
     band: "#" + t.band, key: "#" + t.key, rule: "#" + t.rule,   // the set's own fills and lines
     deep: own("deep") || darker(deep, 0.75), paper: own("paper") || mix(deep, 0.95),   // the dark panels, the figure frame
     pale: mix(acc, 0.85), grid: mix(deep, 0.88),       // two pale tones the figures name directly (#DCE6F3, #E3E8EF)
@@ -240,7 +250,18 @@ function themeFileCss(name, look) {
   const v = { navy: p.navy, blue: p.blue, band: p.band, rule: p.rule, key: p.key, deep: p.deep, b2: p.b2, b3: p.b3, b4: p.b4, paper: p.paper,
               hair: p.hair, label: p.label, ink2: p.ink2 };   // theme.css's variables, in its order
   return ":root{" + Object.entries(v).filter(([, x]) => x).map(([k, x]) => `--${k}:${x};`).join("") + "}" +   // a neutral tone the set leaves out stays theme.css's
+    (p.ramp ? ":root{" + p.ramp.map((x, i) => `--ramp${i + 1}:${x};`).join("") + "}" : "") +   // its ramp's steps, for the cover's career path (deck_structure.js journey)
     (look === "clean" ? "" : darkPanelCss(p));        // the light deck's panels are paper, coloured by style_clean.css alone
+}
+
+// How many ramp steps the deck's colour set names, chosen as themeFileCss chooses the set (the same name, else OFFEROWL_THEME with a
+// theme file), so the steps the slides ask for are the ones its stylesheet writes; 0 for the built-in navy, for no set and for a
+// set without a ramp, whose pages stay as they were
+function rampSteps(name) {
+  if (!name && !process.env.OFFEROWL_THEME_FILE) return 0;   // no set and no theme file: theme.css as it is
+  if (name === "navy" && !process.env.OFFEROWL_THEME_FILE) return 0;   // the built-in navy has no ramp
+  const r = palette(name || process.env.OFFEROWL_THEME || "navy").ramp;   // the set's steps
+  return r ? r.length : 0;                           // their count, or none
 }
 
 // The dark panels' own tones (the cover's name panel, a chapter's left panel, the last slide), for each one the set names; the
@@ -1025,4 +1046,4 @@ const PROBE = String.raw`
 })();
 `;
 
-module.exports = { Deck, h };
+module.exports = { Deck, h, rampSteps };

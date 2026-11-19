@@ -181,16 +181,27 @@ function railHtml(R, p, dark, lang) {
 }
 
 // The cover's career path: one station per role from the oldest to the newest on a line that darkens toward today. Above a station
-// its phase and years, below it the logo and short name, the title, one line on the work and the key projects (roles[].journey)
-function journey(stations) {
+// its phase and years, below it the logo and short name, the title, one line on the work and the key projects (roles[].journey).
+// steps: how many ramp steps the colour set names (deck.js rampSteps, whose stylesheet writes them as --ramp1 ...). With a ramp a
+// station takes the step its role's bar takes in the overview figures, the darkest for the newest role and one lighter for each
+// role before it, and the line toward a station that station's step; without one, the accent's pale step to the dark colour
+function journey(stations, steps = 0) {
   const n = stations.length;
   if (!n) return "";
   const shade = i => (n === 1 ? 1 : i / (n - 1));                       // 0 oldest, 1 newest
   const col = t => `color-mix(in srgb, var(--navy) ${Math.round(t * 100)}%, var(--b3))`;   // the colour set's pale step to its dark one
+  const ramp = steps >= 3;                                              // the set draws in its own steps (three make a ramp)
+  const step = i => `var(--ramp${Math.max(1, steps - n + 1 + i)})`;     // station i's step: the newest the last, the oldest past the first stay on it
+  const dot = i => (ramp ? step(i) : col(shade(i)));                    // a station's fill
+  const at = i => `${+(i * 100 / (n - 1)).toFixed(2)}%`;                // where station i sits along the line (n > 1)
+  // The line: in the ramp one segment per gap, each in the step of the station it leads to (as the overview's bars darken), else one
+  // run from the pale step to the dark colour. A single station has no line to draw
+  const line = ramp && n > 1 ? `linear-gradient(90deg, ${[...Array(n - 1)].map((_, i) => `${step(i + 1)} ${at(i)} ${at(i + 1)}`).join(", ")})`
+    : "linear-gradient(90deg, var(--b3), var(--navy))";
   const cells = stations.map((s, i) => `<div style="display:flex; flex-direction:column; align-items:center; text-align:center; min-width:0">` +
     `<div style="font-size:11.5px; font-weight:700; color:var(--blue); letter-spacing:0.6px; height:16px">${esc(s.phase || "")}</div>` +
     `<div style="font-size:11.5px; font-weight:700; color:var(--g500); margin-top:4px">${esc(s.years || "")}</div>` +
-    `<div style="width:14px; height:14px; border-radius:7px; background:${col(shade(i))}; margin:9px 0 10px 0; position:relative; z-index:1"></div>` +
+    `<div style="width:14px; height:14px; border-radius:7px; background:${dot(i)}; margin:9px 0 10px 0; position:relative; z-index:1"></div>` +
     `<div style="display:flex; align-items:center; gap:7px; font-size:15px; font-weight:700; color:var(--ink2)">` +
     (s.logo ? `<img src="file://${esc(s.logo)}" alt="" style="height:20px; width:20px">` : "") + `<span>${esc(s.name)}</span></div>` +
     (s.title ? `<div style="font-size:11.5px; color:var(--blue); margin-top:4px">${esc(s.title)}</div>` : "") +
@@ -199,7 +210,7 @@ function journey(stations) {
   // The line joins the first and the last dot (it runs between the centers of the outer columns, behind the dots)
   const inset = 50 / n;
   return `<div class="journey" style="position:relative"><div style="position:absolute; left:${inset}%; right:${inset}%; top:47px; height:3px; ` +
-    `background:linear-gradient(90deg, var(--b3), var(--navy)); border-radius:${SQUARE ? 0 : 2}px"></div>` +   // its ends square too under square corners; the stations' dots stay round
+    `background:${line}; border-radius:${SQUARE ? 0 : 2}px"></div>` +   // its ends square too under square corners; the stations' dots stay round
     `<div style="display:grid; grid-template-columns:repeat(${n}, minmax(0, 1fr)); column-gap:12px">${cells}</div></div>`;
 }
 

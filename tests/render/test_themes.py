@@ -266,6 +266,48 @@ class DeckTests(unittest.TestCase):
         self.assertEqual([CRIMSON["a3"], CRIMSON["a4"], OWN_TINTS["t3"], CRIMSON["t4"]], fills("crimson"))  # t3, which it leaves out, stays
         self.assertEqual([OWN_TINTS[k] for k in TINT_KEYS], fills("teal"))  # a set that names none keeps the figures' own
 
+    def test_the_cover_path_takes_the_ramp_steps(self):
+        """The cover's career path in a set with a ramp: each station in the step its role's bar takes in the overview figures, the
+        darkest for the newest role and one lighter for each role before it, and the line toward a station in that station's step."""
+        for look in ("classic", "clean"):  # the strip sits on the cover's light half in either look
+            html = self.page("crimson", look)
+            steps = "".join(f"--ramp{k}:#{CRIMSON[f'ramp{k}']};" for k in range(1, 9))  # the set's eight steps, light to dark
+            self.assertIn(":root{" + steps + "}", html, look)  # its stylesheet names them
+            path = html[html.index('<div class="journey"'):]  # the strip, from its start
+            dots = re.findall(r"border-radius:7px; background:([^;]+);", path)[:3]  # the example's three roles, the oldest first
+            self.assertEqual(["var(--ramp6)", "var(--ramp7)", "var(--ramp8)"], dots, look)
+            self.assertIn("background:linear-gradient(90deg, var(--ramp7) 0% 50%, var(--ramp8) 50% 100%)", path, look)  # each gap in the step it leads to
+
+    def test_a_set_without_a_ramp_keeps_the_pale_to_dark_path(self):
+        for name in ("teal", None):  # a built-in set that names none, and no set at all
+            html = self.page(name)
+            self.assertNotIn("--ramp", html, name)  # no steps written and none asked for
+            path = html[html.index('<div class="journey"'):]
+            self.assertIn("background:linear-gradient(90deg, var(--b3), var(--navy))", path, name)  # the line as it always ran
+            self.assertIn("background:color-mix(in srgb, var(--navy) 0%, var(--b3))", path, name)  # and the oldest station's pale step
+
+    def test_the_deck_counts_a_ramp_as_the_figures_do(self):
+        """Steps are read in order up to the first missing one, and fewer than three make no ramp, in the deck (deck.js rampSteps) as in
+        the overview figures (overview_figures.py theme_ramp), so the cover's path and the bars take the same steps."""
+        import overview_figures as OF  # src/overview_figures.py: the figures' colours
+        base = {k: v for k, v in CRIMSON.items() if not k.startswith("_") and not k.startswith("ramp")}  # crimson without its ramp
+        r = {f"ramp{k}": CRIMSON[f"ramp{k}"] for k in range(1, 9)}  # and its steps, to take some of
+        sets = {"owl_two": {**base, "ramp1": r["ramp1"], "ramp2": r["ramp2"]},  # two steps: no ramp
+                "owl_gap": {**base, **{k: r[k] for k in ("ramp1", "ramp2", "ramp3", "ramp5")}},  # ramp4 missing: three steps
+                "owl_eight": {**base, **r}}  # all eight
+        with tempfile.TemporaryDirectory() as d:
+            tf = pathlib.Path(d) / "themes.json"  # a theme file of fictional sets
+            tf.write_text(json.dumps(sets), encoding="utf-8")
+            env = {**{k: v for k, v in os.environ.items() if not k.startswith("OFFEROWL_THEME")}, "OFFEROWL_THEME_FILE": str(tf)}
+            code = 'console.log(JSON.stringify(process.argv.slice(1).map(n => require("./src/portfolio/deck").rampSteps(n))))'
+            got = subprocess.run(["node", "-e", code, *sets], cwd=ROOT, capture_output=True, text=True, timeout=120, env=env)
+            self.assertEqual(0, got.returncode, got.stderr)
+            self.assertEqual([0, 3, 8], json.loads(got.stdout))  # the deck's count for each set
+            with mock.patch.dict(os.environ, {"OFFEROWL_THEME_FILE": str(tf)}):
+                for name, want in zip(sets, (0, 3, 8)):
+                    with mock.patch.dict(os.environ, {"OFFEROWL_THEME": name}):
+                        self.assertEqual(want, len(OF.theme_ramp() or []), name)  # the figures' count, the same
+
 
 @unittest.skipUnless(HAVE_PIL and shutil.which("node"), "Pillow or Node.js is not here: the figures' script cannot run")
 class FigureTests(unittest.TestCase):
