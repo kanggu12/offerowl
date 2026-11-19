@@ -12,8 +12,11 @@ from .workspace import Workspace, read_json, sha256, write_json  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]  # the repository (or the app's bundle)
 # The layout choices an application's own edition may carry (app.own_edition, resume_form.js reads them under these names);
-# blind: the edition is made as a blind edition (Tasks.blind_choice), so one brought in blind stays blind
-OWN_FORM_KEYS = ("competencyFigure", "footerLabel", "skillsFocus", "skillsStrong", "skillsHighlight", "photo", "plain", "titleView", "blind")
+# blind: the edition is made as a blind edition (Tasks.blind_choice), so one brought in blind stays blind;
+# competencyWeak, competencyDrop: the competencies it sends to the back or leaves out, which a job drafted from the profile takes from
+# its posting analysis (tasks.edition_cfg reads no plan.json for an own edition, so without them it printed the profile's order only)
+OWN_FORM_KEYS = ("competencyFigure", "footerLabel", "skillsFocus", "skillsStrong", "skillsHighlight", "photo", "plain", "titleView", "blind",
+                 "competencyWeak", "competencyDrop")
 
 
 class OwnEdition:

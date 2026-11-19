@@ -134,7 +134,8 @@ Offerowl also keeps the documents you made before you used it, so moving to it l
   (`POST /api/v1/jobs/own`). Its words are its own facts, kept in the job's folder (`jobs/<job>/own/`) apart from your profile, and the job's
   PDFs print them as written, in the languages it came in. The person's name, email and phone stay your profile's. The layout choices it
   was made with come along per language (`form`: `plain`, `footerLabel`, `competencyFigure`, `photo`, `titleView`, `skillsFocus`,
-  `skillsStrong`, `skillsHighlight`, `blind`), and the posting's own order does not reorder it. Bringing one in is one undo step, and a
+  `skillsStrong`, `skillsHighlight`, `blind`, and `competencyWeak` and `competencyDrop` for the competencies it sends to the back or
+  leaves out), and the posting's own order does not reorder it. Bringing one in is one undo step, and a
   second one replaces the words of the first only: the files you brought in for the job stay. The sentences you change on the page are
   steps of the same history, so the bar's Undo takes each one back.
 - **Named general editions.** Editions with no posting, such as one for headhunters or one per target role

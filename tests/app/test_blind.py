@@ -277,6 +277,21 @@ class EnvTests(Builds):
             time.sleep(0.05)
         self.assertIs(True, self.record(a, "-general").get("blind"))
 
+    def test_an_own_edition_keeps_its_competency_order(self):
+        # an application's own edition sends competencies back or leaves them out, as a job drafted from the profile does through its
+        # posting analysis: its form carries the two lists per language, and its job.json hands them to resume_form.js (2026-11-19)
+        a = self.person()
+        self.stand_in(a)
+        jid = a.add_job({"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a fictional job
+        own = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the same person's resume, brought in
+        self.assertIn("competencyWeak", OWN_FORM_KEYS)  # layout choices an own edition keeps
+        self.assertIn("competencyDrop", OWN_FORM_KEYS)
+        form = {"ko": {"competencyWeak": ["결제 백엔드"], "competencyDrop": ["배포 플랫폼"]}}  # two of the example's competencies
+        Router(a).handle("POST", "/api/v1/jobs/own", None, {"job": jid, "profile": own, "langs": ["ko"], "name": "order", "form": form})
+        cfg = a.tasks.edition_cfg(jid, "ko", "navy")  # what its job.json carries
+        self.assertEqual(["결제 백엔드"], cfg["competencyWeak"])  # sent to the back
+        self.assertEqual(["배포 플랫폼"], cfg["competencyDrop"])  # left out
+
     def test_an_own_edition_brought_in_blind_stays_blind(self):
         a = self.person()
         self.stand_in(a)
