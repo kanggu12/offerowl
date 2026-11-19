@@ -69,7 +69,11 @@ preset column widths per language, and `job.widths` overrides them.
 - Hierarchy figure with ink-centred text.
 - Colours: the edition's colour set (`theme`, handed to the script as `OFFEROWL_FIG_THEME`) draws the bars in its dark colour,
   the hierarchy figure's boxes in its `band` and the tiles' outline in its `rule`; the built-in navy keeps the figures' own
-  navy, pale blue and light outline, byte for byte.
+  navy, pale blue and light outline, byte for byte. A set that names its own sequential tones, `ramp1`, `ramp2`, ... from light
+  to dark (crimson names eight), draws in them instead of shades of its dark colour, so a set whose dark colour is black does
+  not come out grey: the career bars take the ramp's steps from the darkest for the newest role, a chapter's own bar the set's
+  accent, and the hierarchy's plates the steps that carry white words at 4.5:1, lightest at the top. Words on a ramp's bar are
+  white only where they read at 4.5:1.
 - Logo tiles: an image is trimmed and placed on a white rounded tile with a light outline; a square image with transparent corners
   is taken as a finished tile; `{ "text": "AB", "color": "#2F6EBA" }` draws a monogram.
 - Square corners: with `OFFEROWL_CORNERS=square` (the panel's setting `corners`, a switch of its Style tab) the timeline's bars, the

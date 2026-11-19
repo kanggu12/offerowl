@@ -72,6 +72,30 @@ class LoaderTests(unittest.TestCase):
             self.assertEqual(OF.NAVY, OF.theme_navy())  # its bars as they were
             self.assertEqual((OF.TINT, OF.TILE_BORDER), OF.theme_tones())  # and its pale blue boxes and light outline
 
+    def test_a_ramp_is_read_in_order_and_its_plates_carry_white_words(self):
+        import overview_figures as OF  # src/overview_figures.py: the figures' colours
+        old = {k: os.environ.get(k) for k in ("OFFEROWL_THEME", "OFFEROWL_THEME_FILE")}
+        try:
+            os.environ.pop("OFFEROWL_THEME_FILE", None)
+            os.environ["OFFEROWL_THEME"] = "crimson"
+            ramp = OF.theme_ramp()
+            self.assertEqual(8, len(ramp))  # ramp1 to ramp8, light to dark
+            self.assertEqual((253, 164, 175), ramp[0])
+            self.assertEqual((76, 5, 25), ramp[-1])
+            plates = OF.ramp_pick(ramp, 5)
+            self.assertEqual([(225, 29, 72), (190, 18, 60), (159, 18, 57), (136, 19, 55), (76, 5, 25)], plates)  # lightest at the top
+            self.assertTrue(all(OF.contrast_white(c) >= 4.5 for c in OF.ramp_pick(ramp, 7)))  # blended steps read too
+            os.environ["OFFEROWL_THEME"] = "navy"
+            self.assertIsNone(OF.theme_ramp())  # the built-in navy names none and keeps its own shades
+            os.environ["OFFEROWL_THEME"] = "teal"
+            self.assertIsNone(OF.theme_ramp())  # nor do the other sets
+        finally:
+            for k, v in old.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+
     def test_the_panel_and_the_agents_offer_it(self):
         from apps.api.tasks import THEMES  # what a build and the panel take
         self.assertIn("crimson", THEMES)
@@ -153,7 +177,11 @@ class FigureTests(unittest.TestCase):
             self.assertEqual(0, blue_cast(im), name)  # bars, plates, boxes and words: black, greys and the set's band
         colours = {c for _, c in figs["stack_en"].convert("RGB").getcolors(1 << 24)}
         self.assertIn((239, 239, 241), colours)  # the boxes of the skills in its band
-        self.assertIn((24, 24, 27), {c for _, c in figs["timeline_en"].convert("RGB").getcolors(1 << 24)})  # the newest bar in its black
+        self.assertIn((225, 29, 72), colours)  # the top plate in the lightest step of its ramp that carries white words (E11D48)
+        self.assertIn((76, 5, 25), colours)  # the bottom plate in its darkest step (4C0519)
+        timeline = {c for _, c in figs["timeline_en"].convert("RGB").getcolors(1 << 24)}
+        self.assertIn((76, 5, 25), timeline)  # the newest career bar in the ramp's darkest step, not in grey
+        self.assertIn((136, 19, 55), timeline)  # the one before it a step lighter (881337)
 
     def test_navy_figures_keep_their_navy(self):
         figs = self.draw("navy")

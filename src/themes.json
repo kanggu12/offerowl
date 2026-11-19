@@ -105,6 +105,14 @@
   "b5": "FFF1F2",
   "hair": "E4E4E7",
   "label": "8B8B94",
-  "ink2": "111113"
+  "ink2": "111113",
+  "ramp1": "FDA4AF",
+  "ramp2": "FB7185",
+  "ramp3": "F43F5E",
+  "ramp4": "E11D48",
+  "ramp5": "BE123C",
+  "ramp6": "9F1239",
+  "ramp7": "881337",
+  "ramp8": "4C0519"
  }
 }

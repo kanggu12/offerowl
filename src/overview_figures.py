@@ -89,6 +89,40 @@ def theme_navy():
     return INK  # no dark color in the theme: near black
 
 
+def theme_ramp():
+    """The set's own sequential tones, light to dark (its optional keys ramp1, ramp2, ... in order), or None when it names none:
+    the career bars and the hierarchy's plates are drawn in them, so a set whose dark colour is black still draws its figures in
+    its own hue instead of greys (a black-based set otherwise draws both figures as shades of black). The built-in navy
+    names none and keeps its colours exactly."""
+    t = theme_set()  # the set, None for the built-in navy
+    if t is None:
+        return None
+    steps = []
+    while hex_rgb(t.get(f"ramp{len(steps) + 1}")):  # ramp1, ramp2, ... until the first one missing
+        steps.append(hex_rgb(t[f"ramp{len(steps) + 1}"]))
+    return steps if len(steps) >= 3 else None  # fewer than three steps make no ramp
+
+
+def contrast_white(c):
+    """WCAG contrast of white words on c"""
+    lum = [(v / 255) / 12.92 if v / 255 <= 0.04045 else ((v / 255 + 0.055) / 1.055) ** 2.4 for v in c]
+    return 1.05 / (0.2126 * lum[0] + 0.7152 * lum[1] + 0.0722 * lum[2] + 0.05)
+
+
+def ramp_pick(ramp, n):
+    """n colours from the ramp's steps that carry white words at 4.5:1 (light to dark), spread evenly, blended between two steps
+    when n is more than the ramp has"""
+    dark = [c for c in ramp if contrast_white(c) >= 4.5] or ramp[-1:]
+    if n <= 1:
+        return [dark[-1]]
+    out = []
+    for i in range(n):
+        p = i * (len(dark) - 1) / (n - 1)  # where along the dark steps
+        a, b, t = dark[int(p)], dark[min(len(dark) - 1, int(p) + 1)], p - int(p)
+        out.append(tuple(round(x + (y - x) * t) for x, y in zip(a, b)))
+    return out
+
+
 def theme_tones():
     """(the hierarchy figure's pale boxes, the tiles' outline): TINT and TILE_BORDER for the built-in navy, the set's band and its
     rule for any other, so a figure in another colour keeps no pale blue"""
@@ -222,6 +256,11 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
     active_edu (an education key) draws the variant for a chapter that is not a company (research done during a degree): that study
     bar dark and every role light.
     width is the figure width in document pixels: 694 for the resume body, wider for the 16:9 deck (a flatter figure)"""
+    ramp = theme_ramp()  # the set's own tones for the career bars, None for a set that names none (navy keeps its own)
+    accent = None
+    if ramp:  # a chapter's own bar: the set's accent when white words read on it, else a middle dark step of the ramp
+        acc2 = hex_rgb((theme_set() or {}).get("acc2"))
+        accent = acc2 if acc2 and contrast_white(acc2) >= 4.5 else ramp_pick(ramp, 5)[1]
     if active_edu is not None and active is None:
         active = "\0none"  # a chapter variant with no role dark
     W = width * S  # the canvas width (shadows the module's resume width)
@@ -353,13 +392,16 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
                     x1 = max(x0 + 2 * S, min(x1, X(bars[k + 1][1][0]) - 1.5 * S))
                 fade = key == "edu" and bool(it.get("fadeTo"))
                 if key == "career" and active is not None:  # chapter variant: this chapter dark, the others light grey
-                    color = navy if it.get("key") == active else mix(GREY, .78)
+                    color = (accent if it.get("key") == active else mix(GREY, .78)) if ramp else (navy if it.get("key") == active else mix(GREY, .78))
+                    label, sub = career_label(it)
+                elif key == "career" and ramp:  # the set's own ramp: newest the darkest step, each older one a step lighter
+                    color = ramp[max(0, len(ramp) - 1 - recency[id(it)])]
                     label, sub = career_label(it)
                 elif key == "career":  # newest darkest, older lighter (the reference shades run 0 to .70)
                     color = mix(navy, min(.70, recency[id(it)] * .16))
                     label, sub = career_label(it)
                 elif key == "edu" and active_edu is not None and it.get("key") == active_edu:  # the study this chapter belongs to, dark
-                    color = navy
+                    color = accent if ramp else navy
                     label = it.get("chartTitle") or "  ".join(v for v in (it.get("degree"), it.get("school")) if v)
                     sub = it.get("chartSub") if it.get("chartTitle") else (it.get("major") or "")
                 elif key == "edu":  # newest study darkest; the oldest of three or more lighter
@@ -378,7 +420,7 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
                 if tb is not None and x0 < XB < x1:  # a bar through the squeezed span is cut by the wave, its text starts after it
                     wave((yy - 2) * S, (yy + h + 2) * S)
                     tx = XB + 1.75 * S + 1.5 * S + 4 * S
-                dark = sum(color) < 450
+                dark = contrast_white(color) >= 4.5 if ramp else sum(color) < 450  # a ramp's bar: white words only where they read
                 ink = "white" if dark and not fade else navy
                 sub_ink = ink  # the sub line takes the label's color
                 z, zs = 12, 9.5  # one size for every row's label, the service bar's too
@@ -445,10 +487,12 @@ def stack(prof, lang, path, navy, tint=TINT):
     lw = int(W * (0.27 if lang == "en" else 0.25))
     lw = max([lw] + [int(d.textlength(name, font=f) + 2 * pad * S + (n - 1 - i) * step) for i, (name, _, _) in enumerate(rows)])
     right = lw + tip + 7 * S  # the pale boxes start a clear gap past the longest plate's tip (a hair's gap read as a slip: 2026-10-26)
+    ramp = theme_ramp()  # the set's own tones, light to dark (None: the plates are shades of its dark colour, as navy's always were)
+    plates = ramp_pick(ramp, n) if ramp else None  # the steps that carry white words, lightest at the top
     for i, (name, tech, where) in enumerate(rows):
         y0 = i * (row + gap) * S
         y1 = y0 + row * S
-        c = mix(navy, .30 - i * (.30 / max(1, n - 1)))  # lighter at the top, the theme's own navy at the bottom; white words keep 4.5:1 on the lightest
+        c = plates[i] if plates else mix(navy, .30 - i * (.30 / max(1, n - 1)))  # lighter at the top, darkest at the bottom; white words keep 4.5:1 on the lightest
         end = lw - (n - 1 - i) * step  # where this plate's body ends: each plate above is shorter
         d.polygon([(0, y0), (end, y0), (end + tip, (y0 + y1) / 2), (end, y1), (0, y1)], fill=c)  # the arrow plate
         b = d.textbbox((0, 0), name, font=f)  # center the name by its ink height (fonts differ in top room)
