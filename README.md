@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href=".github/workflows/ci.yml"><img alt="CI: GitHub Actions" src="docs/assets/badges/ci.svg"></a>
-  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.13.2" src="docs/assets/badges/release.svg"></a>
+  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.14.0" src="docs/assets/badges/release.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="docs/assets/badges/license.svg"></a>
   <img alt="Runs on Windows, macOS and Linux" src="docs/assets/badges/runs-on.svg">
 </p>
@@ -43,21 +43,21 @@ Pick your system, paste, and drop your files on the page that opens.
 **Windows** (PowerShell)
 
 ```powershell
-iwr https://github.com/kanggu12/offerowl/releases/download/v0.13.2/offerowl-0.13.2-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
+iwr https://github.com/kanggu12/offerowl/releases/download/v0.14.0/offerowl-0.14.0-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
 .\offerowl.exe
 ```
 
 **macOS** (Apple silicon; on Intel, `arm64` becomes `x64`)
 
 ```bash
-curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.13.2/offerowl-0.13.2-macos-arm64.zip
-ditto -x -k offerowl-0.13.2-macos-arm64.zip . && open Offerowl.app
+curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.14.0/offerowl-0.14.0-macos-arm64.zip
+ditto -x -k offerowl-0.14.0-macos-arm64.zip . && open Offerowl.app
 ```
 
 **Linux** (x86-64)
 
 ```bash
-curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.13.2/offerowl-0.13.2-linux-x64.tar.gz | tar -xz
+curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.14.0/offerowl-0.14.0-linux-x64.tar.gz | tar -xz
 ./offerowl
 ```
 
@@ -72,7 +72,7 @@ docker compose -f deploy/docker/compose.yaml up -d --build
 **From the source** (Python 3.10 or newer; on Windows, `python offerowl panel --open`)
 
 ```bash
-git clone --branch v0.13.2 https://github.com/kanggu12/offerowl && cd offerowl
+git clone --branch v0.14.0 https://github.com/kanggu12/offerowl && cd offerowl
 ./offerowl panel --open
 ```
 
