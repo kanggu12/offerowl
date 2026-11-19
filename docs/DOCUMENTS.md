@@ -88,7 +88,9 @@ The default layout is a cover, a career overview, one slide per project with a f
 `"deck": "chapters"` turns on the chapter structure:
 
 - cover with stat tiles (`summary.stats`), a career path strip (`roles[].journey: { phase, line, key }`) and focus columns
-  (`summary.focus`); its headline may differ from the resume's (`summary.deckHeadline`);
+  (`summary.focus`); its headline may differ from the resume's (`summary.deckHeadline`). In a colour set that names a ramp the
+  strip's stations take the steps the overview's career bars take, the darkest for the newest role, and the line toward a station
+  that station's step; otherwise the line runs from the accent's pale step to the dark colour;
 - contents with chapter bars sized by slide count and every project with its tagline and page (`summary.contents` is the lede);
 - career at a glance: flat timeline, hierarchy layers and two selected projects (`summary.glance`);
 - a chapter divider per company: logo, number, name (`roles[].chapterName` for long names), role, period, location, clients

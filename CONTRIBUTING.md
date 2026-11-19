@@ -166,7 +166,9 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
    `b1` to `b5`, `hair`, `label`, `ink2`) are optional: a set that leaves one out has it derived from its dark colour and its
    accent (`palette` in `src/portfolio/deck.js`), and one that names them all, as crimson does, leaves nothing of the navy
    family on its pages. `ramp1`, `ramp2`, ... (three or more, light to dark) are optional too: the resume's career bars and
-   hierarchy plates are drawn in them instead of shades of the set's dark colour (`theme_ramp` in `src/overview_figures.py`).
+   hierarchy plates are drawn in them instead of shades of the set's dark colour (`theme_ramp` in `src/overview_figures.py`), and
+   so is the deck cover's career path, whose stations take the same steps as the bars (`rampSteps` in `src/portfolio/deck.js`
+   reads them by the same rule).
    So are the tones of the classic deck's dark panels, `deepMark` (a chapter's number, the last slide's rule), `deepEyebrow`
    (the small eyebrows) and `deepLabel` (the labels and the English name lines), which otherwise take the accent's pale `b2`
    and `b3`: pick them on the set's `deep`, where a pale accent can read as a tint of itself. And `a3`, `a4`, `t3` and `t4`,
