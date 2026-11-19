@@ -223,6 +223,19 @@ scaled down to the width (a pinch enlarges them).
   `out/desk_portfolio.json`; a file of that name it did not write, or its copy after you changed it, is never touched, and the copy
   takes the next free name. A blind edition is never copied. While the switch is on, Export to Desktop names that copy instead of
   writing a second one.
+
+  **Under a size.** A site that takes a portfolio of 2 MB at most is met by the setting `deck_max_mb`, absent by default:
+  `offerowl api post /api/v1/settings '{"deck_max_mb": 1.99}'` (a megabyte of 1,000,000 bytes, the stricter way a site counts
+  it; `null` takes it away). A deck over that size goes to the Desktop as a smaller copy (`src/pdf_shrink.py`): first the
+  steps no reader can see (its shapes' coordinates rounded within 0.04 pt, images of 256 colours or fewer as palettes of exactly
+  those colours, its objects packed), then its text positions within 0.004 pt, then its images at 256 colours, then 224, 192,
+  160 and 128 at the fewest, each step only while the copy is still over the size; never JPEG. The words, links, title and
+  author stay.
+  The record keeps the hash of that copy, so the next build replaces it as before, and of the deck it was made from, so the
+  export still names it. A size set or changed while the switch is on makes the copy again at once. It needs pikepdf, which
+  the app image and the render container carry and the desktop app does not: there the deck goes at its own size, and the
+  record says `"shrink": "unavailable"`. One PDF from a shell: `offerowl shrink <in.pdf> <out.pdf> --max-mb 1.99`
+  ([Commands](USAGE.md#commands)).
 - A submitted application's export gives its frozen copies byte for byte, Word files included, as they were frozen: the lock keeps the
   build's own Word file, and the Word-ready copy made from it is the same bytes each time.
 - **What changed since the copy that went out.** The pages of an export or a lock are kept as the edition's baseline, and every

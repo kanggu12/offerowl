@@ -64,6 +64,7 @@ python3 src/figure_draft.py propose ~/my-application/profile.json   # (optional)
 | `build <profile.json> [job.json]` | Builds the resume and the deck into `output/`, and the resume in plain words for job sites that read a file (`<out>_plain.docx`, `<out>_plain.txt`), then runs the document check and the checks across documents: the resume against its deck, and a blind edition (`OFFEROWL_BLIND=1`) against its ordinary twin, which it typesets too ([Checks across documents](DOCUMENTS.md#checks-across-documents)) | Docker, or Chrome or Edge ([What you need](#what-you-need)) |
 | `baseline show\|accept <job> [--lang ko\|en]` | What the last build of an edition (`-general` for the general one) changed since the copy that last went out, page by page, or that build kept as the new baseline: the panel's band and its key, through the same API (`POST /api/v1/jobs/baseline`). Exit 1 when a page changed ([The pages that went out](DOCUMENTS.md#the-pages-that-went-out)) | a panel's data folder (`--data DIR`) |
 | `baseline compare <old.pdf> <new.pdf> [--picture out.png] [--json out.json]` | Two PDFs of one document compared page by page, as the panel compares an edition with its baseline: the pages that changed, and a picture of the changed bands, before \| now. Exit 1 when a page changed | Pillow, and poppler or pypdfium2 |
+| `shrink <in.pdf> <out.pdf> [--max-mb 1.99] [--json out.json]` | A PDF made smaller for an upload limit, as the portfolio kept on the Desktop is under `deck_max_mb`: the steps no reader can see first, then the text positions, then fewer colours (256 down to 128, never JPEG), each only while it is still over the size; a PDF under it already is copied as it is. A megabyte is 1,000,000 bytes. Exit 1 when even 128 colours do not fit (the smallest file is written), 3 without pikepdf ([The latest portfolio kept on the Desktop](APP.md#documents-the-live-canvas)) | pikepdf |
 | `cover ...` | Builds a cover letter from a profile and a job posting | see `offerowl cover --help` |
 | `interview ...` | Prepares the interview kit: question map, scenes, audits, search view, cue cards, the interview deck and the talk ([INTERVIEW.md](INTERVIEW.md)) | see `offerowl interview --help` |
 | `panel` | Opens the local web panel | see `offerowl panel --help` |
@@ -77,8 +78,8 @@ python3 src/figure_draft.py propose ~/my-application/profile.json   # (optional)
 | `llm [--list \| --probe <backend>]` | Shows which AI backend is in use and why; `--probe` makes one tiny test call | nothing |
 | `doctor [--json] [--only ...]` | Checks what Offerowl needs on this PC and says what to do about what is missing | nothing |
 
-`cover`, `interview`, `panel`, `edition`, `api`, `mcp`, `doctor`, `baseline` and `depth` are separate programs (`src/cover.py`, `src/interview/cli.py`,
-`apps/panel/server.py`, `apps/api/editions.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`, `src/baseline.py`, `apps/api/depth.py`), and `import` and `export` are `src/write_jsonresume.py`.
+`cover`, `interview`, `panel`, `edition`, `api`, `mcp`, `doctor`, `baseline`, `shrink` and `depth` are separate programs (`src/cover.py`, `src/interview/cli.py`,
+`apps/panel/server.py`, `apps/api/editions.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`, `src/baseline.py`, `src/pdf_shrink.py`, `apps/api/depth.py`), and `import` and `export` are `src/write_jsonresume.py`.
 The launcher passes your arguments and the exit code through. When a file is missing it prints "not installed", names
 the file, and exits with code 3.
 

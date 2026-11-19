@@ -21,6 +21,7 @@ for p in (ROOT, ROOT / "src", ROOT / "tests" / "app", ROOT / "tests" / "render")
     sys.path.insert(0, str(p))
 from test_blind import Person  # noqa: E402  the fictional person with a Desktop of the test's own
 from test_office import DECK, WORDS, deck_pdf, make_docx, png  # noqa: E402  a fictional resume DOCX and deck PDF
+from test_pdf_shrink import fat_deck, pikepdf  # noqa: E402  a deck of the size a browser prints, and pikepdf where it is installed
 from test_pdftools import write_pdf  # noqa: E402  a small PDF with a text layer
 from apps.api import delivery  # noqa: E402  the module under test
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
@@ -28,6 +29,7 @@ from apps.api.tasks import file_hash  # noqa: E402  what a build records
 from apps.api.workspace import read_json, sha256  # noqa: E402  the record and the hashes
 import deck_pptx  # noqa: E402  the PowerPoint copy's DPI
 import office_check  # noqa: E402  Word and PowerPoint, stood in for
+import pdf_shrink  # noqa: E402  the portfolio made smaller for a size
 import pdfmeta  # noqa: E402  the title and the author
 
 
@@ -263,6 +265,56 @@ class DeskPortfolio(Edition):
         self.a.set_settings({"desk_portfolio": False})  # turned off: the export writes its own copy again
         self.assertIn("홍길동 포트폴리오 (2).pdf", self.a.tasks.export("-general", "ko"))
         self.assertEqual({"kept": []}, self.a.state()["desk"])  # and the panel lists nothing kept
+
+    def fat(self, words: list) -> None:
+        """The general edition's deck made again at the size a browser prints one, with its title and its build's record."""
+        fat_deck(self.ed / "deck.pdf", words)  # curves of seven decimals, a logo, a gradient
+        pdfmeta.stamp(self.ed / "deck.pdf", "홍길동 포트폴리오", "홍길동")  # its title and author, as the build writes them
+        self.record()
+
+    def kept(self) -> dict:
+        """What the record says of the Korean copy."""
+        return read_json(self.a.ws.path(*delivery.RECORD), {})["ko"]
+
+    @unittest.skipUnless(pikepdf, "pikepdf is not installed")
+    def test_a_size_keeps_a_smaller_copy_that_the_next_build_replaces(self):
+        self.fat(["Gildong Hong Portfolio", "Payment authorization service redesign"])
+        deck, copy = self.ed / "deck.pdf", self.desk / "홍길동 포트폴리오.pdf"
+        safe = pdf_shrink.shrink(deck, self.tmp / "probe.pdf")["after"]  # as small as no visible change makes it
+        mb = (safe + deck.stat().st_size) / 2 / pdf_shrink.MB  # a size between: the deck is over it, a smaller copy is under
+        self.a.set_settings({"desk_portfolio": True, "deck_max_mb": mb})
+        self.assertEqual(["홍길동 포트폴리오.pdf"], self.on_desk())
+        self.assertLessEqual(copy.stat().st_size, round(mb * pdf_shrink.MB))  # under the size asked for
+        self.assertLess(copy.stat().st_size, deck.stat().st_size)  # a copy of its own, smaller than the deck
+        rec = self.kept()
+        self.assertEqual((sha256(copy), sha256(deck), round(mb * pdf_shrink.MB), True), (rec["sha256"], rec["from"], rec["max_bytes"], rec["fits"]))  # the copy it wrote, and the deck it came from
+        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], self.a.tasks.export("-general", "ko"))  # the export names it
+        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], self.on_desk())  # and writes no second one beside it
+        self.fat(["Gildong Hong Portfolio", "Settlement reads one event stream"])  # made again
+        self.assertEqual("홍길동 포트폴리오.pdf", self.keep())  # its own smaller copy, replaced in place
+        self.assertEqual((sha256(copy), sha256(deck)), (self.kept()["sha256"], self.kept()["from"]))
+        self.assertLessEqual(copy.stat().st_size, round(mb * pdf_shrink.MB))
+        self.a.set_settings({"deck_max_mb": None})  # no size any more: the copy is the deck again, at once
+        self.assertEqual(deck.read_bytes(), copy.read_bytes())  # byte for byte
+        self.assertNotIn("max_bytes", self.kept())
+
+    def test_with_no_pikepdf_the_copy_goes_as_it_is_and_the_record_says_why(self):
+        with mock.patch.object(pdf_shrink, "_pikepdf", side_effect=pdf_shrink.Unavailable("pikepdf")):  # the desktop app's Python
+            self.a.set_settings({"desk_portfolio": True, "deck_max_mb": 0.0001})  # a size the fictional deck is over
+        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동 포트폴리오.pdf").read_bytes())  # copied as it is
+        self.assertEqual(("unavailable", 100), (self.kept()["shrink"], self.kept()["max_bytes"]))  # and why
+        self.assertEqual("홍길동 포트폴리오.pdf", self.keep())  # tried again at the next build, not taken for done
+
+    def test_the_size_setting_takes_a_size_and_nothing_else(self):
+        for bad in ("1.99", True, -1, 0, 5000, float("nan")):  # text, a switch, nothing, too much, not a number
+            self.a.set_settings({"deck_max_mb": bad})
+            self.assertNotIn("deck_max_mb", self.a.settings(), bad)
+        self.a.set_settings({"deck_max_mb": 1.99})  # under a site's 2 MB, however it counts a megabyte
+        self.assertEqual(1.99, self.a.settings()["deck_max_mb"])
+        self.assertEqual(1_990_000, delivery.deck_limit(self.a.tasks))  # in bytes of a megabyte of 1,000,000
+        self.a.set_settings({"deck_max_mb": None})  # cleared
+        self.assertNotIn("deck_max_mb", self.a.settings())
+        self.assertIsNone(delivery.deck_limit(self.a.tasks))
 
     def test_a_build_of_the_general_edition_keeps_it(self):
         """The build's own end: typesetting stood in for, the deck's copy follows it to the Desktop."""

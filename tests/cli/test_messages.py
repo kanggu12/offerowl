@@ -27,6 +27,7 @@ import draft  # noqa: E402  its messages
 import ingest  # noqa: E402  its messages
 import llm  # noqa: E402  its messages
 import ocr_selfcheck  # noqa: E402  its messages
+import pdf_shrink  # noqa: E402  its messages
 import resume  # noqa: E402  its messages
 import review  # noqa: E402  its messages
 from apps.api import editions  # noqa: E402  its messages (offerowl edition)
@@ -57,6 +58,7 @@ TABLES = {
     "draft": (draft.MSG, SRC / "draft.py"),
     "ingest": (ingest.MSG, SRC / "ingest.py"),
     "ocr_selfcheck": (ocr_selfcheck.MSG, SRC / "ocr_selfcheck.py"),
+    "pdf_shrink": (pdf_shrink.MSG, SRC / "pdf_shrink.py"),
     "review": (review.MSG, SRC / "review.py"),
     "launcher": (launcher.MSG, LAUNCHER),
     "editions": (editions.MSG, ROOT / "apps" / "api" / "editions.py"),

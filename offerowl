@@ -6,7 +6,7 @@
   ./offerowl <command> --help    one command
 
 init, ingest, draft, build, selftest and llm live in src/resume.py and are called as functions from here.
-cover, interview, panel, api, edition, mcp, doctor, baseline and depth are separate programs: this launcher runs one when its file exists and says
+cover, interview, panel, api, edition, mcp, doctor, baseline, shrink and depth are separate programs: this launcher runs one when its file exists and says
 "not installed" when it does not. open is here: it finds the panel that runs on this PC and shows it in the browser.
 On Windows start it with `python offerowl`.
 """
@@ -31,10 +31,11 @@ COMPONENTS = {
     "mcp": "apps/mcp/__main__.py",  # tools for AI agents over MCP, driving the running panel (docs/MCP.md)
     "doctor": "src/doctor.py",  # checks what Offerowl needs on this PC (docs/INSTALL.md)
     "baseline": "src/baseline.py",  # the pages an edition changed since the copy that last went out, and keeping a build as that copy (docs/DOCUMENTS.md)
+    "shrink": "src/pdf_shrink.py",  # a PDF made smaller with no visible change, for an upload limit (docs/USAGE.md)
     "depth": "apps/api/depth.py",  # what each project item and deck page leaves out, and the person's answers to it (docs/WRITING.md)
 }
 DATA_COMMANDS = ("import", "export")  # JSON Resume in and out, served by src/write_jsonresume.py
-ORDER = ["init", "ingest", "draft", "depth", "build", "baseline", "cover", "interview", "panel", "open", "edition", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # the order of a first application
+ORDER = ["init", "ingest", "draft", "depth", "build", "baseline", "shrink", "cover", "interview", "panel", "open", "edition", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # the order of a first application
 NOT_INSTALLED_EXIT = 3  # a distinct exit code, so that scripts can tell "not there" from "failed"
 
 # Messages of the launcher itself, in both languages (tests/cli checks that the keys and placeholders match).
@@ -55,6 +56,7 @@ MSG = {
         "cmd_mcp": "Serve Offerowl's tools to an AI agent over MCP (stdio), driving the running panel",
         "cmd_doctor": "Check what Offerowl needs on this PC and what to do about what is missing",
         "cmd_baseline": "Show the pages an edition changed since the copy that last went out, or keep its last build as that copy",
+        "cmd_shrink": "Make a PDF smaller with no visible change, to fit an upload limit (--max-mb)",
         "cmd_depth": "Review what each project item and deck page of an edition leaves out, and answer or fix each finding",
         "cmd_import": "Read a JSON Resume file into a new profile",
         "cmd_export": "Write a profile as a JSON Resume file",
@@ -85,6 +87,7 @@ MSG = {
         "cmd_mcp": "AI 에이전트에게 Offerowl 도구를 MCP(stdio)로 내준다. 돌고 있는 패널을 움직인다",
         "cmd_doctor": "이 PC에서 Offerowl에 필요한 것을 점검하고, 빠진 것은 어떻게 할지 알려 준다",
         "cmd_baseline": "마지막으로 나간 사본에서 판의 어느 쪽이 바뀌었는지 보거나, 마지막 빌드를 그 사본으로 삼는다",
+        "cmd_shrink": "보이는 변화 없이 PDF를 줄여 올릴 곳의 용량 제한(--max-mb)에 맞춘다",
         "cmd_depth": "판의 프로젝트 항목과 덱 쪽마다 빠진 것을 검토하고, 찾은 것마다 답하거나 고친다",
         "cmd_import": "JSON Resume 파일을 새 프로필로 읽는다",
         "cmd_export": "프로필을 JSON Resume 파일로 쓴다",
