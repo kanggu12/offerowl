@@ -792,6 +792,10 @@ class Questions(unittest.TestCase):
         self.c.post("/api/v1/jobs/questions/edit", {"job": self.jid, "id": "q1", "answer": good})  # put right
         names = self.c.api.tasks.export_answers(self.jid)
         self.assertEqual(1, len(names))
+        # named as every file handed out is: no space, the words joined by underscores, the day the answer was written at the end
+        day = self.questions()[0]["at"][:10].replace("-", "")  # the answer's own day, as made_day reads it
+        self.assertRegex(names[0], r"^[^ ]+_지원서_문항_" + day + r"\.txt$")
+        self.assertEqual(names[0][:-4] + "_2.txt", self.c.api.tasks.export_answers(self.jid)[0])  # a second one beside it, never over it
         text = (self.tmp / "Desktop" / names[0]).read_text(encoding="utf-8")
         self.assertIn("지원 동기를 쓰세요.", text)  # the question
         self.assertIn(good, text)  # and its answer

@@ -1,9 +1,7 @@
 """Tasks' part for an application's form answers (apps/api/tasks.py inherits it)."""
 from __future__ import annotations
 
-import re  # names and patterns
-
-from .delivery import desktop_dir  # noqa: E402
+from .delivery import desktop_dir, free_name, made_day, safe_name  # noqa: E402  the Desktop and the names files take there
 from .workspace import read_json, write_json  # noqa: E402
 
 
@@ -131,11 +129,12 @@ class AnswerTasks:
         word = "지원서 문항" if ko else "Application answers"  # the file's name word
         unit = lambda q: (" 자" if ko else " characters") if q["unit"] == "chars" else " words"  # noqa: E731  how the form counts
         body = "\n\n".join(f"{i}. {q['text']}\n({A.count(q['answer'], q['unit'])} / {q['limit']}{unit(q)})\n\n{q['answer']}" for i, q in enumerate(done, 1))  # numbered, each with its length
-        base = re.sub(r'[\\/:*?"<>|]+', "_", " ".join(x for x in (who, str(st.get("company") or st.get("role") or ""), word) if x))[:120]  # a safe name
+        # named as every file handed out is (apps/api/delivery.py): the words joined by underscores with no space, the day the
+        # answers were last written at the end (홍길동_감마_지원서_문항_20261120.txt), a name a file has already gets _2, _3
+        day = made_day({"at": max(str(q.get("at") or "") for q in done)})  # the latest answer's day, else today
+        base = safe_name(who, str(st.get("company") or st.get("role") or ""), word, day)  # no character Windows refuses
         dest = desktop_dir()  # the Desktop
         dest.mkdir(parents=True, exist_ok=True)
-        name, n = base + ".txt", 2  # first try
-        while (dest / name).exists():  # never overwrite
-            name, n = f"{base} ({n}).txt", n + 1
+        name = free_name(dest, base, ".txt")  # never over another file
         (dest / name).write_text(body + "\n", encoding="utf-8")  # plain text, ready to paste
         return [name]
