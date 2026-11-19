@@ -16,6 +16,10 @@ desk_portfolio, a third setting, keeps the general edition's portfolio on the De
 checks copies its deck PDF there, one file per language under a fixed name, and replaces only the copy it wrote itself,
 known by the hash it recorded (the workspace's out/desk_portfolio.json). A file of that name it did not write, or one
 the person changed since, is never touched: the copy takes the next free name instead. A blind edition is never copied.
+With the setting deck_max_mb (a size in MB of 1,000,000 bytes, absent by default), a deck over that size goes as a
+smaller copy (src/pdf_shrink.py: no visible change first, fewer colours only while it is still over); the record keeps
+the hash of that copy, so the next build replaces it, and of the deck it was made from. A Python with no pikepdf (the
+desktop app) copies the deck as it is, and the record says so.
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ import logging  # the panel's log
 import os  # an atomic replace on the Desktop
 import re  # the names
 import shutil  # the copies
+import tempfile  # a smaller copy of the deck, made before it goes
 import threading  # one writer of the record at a time
 from pathlib import Path  # paths
 
@@ -115,7 +120,7 @@ def open_in_files(path: Path) -> bool:
         return False  # say so: the panel shows one line
 
 log = logging.getLogger("offerowl.panel")  # the panel's log
-RECORD = ("out", "desk_portfolio.json")  # the copies desk_portfolio wrote: {lang: {name, sha256}}
+RECORD = ("out", "desk_portfolio.json")  # the copies desk_portfolio wrote: {lang: {name, sha256, from, max_bytes?}}
 WORDS = {"ko": "포트폴리오", "en": "Portfolio"}  # the deck's word in a file name, as the export names it
 DESK_LOCK = threading.Lock()  # a build and the switch turned on may keep the portfolio at once: the record is read and written by one
 
@@ -223,6 +228,37 @@ def _ours(dest: Path, mine) -> bool:
     return f.is_file() and sha256(f) == mine["sha256"]
 
 
+def made_from(mine) -> str | None:
+    """The hash of the deck a recorded copy was made from: its own bytes', for a copy made before copies could be smaller."""
+    return (mine.get("from") or mine.get("sha256")) if isinstance(mine, dict) else None
+
+
+def deck_limit(tasks) -> int | None:
+    """The size, in bytes, the person keeps the portfolio on the Desktop under (the setting deck_max_mb), or None."""
+    import pdf_shrink  # src/pdf_shrink.py: what a megabyte counts
+    v = tasks.card.settings_fn().get("deck_max_mb")  # absent unless asked for
+    return round(v * pdf_shrink.MB) if isinstance(v, (int, float)) and not isinstance(v, bool) and 0 < v <= 1000 else None
+
+
+def fitted(deck: Path, folder: Path, limit: int | None) -> tuple:
+    """(the file that goes to the Desktop, what the record keeps of how it was made): the deck itself when no size was
+    asked or it is under it already, else a copy of it made smaller in `folder` (src/pdf_shrink.py). A copy that cannot be
+    made smaller (no pikepdf in this Python, a PDF it cannot read) leaves the deck to go as it is, which the record says."""
+    if not limit or deck.stat().st_size <= limit:  # no size asked, or under it as it is: the deck, byte for byte
+        return deck, {}
+    import pdf_shrink  # src/pdf_shrink.py
+    small = folder / "deck.pdf"  # the smaller copy, made beside nothing of the person's
+    try:
+        got = pdf_shrink.shrink(deck, small, limit)
+    except pdf_shrink.Unavailable:  # the desktop app carries no pikepdf: the deck goes as it is
+        log.warning("portfolio kept on the Desktop at its own size: this Python has no pikepdf")  # for the log only
+        return deck, {"shrink": "unavailable"}
+    except Exception as exc:  # noqa: BLE001  a PDF it could not read or make smaller never keeps the copy home
+        log.warning("portfolio kept on the Desktop at its own size: %s", exc)  # for the log only
+        return deck, {"shrink": "failed"}
+    return small, {"fits": got["fits"], **({"colors": got["colors"]} if got["colors"] else {})}  # over the size still, and at how many colours
+
+
 def kept_names(tasks) -> list[str]:
     """The portfolio copies desk_portfolio keeps on the Desktop now (by the record, and still there), for the panel."""
     from .tasks import desktop_dir  # the person's Desktop
@@ -233,21 +269,21 @@ def kept_names(tasks) -> list[str]:
 
 
 def kept_copy(tasks, lang: str, deck: Path) -> str | None:
-    """The name of the portfolio desk_portfolio keeps on the Desktop for this language when it is this deck, byte for
-    byte: the export then names it instead of writing a second copy beside it."""
+    """The name of the portfolio desk_portfolio keeps on the Desktop for this language when it was made from this deck
+    (byte for byte, or smaller under the person's size): the export then names it instead of writing a second copy beside it."""
     from .tasks import desktop_dir  # the person's Desktop
     if tasks.card.settings_fn().get("desk_portfolio") is not True:  # turned off: the export makes its own copy again
         return None
     mine = _record(tasks).get(lang)  # its copy in this language
-    if not deck.is_file() or not isinstance(mine, dict) or mine.get("sha256") != sha256(deck):  # another deck
+    if not deck.is_file() or not isinstance(mine, dict) or made_from(mine) != sha256(deck):  # made from another deck
         return None
     return Path(mine["name"]).name if _ours(desktop_dir(), mine) else None  # there and unchanged
 
 
 def keep_portfolio(tasks, lang: str) -> str | None:
     """With desk_portfolio on, the general edition's deck PDF in this language copied to the Desktop, when its build passed
-    its checks: in place of the copy this setting wrote before (recognised by its recorded hash), else under the first free
-    name. Returns the name on the Desktop, or None when nothing was copied."""
+    its checks (smaller, under the size deck_max_mb asks for): in place of the copy this setting wrote before (recognised by
+    its recorded hash), else under the first free name. Returns the name on the Desktop, or None when nothing was copied."""
     from .tasks import desktop_dir, file_hash  # the Desktop, and the short hash a build records
     import pdfmeta  # src/pdfmeta.py: the deck's title and author
     if tasks.card.settings_fn().get("desk_portfolio") is not True:  # off unless asked for
@@ -265,7 +301,8 @@ def keep_portfolio(tasks, lang: str) -> str | None:
         return None
     dest = desktop_dir()  # the Desktop
     dest.mkdir(parents=True, exist_ok=True)  # a fresh Desktop folder in a test
-    full = sha256(deck)  # the bytes that go
+    full = sha256(deck)  # the deck that was checked
+    limit = deck_limit(tasks)  # the size the person keeps it under, or None
     base = safe_name(tasks.person_name(lang), WORDS[lang])  # 홍길동 포트폴리오, Gildong Hong Portfolio
     with DESK_LOCK:  # the record read, the copy made and the record written as one step
         record = _record(tasks)  # what it wrote before
@@ -273,19 +310,22 @@ def keep_portfolio(tasks, lang: str) -> str | None:
         ours = _ours(dest, mine)  # its own earlier copy is there, unchanged
         old = Path(mine["name"]).name if ours else None  # that copy's name
         same_base = old is not None and (old == base + ".pdf" or re.fullmatch(re.escape(base) + r" \(\d+\)\.pdf", old))  # under the name it would take now
-        if same_base and mine.get("sha256") == full:  # already this deck
+        if same_base and made_from(mine) == full and mine.get("max_bytes") == limit and not mine.get("shrink"):  # already this deck, under this size
             return old
         name = old if same_base else free_name(dest, base, ".pdf")  # in place of its own copy, else a name no file has
         part = tmp_name(dest / name)  # written whole first, beside it, under a name of this writer's own
         if part.exists():  # never over a file that is there
             return None
-        shutil.copyfile(deck, part)
+        with tempfile.TemporaryDirectory(prefix="offerowl-desk-") as tmp:  # a smaller copy is made here, never on the Desktop
+            src, how = fitted(deck, Path(tmp), limit)  # the deck, or its smaller copy
+            wrote = sha256(src)  # the bytes that go
+            shutil.copyfile(src, part)
         retried(os.replace, part, dest / name)  # in place at once
-        if sha256(dest / name) != full:  # a copy that does not read back is never left
+        if sha256(dest / name) != wrote:  # a copy that does not read back is never left
             (dest / name).unlink(missing_ok=True)
             return None
         if old and old != name and _ours(dest, mine):  # its earlier copy under a name the person's no longer gives (a new name, say): replaced
             (dest / old).unlink(missing_ok=True)
-        record[lang] = {"name": name, "sha256": full}  # what to recognise next time
+        record[lang] = {"name": name, "sha256": wrote, "from": full, **({"max_bytes": limit} if limit else {}), **how}  # what to recognise next time, and what it was made from
         write_json(tasks.ws.path(*RECORD), record)
         return name

@@ -420,7 +420,7 @@ class Api:
 
     def _set_settings_locked(self, req: dict) -> bool:
         """set_settings' reading, checking and writing of settings.json, under its lock. True when the portfolio kept on the
-        Desktop was just turned on."""
+        Desktop was just turned on, or its size changed while it is on."""
         s = read_json(self.settings_file, {})  # saved choices
         if req.get("lang") in ("auto", "ko", "en"):  # only a language the page offers
             s["lang"] = req["lang"]  # kept for the next start
@@ -451,6 +451,12 @@ class Api:
         turned_on = req.get("desk_portfolio") is True and s.get("desk_portfolio") is not True  # the portfolio kept on the Desktop, just asked for
         if isinstance(req.get("desk_portfolio"), bool):  # the general edition's portfolio kept on the Desktop after every build that passes
             s["desk_portfolio"] = req["desk_portfolio"]
+        size = s.get("deck_max_mb")  # the size that portfolio was held to (apps/api/delivery.py), to see a change
+        if "deck_max_mb" in req and req["deck_max_mb"] is None:  # cleared: the deck goes as it was made
+            s.pop("deck_max_mb", None)
+        elif isinstance(req.get("deck_max_mb"), (int, float)) and not isinstance(req["deck_max_mb"], bool) and 0 < req["deck_max_mb"] <= 1000:  # a size in MB a file can be held to
+            s["deck_max_mb"] = req["deck_max_mb"]
+        turned_on = turned_on or (s.get("desk_portfolio") is True and s.get("deck_max_mb") != size)  # a new size: the copy kept is made again now
         if isinstance(req.get("photo"), bool):  # the photo on the resume, or not
             s["photo"] = req["photo"]  # kept for the next build
         if isinstance(req.get("style"), str) and (req["style"] == "default" or req["style"] in self.style_names()):  # the writing rules: the shipped pack, or one of the workspace's own
