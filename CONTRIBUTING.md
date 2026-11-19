@@ -165,7 +165,8 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 1. Add a set to `src/themes.json`. Its header says what each field colours. The figures' tones (`deep`, `paper`, `n2`, `n3`,
    `b1` to `b5`, `hair`, `label`, `ink2`) are optional: a set that leaves one out has it derived from its dark colour and its
    accent (`palette` in `src/portfolio/deck.js`), and one that names them all, as crimson does, leaves nothing of the navy
-   family on its pages.
+   family on its pages. `ramp1`, `ramp2`, ... (three or more, light to dark) are optional too: the resume's career bars and
+   hierarchy plates are drawn in them instead of shades of the set's dark colour (`theme_ramp` in `src/overview_figures.py`).
 2. Offer it on the panel and to agents: `inspTheme` in `apps/panel/static/side.js` (its name in `i18n/ko.js` too), `THEMES` in `apps/api/tasks.py` and in `apps/mcp/server.py`, and the `theme` lists in `core/schema/documents/edition.schema.json` and `resume.schema.json`.
 3. Build it: `OFFEROWL_THEME=<name> ./offerowl build examples/sample_full_en.json examples/job_full_en.json`, and look at both documents.
    Add it to the colour sets `tests/deck/run.py` builds, which hold the deck to every measure in it.
