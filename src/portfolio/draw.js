@@ -37,6 +37,7 @@ C.on = fill => /^#[0-9A-Fa-f]{6}$/.test(fill) && lumHex(fill) > 0.24 ? C.navy : 
 
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");   // text and attribute values alike: a quote never ends an attribute early
 const r1 = v => Math.round(v * 10) / 10;
+const { corner } = require("../corners");   // a box's corner radius: its own, or none when the build asks for square corners
 
 // Text width, measured from the glyph advances in the Pretendard font files (opentype.js). Estimates per character class
 // overstated Hangul by 8% and threw box layouts off. Weight is 700 for true or 700, 600 for "semi" or 600, and 400 otherwise.
@@ -112,7 +113,8 @@ const attrs = o => Object.entries(o).filter(([, v]) => v !== undefined && v !== 
   .map(([k, v]) => `${k}="${esc(v)}"`).join(" ");
 
 const P = {
-  rect: (x, y, w, h, o = {}) => `<rect ${attrs({ x: r1(x), y: r1(y), width: r1(w), height: r1(h), rx: o.r ?? 3, fill: o.fill ?? C.white,
+  // Box. Its corners are rounded by o.r (3 by default), or square under square corners (src/corners.js), unless it is a dot.
+  rect: (x, y, w, h, o = {}) => `<rect ${attrs({ x: r1(x), y: r1(y), width: r1(w), height: r1(h), rx: corner(r1(w), r1(h), o.r ?? 3), fill: o.fill ?? C.white,
     stroke: o.stroke ?? "none", "stroke-width": o.sw ?? 1, "stroke-dasharray": o.dash, opacity: o.op, "data-deco": o.deco ? 1 : undefined,
     // A box whose text is deliberately pinned to the top (top) or placed by hand (free). The probe leaves it out of the vertical
     // centering test; the touching test still applies.

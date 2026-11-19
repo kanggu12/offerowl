@@ -457,6 +457,10 @@ class Api:
         elif isinstance(req.get("deck_max_mb"), (int, float)) and not isinstance(req["deck_max_mb"], bool) and 0 < req["deck_max_mb"] <= 1000:  # a size in MB a file can be held to
             s["deck_max_mb"] = req["deck_max_mb"]
         turned_on = turned_on or (s.get("desk_portfolio") is True and s.get("deck_max_mb") != size)  # a new size: the copy kept is made again now
+        if "corners" in req and req["corners"] is None:  # cleared: rounded corners, as the documents always had them
+            s.pop("corners", None)
+        elif req.get("corners") in ("round", "square"):  # the corners of the figures, the logo tiles and the built-in deck (Tasks.corners)
+            s["corners"] = req["corners"]
         if isinstance(req.get("photo"), bool):  # the photo on the resume, or not
             s["photo"] = req["photo"]  # kept for the next build
         if isinstance(req.get("style"), str) and (req["style"] == "default" or req["style"] in self.style_names()):  # the writing rules: the shipped pack, or one of the workspace's own

@@ -152,6 +152,7 @@ Settings are environment variables.
 | `OFFEROWL_BLIND` | `1` makes a blind edition (below) | unset |
 | `OFFEROWL_BLIND_LANG` | `en` for the band and the label of an English blind edition | `ko` |
 | `OFFEROWL_BLIND_TABLE` | Your own table for the blind edition, a JSON file inside the repository (below) | `src/blind.json` |
+| `OFFEROWL_CORNERS` | `square` draws the figures, the logo tiles, a blind edition's bars and the deck with square corners ([Figures and logo tiles](DOCUMENTS.md#figures-and-logo-tiles-srcoverview_figurespy)) | rounded |
 | `OFFEROWL_OFFICE` | `0` never opens a Word or PowerPoint file in this PC's Office before it goes (below) | opened where Office is reachable |
 
 The panel's own settings are with it: `OFFEROWL_PANEL_PORT` in [Start it](APP.md#start-it), `OFFEROWL_DATA_DIR` in
@@ -161,9 +162,9 @@ The panel's own settings are with it: `OFFEROWL_PANEL_PORT` in [Start it](APP.md
 kit's search) in [The search view](INTERVIEW.md#the-search-view-serve); the container's are in
 [INSTALL.md](INSTALL.md#2-a-container-docker-compose).
 
-`render/run.sh` hands `OFFEROWL_THEME`, `OFFEROWL_THEME_FILE`, `OFFEROWL_RENDERER`, `OFFEROWL_PDF_READER` and
-`OFFEROWL_BLIND` to the scripts in the container, along with `OFFEROWL_FRESH`, `OFFEROWL_NOLOGOS`, `OFFEROWL_PROFILE`,
-`OFFEROWL_LANG`, `OFFEROWL_BLIND_LANG` and `OFFEROWL_BLIND_TABLE`.
+`render/run.sh` hands `OFFEROWL_THEME`, `OFFEROWL_THEME_FILE`, `OFFEROWL_RENDERER`, `OFFEROWL_PDF_READER`,
+`OFFEROWL_BLIND` and `OFFEROWL_CORNERS` to the scripts in the container, along with `OFFEROWL_FRESH`, `OFFEROWL_NOLOGOS`,
+`OFFEROWL_PROFILE`, `OFFEROWL_LANG`, `OFFEROWL_BLIND_LANG` and `OFFEROWL_BLIND_TABLE`.
 
 Language: `OFFEROWL_LANG=ko ./offerowl --help` prints Korean. With no setting the locale decides (`ko_KR` gives Korean,
 anything else English). Put the setting in your shell profile to keep it.

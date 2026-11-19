@@ -11,6 +11,7 @@ const fs = require("fs");                         // logo size lookups
 const path = require("path");                     // tile paths
 const { h } = require("./portfolio/deck");        // escaping and rich text of the deck
 const { tw, outline } = require("./portfolio/draw");   // font metrics and glyph outlines (rail labels are outlines, not text)
+const { SQUARE } = require("./corners");          // square corners asked for: the boxes written into the slides lose their rounding
 
 const esc = h.esc;                                // HTML escaping
 
@@ -102,9 +103,9 @@ function chapterSlide(ch, lang) {
 function contentsBody(groups, lang, total) {
   const W = WORDS[lang], dash = lang === "en" ? "-" : "~"; // the edition's words and range mark
   const count = g => g.last - g.page + 1;                   // slides in a chapter, the divider included
-  // One navy bar per chapter, as wide as its share of slides, with its page range under it
-  const bars = `<div style="display:flex; gap:4px; margin-top:6px">` + groups.map(g =>
-    `<div style="flex:${count(g)} 1 0; min-width:0"><div style="background:var(--navy); color:#fff; border-radius:4px; padding:7px 6px; font-size:12px; font-weight:700; text-align:center; white-space:nowrap; overflow:hidden">` +
+  // One navy bar per chapter, as wide as its share of slides, with its page range under it (its corners square under square corners)
+  const bars =`<div style="display:flex; gap:4px; margin-top:6px">` + groups.map(g =>
+    `<div style="flex:${count(g)} 1 0; min-width:0"><div style="background:var(--navy); color:#fff; border-radius:${SQUARE ? 0 : 4}px; padding:7px 6px; font-size:12px; font-weight:700; text-align:center; white-space:nowrap; overflow:hidden">` +
     `${esc(g.no)} ${esc(g.name)}</div><div style="text-align:center; font-size:11px; color:var(--g500); margin-top:5px">${g.page}${dash}${g.last}</div></div>`).join("") + `</div>` +
     `<div class="cap" style="margin-top:2px"><b>${esc(W.structure)}</b> ${esc(W.structureNote)}</div>`;
   // The chapter groups (three balanced columns in the theme): number, name and page, then each project with its tagline and page
@@ -198,7 +199,7 @@ function journey(stations) {
   // The line joins the first and the last dot (it runs between the centers of the outer columns, behind the dots)
   const inset = 50 / n;
   return `<div class="journey" style="position:relative"><div style="position:absolute; left:${inset}%; right:${inset}%; top:47px; height:3px; ` +
-    `background:linear-gradient(90deg, var(--b3), var(--navy)); border-radius:2px"></div>` +
+    `background:linear-gradient(90deg, var(--b3), var(--navy)); border-radius:${SQUARE ? 0 : 2}px"></div>` +   // its ends square too under square corners; the stations' dots stay round
     `<div style="display:grid; grid-template-columns:repeat(${n}, minmax(0, 1fr)); column-gap:12px">${cells}</div></div>`;
 }
 

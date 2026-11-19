@@ -108,9 +108,13 @@ class RunShTest(unittest.TestCase):
     def test_language_reaches_the_container(self):
         self.assertIn("OFFEROWL_LANG=ko", words(dry_run(OFFEROWL_LANG="ko")))
 
+    def test_square_corners_reach_the_container(self):
+        # the figures and the deck are drawn by the scripts inside the container: a setting left on the host drew them rounded
+        self.assertIn("OFFEROWL_CORNERS=square", words(dry_run(OFFEROWL_CORNERS="square")))
+
     def test_nothing_is_passed_that_was_not_set(self):
         joined = " ".join(words(dry_run()))
-        for name in ("THEME", "FRESH", "NOLOGOS", "PROFILE", "LANG", "BLIND", "PDF_READER"):
+        for name in ("THEME", "FRESH", "NOLOGOS", "PROFILE", "LANG", "BLIND", "PDF_READER", "CORNERS"):
             self.assertNotIn(name + "=", joined, name)
 
     def test_the_script_passes_bash_and_shellcheck(self):

@@ -12,6 +12,8 @@ const path = require("path");
 // original width (color mask_fill). Pictures are not hidden as a whole; only the matching text inside them is. A band across the
 // top of the cover and a label in every slide footer make the blind edition obvious at a glance (BLIND_CSS).
 const BL = require("../blind");
+// Square corners (OFFEROWL_CORNERS=square, src/corners.js): style_square.css goes over every other stylesheet
+const { SQUARE } = require("../corners");
 // A word joiner (U+2060, no line break allowed) goes between a bar and a Latin letter, digit or Hangul letter right next to it
 // (for example a bar followed by "Gbps"). The original word is never split (keep-all) and moves to the next line as a whole, but
 // the edge of a bar is a break opportunity, so the blind edition would wrap between the bar and the rest of the word. Inside the
@@ -239,7 +241,8 @@ class Deck {
     const css = fs.readFileSync(path.join(__dirname, "theme.css"), "utf8") +
       (this.lang === "en" ? fs.readFileSync(path.join(__dirname, "theme_en.css"), "utf8") : "") +
       (this.look === "clean" ? fs.readFileSync(path.join(__dirname, "style_clean.css"), "utf8") : "") +   // the light deck's colours, over the same parts
-      (BL.on ? BLIND_CSS(this.lang) : "") + themeFileCss(this.theme) + this.css;
+      (BL.on ? BLIND_CSS(this.lang) : "") + themeFileCss(this.theme) + this.css +
+      (SQUARE ? fs.readFileSync(path.join(__dirname, "style_square.css"), "utf8") : "");   // square corners last, so nothing rounds a box again
     const n = this.slides.length;
     let body = this.slides.map((s, i) =>
       `<section class="slide${s.meta.cls ? " " + s.meta.cls : ""}" data-company="${esc(s.meta.company || "")}" data-part="${esc(s.meta.part || "")}" ` +
