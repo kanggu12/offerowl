@@ -67,6 +67,9 @@ preset column widths per language, and `job.widths` overrides them.
   the figure. An education entry with `timeline: false` stays in the table only. The deck gets a flatter variant (1184 px) and one
   chapter variant per role with that role dark.
 - Hierarchy figure with ink-centred text.
+- Colours: the edition's colour set (`theme`, handed to the script as `OFFEROWL_FIG_THEME`) draws the bars in its dark colour,
+  the hierarchy figure's boxes in its `band` and the tiles' outline in its `rule`; the built-in navy keeps the figures' own
+  navy, pale blue and light outline, byte for byte.
 - Logo tiles: an image is trimmed and placed on a white rounded tile with a light outline; a square image with transparent corners
   is taken as a finished tile; `{ "text": "AB", "color": "#2F6EBA" }` draws a monogram.
 - Square corners: with `OFFEROWL_CORNERS=square` (the panel's setting `corners`, a switch of its Style tab) the timeline's bars, the
@@ -202,7 +205,12 @@ resume draft exists, it takes the chapter structure listed slide by slide, with 
 ([Spreads](#spreads)).
 
 Two looks, with the same slides and sizes: the classic one with dark panels, and with `"deckStyle": "clean"` (**Light** in the panel) a light one
-whose cover, chapter panels and last slide are paper. Any colour set recolours the figures too.
+whose cover, chapter panels and last slide are paper. Any colour set recolours the figures too: one palette (`palette` in
+`src/portfolio/deck.js`) gives the stylesheet's variables and the figures' tones alike, so the navy family the figures and
+`theme.css` are written in becomes the set's own, by value, in the slides and in the stylesheet. A set names its figure tones
+itself with the optional keys of `src/themes.json` (`deep`, `paper`, `n2`, `n3`, `b1` to `b5`, `hair`, `label`, `ink2`), or has
+them derived from its dark colour and its accent. Crimson, a black base with one crimson accent, names them all. A figure drawn
+in its own dark scheme keeps that scheme's colours in every set.
 
 Square corners (`OFFEROWL_CORNERS=square`, the same setting as the [figures'](#figures-and-logo-tiles-srcoverview_figurespy)) square every box
 of the deck too, in either look: the boxes of the figures and the simple templates (`src/corners.js`), the bars written into the

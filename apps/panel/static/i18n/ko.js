@@ -185,7 +185,7 @@ CATALOGS.ko = {
   "{n} strong": "강함 {n}", "{n} met": "충족 {n}", "{n} in part": "부분 충족 {n}", "{n} not met": "미충족 {n}", "{n} weak": "약함 {n}", "{n} none": "없음 {n}", "Fit {n} of 100": "적합도 100점 중 {n}점",
   "Document language": "서류 언어", "Korean": "한국어", "The PDF on screen was made with at most {n} pages.": "화면의 PDF는 {n}쪽 한도로 만들었습니다.", "Pages at most": "최대 쪽수", "2 pages": "2쪽", "3 pages": "3쪽", "4 pages": "4쪽",
   "Tailoring makes": "맞출 때 함께 만들 것", "The cover letter": "자기소개서", "The PDFs too": "PDF도", "Template": "양식",
-  "Colour of the resume": "이력서 색", "Navy": "남색", "Teal": "청록", "Grey": "회색",
+  "Colour of the resume": "이력서 색", "Navy": "남색", "Teal": "청록", "Grey": "회색", "Black, crimson": "검정, 크림슨",
   "One accent colour for headings and the name band; the text stays dark grey on white, as printed.": "제목과 이름 띠에만 강조색 하나를 씁니다. 본문은 인쇄처럼 흰 바탕에 짙은 회색입니다.",
   "This app": "이 화면", "Auto": "자동", "Light": "밝게", "Dark": "어둡게", "Reading the history…": "기록을 읽는 중…",
   "Nothing changed yet. Every change you make is kept here, and can be taken back.": "아직 바꾼 것이 없습니다. 바꿀 때마다 여기에 남고 되돌릴 수 있습니다.", "Undo {n} changes?": "바꾼 것 {n}개를 되돌릴까요?",

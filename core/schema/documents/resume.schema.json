@@ -8,7 +8,7 @@
   "properties": {
     "kind": {"const": "resume"},
     "lang": {"enum": ["ko", "en"]},
-    "theme": {"enum": ["navy", "teal", "mono", "wine", "forest", "slate"]},
+    "theme": {"enum": ["navy", "teal", "mono", "wine", "forest", "slate", "crimson"]},
     "job": {"type": ["string", "null"]},
     "draft": {"type": ["object", "null"], "description": "The draft on the canvas: when it was written, whether it is this edition's own or the general edition's, whether the facts changed since, and its counts.",
       "properties": {"at": {"type": "string"}, "general": {"type": "boolean"}, "own": {"type": "boolean"}, "stale": {"type": "boolean"}, "counts": {"type": "object", "additionalProperties": {"type": "integer"}}}},

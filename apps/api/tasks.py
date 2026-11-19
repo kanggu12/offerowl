@@ -40,7 +40,7 @@ from .task_answers import AnswerTasks  # noqa: E402,F401  Tasks' part in apps/ap
 from .task_compare import Comparisons  # noqa: E402,F401  Tasks' part in apps/api/task_compare.py: twin, other language, deck, baseline
 
 log = logging.getLogger("offerowl.panel")  # the panel's log
-THEMES = ("navy", "teal", "mono", "wine", "forest", "slate")  # src/themes.json's packs
+THEMES = ("navy", "teal", "mono", "wine", "forest", "slate", "crimson")  # src/themes.json's packs
 FORMS = ("detailed", "compact", "table")  # the resume's forms (src/resume_form.js)
 DECK_STYLES = ("classic", "clean")  # the deck's looks (src/portfolio/style_clean.css)
 LANGS = ("ko", "en")  # the editions

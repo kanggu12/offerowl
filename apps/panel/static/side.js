@@ -191,7 +191,7 @@ function inspStyle() {                                                          
     docLang() === "en" && S.profile_lang === "ko" && !S.english ? band("needs_translation") : null];
 }
 function inspTheme() {                                                              // the resume's colour pack
-  const packs = [["navy", "Navy", "#1B2E4B"], ["teal", "Teal", "#1D5C63"], ["mono", "Grey", "#E4E4E4"], ["wine", "Wine", "#5E2233"], ["forest", "Forest", "#1F4D3A"], ["slate", "Slate", "#2F3B47"]];  // src/themes.json's packs and their name band colour
+  const packs = [["navy", "Navy", "#1B2E4B"], ["teal", "Teal", "#1D5C63"], ["mono", "Grey", "#E4E4E4"], ["wine", "Wine", "#5E2233"], ["forest", "Forest", "#1F4D3A"], ["slate", "Slate", "#2F3B47"], ["crimson", "Black, crimson", "#18181B", "#BE123C"]];  // src/themes.json's packs and their name band colour; crimson's accent is another hue than its black band, so its name and its chip say both
   const set = S.settings || {};                                                     // the saved form and look
   const choice = (key, now, list) => h("div", { class: "seg" }, list.map(([k, w]) => h("button", { "aria-pressed": now === k ? "true" : "false", onclick: () => act("/api/v1/settings", { [key]: k }), text: t(w) })));  // one of a few
   return [h("div", { class: "ins-sec" }, h("h3", { text: t("Form of the resume") }),
@@ -201,8 +201,8 @@ function inspTheme() {                                                          
       choice("deck_style", set.deck_style || "classic", [["classic", "Classic"], ["clean", "Clean"]]),   // not "Light": that is this app's own theme, a menu away
       h("p", { class: "hint", text: t("Make the PDFs again to see a new form or look in the typeset pages.") })),
     h("div", { class: "ins-sec" }, h("h3", { text: t("Colour of the resume and the deck") }),
-    h("div", { class: "swatches" }, packs.map(([k, w, c]) => h("button", { class: "swatch", "aria-pressed": UI.theme === k ? "true" : "false", onclick: () => setDoc("theme", k, "offerowl-doctheme") },
-      h("i", { style: `background:${c}`, "aria-hidden": "true" }), t(w)))),
+    h("div", { class: "swatches" }, packs.map(([k, w, c, a]) => h("button", { class: "swatch", "aria-pressed": UI.theme === k ? "true" : "false", onclick: () => setDoc("theme", k, "offerowl-doctheme") },
+      h("i", { style: a ? `background:linear-gradient(90deg, ${c} 0 72%, ${a} 72% 100%)` : `background:${c}`, "aria-hidden": "true" }), t(w)))),   // an accent of its own hue shows at the chip's end
     h("p", { class: "hint", text: t("One accent colour for headings and the name band; the text stays dark grey on white, as printed.") })),
     h("div", { class: "ins-sec" }, h("h3", { text: t("This app") }), h("div", { class: "seg" }, [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, w]) =>
       h("button", { "aria-pressed": (document.documentElement.dataset.themeChoice || "auto") === k ? "true" : "false", onclick: () => { localStore("offerowl-theme", k); if (k === "auto") try { localStorage.removeItem("offerowl-theme"); } catch (_) { /* blocked */ } applyTheme(k); render(); }, text: t(w) }))))];

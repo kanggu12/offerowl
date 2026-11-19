@@ -263,7 +263,7 @@ function themeVars(m) {                                                         
   const c = m.colors || {}, hex = (k, d) => "#" + (c[k] || d);                      // a colour or its default
   return `--c-name:${hex("nameFill", "1B2E4B")};--c-name-ink:${hex("nameText", "FFFFFF")};--c-sec:${hex("sec", "1B2E4B")};--c-rule:${hex("rule", "C9D4E3")};` +
     `--c-band:${hex("band", "EEF3F9")};--c-band-ink:${hex("bandText", "1B2E4B")};--c-head:${hex("head", "1B2E4B")};--c-head-ink:${hex("headText", "FFFFFF")};` +
-    `--c-key:${hex("key", "F5F8FC")};--c-acc:${hex("acc", "1B2E4B")};--c-acc2:${hex("acc2", c.acc || "2F6EBA")}`;   // every colour the resume prints with
+    `--c-key:${hex("key", "F5F8FC")};--c-acc:${hex("acc", "1B2E4B")};--c-acc2:${hex("acc2", c.acc || "2F6EBA")};--c-label:${hex("label", "8A94A3")}`;   // every colour the resume prints with
 }
 
 // ---------------------------------------------------------------- the pager

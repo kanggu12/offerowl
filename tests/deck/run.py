@@ -10,7 +10,8 @@ What it builds (deck only: figures, deck HTML, Chromium print and probe; no Libr
   - the figure gallery (tests/deck/gallery.js): every template in light and dark, at the main and the side size, Korean and English;
   - the full fixture: the fictional examples/sample_full_<lang>.json with a research chapter, a project over two slides and two
     figures on the project slides, written to output/_deckw/ at test time.
-  - the full Korean fixture again with square corners (OFFEROWL_CORNERS=square, the person's setting corners).
+  - the full Korean fixture again with square corners (OFFEROWL_CORNERS=square, the person's setting corners);
+  - the full fixture in the other colour sets and the light look, crimson in both looks.
 Checks: the browser probe finds no defect (one-word last lines are warnings, as in the document check), nothing was cut from a figure,
 the slide counts, the spread's page marks and page range, the research chapter's divider and timeline, figures per project slide,
 card marks, and no raw markup in the PDF text. With square corners the browser finds no rounded box on any slide but the dots,
@@ -29,6 +30,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]  # repository root
 OUT = ROOT / "output"  # build outputs (git ignores it)
 FIX = OUT / "_deckw"  # fixtures written at test time
 PASS, FAIL = [0], [0]  # counters (lists so the helpers can change them)
+# The navy set's own tones (src/portfolio/draw.js C: navy, blue, b1 to b5, n2, n3) and its dark panel (theme.css --deep)
+NAVY_FAMILY = ("1B2E4B", "2F6EBA", "24599A", "6E9BD1", "A9C3E4", "D5E2F2", "E6EFF9", "3A5578", "5B7290", "14233A")
 
 
 def ok(name, cond, detail=""):
@@ -49,24 +52,26 @@ def sh(args: list, **kw) -> subprocess.CompletedProcess:
 # Inside the container: draw the figures (timelines, logo tiles), the deck HTML, print it, open it again for the probe.
 # File names arrive as positional arguments ($1...), never spliced into the script (the rule resume.py follows)
 CHROME = "chromium --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --hide-scrollbars --virtual-time-budget=30000 "
-# Fonts; then figures and deck from a profile (exit 3, 4) or the gallery (exit 4); the PDF; the DOM for the probe, removed after
+# Fonts; then figures (in the edition's colour set, $5, as src/resume.py draws them) and deck from a profile (exit 3, 4) or the
+# gallery (exit 4); the PDF; the DOM for the probe, removed after
 DECK = ('bash src/fonts.sh >/dev/null 2>&1; '
-        'if [ -n "$1" ]; then python3 src/overview_figures.py "$1" "$3" "$4" >/dev/null || exit 3; node src/deck_slides.js "$1" "$2" >/dev/null || exit 4; '
+        'if [ -n "$1" ]; then OFFEROWL_FIG_THEME="$5" python3 src/overview_figures.py "$1" "$3" "$4" >/dev/null || exit 3; node src/deck_slides.js "$1" "$2" >/dev/null || exit 4; '
         'else node tests/deck/gallery.js "$4" "$3" >/dev/null || exit 4; fi; '
         + CHROME + '--user-data-dir=/tmp/chr --no-pdf-header-footer --print-to-pdf="output/$3_deck.pdf" "output/$3_deck.html" 2>/dev/null && '
         + CHROME + '--user-data-dir=/tmp/chr2 --window-size=1400,900 --dump-dom "output/$3_deck.html" 2>/dev/null > "output/$3_deck.dom" && '
         'python3 src/probe_extract.py "output/$3_deck.dom" "output/$3_deck.probe.json"; rc=$?; rm -f "output/$3_deck.dom"; exit $rc')
 
 
-def build(profile: str, job: str, out: str, lang: str, corners: str = "") -> str:
-    """Build one deck; an empty profile builds the gallery; corners "square" draws it with square corners. Returns the last line
-    of the build's output ('' when it went well)"""
+def build(profile: str, job: str, out: str, lang: str, corners: str = "", theme: str = "navy") -> str:
+    """Build one deck; an empty profile builds the gallery; corners "square" draws it with square corners; theme names the colour
+    set its figures are drawn in (the deck's own comes from the job file). Returns the last line of the build's output ('' when it
+    went well)"""
     for suf in ("_deck.pdf", "_deck.probe.json", "_deck.html"):  # old outputs must not pass for new ones
         (OUT / f"{out}{suf}").unlink(missing_ok=True)  # a failed build then shows as missing files
     env = {k: v for k, v in os.environ.items() if k != "OFFEROWL_CORNERS"}  # a switch in the shell never reaches the default decks
     if corners:  # run.sh hands it to the scripts in the container
         env["OFFEROWL_CORNERS"] = corners
-    r = sh(["bash", "-c", DECK, "_", profile, job, out, lang], env=env)  # the names arrive as $1 to $4 ($0 is a placeholder)
+    r = sh(["bash", "-c", DECK, "_", profile, job, out, lang, theme], env=env)  # the names arrive as $1 to $5 ($0 is a placeholder)
     return "" if r.returncode == 0 else ((r.stdout + r.stderr).strip().splitlines() or [f"exit {r.returncode}"])[-1]  # the last output line says why it failed
 
 
@@ -248,18 +253,23 @@ def main() -> int:  # the exit code: 0 passed, 1 failed
                 kept = rounded_on_page(f"deckw_full_{lang}")  # the default deck, read the same way: the reading finds rounded boxes
                 ok(f"full {lang}: its rounded boxes are found", len(kept) >= 5 and kept != ["no reading"], "; ".join(kept[:6]))
             # The other colour sets and the light deck: the same slides, with every measure of the deck on them. Each set in one look, the two looks in turn
-            for theme, look in (("teal", "classic"), ("mono", "clean"), ("wine", "clean"), ("forest", "classic"), ("slate", "clean")) if lang == "ko" else (("wine", "clean"), ("forest", "classic")):
-                name = f"deckw_{theme}_{lang}"  # this build's output name
+            # crimson in both looks: a set that names every figure tone itself, so nothing of the navy family may be left on its page
+            for theme, look in ((("teal", "classic"), ("mono", "clean"), ("wine", "clean"), ("forest", "classic"), ("slate", "clean"), ("crimson", "classic"), ("crimson", "clean"))
+                                if lang == "ko" else (("wine", "clean"), ("forest", "classic"), ("crimson", "clean"))):
+                name = f"deckw_{theme}_{look}_{lang}"  # this build's output name
                 prof2, job2 = fixture(lang)  # the same fixture
                 jf = ROOT / job2  # its job file
                 jf.write_text(json.dumps({**json.loads(jf.read_text(encoding="utf-8")), "out": name, "theme": theme, "deckStyle": look}), encoding="utf-8")  # another colour, and a look
                 if building:  # a fresh build
-                    last = build(prof2, job2, name, lang)  # the deck
+                    last = build(prof2, job2, name, lang, theme=theme)  # the deck, its figures in the same set
                     ok(f"{theme} {look} {lang}: build", not last, last)  # its last line on failure
                 deck_checks(f"{theme} {look} {lang}", name, 16)  # the probe and cut checks, contrast among them
                 body = (OUT / f"{name}_deck.html").read_text(encoding="utf-8")  # the page
                 body = body[body.index("<body"):]  # the slides, without the theme's own defaults
                 ok(f"{theme} {look} {lang}: no figure stays navy", "#1B2E4B" not in body.upper(), str(body.upper().count("#1B2E4B")))  # the colour set reached every drawing
+                if theme == "crimson":  # the whole page, its stylesheet too: none of the navy family's tones
+                    left = [v for v in NAVY_FAMILY if v in (OUT / f"{name}_deck.html").read_text(encoding="utf-8").upper()]
+                    ok(f"{theme} {look} {lang}: no navy anywhere on the page", not left, ", ".join(left))
     print(f"deck tests: {PASS[0]} passed, {FAIL[0]} failed")  # the summary line
     return 1 if FAIL[0] else 0  # any failure fails the run
 

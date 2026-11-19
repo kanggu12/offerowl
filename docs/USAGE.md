@@ -273,7 +273,9 @@ python3 src/office_check.py powerpoint portfolio.pptx                           
 
 ## Colours and style
 
-- Colour sets are in `src/themes.json`. Add your own with `OFFEROWL_THEME_FILE=<json>` and name one in `job.json` as `theme`.
+- Colour sets are in `src/themes.json`: navy, teal, mono, wine, forest, slate and crimson (black with a crimson accent). Add
+  your own with `OFFEROWL_THEME_FILE=<json>` and name one in `job.json` as `theme`; the figures follow it
+  ([Figures and logo tiles](DOCUMENTS.md#figures-and-logo-tiles-srcoverview_figurespy)).
 - A style pack lists the characters and patterns a document must not hold. `src/style/default.json` is empty. Make your own
   and name it in `job.json` as `style`; the fact check and the drafts both apply it.
 - A pack can also hold the documents to phrases fixed once, to your profile and to the shape you keep, and measure the pages

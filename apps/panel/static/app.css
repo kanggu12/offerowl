@@ -203,7 +203,7 @@
 .r-sec h2, .r-sec small { position: relative; top: .97px; }                          /* the words moved, not the bar and the rule; */
 .r-sec small { top: .05px; }                                                          /* the faint label: the row's baseline alignment seats it a pixel lower already */
 .r-sec h2 span { font-size: 12px; font-weight: 400; color: #6b6b6b; white-space: pre; }   /* the total beside it, 9 pt grey after two spaces */
-.r-sec small { margin-left: auto; font-size: 9.33px; color: #8a94a3; letter-spacing: 2.67px; }   /* 7 pt, 2 pt apart, ending at 10226 twips */
+.r-sec small { margin-left: auto; font-size: 9.33px; color: var(--c-label, #8a94a3); letter-spacing: 2.67px; }   /* 7 pt, 2 pt apart, ending at 10226 twips */
 .r-fig { display: block; width: 694px; max-width: none; height: auto; margin: 2.67px 0 1.33px; }   /* a figure at 694 px, 40 twips before, 20 after */
 .r-fig.f-stack { margin-bottom: 5.33px; }                                               /* the hierarchy figure: 80 after */
 .r-cap { font-size: 12.67px; font-weight: 700; color: var(--c-acc); margin: 9.33px 0 3.33px; position: relative; top: .19px; }   /* 9.5 pt, 140 twips before, 50 after */

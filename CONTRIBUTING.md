@@ -19,7 +19,7 @@ each release is in [CHANGELOG.md](CHANGELOG.md).
 
 - **Try it on your own material.** The most useful report says where a real resume, a posting or a language made Offerowl stumble, with
   the personal parts taken out or replaced by a fictional example.
-- **More forms and themes.** There are three resume forms, two deck looks and six colour sets, and people need more.
+- **More forms and themes.** There are three resume forms, two deck looks and seven colour sets, and people need more.
 - **More figures for the deck.** The library draws common shapes. A figure a project needs that it cannot draw is worth an issue.
 - **Translations.** English and Korean so far ([add a language](#add-a-language)).
 - **A local model that writes well.** Results for a model on the measured sets, in Korean or English, help others choose.
@@ -162,9 +162,13 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Add a colour set
 
-1. Add a set to `src/themes.json`. Its header says what each field colours.
-2. Offer it on the panel and to agents: `inspTheme` in `apps/panel/static/side.js`, `THEMES` in `apps/api/tasks.py` and in `apps/mcp/server.py`, and the `theme` lists in `core/schema/documents/edition.schema.json` and `resume.schema.json`.
+1. Add a set to `src/themes.json`. Its header says what each field colours. The figures' tones (`deep`, `paper`, `n2`, `n3`,
+   `b1` to `b5`, `hair`, `label`, `ink2`) are optional: a set that leaves one out has it derived from its dark colour and its
+   accent (`palette` in `src/portfolio/deck.js`), and one that names them all, as crimson does, leaves nothing of the navy
+   family on its pages.
+2. Offer it on the panel and to agents: `inspTheme` in `apps/panel/static/side.js` (its name in `i18n/ko.js` too), `THEMES` in `apps/api/tasks.py` and in `apps/mcp/server.py`, and the `theme` lists in `core/schema/documents/edition.schema.json` and `resume.schema.json`.
 3. Build it: `OFFEROWL_THEME=<name> ./offerowl build examples/sample_full_en.json examples/job_full_en.json`, and look at both documents.
+   Add it to the colour sets `tests/deck/run.py` builds, which hold the deck to every measure in it.
 
 The resume stays in one accent colour with dark grey text, so it prints well.
 
@@ -345,8 +349,8 @@ What is there, and what comes next. Plans change, and this section follows them.
 | Area | State |
 |:---|:---|
 | Reading files, fact candidates with checked quotes, review | Works, with zip files, LinkedIn's data export, and OCR for scanned files and screenshots (Windows' own OCR on Windows, Tesseract elsewhere) |
-| Resume in Korean and English, DOCX and PDF, and in plain words for job sites | Works; three forms, six colour sets; the Word file carries its fonts and the PDF's line heights, and goes only when this PC's Word, where there is one, gives it the PDF's pages |
-| Portfolio deck, 16:9, with a library of figures drawn from data | Works; two looks, six colour sets; PDF, and PPTX of the PDF's pages; the latest kept on the Desktop when asked |
+| Resume in Korean and English, DOCX and PDF, and in plain words for job sites | Works; three forms, seven colour sets; the Word file carries its fonts and the PDF's line heights, and goes only when this PC's Word, where there is one, gives it the PDF's pages |
+| Portfolio deck, 16:9, with a library of figures drawn from data | Works; two looks, seven colour sets; PDF, and PPTX of the PDF's pages; the latest kept on the Desktop when asked |
 | Cover letter from the posting's duties | Works |
 | Interview kit: question map, scripts, audits, search, practice, cue cards | Works |
 | Panel: one run from dropped files to PDFs on the Desktop, the agent's panel, the resume written from your facts, evidence on click, editing on the canvas, one-press rewrites, job fit, application questions read from the posting, a paste or a screenshot, tracker | Works; every state measured at 3 window sizes, light and dark, Korean and English |
