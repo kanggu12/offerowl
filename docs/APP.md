@@ -203,7 +203,9 @@ scaled down to the width (a pinch enlarges them).
   yet, or that it changed since. The switch stays as you set it when the PDFs are made again, and a resume brought in as a blind
   edition starts blind. The live canvas keeps your words as they are, for editing. "Export to Desktop" reads the blind PDFs first
   and refuses them while a covered name shows; the files are named with "블라인드" or "Blind".
-- **Export to Desktop** copies the checked PDFs under readable names, never over another file. Two switches of the Style tab add
+- **Export to Desktop** copies the checked PDFs under readable names with no space in them, the words joined by underscores
+  and the day the build made them at the end (홍길동_이력서_20261119.pdf), never over another file: a name a file has already
+  gets _2, _3. Two switches of the Style tab add
   files made from them at that moment (`apps/api/delivery.py`):
   - the Word and text files: the resume's and the cover letter's Word files are made ready for Word (`src/docx_word.py`): Pretendard's
     regular and bold faces go inside, obfuscated as ECMA-376 asks, every text line gets the exact height LibreOffice gave it (Word
@@ -218,7 +220,7 @@ scaled down to the width (a pinch enlarges them).
   per page. A file that fails, or that the program does not open, stays home; the PDFs go, and the toast names why. On other systems
   nothing is opened and nothing is said.
 - **The latest portfolio kept on the Desktop**, a third switch, copies the general edition's deck PDF there after every make of it
-  that passes its checks, one file per language ("홍길동 포트폴리오.pdf", "Gildong Hong Portfolio.pdf"), and turned on it copies an
+  that passes its checks, one file per language ("홍길동_포트폴리오_20261119.pdf", "Gildong_Hong_Portfolio_20261119.pdf", the day of the build), and turned on it copies an
   edition that passed already. It replaces only the copy it wrote, recognised by the hash it recorded in the workspace's
   `out/desk_portfolio.json`; a file of that name it did not write, or its copy after you changed it, is never touched, and the copy
   takes the next free name. A blind edition is never copied. While the switch is on, Export to Desktop names that copy instead of

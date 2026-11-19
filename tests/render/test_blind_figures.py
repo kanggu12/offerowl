@@ -181,7 +181,8 @@ class RealRenderTests(unittest.TestCase):
             top = sum(1 for x in range(page.width) for y in range(0, 12) if near(page.getpixel((x, y))))  # the band across the top
             self.assertGreater(top, page.width * 3)
             names = a.tasks.export("-general", "ko")  # the export reads them and lets them go
-            self.assertEqual(["홍길동 블라인드 이력서.pdf", "홍길동 블라인드 포트폴리오.pdf"], names)
+            day = rec["at"][:10].replace("-", "")  # the day this build made them, which their names end with
+            self.assertEqual([f"홍길동_블라인드_이력서_{day}.pdf", f"홍길동_블라인드_포트폴리오_{day}.pdf"], names)
             a.tasks._build("-general", "ko", "navy", 3, False, False, False)  # the same edition made ordinary again
             self.assertNotIn("blind", json.loads((out / "build.json").read_text(encoding="utf-8")))
             self.assertIn("알파페이", pdftools.text(out / "resume.pdf"))  # the words are back

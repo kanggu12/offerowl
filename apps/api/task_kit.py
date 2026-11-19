@@ -6,6 +6,7 @@ import hashlib  # a short stamp of the kit's files
 import logging  # the panel's log
 import re  # names and patterns
 import threading  # threads and locks
+import time  # the day the talk was made, for its file names
 import urllib.parse  # a job's name in an address
 
 from .workspace import read_json, write_json  # noqa: E402
@@ -284,13 +285,15 @@ class Kits:
         made = read_json(folder / "talk.json", {}) or {}
         lang = (made.get("brief") or {}).get("lang")  # the talk's language names its files
         words = {"deck.pdf": "발표 자료" if lang != "en" else "Talk slides", "script.pdf": "발표 대본" if lang != "en" else "Talk script"}
+        made_at = (folder / "talk.json").stat().st_mtime if (folder / "talk.json").is_file() else None  # the talk's record keeps no time: its file's
+        day = delivery.made_day({"at": time.strftime("%Y-%m-%d", time.localtime(made_at))} if made_at else None)  # the day it was made, as the names carry it
         desk = delivery.desktop_dir()
         desk.mkdir(parents=True, exist_ok=True)
         for name, word in words.items():
             src = folder / name
             if not src.is_file():
                 continue
-            base = delivery.safe_name(str(made.get("company") or "")[:60], word)  # a name any system takes
+            base = delivery.safe_name(str(made.get("company") or "")[:60], word, day)  # a name any system takes, with the day it was made
             dst = desk / delivery.free_name(desk, base, ".pdf")  # never over a file that is there
             data = src.read_bytes()
             dst.write_bytes(data)

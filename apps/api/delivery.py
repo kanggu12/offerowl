@@ -29,6 +29,7 @@ import re  # the names
 import shutil  # the copies
 import tempfile  # a smaller copy of the deck, made before it goes
 import threading  # one writer of the record at a time
+import time  # the day a file name carries when its record has none
 from pathlib import Path  # paths
 
 from .drafts import GENERAL  # the edition with no job
@@ -126,15 +127,22 @@ DESK_LOCK = threading.Lock()  # a build and the switch turned on may keep the po
 
 
 def safe_name(*parts: str) -> str:
-    """A file name of these parts on any system: no character Windows refuses, spaces once, at most 120 characters."""
-    return " ".join(re.sub(r'[\\/:*?"<>|]+', " ", " ".join(x for x in parts if x)).split())[:120]
+    """A file name of these parts on any system and in any upload form: no character Windows refuses and no space, the words
+    joined by underscores as a file handed out is named (홍길동_포트폴리오), at most 120 characters."""
+    return "_".join(re.sub(r'[\\/:*?"<>|]+', " ", " ".join(x for x in parts if x)).split())[:120].rstrip("_")  # a cut never ends on a joint
+
+
+def made_day(rec: dict | None) -> str:
+    """The day a document was made, as its file name carries it (20261119): the day of its build record's `at`, else today."""
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", str((rec or {}).get("at") or ""))  # "2026-11-19 15:46", as a build writes it
+    return "".join(m.groups()) if m else time.strftime("%Y%m%d")  # a record with no time: the day it goes
 
 
 def free_name(dest: Path, base: str, suffix: str) -> str:
-    """base + suffix, or base (2) + suffix and on: the first name no file on the Desktop has."""
+    """base + suffix, or base_2 + suffix and on: the first name no file on the Desktop has."""
     name, n = base + suffix, 2  # first try
     while (dest / name).exists():  # never over another file
-        name, n = f"{base} ({n}){suffix}", n + 1
+        name, n = f"{base}_{n}{suffix}", n + 1  # numbered with no space either
     return name
 
 
@@ -303,13 +311,13 @@ def keep_portfolio(tasks, lang: str) -> str | None:
     dest.mkdir(parents=True, exist_ok=True)  # a fresh Desktop folder in a test
     full = sha256(deck)  # the deck that was checked
     limit = deck_limit(tasks)  # the size the person keeps it under, or None
-    base = safe_name(tasks.person_name(lang), WORDS[lang])  # 홍길동 포트폴리오, Gildong Hong Portfolio
+    base = safe_name(tasks.person_name(lang), WORDS[lang], made_day(rec))  # 홍길동_포트폴리오_20261119: a deck made on another day takes its day's name
     with DESK_LOCK:  # the record read, the copy made and the record written as one step
         record = _record(tasks)  # what it wrote before
         mine = record.get(lang)  # in this language
         ours = _ours(dest, mine)  # its own earlier copy is there, unchanged
         old = Path(mine["name"]).name if ours else None  # that copy's name
-        same_base = old is not None and (old == base + ".pdf" or re.fullmatch(re.escape(base) + r" \(\d+\)\.pdf", old))  # under the name it would take now
+        same_base = old is not None and (old == base + ".pdf" or re.fullmatch(re.escape(base) + r"_\d+\.pdf", old))  # under the name it would take now
         if same_base and made_from(mine) == full and mine.get("max_bytes") == limit and not mine.get("shrink"):  # already this deck, under this size
             return old
         name = old if same_base else free_name(dest, base, ".pdf")  # in place of its own copy, else a name no file has
