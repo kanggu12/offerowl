@@ -69,6 +69,11 @@ preset column widths per language, and `job.widths` overrides them.
 - Hierarchy figure with ink-centred text.
 - Logo tiles: an image is trimmed and placed on a white rounded tile with a light outline; a square image with transparent corners
   is taken as a finished tile; `{ "text": "AB", "color": "#2F6EBA" }` draws a monogram.
+- Square corners: with `OFFEROWL_CORNERS=square` (the panel's setting `corners`, a switch of its Style tab) the timeline's bars, the
+  hierarchy figure's boxes, a blind edition's bars and the tiles are square. An image's tile is a white square with the same light
+  outline, a monogram fills its square, and a finished rounded tile has its plate squared around its logo: the plate's colour fills
+  the corners and the outline is drawn square, in its own colour and width, while the logo inside stays pixel for pixel. A picture
+  with no plate around its logo, such as a round emblem, keeps its shape. Unset, every corner is as before (`src/corners.py`).
 
 ### Deck parts (`src/deck_slides.js`, `src/deck_structure.js`, `src/deck_figures.js`)
 
@@ -198,6 +203,11 @@ resume draft exists, it takes the chapter structure listed slide by slide, with 
 
 Two looks, with the same slides and sizes: the classic one with dark panels, and with `"deckStyle": "clean"` (**Light** in the panel) a light one
 whose cover, chapter panels and last slide are paper. Any colour set recolours the figures too.
+
+Square corners (`OFFEROWL_CORNERS=square`, the same setting as the [figures'](#figures-and-logo-tiles-srcoverview_figurespy)) square every box
+of the deck too, in either look: the boxes of the figures and the simple templates (`src/corners.js`), the bars written into the
+slides, and the stylesheet's (`src/portfolio/style_square.css`, added after the others). A dot stays round: the bullets, the number
+badges and the career path's stations. Unset, the deck's page is the same as before, byte for byte.
 
 In the panel a project's slide comes from its drafted sentences: what the person was responsible for on top, what they did and what came of it
 as cards. The cover's proof tiles, career path and focus columns and the lines over the contents and the career at a glance come from the same draft

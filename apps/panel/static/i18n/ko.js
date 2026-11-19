@@ -418,6 +418,7 @@ CATALOGS.ko = {
   "The PDFs changed after they were checked. Make the PDFs again.": "검사 뒤에 PDF가 바뀌었습니다. PDF를 다시 만들어 주세요.", "The copy on the Desktop did not read back, so it was taken away. Try again.": "바탕화면 복사본을 다시 읽지 못해 지웠습니다. 다시 해 주세요.",
   "Word and text files on the Desktop too": "바탕화면에 Word와 텍스트 파일도",
   "The portfolio as a PowerPoint file too": "포트폴리오 PowerPoint 파일도", "The latest portfolio kept on the Desktop": "바탕화면에 최신 포트폴리오 두기",
+  "Corners": "모서리", "Square corners on the figures, logos and portfolio": "그림·로고·포트폴리오 모서리를 직각으로",
   "Word file not exported: Word gives it {word} pages, the PDF has {pdf}.": "Word 파일은 내보내지 않음: Word에서는 {word}쪽, PDF는 {pdf}쪽",
   "PowerPoint file not exported: PowerPoint gives it {slides} slides, the PDF has {pages} pages.": "PowerPoint 파일은 내보내지 않음: PowerPoint에서는 {slides}장, PDF는 {pages}쪽",
   "Word file not exported: Word did not open it.": "Word 파일은 내보내지 않음: Word가 열지 못함", "Word file not exported: it could not be made ready for Word.": "Word 파일은 내보내지 않음: Word용 사본을 만들지 못함",

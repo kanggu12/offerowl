@@ -13,7 +13,7 @@ const PHONE = window.matchMedia("(max-width: 859px)");                          
 const MARGIN_NAME = { overview: "Overview", career: "Career", edu: "Education", comp: "Strengths", skills: "Skills",  // the margin's labels, in the app's language
   detail: "Experience", about: "About me", motivation: "Motivation", list: "Lists", head: "Profile" };
 
-function resumeKey(lang, theme, jid) { return `res|${lang}|${theme}|${(S.settings || {}).form || ""}|${jid || ""}|${rev()}`; }   // one cached model per revision
+function resumeKey(lang, theme, jid) { return `res|${lang}|${theme}|${(S.settings || {}).form || ""}|${(S.settings || {}).corners || ""}|${jid || ""}|${rev()}`; }   // one cached model per revision; the corners name new pictures
 function resumeModel() {                                                            // the model for the canvas now, or null while it loads
   const lang = docLang(), jid = jobId() || "";                                      // the document's language and the job in view (none: the general edition)
   const key = resumeKey(lang, UI.theme, jid), base = `${lang}|${UI.theme}|${(S.settings || {}).form || ""}|${jid}`;   // its cache key, and the same document at any revision
@@ -32,7 +32,7 @@ function coverModel() {                                                         
 }
 function deckModel() {                                                              // the deck as it will print, for the job in view or the general edition
   const ed = edition(); if (!ed) return null;                                       // nothing to draw for
-  const base = `${docLang()}|${UI.theme}|${(S.settings || {}).deck_style || ""}|${ed.id}`, key = `deck|${base}|${rev()}`;  // the same document, and this revision of it
+  const base = `${docLang()}|${UI.theme}|${(S.settings || {}).deck_style || ""}|${ed.id}`, key = `deck|${base}|${(S.settings || {}).corners || ""}|${rev()}`;  // the same document, and this revision of it in these corners (the old page stays while the new one loads)
   if (!UI.docs[key]) {                                                              // not fetched for this revision
     for (const k of Object.keys(UI.docs)) if (k.startsWith("deck|") && k !== key) delete UI.docs[k];  // pages are large: older ones go
     getDoc(key, `/api/v1/jobs/${enc(ed.id)}/deck/${docLang()}?theme=${UI.theme}`);  // fetched once

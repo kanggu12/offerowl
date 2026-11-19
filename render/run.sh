@@ -11,9 +11,10 @@
 #   OFFEROWL_MEM=4g      memory cap of the container
 #   OFFEROWL_ASSETS=DIR  mount DIR read-only at /offerowl-assets (your own logos and screenshots); no mount when unset
 #   OFFEROWL_THEME, OFFEROWL_THEME_FILE, OFFEROWL_FRESH, OFFEROWL_NOLOGOS, OFFEROWL_PROFILE, OFFEROWL_LANG,
-#   OFFEROWL_RENDERER, OFFEROWL_BLIND, OFFEROWL_BLIND_LANG, OFFEROWL_BLIND_TABLE, OFFEROWL_PDF_READER
+#   OFFEROWL_RENDERER, OFFEROWL_BLIND, OFFEROWL_BLIND_LANG, OFFEROWL_BLIND_TABLE, OFFEROWL_PDF_READER, OFFEROWL_CORNERS
 #                        handed on to the scripts inside the container (see docs/USAGE.md and docs/ARCHITECTURE.md);
-#                        OFFEROWL_BLIND_TABLE names a file inside the repository, as the container sees it
+#                        OFFEROWL_BLIND_TABLE names a file inside the repository, as the container sees it, and
+#                        OFFEROWL_CORNERS=square draws the figures, the logo tiles and the deck with square corners
 # The container is the `container` renderer. The `html` renderer (OFFEROWL_RENDERER=html) typesets on the host with the
 # PC's own Chrome or Edge and does not use this script; inside the container the same setting makes src/resume.py print
 # with the container's Chromium instead of LibreOffice.
@@ -70,7 +71,7 @@ MEM="${MEM:-4g}"
 # Settings the scripts inside the container read. `docker run` only hands over the names it is given, so they are listed
 # here. `${!name+x}` tells "set, even if empty" from "unset".
 PASS=()
-for v in THEME THEME_FILE FRESH NOLOGOS PROFILE LANG RENDERER BLIND BLIND_LANG BLIND_TABLE PDF_READER; do
+for v in THEME THEME_FILE FRESH NOLOGOS PROFILE LANG RENDERER BLIND BLIND_LANG BLIND_TABLE PDF_READER CORNERS; do
     name="OFFEROWL_$v"
     if [ -n "${!name+x}" ]; then
         PASS+=(-e "$name=${!name}")

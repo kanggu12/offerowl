@@ -10,12 +10,16 @@ What it builds (deck only: figures, deck HTML, Chromium print and probe; no Libr
   - the figure gallery (tests/deck/gallery.js): every template in light and dark, at the main and the side size, Korean and English;
   - the full fixture: the fictional examples/sample_full_<lang>.json with a research chapter, a project over two slides and two
     figures on the project slides, written to output/_deckw/ at test time.
+  - the full Korean fixture again with square corners (OFFEROWL_CORNERS=square, the person's setting corners).
 Checks: the browser probe finds no defect (one-word last lines are warnings, as in the document check), nothing was cut from a figure,
 the slide counts, the spread's page marks and page range, the research chapter's divider and timeline, figures per project slide,
-card marks, and no raw markup in the PDF text.
+card marks, and no raw markup in the PDF text. With square corners the browser finds no rounded box on any slide but the dots,
+where the same deck drawn by default has its rounded ones.
 Prints one line per failed check and ends with 'deck tests: N passed, M failed'.
 """
+import html  # the corner reading comes back escaped in the page
 import json  # probe, cut and fixture files
+import os  # the environment a build gets
 import pathlib  # paths
 import re  # text checks
 import subprocess  # node, the container, pdftotext
@@ -54,12 +58,53 @@ DECK = ('bash src/fonts.sh >/dev/null 2>&1; '
         'python3 src/probe_extract.py "output/$3_deck.dom" "output/$3_deck.probe.json"; rc=$?; rm -f "output/$3_deck.dom"; exit $rc')
 
 
-def build(profile: str, job: str, out: str, lang: str) -> str:
-    """Build one deck; an empty profile builds the gallery. Returns the last line of the build's output ('' when it went well)"""
+def build(profile: str, job: str, out: str, lang: str, corners: str = "") -> str:
+    """Build one deck; an empty profile builds the gallery; corners "square" draws it with square corners. Returns the last line
+    of the build's output ('' when it went well)"""
     for suf in ("_deck.pdf", "_deck.probe.json", "_deck.html"):  # old outputs must not pass for new ones
         (OUT / f"{out}{suf}").unlink(missing_ok=True)  # a failed build then shows as missing files
-    r = sh(["bash", "-c", DECK, "_", profile, job, out, lang])  # the names arrive as $1 to $4 ($0 is a placeholder)
+    env = {k: v for k, v in os.environ.items() if k != "OFFEROWL_CORNERS"}  # a switch in the shell never reaches the default decks
+    if corners:  # run.sh hands it to the scripts in the container
+        env["OFFEROWL_CORNERS"] = corners
+    r = sh(["bash", "-c", DECK, "_", profile, job, out, lang], env=env)  # the names arrive as $1 to $4 ($0 is a placeholder)
     return "" if r.returncode == 0 else ((r.stdout + r.stderr).strip().splitlines() or [f"exit {r.returncode}"])[-1]  # the last output line says why it failed
+
+
+# Read in the browser: every box of the slides whose corners are rounded, but the dots (as wide as high, rounded by half): each
+# element's computed corner radii and its ::before and ::after boxes, and each SVG box's rx. The list goes into #corner-out
+CORNER_JS = r"""(async () => {
+  await document.fonts.ready;
+  const found = [], px = v => parseFloat(v) || 0;
+  const note = (el, pseudo) => {
+    const cs = getComputedStyle(el, pseudo);
+    if (pseudo && (cs.content === "none" || cs.content === "normal")) return;
+    const r = [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(px);
+    if (!r.some(v => v > 0)) return;
+    const w = px(cs.width), h = px(cs.height);
+    if (w > 0 && Math.abs(w - h) < 0.5 && Math.min(...r) >= w / 2 - 0.01) return;
+    found.push(el.tagName.toLowerCase() + "." + (el.getAttribute("class") || "").trim().split(/\s+/).join(".") + (pseudo || "") + " " + r.join("/"));
+  };
+  for (const el of document.querySelectorAll(".slide, .slide *")) { note(el, null); note(el, "::before"); note(el, "::after"); }
+  for (const el of document.querySelectorAll(".slide rect")) {
+    const w = px(el.getAttribute("width")), h = px(el.getAttribute("height")), rx = px(el.getAttribute("rx"));
+    if (rx > 0 && !(Math.abs(w - h) < 0.01 && rx >= w / 2)) found.push("rect " + rx + " " + w + "x" + h);
+  }
+  document.getElementById("corner-out").textContent = JSON.stringify([...new Set(found)]);
+})();"""
+
+
+def rounded_on_page(out: str) -> list:
+    """What a built deck's page rounds, but its dots, as the container's Chromium lays it out: one entry per kind of box
+    (['no reading'] when the browser gave none back)"""
+    page, probe = OUT / f"{out}_deck.html", OUT / f"{out}_corners.html"  # the page, and a copy of it that reads its corners
+    text = page.read_text(encoding="utf-8") if page.exists() else ""  # no page: nothing is read
+    at = text.rfind("</body>")  # the reading goes last on the page
+    probe.write_text(text[:at] + '<pre id="corner-out"></pre><script>' + CORNER_JS + "</script>" + text[at:], encoding="utf-8")
+    r = sh(["bash", "-c", "bash src/fonts.sh >/dev/null 2>&1; " + CHROME + '--user-data-dir=/tmp/chr3 --window-size=1400,900 --dump-dom "$1" 2>/dev/null',
+            "_", f"output/{out}_corners.html"])  # the page laid out as it prints, its scripts run
+    probe.unlink(missing_ok=True)  # the copy goes again
+    m = re.search(r'<pre id="corner-out">(.*?)</pre>', r.stdout, re.S)  # what it found
+    return json.loads(html.unescape(m.group(1))) if m and m.group(1) else ["no reading"]
 
 
 def fixture(lang: str) -> tuple:
@@ -189,6 +234,19 @@ def main() -> int:  # the exit code: 0 passed, 1 failed
             n_gal = 2 * len(json.loads((ROOT / "tests" / "deck" / "fixtures" / "gallery.json").read_text(encoding="utf-8"))[lang])
             deck_checks(f"gallery {lang}", f"deckw_gallery_{lang}", n_gal)  # the probe and cut checks
             full_checks(lang, deck_checks(f"full {lang}", f"deckw_full_{lang}", 16))  # sixteen slides, then the fixture's own checks
+            if lang == "ko":  # the same deck with square corners: every measure of the deck on it, and no rounded box but the dots
+                name = f"deckw_square_{lang}"  # this build's output name
+                prof3, job3 = fixture(lang)  # the same fixture
+                jf = ROOT / job3  # its job file, under this build's name
+                jf.write_text(json.dumps({**json.loads(jf.read_text(encoding="utf-8")), "out": name}), encoding="utf-8")
+                if building:  # a fresh build
+                    last = build(prof3, job3, name, lang, corners="square")
+                    ok(f"square corners {lang}: build", not last, last)  # its last line on failure
+                deck_checks(f"square corners {lang}", name, 16)  # the probe and cut checks
+                left = rounded_on_page(name)  # what the browser finds rounded
+                ok(f"square corners {lang}: no rounded box", not left, "; ".join(left[:6]))
+                kept = rounded_on_page(f"deckw_full_{lang}")  # the default deck, read the same way: the reading finds rounded boxes
+                ok(f"full {lang}: its rounded boxes are found", len(kept) >= 5 and kept != ["no reading"], "; ".join(kept[:6]))
             # The other colour sets and the light deck: the same slides, with every measure of the deck on them. Each set in one look, the two looks in turn
             for theme, look in (("teal", "classic"), ("mono", "clean"), ("wine", "clean"), ("forest", "classic"), ("slate", "clean")) if lang == "ko" else (("wine", "clean"), ("forest", "classic")):
                 name = f"deckw_{theme}_{lang}"  # this build's output name

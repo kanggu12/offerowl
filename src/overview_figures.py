@@ -17,6 +17,10 @@ A blind edition (OFFEROWL_BLIND=1) draws what its table covers (src/blind.py) as
 mask_fill, in the timeline and the hierarchy figure alike, so a figure keeps its layout and shows no covered word. A figure
 is a picture: the words are never drawn under the bar. The logo tiles are drawn as they are.
 
+Square corners (OFFEROWL_CORNERS=square, src/corners.py, the person's setting `corners` in the panel) draw the bars, the boxes
+and the tiles with square corners: an image's tile is a white square with the same light outline, and a finished rounded
+tile brought in as a logo gets its plate squared around the logo, which stays as it is. Unset, every picture is the same as before.
+
   python3 src/overview_figures.py <profile.json> <out name> [ko|en]
     -> output/_figures/<out>_timeline[_en].png, <out>_stack[_en].png, <out>_logo_<id>.png
 """
@@ -34,6 +38,7 @@ from PIL import Image, ImageDraw, ImageFont  # drawing
 ROOT = pathlib.Path(__file__).resolve().parent.parent  # repository root
 sys.path.insert(0, str(ROOT / "src"))  # blind.py beside this file, however it was started
 import blind  # noqa: E402  the blind edition's table and its bars
+import corners  # noqa: E402  the corners setting: rounded boxes, or square ones
 BT = blind.load() if blind.on() else None  # the table this run covers with, when it makes a blind edition
 OUT = ROOT / "output" / "_figures"  # the overview figures
 FD = str(ROOT / "fonts") + "/"  # Pretendard, the resume font
@@ -45,6 +50,7 @@ WARN = []  # notes raised while drawing (dropped bars, shortened labels)
 TILE = 512  # logo tile side in pixels (about 6 mm in the document)
 LOGO_FORMATS = ("PNG", "JPEG", "WEBP", "GIF", "BMP", "ICO")  # the kinds a logo comes in, as Pillow names them: no other decoder is reached
 TILE_BORDER = (211, 220, 232)  # the tile's light outline
+INSET = 40  # a finished tile's inside (its logo) starts this far in on every side of TILE, past its rounded corner and its outline
 
 
 def hex_rgb(h):
@@ -345,8 +351,8 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
                 if fade:  # the bar fades toward white instead of ending
                     for i in range(int(x1 - x0)):
                         d.line([(x0 + i, yy * S), (x0 + i, (yy + h) * S)], fill=mix(color, i / max(1, x1 - x0)))
-                else:
-                    d.rounded_rectangle([x0, yy * S, x1, (yy + h) * S], radius=3 * S, fill=color)
+                else:  # the bar, its corners as the run asks (src/corners.py)
+                    corners.box(d, [x0, yy * S, x1, (yy + h) * S], 3 * S, fill=color)
                 tx = x0 + 4 * S
                 if tb is not None and x0 < XB < x1:  # a bar through the squeezed span is cut by the wave, its text starts after it
                     wave((yy - 2) * S, (yy + h + 2) * S)
@@ -426,7 +432,7 @@ def stack(prof, lang, path, navy):
         d.polygon([(0, y0), (end, y0), (end + tip, (y0 + y1) / 2), (end, y1), (0, y1)], fill=c)  # the arrow plate
         b = d.textbbox((0, 0), name, font=f)  # center the name by its ink height (fonts differ in top room)
         draw_text(d, (pad * S, y0 + (row * S - (b[3] - b[1])) / 2 - b[1]), name, "white", f)
-        d.rounded_rectangle([right, y0, W, y1], radius=3 * S, fill=TINT)
+        corners.box(d, [right, y0, W, y1], 3 * S, fill=TINT)  # the pale box of the skills, its corners as the run asks
         # The two right lines (skills, where) sit as one block centered in the row, 6 apart
         b1, b2 = d.textbbox((0, 0), tech or " ", font=ft), d.textbbox((0, 0), where or " ", font=fw)
         h1, h2, lead = b1[3] - b1[1], b2[3] - b2[1], 6 * S
@@ -438,14 +444,77 @@ def stack(prof, lang, path, navy):
     return path
 
 
+def plate(d, **kw) -> None:
+    """A tile's plate: a rounded square 1 px inside the picture, as the tiles always were, or under square corners a square
+    that fills the picture (no curve to keep clear of its edge). kw (fill, outline, width) goes to Pillow as given."""
+    if corners.square():  # square corners: edge to edge
+        d.rectangle([0, 0, TILE - 1, TILE - 1], **kw)
+    else:  # rounded, asked for exactly as before, so the tile is the same bytes
+        d.rounded_rectangle([1, 1, TILE - 2, TILE - 2], radius=88, **kw)
+
+
+def off_line(p, a, b) -> float:
+    """How far colour p lies from the colours between a and b (RGB, the largest channel's distance): 0 for a, for b and for any
+    blend of the two. b None: how far p lies from a alone."""
+    if b is None:  # one colour only
+        return max(abs(p[i] - a[i]) for i in range(3))
+    step = [b[i] - a[i] for i in range(3)]  # from a to b
+    span = sum(v * v for v in step)  # its length, squared
+    t = 0.0 if not span else max(0.0, min(1.0, sum((p[i] - a[i]) * step[i] for i in range(3)) / span))  # the nearest blend, a to b
+    return max(abs(p[i] - (a[i] + t * step[i])) for i in range(3))  # its distance from p
+
+
+def squared(im):
+    """A finished rounded tile, scaled to TILE, made square: its plate's colour fills the whole picture, the inside of the old
+    plate (INSET in from every side, where the logo is) goes back where it was, pixel for pixel, and the outline the plate had
+    is drawn square, as wide and in its colour. None when the picture is not a plate with a logo inside it (a round emblem, a
+    logo on a clear ground, a logo that reaches into the plate's edge, a plate rounder than INSET clears): such a picture keeps
+    its own shape, and no logo loses a pixel."""
+    mid = TILE // 2  # the middle of the top edge, where the outline is read
+    colour = im.getpixel((mid, 30))  # the plate's colour, inside the outline
+
+    def same(p, c):
+        return p[3] > 200 and max(abs(p[i] - c[i]) for i in range(3)) <= 12  # opaque and one colour, give or take its smoothing
+
+    if colour[3] != 255:  # no opaque plate there: an emblem or a bare logo
+        return None
+    edge = [im.getpixel((mid, y)) for y in range(30)]  # down from the middle of the top edge: the clear ground, the outline, the plate
+    k = next((y for y, p in enumerate(edge) if p[3] > 200), len(edge))  # past the ground and the smoothing of the plate's edge
+    ring = []  # the outline's pixels, outside in
+    while k < len(edge) and edge[k][3] > 200 and not same(edge[k], colour):  # opaque, and not the plate
+        ring.append(edge[k])
+        k += 1
+    if not all(same(p, colour) for p in edge[k:]):  # past the outline there is the plate alone, or this is no tile
+        return None
+    inside = im.crop((INSET, INSET, TILE - INSET, TILE - INSET))  # the old plate's inside, with the logo
+    last = TILE - 2 * INSET - 1  # the inside's last pixel
+    if not all(same(inside.getpixel(c), colour) for c in ((0, 0), (last, 0), (0, last), (last, last))):  # its corners are on the plate
+        return None  # a plate rounder than INSET clears: its curve would show inside the square
+    ring_colour = ring[len(ring) // 2] if ring else None  # the outline's colour, from its middle
+    flat = Image.new("RGBA", im.size, colour[:3] + (255,))  # the picture over its own plate: the clear corners read as plate
+    flat.alpha_composite(im)
+    band = ((0, 0, TILE, INSET), (0, TILE - INSET, TILE, TILE), (0, INSET, INSET, TILE - INSET), (TILE - INSET, INSET, TILE, TILE - INSET))  # top, bottom, left, right
+    for strip in band:  # the edge band, between the picture's edge and the inside, holds the plate, its outline and their blends
+        found = flat.crop(strip).getcolors(4096)  # its colours, each once (None: more than a plate's smoothed edge ever has)
+        if found is None or any(off_line(c, colour, ring_colour) > 16 for _, c in found):  # anything else is the logo, which would lose its edge
+            return None
+    out = Image.new("RGBA", im.size, colour[:3] + (255,))  # the plate's colour over the whole tile
+    out.alpha_composite(inside, (INSET, INSET))  # the inside where it was
+    draw = ImageDraw.Draw(out)  # the outline over it
+    for w in range(len(ring)):  # square, as wide as the old one, edge inwards
+        draw.rectangle((w, w, TILE - 1 - w, TILE - 1 - w), outline=ring_colour[:3] + (255,))
+    return out
+
+
 def logo_tile(spec, path, navy):
     """One square logo tile. An image is trimmed of near-white edges and fitted in 70% of a white rounded tile with a light
-    outline (the reference tile style); a monogram draws its initials on a filled rounded tile"""
+    outline (the reference tile style); a monogram draws its initials on a filled rounded tile. Under square corners
+    (src/corners.py) both tiles are square, and a finished rounded tile brought in as the logo has its plate squared."""
     t = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
     d = ImageDraw.Draw(t)
     if spec.get("monogram"):
         fill = hex_rgb(spec.get("color")) or navy  # the given color or the theme color
-        d.rounded_rectangle([1, 1, TILE - 2, TILE - 2], radius=88, fill=fill + (255,))
+        plate(d, fill=fill + (255,))  # the filled tile, its corners as the run asks
         text = spec["monogram"][:3]
         f = ImageFont.truetype(FD + "Pretendard-Bold.ttf", int(TILE * (0.42 if len(text) < 3 else 0.32)))
         bb = d.textbbox((0, 0), text, font=f)
@@ -454,7 +523,13 @@ def logo_tile(spec, path, navy):
         im = Image.open(spec["file"], formats=LOGO_FORMATS).convert("RGBA")   # a logo's usual kinds; no other decoder of Pillow's is reached
         if im.width == im.height and all(im.getpixel(c)[3] == 0 for c in ((0, 0), (im.width - 1, 0), (0, im.height - 1), (im.width - 1, im.height - 1))):
             # A square image with transparent corners is a finished rounded tile already: keep it, only scale it to the tile size
-            im.resize((TILE, TILE), Image.LANCZOS).save(path)
+            t = im.resize((TILE, TILE), Image.LANCZOS)  # as it came, at the tile's size
+            if corners.square():  # square corners asked: its plate squared around the logo
+                sq = squared(t)  # None when it is no plate with a logo inside
+                if sq is None:  # said, since a command line run can read it: the picture keeps its own shape
+                    WARN.append(f"logo {pathlib.Path(spec['file']).name}: kept as it is, no plate around its logo to square")
+                t = sq or t  # the squared tile, or the picture as it came
+            t.save(path)
             return path
         px = im.load()
         if im.getchannel("A").getextrema()[0] == 255:  # an opaque image: turn its near-white background transparent
@@ -466,7 +541,7 @@ def logo_tile(spec, path, navy):
         bb = im.getchannel("A").getbbox()
         if bb:
             im = im.crop(bb)
-        d.rounded_rectangle([1, 1, TILE - 2, TILE - 2], radius=88, fill=(255, 255, 255, 255), outline=TILE_BORDER, width=6)
+        plate(d, fill=(255, 255, 255, 255), outline=TILE_BORDER, width=6)  # the white tile with its light outline, its corners as the run asks
         box = int(TILE * 0.70)
         k = min(box / im.width, box / im.height)
         m = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)

@@ -818,12 +818,20 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
             return prev.get("blind") is True
         return form.get("blind") is True  # the first build, or a new own edition: as it was brought in
 
+    def corners(self) -> str:
+        """The corners the figures, the logo tiles and the built-in deck are drawn with: "square" when the person's setting
+        `corners` says so, else "round", as the documents always had them."""
+        return "square" if self.card.settings_fn().get("corners") == "square" else "round"  # absent or "round" alike
+
     def blind_env(self, lang: str, on: bool) -> dict:
         """The environment of one edition's typesetting: this process's without any blind switch it was started with, and for a
         blind edition its own (OFFEROWL_BLIND, its language, and the person's table staged where the typesetting reads it,
-        OFFEROWL_BLIND_TABLE). Every build gets a copy of its own, so one edition's switches never reach another's and the
+        OFFEROWL_BLIND_TABLE). OFFEROWL_CORNERS=square when the person's setting asks for square corners, and never from the
+        server's own environment. Every build gets a copy of its own, so one edition's switches never reach another's and the
         server's own environment is never changed."""
-        env = {k: v for k, v in os.environ.items() if not k.startswith("OFFEROWL_BLIND")}  # no switch carried over from the start
+        env = {k: v for k, v in os.environ.items() if not k.startswith("OFFEROWL_BLIND") and k != "OFFEROWL_CORNERS"}  # no switch carried over from the start
+        if self.corners() == "square":  # the setting, for every step that draws (src/corners.py and src/corners.js read it)
+            env["OFFEROWL_CORNERS"] = "square"
         if on:  # a blind edition
             env.update(OFFEROWL_BLIND="1", OFFEROWL_BLIND_LANG=lang)  # its bars, band and label in its language
             f = self.blind_file()  # the person's table, if any
@@ -1164,7 +1172,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
     def deck_live(self, job_id: str, lang: str, theme: str = "navy") -> dict:
         """The deck as it will print, as one page for the canvas's frame: {"html", "slides"}, or {"missing": code} when it cannot be
         drawn yet. It reads the same profile the PDFs read, writes nothing to the edition (a locked job stays as submitted), and
-        leaves nothing in the engine's folder. The answer is kept until the profile, the draft or the colours change."""
+        leaves nothing in the engine's folder. The answer is kept until the profile, the draft, the colours or the corners change."""
         prof_now = self.facts_for(job_id).profile()  # the profile as kept: the job's own edition when it has one
         bad = problems(prof_now)  # what stops a resume stops its slides
         if bad:  # a name, an email or a job is missing
@@ -1185,7 +1193,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
         from . import drafts as D  # where a draft is kept
         _, owner = D.load(self, job_id)  # the job's own draft, else the general edition's
         mine = [src] + ([self.ws.job_dir(owner) / "draft.json"] if owner else [])  # the files the page is made from
-        stamp = (json.dumps(cfg, sort_keys=True), *[file_hash(f) for f in mine], self.deck_stamp())  # the page is made again only when one of these changes (or the deck source)
+        stamp = (json.dumps(cfg, sort_keys=True), *[file_hash(f) for f in mine], self.deck_stamp(), self.corners())  # the page is made again only when one of these changes (or the deck source, or the corners)
         where = (job_id, lang, cfg["theme"])  # this document
         with self.live_lock:  # one at a time; a request that waited finds the page made
             old = self.live_decks.get(where)  # the page already made
@@ -1236,7 +1244,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
         logo tiles of the companies and schools, drawn by src/overview_figures.py from the same edition profile the PDFs read,
         so the canvas shows the figures the PDF prints. {"stamp": short hash, "files": {name: PNG bytes}} with names "timeline",
         "stack" and "logo_<id>"; no files when they cannot be drawn here (no Node.js or Pillow, or no profile yet). Kept in
-        memory until the profile, the draft or the colours change; nothing stays on disk, in the engine's folder or the job's."""
+        memory until the profile, the draft, the colours or the corners change; nothing stays on disk, in the engine's folder or the job's."""
         none = {"stamp": "", "files": {}}  # what the canvas gets when there is nothing to show
         if problems(self.facts_for(job_id).profile()):  # no name, email or role yet: no resume to draw from
             return none
@@ -1250,7 +1258,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
         from . import drafts as D  # where a draft is kept
         _, owner = D.load(self, job_id)  # the job's own draft, else the general edition's
         mine = [Path(src)] + ([self.ws.job_dir(owner) / "draft.json"] if owner else [])  # the files the figures are drawn from
-        stamp = hashlib.sha1(repr((json.dumps(cfg, sort_keys=True), *[file_hash(f) for f in mine])).encode()).hexdigest()[:12]  # drawn again only when one changes
+        stamp = hashlib.sha1(repr((json.dumps(cfg, sort_keys=True), *[file_hash(f) for f in mine], self.corners())).encode()).hexdigest()[:12]  # drawn again only when one changes, or the corners
         where = (job_id, lang, cfg["theme"])  # this document
         with self.live_lock:  # one drawing at a time, as the live deck
             old = self.live_figures.get(where)  # drawn before

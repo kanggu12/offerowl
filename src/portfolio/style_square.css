@@ -1,0 +1,13 @@
+/* Square corners: the deck when the build asks for them (OFFEROWL_CORNERS=square, the person's setting corners). deck.js adds this
+   file after every other stylesheet, so each rounded box of theme.css, style_clean.css and the blind edition's own styles is
+   square here. A dot stays round: the bullets' small dots, the number badges and the career path's stations are circles, not
+   boxes. The boxes drawn inside the figures and the ones written into the slides take their corners from src/corners.js. */
+.eyebrow::before, .eod .top::before { border-radius: 0; }   /* the short bars before a header line */
+.ttl .logos .lg { border-radius: 0; }                         /* the logo plates at the end of a project title */
+.card.white, .quote { border-radius: 0; }                     /* a white card, and the context and result box */
+.tags span { border-radius: 0; }                              /* the technology tags */
+.fig .frame { border-radius: 0; }                             /* the figure's frame */
+.eod .cc .ic { border-radius: 0; }                            /* the contact chips of the last slide */
+.rail .seg { border-radius: 0; }                              /* the rail's tabs */
+.chapter .cl .logo { border-radius: 0; }                      /* the white tile under a chapter's logo */
+.bm, .foot .bv { border-radius: 0; }                          /* a blind edition's bars and its label in the footer */

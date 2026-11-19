@@ -479,8 +479,15 @@ removed, a quiet key says how many wait in the Trash: under the profile's files,
 - **Style**: the writing rules (Offerowl's own, or a style pack the person added), the blind edition's table (yours or
   Offerowl's, which covers nothing; how many patterns it covers, covers whole and never lets show; "Use your own table" picks a
   JSON file, which is checked and kept in the workspace, and "Use Offerowl's own" takes it away), the document language, the page
-  limit (two to seven), what tailoring makes (the cover letter, the PDFs), whether the Desktop gets Word and text files too and
-  the portfolio as a PowerPoint file too, and whether the latest portfolio is kept on the Desktop, with the names it keeps there.
+  limit (two to seven), the corners, what tailoring makes (the cover letter, the PDFs), whether the Desktop gets Word and text files
+  too and the portfolio as a PowerPoint file too, and whether the latest portfolio is kept on the Desktop, with the names it keeps there.
+
+  **Square corners on the figures, logos and portfolio** ("그림·로고·포트폴리오 모서리를 직각으로", the setting `corners`, off by
+  default) draws the timeline's bars, the hierarchy figure's boxes, the logo tiles, a blind edition's bars and every box of the
+  built-in deck with square corners. A finished rounded tile brought in as a logo gets its plate squared around the logo, which
+  stays as it is; a round emblem keeps its shape. The live pages follow at once, the PDFs the next time they are made; off, every
+  corner is rounded as before ([Figures and logo tiles](DOCUMENTS.md#figures-and-logo-tiles-srcoverview_figurespy)). A deck written
+  from your own deck source draws its own boxes, and gets the same switch in its build's environment (`OFFEROWL_CORNERS`).
 - **Theme**: the resume's form (detailed, one column, tables), the deck's look (classic, light), the colour of both (navy, teal, grey, wine, forest, slate), and the
   app's light, dark or automatic look.
 - **History**: every change, newest first. A click asks first on the panel's own sheet (there is no redo), then undoes it

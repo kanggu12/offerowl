@@ -18,6 +18,8 @@ import pathlib  # paths
 import re  # the patterns
 import sys  # the command line
 
+import corners  # src/corners.py beside this file: the bars' corners, rounded or square
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent  # the repository root, one level above src/
 DEFAULT = ROOT / "src" / "blind.json"  # the shipped table: generic and empty, so it covers nothing
 LISTS = ("mask", "mask_whole", "leak")  # the lists: two of patterns, then the words that must never show
@@ -293,7 +295,8 @@ def bar_box(font) -> tuple:
 
 def draw(d, xy, text: str, font, fill, table: dict, fl: list | None = None, bar=None) -> None:
     """Draw a text at xy (the top-left anchor ImageDraw.text uses) with what the table covers drawn as bars of the text's own
-    width in the table's mask_fill, never as the words. fl: the flags, when the caller has them; bar: the bars' colour."""
+    width in the table's mask_fill, never as the words. fl: the flags, when the caller has them; bar: the bars' colour. The
+    bars' corners are slightly rounded, or square when the run asks for square corners (src/corners.py)."""
     x, y = xy  # where the text starts
     color = bar or "#" + str(table.get("mask_fill") or "8B1A1A")  # the bars' red
     top, bottom = bar_box(font)  # how high a bar stands
@@ -302,7 +305,7 @@ def draw(d, xy, text: str, font, fill, table: dict, fl: list | None = None, bar=
         x0 = x + font.getlength(text[:at])  # where the run starts, as the whole text lays it out
         x1 = x + font.getlength(text[:at + len(piece)])  # and where it ends
         if covered:  # a bar of the run's width, never its words
-            d.rounded_rectangle([x0, y + top, max(x0 + 1, x1), y + bottom], radius=max(1, (bottom - top) // 8), fill=color)
+            corners.box(d, [x0, y + top, max(x0 + 1, x1), y + bottom], max(1, (bottom - top) // 8), fill=color)
         else:  # the words as they are
             d.text((x0, y), piece, fill=fill, font=font)
         at += len(piece)  # the next run

@@ -26,8 +26,9 @@ const esc = h.esc;                                 // HTML and SVG escaping
 const CUT = [];                                    // text a figure had to drop (written to <out>_deck.cut.json; the document check reports it)
 // The simple templates paint with the theme's CSS variables, so a theme file recolors them too
 const svg = (w, ht, body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${ht}" width="${w}" height="${ht}" font-family="Pretendard">${body}</svg>`;
-// A rounded box painted through style, so a CSS variable can be its fill
-const rect = (x, y, w, ht, fill, r = 6, extra = "") => `<rect x="${x}" y="${y}" width="${w}" height="${ht}" rx="${r}" style="fill:${fill}" ${extra}/>`;
+// A rounded box painted through style, so a CSS variable can be its fill; its corners square when the build asks (src/corners.js)
+const { corner } = require("./corners");          // a box's corner radius: its own, or none under square corners
+const rect = (x, y, w, ht, fill, r = 6, extra = "") => `<rect x="${x}" y="${y}" width="${w}" height="${ht}" rx="${corner(w, ht, r)}" style="fill:${fill}" ${extra}/>`;
 // A text line centered on y; its color is a CSS variable too
 const text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size || 13}" ${o.bold ? 'font-weight="700"' : ""} text-anchor="${o.anchor || "start"}" ` +
   `dominant-baseline="middle" style="fill:${o.fill || "var(--ink)"}">${esc(s)}</text>`;   // escaped, since figure text comes from the profile
