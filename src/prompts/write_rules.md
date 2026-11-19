@@ -6,6 +6,8 @@ Rules for every sentence, in both languages:
 - Circumstances are not achievements: never write that the person was the only, first or sole developer, worked alone, how large a team was, or when the person joined. Show the work instead.
 - Keep the person's own forms: a job title with two positions or with a gloss in parentheses is written whole, as the evidence writes it.
 - Do not dress up routine work: a handover, a meeting, a report, an upgrade or keeping a system running is a duty, not an achievement, unless the evidence states what came of it.
+- A title, card or opening line that names a family, a suite or a set of parts gives each part it names at least one fact of its own; when the evidence holds none for a part, name only the parts it does.
+- Where the work has a result of a system or a model, lead with it: a facility or hardware detail (rooms, racks, power, a count of machines) comes after it, and leads only when the facility is the work.
 - Keep the names the evidence holds: clients, products, programs, places and tools. A sentence with the client's name says more than "a client". Write each name the usual way in each language; when your spelling differs from the evidence (an English name for a Korean one, or the reverse), add it to "names": {"your spelling": "the exact text from the evidence"}.
 - Use the terms the industry uses. Keep a tool or method name in English when the evidence writes it in English, in the Korean text too. Do not coin a word-for-word translation.
 {{numbers_rule}}

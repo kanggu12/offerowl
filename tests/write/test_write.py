@@ -328,6 +328,19 @@ class RubricTests(unittest.TestCase):  # 0.11.0: the drafting rubric and the per
         self.assertIn("Circumstances are not achievements", summary)
         self.assertIn("why it worked, with exactly one ==highlight==", summary)
 
+    def test_the_prompts_ask_for_the_whole_scope_and_the_system_first(self):  # 0.13.0: what an application's review asked for, one clause each
+        _, _, m = run_draft()  # one run
+        asked = dict(m.calls)  # each stage's prompt by its task
+        items, summary, deck = asked["write-items"], asked["write-summary"], asked["write-deck"]
+        self.assertIn("a system the person both ran and improved takes both", items)  # a title says the whole scope
+        self.assertIn("leading with what the target cares about most", summary)  # the headline
+        self.assertIn("then the scope of that role in the posting's own words", summary)  # the target card: the role, then its scope, as an aim
+        self.assertIn("the depth of the person's own hands-on scope", summary)  # the strengths card: breadth and depth, not two narrow skills
+        self.assertIn("never a bare constraint", deck)  # a proof tile: a result, a scale or an outside validation
+        for p in (items, summary, deck):  # the rules every prompt shares
+            self.assertIn("gives each part it names at least one fact of its own", p)  # a named family shows each part
+            self.assertIn("leads only when the facility is the work", p)  # the result of the system before a facility detail
+
     def pack(self, claims: dict) -> dict:
         """The private pack with a claims object of the test's own."""
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-claims-"))  # a folder of its own
