@@ -83,6 +83,8 @@ def _rows(page) -> list:
 
     for i in range(tp.count_chars()):  # character by character
         ch = tp.get_text_range(i, 1)  # the character
+        if ch == "\ufffe":  # PDFium gives a hyphen that ends a line as U+FFFE, a character no XML may hold
+            ch = "-"  # the hyphen it stands for, as poppler prints it
         if ch in ("\r", "\n"):  # a line end PDFium worked out
             end_row()
             continue
