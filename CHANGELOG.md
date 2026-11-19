@@ -6,6 +6,48 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-20
+
+The figures, the logo tiles and the built-in deck can be drawn with square corners, and a black and crimson colour set joins
+the six, its figures in its own tones.
+
+### Added
+
+- **Square corners.** The setting `corners`, a switch of the Style tab ("Square corners on the figures, logos and portfolio",
+  off by default), draws the timeline's bars, the hierarchy figure's boxes, the logo tiles, a blind edition's bars and every
+  box of the built-in deck with square corners, for a resume and a deck that match a portfolio made square; a dot stays round
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#figures-and-logo-tiles-srcoverview_figurespy)). A logo that is already a finished rounded
+  tile gets its plate squared around the logo, which stays pixel for pixel, and a round emblem keeps its shape. The live
+  pages follow at once, the PDFs the next time they are made. Each build gets it as `OFFEROWL_CORNERS=square`, which a
+  command line sets by hand and `render/run.sh` hands to the container. Off, or `round`, every picture and every deck page is
+  the same as before, byte for byte.
+- **Crimson.** A seventh colour set, a black base with one crimson accent ("Black, crimson" on the Theme tab, `crimson` for
+  a build and the agent's tools). It names the figures' tones itself (`deep`, `paper`, `n2`, `n3`, `b1` to `b5`, `hair`,
+  `label`, `ink2`, optional keys any set may now carry in `src/themes.json`), so its resume and its deck, stylesheet and
+  figures alike, hold nothing of the navy family ([DOCUMENTS.md](docs/DOCUMENTS.md#the-portfolio-deck)). It names a ramp
+  of eight crimson steps too (`ramp1` to `ramp8`, optional for any set), and the resume's career bars and hierarchy plates
+  are drawn in it, from rose for the oldest role to a deep wine for the newest, where a black base alone would have drawn
+  them in greys.
+- **Timeline gaps.** `summary.timeline.gaps` squeezes stretches inside the overview timeline behind the same double wave as
+  the study-only lead-in (`[["2014.06", "2016.01"]]`), for a long run of one bar that would take the width the recent
+  years need: every bar through a gap is cut by its wave, the years inside it are not labelled, a label never runs under a
+  wave, and the plain years share what is left. The resume's timeline, the built-in deck's and the chapters' narrow ones
+  read it; a profile without gaps draws the same pixels as before ([DOCUMENTS.md](docs/DOCUMENTS.md)).
+
+### Changed
+
+- The figures follow the colour set in every set but the built-in navy, which is the same as before, byte for byte. The
+  resume's hierarchy figure takes the set's band for its boxes and the logo tiles its rule for their outline, where both
+  stayed pale blue; the resume's faint English labels take the set's `label` when it names one. The deck's stylesheet and its
+  figures share one palette, so the pale words on its dark panels and the defaults of its stylesheet take the set's tones too.
+
+### Fixed
+
+- The check of an edition's resume against its deck missed a project's period when the deck printed it with wide letter
+  spacing, which a PDF reader returns digit by digit ("2 0 31 .1 2"). A slide whose figure printed a month of its own then
+  had only that month to compare, and the resume's period was reported as missing from the slide; a slide that printed no
+  other date was not compared at all. Such a period is now read as the date it is.
+
 ## [0.13.2] - 2026-11-19
 
 The files Offerowl puts on the Desktop are named with no spaces and with the day they were made.
@@ -707,7 +749,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.13.2...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/kanggu12/offerowl/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/kanggu12/offerowl/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/kanggu12/offerowl/compare/v0.12.2...v0.13.1
 [0.12.2]: https://github.com/kanggu12/offerowl/compare/v0.12.1...v0.12.2
