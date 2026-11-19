@@ -6,6 +6,39 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-19
+
+The resume and its deck name one thing with one word, the drafts say the whole scope of the work, and the portfolio on
+the Desktop can be kept under a size.
+
+### Added
+
+- **One thing, one word.** A style pack's `parity` object takes `terms`: groups of patterns that name one thing, the word to
+  use first. When the resume and its deck both name the thing with words of their own, the build finds `term_drift`, which
+  names the resume's word, the deck's and the one to use ([DOCUMENTS.md](docs/DOCUMENTS.md#the-resume-and-its-deck)). The
+  words are read from both PDFs, a line end inside a term reading as a space, and a portfolio you made as a PDF is read for
+  them too. The panel refuses a pack whose `terms` are not groups of two or more patterns that compile.
+- **A portfolio under a size.** The setting `deck_max_mb` keeps the portfolio on the Desktop under a size, for a site that
+  takes 2 MB at most (`1.99`, a megabyte of 1,000,000 bytes). A deck over it goes as a smaller copy: first with no change a
+  reader can see (its shapes' coordinates rounded, images of few colours as palettes of exactly those colours, its objects
+  packed), then its text positions, then its images at fewer colours, 256 down to 128 at the fewest, never JPEG, each step
+  only while the copy is still over the size ([APP.md](docs/APP.md#documents-the-live-canvas)). The next build replaces
+  that copy as before, and the export names it. `offerowl shrink <in.pdf> <out.pdf> --max-mb 1.99` makes one PDF smaller
+  the same way. It needs pikepdf, which the app image carries and the desktop app does not: there the deck goes at its
+  own size.
+
+### Changed
+
+- The drafting prompts ask for what an application's review asked for ([WRITING.md](docs/WRITING.md#the-rubric)): the
+  target card names the role first, then its scope in the posting's own words, as an aim and not a claim of past work; the
+  strengths card shows the breadth of the record across its field and the depth of the person's own hands-on scope, not two
+  narrow skills; the headline leads with what the target cares about most; a title says the whole scope (a system both run
+  and improved, what was designed); a proof tile on the deck is a result, the scale of a system or an outside validation,
+  never a bare constraint or a count of facilities or parts; a title, card or opening line that names a family, a suite or
+  a set of parts gives each part a fact of its own; and a system's result leads a facility detail.
+- The procedure's check step names the terms, and has the agent read the overview cards, the titles and the deck's tiles
+  before it calls an edition done ([MCP.md](docs/MCP.md#the-procedure)).
+
 ## [0.12.2] - 2026-11-19
 
 An application's own edition can order its core competencies.
@@ -654,7 +687,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.12.2...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/kanggu12/offerowl/compare/v0.12.2...v0.13.0
 [0.12.2]: https://github.com/kanggu12/offerowl/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/kanggu12/offerowl/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/kanggu12/offerowl/compare/v0.11.1...v0.12.0
