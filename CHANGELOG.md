@@ -6,6 +6,22 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-20
+
+The built-in deck's dark panels and category tints take a colour set's own tones, and crimson's no longer read pink on black.
+
+### Changed
+
+- The classic deck's dark panels (the cover's name panel, a chapter's panel, the last slide) took the accent's pale steps for
+  their large accent and their small words, which crimson's pale pinks turned into pink on black. A colour set may now name
+  them: `deepMark` for a chapter's number, the last slide's rule and the rail's marker, `deepEyebrow` for PORTFOLIO, CHAPTER
+  and END OF DOCUMENT, and `deepLabel` for the field labels and the English name lines, with the last slide's tagline then
+  white, as the cover's is; and `a3`, `a4`, `t3` and `t4` for the figures' amber and teal fills and grounds
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#the-portfolio-deck)). Crimson names a crimson number and eyebrows with grey labels, and
+  apricot and mint grounds that stand apart from its pale crimson (the figures' own pale amber was 2.2 from it in OKLab,
+  apricot is 4.4), with amber and teal words still reading at 4.5:1. A set that names none of them, the built-in navy and
+  the five other sets among them, draws as before, byte for byte.
+
 ## [0.14.0] - 2026-11-20
 
 The figures, the logo tiles and the built-in deck can be drawn with square corners, and a black and crimson colour set joins
@@ -749,7 +765,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/kanggu12/offerowl/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/kanggu12/offerowl/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/kanggu12/offerowl/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/kanggu12/offerowl/compare/v0.12.2...v0.13.1
