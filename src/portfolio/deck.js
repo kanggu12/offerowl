@@ -189,7 +189,9 @@ const glyphsOf = body => {
 // derivation, so a box drawn in a figure and the slide around it never disagree. A tone the set names itself (its optional keys
 // deep, paper, n2, n3, b1 to b5, hair, label and ink2: src/themes.json) is used as it is; the others come from its dark colour and
 // its accent. Some tones carry words: n3 holds white text and sits on white as text, b1 sits on white as text, and the pale ones
-// hold the dark tone or grey, so a derived one is moved until its words read at the probe's contrast.
+// hold the dark tone or grey, so a derived one is moved until its words read at the probe's contrast. The dark panels' tones
+// (deepMark, deepEyebrow, deepLabel) and the category tints (a3, a4, t3, t4) default to what the deck has always drawn there, and
+// named says which optional keys the set names, so the stylesheet and the map change only for those.
 function palette(name) {
   const { C } = require("./draw");                   // the navy family, for the grey that sits on the palest step
   const t = require("../theme_load").theme(name);    // the colour set
@@ -206,10 +208,17 @@ function palette(name) {
   const reads = hex => { let h = hex; for (let k = 0; k < 40 && contrast(h, "#FFFFFF") < 4.6; k++) h = "#" + [1, 3, 5].map(i => Math.round(parseInt(h.slice(i, i + 2), 16) * 0.97).toString(16).padStart(2, "0")).join("").toUpperCase(); return h; };   // 3% darker at a time, past the probe's 4.5
   const under = (hex, ink) => { let h = hex; for (let k = 0; k < 40 && contrast(h, ink) < 4.6; k++) h = mix(h.slice(1), 0.06); return h; };   // a pale fill that words sit on: paler until they read
   const own = k => (t[k] ? "#" + t[k] : null);       // a tone the set names itself
+  const b2 = own("b2") || mix(acc, 0.3), b3 = own("b3") || under(mix(acc, 0.55), "#" + deep);   // the accent's mark step and first pale step
   return {
     navy: "#" + deep, n2: own("n2") || reads(mix(deep, 0.15)), n3: own("n3") || reads(mix(deep, 0.3)),   // the dark colour and its two steps
-    blue: reads("#" + acc), b1: own("b1") || reads(mix(acc, 0.1)), b2: own("b2") || mix(acc, 0.3),   // the accent, its text step, its mark step
-    b3: own("b3") || under(mix(acc, 0.55), "#" + deep), b4: own("b4") || under(mix(acc, 0.8), "#" + deep), b5: own("b5") || under(mix(acc, 0.9), C.grey),   // its pale steps
+    blue: reads("#" + acc), b1: own("b1") || reads(mix(acc, 0.1)), b2,   // the accent, its text step, its mark step
+    b3, b4: own("b4") || under(mix(acc, 0.8), "#" + deep), b5: own("b5") || under(mix(acc, 0.9), C.grey),   // its pale steps
+    // On the dark panels: the large accent (a chapter's number, the last slide's rule), the small eyebrows, the field labels and the
+    // English name lines. b2 and b3 unless the set names its own: a pale accent reads as a tint of it on a black panel (crimson's pinks)
+    deepMark: own("deepMark") || b2, deepEyebrow: own("deepEyebrow") || b3, deepLabel: own("deepLabel") || b3,
+    // The amber and teal categories' pale steps, the figures' own unless the set names its own (a pale accent too close to them)
+    a3: own("a3") || C.a3, a4: own("a4") || C.a4, t3: own("t3") || C.t3, t4: own("t4") || C.t4,
+    named: new Set(Object.keys(t)),                    // the keys the set names, so a set that names none of these changes nothing
     band: "#" + t.band, key: "#" + t.key, rule: "#" + t.rule,   // the set's own fills and lines
     deep: own("deep") || darker(deep, 0.75), paper: own("paper") || mix(deep, 0.95),   // the dark panels, the figure frame
     pale: mix(acc, 0.85), grid: mix(deep, 0.88),       // two pale tones the figures name directly (#DCE6F3, #E3E8EF)
@@ -221,8 +230,8 @@ function palette(name) {
 // A color set's variables over theme.css's (a set chosen for the deck, or OFFEROWL_THEME_FILE, the same file the resume's
 // layout.js reads): the dark colour is --navy, the accent --blue, band, rule and key as the set names them, then the dark panel,
 // the accent's pale steps, the figure frame and the neutral tones the set names. Without a theme file the built-in navy returns an
-// empty string, so the default output stays byte-identical.
-function themeFileCss(name) {
+// empty string, so the default output stays byte-identical. look: the deck's look ("clean" has no dark panels).
+function themeFileCss(name, look) {
   // With a set name (the theme setting of the deck) use that set. Without a name, use OFFEROWL_THEME or navy, but only when a
   // theme file exists. With neither a name nor a file, return an empty string.
   if (!name && !process.env.OFFEROWL_THEME_FILE) return "";
@@ -230,12 +239,29 @@ function themeFileCss(name) {
   const p = palette(name || process.env.OFFEROWL_THEME || "navy");   // the set's tones
   const v = { navy: p.navy, blue: p.blue, band: p.band, rule: p.rule, key: p.key, deep: p.deep, b2: p.b2, b3: p.b3, b4: p.b4, paper: p.paper,
               hair: p.hair, label: p.label, ink2: p.ink2 };   // theme.css's variables, in its order
-  return ":root{" + Object.entries(v).filter(([, x]) => x).map(([k, x]) => `--${k}:${x};`).join("") + "}";   // a neutral tone the set leaves out stays theme.css's
+  return ":root{" + Object.entries(v).filter(([, x]) => x).map(([k, x]) => `--${k}:${x};`).join("") + "}" +   // a neutral tone the set leaves out stays theme.css's
+    (look === "clean" ? "" : darkPanelCss(p));        // the light deck's panels are paper, coloured by style_clean.css alone
+}
+
+// The dark panels' own tones (the cover's name panel, a chapter's left panel, the last slide), for each one the set names; the
+// rules theme.css writes there in b2 and b3 stay for the others, so a set that names none of them gets no rule at all. deepMark:
+// a chapter's number, the last slide's rule, the rail's marker beside a chapter's panel (and a talk's contact chips). deepEyebrow:
+// PORTFOLIO, CHAPTER and END OF DOCUMENT. deepLabel: the field labels and the English name lines, and with it the last slide's
+// tagline turns white, as the cover's is (it stood in b3 beside the labels). A talk with its company's colours sets these parts
+// again after this (talk_slides.js themeCss).
+function darkPanelCss(p) {
+  const has = k => p.named.has(k);                   // the set names this one itself
+  return (has("deepMark") ? `.chapter .cl .no{color:${p.deepMark}}.eod .top::before,.eod .cc .ic{background:${p.deepMark}}` +
+      `.rail.dark .here{border-left-color:${p.deepMark}}` : "") +
+    (has("deepEyebrow") ? `.cover .name .kind,.chapter .cl .kind,.eod .top{color:${p.deepEyebrow}}` : "") +
+    (has("deepLabel") ? `.cover .name h1 small,.chapter .cl .enm,.chapter .cl .meta b,.eod h1 small,.eod .cc b{color:${p.deepLabel}}` +
+      `.eod .tag{color:#FFFFFF}` : "");
 }
 
 // The figures, the badges and theme.css itself are written in the navy family (draw.js C, theme.css's defaults). Another colour
 // set maps that family to its own tones, by value, so a figure never stays navy on a wine deck; the category colours and the greys
-// stay as they are, and the neutral tones (hair, label, ink2) move only when the set names its own
+// stay as they are, the neutral tones (hair, label, ink2) move only when the set names its own, and so do the category colours'
+// pale steps (a3, a4, t3, t4: a fill or a ground of the amber or teal kind)
 function themeMap(name) {
   if (!name || (name === "navy" && !process.env.OFFEROWL_THEME_FILE)) return null;   // navy needs nothing
   const { C } = require("./draw");                   // the family as the figures use it
@@ -243,6 +269,7 @@ function themeMap(name) {
   const map = { "#DCE6F3": p.pale, "#E3E8EF": p.grid, "#14233A": p.deep, "#F4F6FA": p.paper, "#C9D6EA": p.mist, "#E8EEF6": p.snow };   // the tones named directly
   for (const k of ["navy", "n2", "n3", "blue", "b1", "b2", "b3", "b4", "b5", "band", "key", "rule"]) map[C[k].toUpperCase()] = p[k];   // the family's own hex values
   for (const [hex, k] of [["#DDE0E5", "hair"], ["#8A94A3", "label"], ["#10181F", "ink2"]]) if (p[k]) map[hex] = p[k];   // a neutral tone the set names
+  for (const k of ["a3", "a4", "t3", "t4"]) if (p.named.has(k)) map[C[k].toUpperCase()] = p[k];   // a category tint the set names
   return map;
 }
 
@@ -258,7 +285,7 @@ class Deck {
     const css = recolour(fs.readFileSync(path.join(__dirname, "theme.css"), "utf8") +   // the stylesheets in the set's tones too: no navy left
       (this.lang === "en" ? fs.readFileSync(path.join(__dirname, "theme_en.css"), "utf8") : "") +
       (this.look === "clean" ? fs.readFileSync(path.join(__dirname, "style_clean.css"), "utf8") : "")) +   // the light deck's colours, over the same parts
-      (BL.on ? BLIND_CSS(this.lang) : "") + themeFileCss(this.theme) + this.css +   // the blind edition's colours are its table's own, never recoloured
+      (BL.on ? BLIND_CSS(this.lang) : "") + themeFileCss(this.theme, this.look) + this.css +   // the blind edition's colours are its table's own, never recoloured
       (SQUARE ? fs.readFileSync(path.join(__dirname, "style_square.css"), "utf8") : "");   // square corners last, so nothing rounds a box again
     const n = this.slides.length;
     let body = this.slides.map((s, i) =>

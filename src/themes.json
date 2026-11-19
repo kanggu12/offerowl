@@ -4,7 +4,10 @@
   "navy: the structure is a dark navy, the small accent is one bright blue, and the background tints are two very pale steps of the same blue family. Its colors must match src/portfolio/theme.css.",
   "Fields: nameFill name cell background, nameText name text, sec section title, rule rule lines, band band background, bandText band text, head table header background, headText table header text, key first table column, acc accent, acc2 small accent (acc when absent)",
   "Optional, the figures' and the deck's tones (src/portfolio/deck.js palette): deep the dark panels, paper the figure frame, n2 and n3 the dark steps, b1 to b5 the accent's steps from dark to pale, hair thin dividers, label the faint English labels, ink2 the headings' near black. A set that leaves one out gets it derived from its dark colour and its accent; the resume's figures take the bars from the dark colour, the hierarchy's boxes from band and the tiles' outline from rule.",
-  "crimson: a black base with one crimson accent; it names every figure tone itself, so no step of the navy family is left in its figures."
+  "Optional, sequential tones: ramp1, ramp2, ... from light to dark (three or more). The resume's career bars and hierarchy plates are drawn in them (src/overview_figures.py theme_ramp) instead of shades of the dark colour.",
+  "Optional, the deck's dark panels (the cover's name panel, a chapter's left panel, the last slide): deepMark the large accent (a chapter's number, the last slide's rule, the rail's marker), deepEyebrow the small eyebrows (PORTFOLIO, CHAPTER, END OF DOCUMENT), deepLabel the field labels and the English name lines (the last slide's tagline then turns white, as the cover's is). b2, b3 and b3 when absent. The light deck's panels are paper and keep their own.",
+  "Optional, the deck's category tints: a3 and t3 the amber and teal fills that carry dark words, a4 and t4 their group grounds (src/portfolio/draw.js C when absent). A set whose own pale accent sits close to one of them names its own.",
+  "crimson: a black base with one crimson accent; it names every figure tone itself, so no step of the navy family is left in its figures. Its dark panels take a crimson number and eyebrows with grey labels, where its pale pinks read as pink on black, and its amber and teal grounds are apricot and mint: the deck's own pale amber was 2.2 from its pale crimson in OKLab, apricot is 4.4, and amber and teal words on them read at 4.5:1."
  ],
  "mono": {
   "nameFill": "E4E4E4",
@@ -113,6 +116,12 @@
   "ramp5": "BE123C",
   "ramp6": "9F1239",
   "ramp7": "881337",
-  "ramp8": "4C0519"
+  "ramp8": "4C0519",
+  "deepMark": "E11D48",
+  "deepEyebrow": "F43F5E",
+  "deepLabel": "A1A1AA",
+  "a3": "F3CF98",
+  "a4": "FFEDCF",
+  "t4": "DAF5EA"
  }
 }
