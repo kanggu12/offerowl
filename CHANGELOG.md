@@ -6,6 +6,19 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-11-20
+
+The resume's card labels and department line can take a colour set's own tone, and crimson's no longer print black.
+
+### Changed
+
+- The career-description resume printed the selected-project cards' row labels (problem, what was done, result) and the
+  department and title line under each company band in the colour set's dark accent `acc`, which a set with a black dark
+  accent prints black, beside overview cards whose labels take the small accent `acc2`. A colour set may now name its own
+  tone for them, `cardLabel` and `subLine` ([DOCUMENTS.md](docs/DOCUMENTS.md#resume-parts-srcresume_formjs)); crimson names
+  its accent for both. A set that names neither, the built-in navy and the five other sets among them, prints as before,
+  byte for byte.
+
 ## [0.14.3] - 2026-11-20
 
 The form answers' text file on the Desktop is named as the other files handed out are.
@@ -791,7 +804,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.3...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.4...HEAD
+[0.14.4]: https://github.com/kanggu12/offerowl/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/kanggu12/offerowl/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/kanggu12/offerowl/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/kanggu12/offerowl/compare/v0.14.0...v0.14.1
