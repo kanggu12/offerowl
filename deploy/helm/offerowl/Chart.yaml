@@ -7,8 +7,8 @@ description: >-
 type: application
 # The chart's own version and the app's version are written by hand and kept equal to src/version.py
 # by tests/packaging. The release workflow packages the chart under the release's version.
-version: 0.14.3
-appVersion: "0.14.3"
+version: 0.14.4
+appVersion: "0.14.4"
 kubeVersion: ">=1.25.0-0"
 keywords:
   - resume
