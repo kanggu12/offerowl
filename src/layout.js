@@ -237,7 +237,9 @@ function fsub(text) {
   return new Paragraph({
     spacing: { before: 50, after: 70 },
     keepNext: true,
-    children: [new TextRun({ text, font: F, size: 18, bold: true, color: T.acc === INK ? MID : T.acc, underline: {} })],
+    // the set's own tone for this line when it names one (subLine: crimson puts its accent here, where its dark accent is black),
+    // else the dark accent, or a step softer than the body ink when the accent is that ink
+    children: [new TextRun({ text, font: F, size: 18, bold: true, color: T.subLine || (T.acc === INK ? MID : T.acc), underline: {} })],
   });
 }
 // Bullet item: the head is bold and the text is justified, as in the form
@@ -613,7 +615,8 @@ function fhighlights(cards) {
       margins: { top: j ? 60 : 80, bottom: j === n - 1 ? 90 : 60, left: 150, right: 130 },
       borders: { top: j && !PLAIN ? HAIR : NONE, bottom: NONE },   // the plain look draws no rule
       children: [
-        new Paragraph({ keepNext: false, spacing: { after: 10 }, children: [run(k, { size: 14, bold: true, color: T.acc, cs: 10 })] }),
+        // a row's label (problem, action, result) in the set's own tone when it names one (cardLabel), else its dark accent
+        new Paragraph({ keepNext: false, spacing: { after: 10 }, children: [run(k, { size: 14, bold: true, color: T.cardLabel || T.acc, cs: 10 })] }),
         new Paragraph({ keepNext: false, spacing: { after: 0, line: 248 }, children: rich(v, { size: 16, color: INK }) }),
       ] });
   }) }));

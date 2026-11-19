@@ -58,6 +58,11 @@ field. An explicit `null` in a pair means the field has no text in that language
 The Korean edition keeps a faint English label to the right of each section title; the English edition has none. The tables have
 preset column widths per language, and `job.widths` overrides them.
 
+The selected-project cards' row labels (problem, what was done, result) and the department line under each company band take
+the colour set's dark accent `acc`. A set may name its own tone for them, `cardLabel` and `subLine` (`src/themes.json`): a set
+whose dark accent is black, as crimson's is, names its accent there, so those labels do not print black beside the overview
+cards' labels, which take the small accent `acc2`. A set that names neither prints as before, byte for byte.
+
 ### Figures and logo tiles (`src/overview_figures.py`)
 
 - Timeline: labels inside a bar (bold name, regular note after two spaces, a
