@@ -38,15 +38,15 @@ Copy the file and start it ([installing](INSTALL.md#1-the-desktop-app)). Turn th
 On a connected PC:
 
 ```bash
-docker pull ghcr.io/kanggu12/offerowl-app:0.12.2
-docker save ghcr.io/kanggu12/offerowl-app:0.12.2 | gzip > offerowl-app-0.12.2.tar.gz
+docker pull ghcr.io/kanggu12/offerowl-app:0.13.0
+docker save ghcr.io/kanggu12/offerowl-app:0.13.0 | gzip > offerowl-app-0.13.0.tar.gz
 ```
 
 Carry that file and `deploy/docker/compose.yaml`. On the closed side:
 
 ```bash
-docker load -i offerowl-app-0.12.2.tar.gz
-OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.12.2 \
+docker load -i offerowl-app-0.13.0.tar.gz
+OFFEROWL_APP_IMAGE=ghcr.io/kanggu12/offerowl-app OFFEROWL_APP_TAG=0.13.0 \
   docker compose -f compose.yaml up -d --no-build --pull never
 ```
 
@@ -57,18 +57,18 @@ Then open http://127.0.0.1:8797 in a browser on that PC.
 On a connected PC, save the image as above and fetch the chart:
 
 ```bash
-helm pull oci://ghcr.io/kanggu12/charts/offerowl --version 0.12.2
+helm pull oci://ghcr.io/kanggu12/charts/offerowl --version 0.13.0
 ```
 
 On the closed side, push the image to your registry and install from the file:
 
 ```bash
-docker load -i offerowl-app-0.12.2.tar.gz
-docker tag ghcr.io/kanggu12/offerowl-app:0.12.2 registry.internal/offerowl-app:0.12.2
-docker push registry.internal/offerowl-app:0.12.2
+docker load -i offerowl-app-0.13.0.tar.gz
+docker tag ghcr.io/kanggu12/offerowl-app:0.13.0 registry.internal/offerowl-app:0.13.0
+docker push registry.internal/offerowl-app:0.13.0
 
-helm install offerowl ./offerowl-0.12.2-helm-chart.tgz --namespace offerowl --create-namespace \
-  --set image.repository=registry.internal/offerowl-app --set image.tag=0.12.2 \
+helm install offerowl ./offerowl-0.13.0-helm-chart.tgz --namespace offerowl --create-namespace \
+  --set image.repository=registry.internal/offerowl-app --set image.tag=0.13.0 \
   --set ai.backend=openai-compat --set ai.url=http://models.internal:11434 --set ai.model=<model name>
 ```
 
@@ -77,7 +77,7 @@ A registry that asks for a login takes `--set 'imagePullSecrets[0].name=<secret>
 ## The source
 
 On a connected PC with the same system, machine and Python version (Pillow's wheels are made for one Python version), in a
-checkout of the release's tag (`git clone --branch v0.12.2 https://github.com/kanggu12/offerowl`):
+checkout of the release's tag (`git clone --branch v0.13.0 https://github.com/kanggu12/offerowl`):
 
 ```bash
 mkdir carry
