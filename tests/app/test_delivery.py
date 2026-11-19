@@ -348,8 +348,9 @@ class DeskPortfolio(Edition):
             self.addCleanup(p.stop)
         (self.desk / "홍길동_포트폴리오_20261119.pdf").unlink()  # gone from the Desktop since
         self.a.tasks._build("-general", "ko", "navy", 3, False, False, False)
-        self.assertEqual("홍길동_포트폴리오_20261119.pdf", self.a.tasks.state()["build:-general"]["result"]["desk"])
-        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
+        day = delivery.made_day(read_json(self.ed / "build.json", {}))  # the day this build ran, which the copy's name carries (not the day the test was written)
+        self.assertEqual(f"홍길동_포트폴리오_{day}.pdf", self.a.tasks.state()["build:-general"]["result"]["desk"])
+        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / f"홍길동_포트폴리오_{day}.pdf").read_bytes())
         self.a.tasks._build("-general", "ko", "navy", 3, False, False, True)  # a blind build of it
         self.assertIsNone(self.a.tasks.state()["build:-general"]["result"]["desk"])  # never copied
 
