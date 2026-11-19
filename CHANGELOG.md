@@ -6,6 +6,20 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-11-20
+
+The deck cover's career path takes a colour set's ramp, the same steps as the overview's career bars.
+
+### Changed
+
+- The deck cover's career path drew its stations and its line from the accent's pale step to the dark colour, which in a set
+  with a black dark colour ran from pale pink to black while the overview's career bars stood in the set's ramp. In a set that
+  names a ramp (`ramp1`, `ramp2`, ...) the stations now take the steps the overview's career bars take, the darkest for the
+  newest role and one lighter for each role before it, and the line toward a station that station's step
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#resume-and-deck-parts)). The deck counts a ramp as the figures do: steps in order up to the
+  first missing one, three or more. Crimson's path now stays in its crimson steps. A set without a ramp, the built-in navy and
+  the five other sets among them, draws as before, byte for byte.
+
 ## [0.14.1] - 2026-11-20
 
 The built-in deck's dark panels and category tints take a colour set's own tones, and crimson's no longer read pink on black.
@@ -765,7 +779,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.2...HEAD
+[0.14.2]: https://github.com/kanggu12/offerowl/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/kanggu12/offerowl/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/kanggu12/offerowl/compare/v0.13.2...v0.14.0
 [0.13.2]: https://github.com/kanggu12/offerowl/compare/v0.13.1...v0.13.2
