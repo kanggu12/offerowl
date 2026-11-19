@@ -53,7 +53,7 @@ class Exports:
             with tempfile.TemporaryDirectory(prefix="offerowl-export-") as tmp:  # the Word and PowerPoint files are made here first
                 for key, f in (("resume", "resume.pdf"), ("resume", "resume.docx"), ("plain", "resume_plain.docx"), ("plain", "resume.txt"),  # each file of each document
                                ("deck", "deck.pdf"), ("deck", "deck.pptx"), ("cover", "cover.pdf"), ("cover", "cover.docx")):  # in the order the toast lists them
-                    base = delivery.safe_name(who, where, mark, words[key])  # a safe name: a slash in an edition's name ('SRE / Platform') becomes a space
+                    base = delivery.safe_name(who, where, mark, words[key], delivery.made_day(rec))  # the day the build made it last; a safe name: a slash in an edition's name ('SRE / Platform') becomes a joint, as every space does (SRE_Platform)
                     if f == "deck.pptx":  # made from the deck that goes, beside it under its name
                         if not pptx or deck_base is None:  # not asked for, or no deck went
                             continue

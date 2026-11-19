@@ -368,7 +368,7 @@ class ExportTests(Person):
         pdfmeta.stamp(out / "resume.pdf", title, "Gildong Hong")  # a title and an author of its own
         pdfmeta.stamp(out / "deck.pdf", "Gildong Hong Portfolio (Blind version)", "Gildong Hong")
         from apps.api.tasks import file_hash  # the hashes the build records
-        write_json(out / "build.json", {"lang": "ko", "issues": [], "notes": [], "blind": True, "blind_table": a.tasks.blind_stamp(),
+        write_json(out / "build.json", {"at": "2026-11-19 10:00", "lang": "ko", "issues": [], "notes": [], "blind": True, "blind_table": a.tasks.blind_stamp(),
                                         "hashes": {f: file_hash(out / f) for f in ("resume.pdf", "deck.pdf")}})
         return out
 
@@ -403,7 +403,7 @@ class ExportTests(Person):
         a.set_blind({"table": {**TABLE, "mask": TABLE["mask"] + ["Platform roles"]}})  # the named edition's own name is covered too
         self.edition(a, "Built the checkout at a client")
         names = a.tasks.export("-general", "ko")
-        self.assertEqual(["홍길동 블라인드 이력서.pdf", "홍길동 블라인드 포트폴리오.pdf"], names)  # the word for blind, in the edition's language
+        self.assertEqual(["홍길동_블라인드_이력서_20261119.pdf", "홍길동_블라인드_포트폴리오_20261119.pdf"], names)  # the word for blind, in the edition's language, and the build's day
         named = a.add_edition({"name": "Platform roles"})  # a named edition whose name the table covers
         out = a.tasks.build_dir(named, "ko")
         out.parent.mkdir(parents=True, exist_ok=True)

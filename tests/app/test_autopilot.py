@@ -580,7 +580,7 @@ class Deliver(unittest.TestCase):
             pdfmeta.stamp(self.ed / f, f"홍길동 {f}", "홍길동")
         make_docx(self.ed / "resume.docx")  # a Word copy beside them, as the typesetting writes one
         from apps.api.tasks import file_hash  # what the build records
-        self.record = {"pages": 1, "issues": [], "hashes": {f: file_hash(self.ed / f) for f in ("resume.pdf", "deck.pdf")}}
+        self.record = {"at": "2026-11-19 10:00", "pages": 1, "issues": [], "hashes": {f: file_hash(self.ed / f) for f in ("resume.pdf", "deck.pdf")}}
         (self.ed / "build.json").write_text(json.dumps(self.record), encoding="utf-8")
 
     def desk(self) -> list[str]:
@@ -600,10 +600,10 @@ class Deliver(unittest.TestCase):
             write_pdf(en / f, [[(72, 72, 12, "Gildong Hong")]])
             pdfmeta.stamp(en / f, f"Gildong Hong {word}", "Gildong Hong")
         from apps.api.tasks import file_hash  # what the build records
-        (en / "build.json").write_text(json.dumps({"pages": 1, "issues": [], "hashes": {f: file_hash(en / f) for f in ("resume.pdf", "deck.pdf")}}),
+        (en / "build.json").write_text(json.dumps({"at": "2026-11-20 09:00", "pages": 1, "issues": [], "hashes": {f: file_hash(en / f) for f in ("resume.pdf", "deck.pdf")}}),
                                        encoding="utf-8")
-        self.assertEqual(["Gildong Hong Resume.pdf", "Gildong Hong Portfolio.pdf"], self.c.api.tasks.export("-general", "en"))  # a foreign recruiter's view
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], self.c.api.tasks.export("-general", "ko"))  # the Korean ones as before
+        self.assertEqual(["Gildong_Hong_Resume_20261120.pdf", "Gildong_Hong_Portfolio_20261120.pdf"], self.c.api.tasks.export("-general", "en"))  # a foreign recruiter's view, on its build's day
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], self.c.api.tasks.export("-general", "ko"))  # the Korean ones, on theirs
 
     def test_a_document_that_failed_its_checks_never_goes(self):
         (self.ed / "build.json").write_text(json.dumps({**self.record, "issues": ["page 3 of 2"]}), encoding="utf-8")

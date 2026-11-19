@@ -63,7 +63,7 @@ class Edition(Person):
     def record(self, ed: pathlib.Path | None = None, **extra) -> None:
         """The build's record of what it checked."""
         ed = ed or self.ed  # the general edition unless named
-        rec = {"pages": 1, "issues": [], "hashes": {f: file_hash(ed / f) for f in ("resume.pdf", "deck.pdf", "cover.pdf") if (ed / f).is_file()}, **extra}
+        rec = {"at": "2026-11-19 10:00", "pages": 1, "issues": [], "hashes": {f: file_hash(ed / f) for f in ("resume.pdf", "deck.pdf", "cover.pdf") if (ed / f).is_file()}, **extra}
         (ed / "build.json").write_text(json.dumps(rec), encoding="utf-8")
 
     def previews(self, pdf, folder, prefix, dpi, last=None):  # what Tasks._previews draws: one PNG per page, at the asked resolution
@@ -92,8 +92,8 @@ class WordFiles(Edition):
     def test_the_word_file_goes_ready_for_word(self):
         self.a.set_settings({"export_extras": True})  # Word files too
         names = self.a.tasks.export("-general", "ko")
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 이력서.docx", "홍길동 포트폴리오.pdf"], names)
-        with zipfile.ZipFile(self.desk / "홍길동 이력서.docx") as z:
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_이력서_20261119.docx", "홍길동_포트폴리오_20261119.pdf"], names)
+        with zipfile.ZipFile(self.desk / "홍길동_이력서_20261119.docx") as z:
             self.assertIn("<w:embedRegular", z.read("word/fontTable.xml").decode())  # Pretendard inside
             self.assertIn('w:lineRule="exact"', z.read("word/document.xml").decode())  # LibreOffice's line heights
             self.assertIn("<dc:title>홍길동 이력서</dc:title>", z.read("docProps/core.xml").decode())  # the PDF's title
@@ -112,15 +112,15 @@ class WordFiles(Edition):
             for p in patches:
                 p.stop()
         self.assertEqual([{"file": "resume.docx", "why": "word_pages:2:1"}], refused)
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], names)  # the PDFs went all the same
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], self.on_desk())
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], names)  # the PDFs went all the same
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], self.on_desk())
 
     def test_word_that_agrees_or_does_not_open(self):
         self.a.set_settings({"export_extras": True})
         for p in self.office(word=1):  # the same page count: it goes
             p.start()
             self.addCleanup(p.stop)
-        self.assertIn("홍길동 이력서.docx", self.a.tasks.export("-general", "ko"))
+        self.assertIn("홍길동_이력서_20261119.docx", self.a.tasks.export("-general", "ko"))
         refused = []
         with mock.patch.object(office_check, "count", side_effect=office_check.OfficeFailed("Word did not open the file")):
             self.a.tasks.export("-general", "ko", refused)
@@ -146,7 +146,7 @@ class WordFiles(Edition):
         status, body, _ = Router(self.a).handle("POST", "/api/v1/jobs/export", None, {"job": "-general", "lang": "ko"})  # as the panel calls it
         self.assertEqual(200, status)
         self.assertEqual([{"file": "resume.docx", "why": "word_pages:3:1"}], body["refused"])
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], body["exported"])
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], body["exported"])
 
     def test_a_submitted_editions_frozen_files_go_byte_for_byte(self):
         self.a.set_settings({"export_extras": True})
@@ -162,11 +162,11 @@ class WordFiles(Edition):
 
 class PowerPointFile(Edition):
     def test_the_deck_goes_as_powerpoint_beside_its_pdf_when_asked(self):
-        self.assertNotIn("홍길동 포트폴리오.pptx", self.a.tasks.export("-general", "ko"))  # not unless asked
+        self.assertNotIn("홍길동_포트폴리오_20261119.pptx", self.a.tasks.export("-general", "ko"))  # not unless asked
         self.a.set_settings({"export_pptx": True})
         names = self.a.tasks.export("-general", "ko")
-        self.assertEqual(["홍길동 이력서 (2).pdf", "홍길동 포트폴리오 (2).pdf", "홍길동 포트폴리오 (2).pptx"], names)  # under the deck's own name
-        made = self.desk / "홍길동 포트폴리오 (2).pptx"
+        self.assertEqual(["홍길동_이력서_20261119_2.pdf", "홍길동_포트폴리오_20261119_2.pdf", "홍길동_포트폴리오_20261119_2.pptx"], names)  # under the deck's own name
+        made = self.desk / "홍길동_포트폴리오_20261119_2.pptx"
         self.assertEqual([], deck_pptx.problems(made, self.ed / "deck.pdf", "홍길동 포트폴리오", "홍길동", WORDS.split("\f")))  # its pages, links and words
         self.assertEqual(["PORTFOLIO Gildong Hong", "OVERVIEW", ""], deck_pptx.described(made))
 
@@ -178,7 +178,7 @@ class PowerPointFile(Edition):
             names = self.a.tasks.export("-general", "ko", refused)
         self.assertEqual([{"file": "deck.pptx", "why": "ppt_slides:2:3"}], refused)
         self.assertNotIn(".pptx", " ".join(names))
-        self.assertIn("홍길동 포트폴리오.pdf", names)  # the deck itself went
+        self.assertIn("홍길동_포트폴리오_20261119.pdf", names)  # the deck itself went
         with mock.patch.object(self.a.tasks, "_previews", return_value=0):  # no page could be drawn on this PC
             self.a.tasks.export("-general", "ko", refused := [])
         self.assertEqual([{"file": "deck.pptx", "why": "pptx_unmade"}], refused)
@@ -214,56 +214,64 @@ class DeskPortfolio(Edition):
 
     def test_turned_on_it_copies_at_once_and_after_each_build_replaces_its_own_copy(self):
         self.a.set_settings({"desk_portfolio": True})  # an edition that passed already goes now
-        self.assertEqual(["홍길동 포트폴리오.pdf"], self.on_desk())
-        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동 포트폴리오.pdf").read_bytes())
-        self.assertEqual({"kept": ["홍길동 포트폴리오.pdf"]}, self.a.state()["desk"])  # the panel shows its name, never a path
+        self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())
+        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
+        self.assertEqual({"kept": ["홍길동_포트폴리오_20261119.pdf"]}, self.a.state()["desk"])  # the panel shows its name, never a path
         self.new_deck("Gildong Hong, new")  # made again
-        self.assertEqual("홍길동 포트폴리오.pdf", self.keep())
-        self.assertEqual(["홍길동 포트폴리오.pdf"], self.on_desk())  # replaced in place, no second copy
-        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동 포트폴리오.pdf").read_bytes())
+        self.assertEqual("홍길동_포트폴리오_20261119.pdf", self.keep())
+        self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())  # replaced in place, no second copy
+        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
         self.assertEqual(sha256(self.ed / "deck.pdf"), read_json(self.a.ws.path(*delivery.RECORD), {})["ko"]["sha256"])  # recognised next time
 
     def test_a_file_it_did_not_write_is_never_touched(self):
         self.desk.mkdir(parents=True)
-        (self.desk / "홍길동 포트폴리오.pdf").write_bytes(b"the person's own portfolio")  # same name, not its copy
+        (self.desk / "홍길동_포트폴리오_20261119.pdf").write_bytes(b"the person's own portfolio")  # same name, not its copy
         self.a.set_settings({"desk_portfolio": True})
-        self.assertEqual(b"the person's own portfolio", (self.desk / "홍길동 포트폴리오.pdf").read_bytes())
-        self.assertEqual(["홍길동 포트폴리오 (2).pdf", "홍길동 포트폴리오.pdf"], self.on_desk())  # the next free name
+        self.assertEqual(b"the person's own portfolio", (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
+        self.assertEqual(["홍길동_포트폴리오_20261119.pdf", "홍길동_포트폴리오_20261119_2.pdf"], self.on_desk())  # the next free name
         self.new_deck("again")
-        self.assertEqual("홍길동 포트폴리오 (2).pdf", self.keep())  # its own copy, replaced
-        self.assertEqual(b"the person's own portfolio", (self.desk / "홍길동 포트폴리오.pdf").read_bytes())
+        self.assertEqual("홍길동_포트폴리오_20261119_2.pdf", self.keep())  # its own copy, replaced
+        self.assertEqual(b"the person's own portfolio", (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
+
+    def test_a_deck_made_on_another_day_takes_that_day_s_name(self):  # 0.13.2: the names carry the build's day
+        self.a.set_settings({"desk_portfolio": True})
+        self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())
+        self.new_deck("made again")
+        self.record(at="2026-11-20 09:30")  # on the next day
+        self.assertEqual("홍길동_포트폴리오_20261120.pdf", self.keep())
+        self.assertEqual(["홍길동_포트폴리오_20261120.pdf"], self.on_desk())  # its copy of the day before is gone, never a second one
 
     def test_its_copy_changed_by_the_person_is_theirs_now(self):
         self.a.set_settings({"desk_portfolio": True})
-        (self.desk / "홍길동 포트폴리오.pdf").write_bytes(b"edited by the person")  # its copy, changed since
+        (self.desk / "홍길동_포트폴리오_20261119.pdf").write_bytes(b"edited by the person")  # its copy, changed since
         self.new_deck("again")
-        self.assertEqual("홍길동 포트폴리오 (2).pdf", self.keep())
-        self.assertEqual(b"edited by the person", (self.desk / "홍길동 포트폴리오.pdf").read_bytes())  # left as it is
+        self.assertEqual("홍길동_포트폴리오_20261119_2.pdf", self.keep())
+        self.assertEqual(b"edited by the person", (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())  # left as it is
 
     def test_a_new_name_replaces_its_old_copy_and_nothing_else(self):
         self.a.set_settings({"desk_portfolio": True})
         self.a.details({"fields": {"name": "한서연"}})  # the person's name, typed anew: the file's name changes
         name = self.keep()
-        self.assertNotEqual("홍길동 포트폴리오.pdf", name)
+        self.assertNotEqual("홍길동_포트폴리오_20261119.pdf", name)
         self.assertEqual([name], self.on_desk())  # the old copy, its own and unchanged, is gone with it
 
     def test_a_build_that_failed_its_checks_or_a_blind_one_never_goes(self):
         self.a.set_settings({"desk_portfolio": True})
-        before = (self.desk / "홍길동 포트폴리오.pdf").read_bytes()
+        before = (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes()
         self.new_deck("broken")
         self.record(issues=["page 3 of 2"])  # failed
         self.assertIsNone(self.keep())
         self.record(blind=True)  # a blind edition: never under the portfolio's own name
         self.assertIsNone(self.keep())
-        self.assertEqual(before, (self.desk / "홍길동 포트폴리오.pdf").read_bytes())  # the last copy that passed stays
+        self.assertEqual(before, (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())  # the last copy that passed stays
 
     def test_the_export_names_the_kept_copy_instead_of_a_second_one(self):
         self.a.set_settings({"desk_portfolio": True})
         names = self.a.tasks.export("-general", "ko")
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], names)  # the kept copy, named
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], self.on_desk())  # no (2) beside it
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], names)  # the kept copy, named
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], self.on_desk())  # no _2 beside it
         self.a.set_settings({"desk_portfolio": False})  # turned off: the export writes its own copy again
-        self.assertIn("홍길동 포트폴리오 (2).pdf", self.a.tasks.export("-general", "ko"))
+        self.assertIn("홍길동_포트폴리오_20261119_2.pdf", self.a.tasks.export("-general", "ko"))
         self.assertEqual({"kept": []}, self.a.state()["desk"])  # and the panel lists nothing kept
 
     def fat(self, words: list) -> None:
@@ -279,19 +287,19 @@ class DeskPortfolio(Edition):
     @unittest.skipUnless(pikepdf, "pikepdf is not installed")
     def test_a_size_keeps_a_smaller_copy_that_the_next_build_replaces(self):
         self.fat(["Gildong Hong Portfolio", "Payment authorization service redesign"])
-        deck, copy = self.ed / "deck.pdf", self.desk / "홍길동 포트폴리오.pdf"
+        deck, copy = self.ed / "deck.pdf", self.desk / "홍길동_포트폴리오_20261119.pdf"
         safe = pdf_shrink.shrink(deck, self.tmp / "probe.pdf")["after"]  # as small as no visible change makes it
         mb = (safe + deck.stat().st_size) / 2 / pdf_shrink.MB  # a size between: the deck is over it, a smaller copy is under
         self.a.set_settings({"desk_portfolio": True, "deck_max_mb": mb})
-        self.assertEqual(["홍길동 포트폴리오.pdf"], self.on_desk())
+        self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())
         self.assertLessEqual(copy.stat().st_size, round(mb * pdf_shrink.MB))  # under the size asked for
         self.assertLess(copy.stat().st_size, deck.stat().st_size)  # a copy of its own, smaller than the deck
         rec = self.kept()
         self.assertEqual((sha256(copy), sha256(deck), round(mb * pdf_shrink.MB), True), (rec["sha256"], rec["from"], rec["max_bytes"], rec["fits"]))  # the copy it wrote, and the deck it came from
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], self.a.tasks.export("-general", "ko"))  # the export names it
-        self.assertEqual(["홍길동 이력서.pdf", "홍길동 포트폴리오.pdf"], self.on_desk())  # and writes no second one beside it
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], self.a.tasks.export("-general", "ko"))  # the export names it
+        self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], self.on_desk())  # and writes no second one beside it
         self.fat(["Gildong Hong Portfolio", "Settlement reads one event stream"])  # made again
-        self.assertEqual("홍길동 포트폴리오.pdf", self.keep())  # its own smaller copy, replaced in place
+        self.assertEqual("홍길동_포트폴리오_20261119.pdf", self.keep())  # its own smaller copy, replaced in place
         self.assertEqual((sha256(copy), sha256(deck)), (self.kept()["sha256"], self.kept()["from"]))
         self.assertLessEqual(copy.stat().st_size, round(mb * pdf_shrink.MB))
         self.a.set_settings({"deck_max_mb": None})  # no size any more: the copy is the deck again, at once
@@ -301,9 +309,9 @@ class DeskPortfolio(Edition):
     def test_with_no_pikepdf_the_copy_goes_as_it_is_and_the_record_says_why(self):
         with mock.patch.object(pdf_shrink, "_pikepdf", side_effect=pdf_shrink.Unavailable("pikepdf")):  # the desktop app's Python
             self.a.set_settings({"desk_portfolio": True, "deck_max_mb": 0.0001})  # a size the fictional deck is over
-        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동 포트폴리오.pdf").read_bytes())  # copied as it is
+        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())  # copied as it is
         self.assertEqual(("unavailable", 100), (self.kept()["shrink"], self.kept()["max_bytes"]))  # and why
-        self.assertEqual("홍길동 포트폴리오.pdf", self.keep())  # tried again at the next build, not taken for done
+        self.assertEqual("홍길동_포트폴리오_20261119.pdf", self.keep())  # tried again at the next build, not taken for done
 
     def test_the_size_setting_takes_a_size_and_nothing_else(self):
         for bad in ("1.99", True, -1, 0, 5000, float("nan")):  # text, a switch, nothing, too much, not a number
@@ -338,12 +346,30 @@ class DeskPortfolio(Edition):
                   mock.patch.object(self.a.tasks, "cross_checks", return_value={"issues": [], "notes": [], "checks": [], "polish": [], "matched": None})):  # tests/app/test_compare.py runs them
             p.start()
             self.addCleanup(p.stop)
-        (self.desk / "홍길동 포트폴리오.pdf").unlink()  # gone from the Desktop since
+        (self.desk / "홍길동_포트폴리오_20261119.pdf").unlink()  # gone from the Desktop since
         self.a.tasks._build("-general", "ko", "navy", 3, False, False, False)
-        self.assertEqual("홍길동 포트폴리오.pdf", self.a.tasks.state()["build:-general"]["result"]["desk"])
-        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동 포트폴리오.pdf").read_bytes())
+        self.assertEqual("홍길동_포트폴리오_20261119.pdf", self.a.tasks.state()["build:-general"]["result"]["desk"])
+        self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
         self.a.tasks._build("-general", "ko", "navy", 3, False, False, True)  # a blind build of it
         self.assertIsNone(self.a.tasks.state()["build:-general"]["result"]["desk"])  # never copied
+
+
+class FileNames(unittest.TestCase):
+    """The names the Desktop copies take (0.13.2): the words joined by underscores, as a file handed out is named, and the
+    day the build made the document at the end."""
+
+    def test_no_space_and_the_build_s_day(self):
+        day = delivery.made_day({"at": "2026-11-19 15:46"})  # as a build records its time
+        self.assertEqual("20261119", day)
+        self.assertEqual("홍길동_감마_SRE_Platform_이력서_20261119", delivery.safe_name("홍길동", "감마  SRE / Platform", "", "이력서", day))  # a slash and two spaces, one joint each
+        self.assertEqual("Gildong_Hong_Portfolio_20261119", delivery.safe_name("Gildong Hong", "Portfolio", day))
+        self.assertNotIn(" ", delivery.safe_name("x " * 80, "y"))  # cut at 120 characters
+        self.assertFalse(delivery.safe_name("x " * 80, "y").endswith("_"))  # never on a joint
+
+    def test_a_record_with_no_time_takes_the_day_it_goes(self):
+        import time  # today
+        self.assertEqual(time.strftime("%Y%m%d"), delivery.made_day({}))
+        self.assertEqual(time.strftime("%Y%m%d"), delivery.made_day(None))
 
 
 if __name__ == "__main__":
