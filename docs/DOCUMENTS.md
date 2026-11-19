@@ -42,7 +42,7 @@ field. An explicit `null` in a pair means the field has no text in that language
 |---|---|---|
 | Header with info and location rows | `person.info`, `person.location`, `person.links`, `linkedin`, `scholar` | `photo` |
 | Headline with a kept line break | `summary.headline` (a `\n` breaks the line) | |
-| Overview timeline | roles, education, service; `education[].timeline: false` keeps an entry off; `summary.timeline.break` squeezes a study-only lead-in | |
+| Overview timeline | roles, education, service; `education[].timeline: false` keeps an entry off; `summary.timeline.break` squeezes a study-only lead-in; `summary.timeline.gaps` (`[["2014.06", "2016.01"], ...]`) squeezes stretches inside the axis behind the same double wave, years inside hidden | |
 | Overview cards, selected projects | `summary.cards`, `summary.highlights` | |
 | Career summary with logos, place, department, role and tenure; total tenure in the title | `roles[].logo`, `place`, `dept`, `title`, `note`, `start`, `end` | `tenure: false`, `widths.career` |
 | Education with logos and grey second lines | `education[].logo`, `school`, `sub`, `major`, `majorSub`, `degree`, `note` | `widths.education` |

@@ -123,6 +123,32 @@ def ramp_pick(ramp, n):
     return out
 
 
+def axis_map(t0, t1, tb, gaps, left, right, brk):
+    """The timeline's x of a fractional year, from left to right: a lead-in before tb squeezed into brk (None: no lead-in), and
+    each gap (a, b) squeezed into brk too, the plain stretches sharing the rest in proportion to their years. With no gap the
+    arithmetic is the one the figure always had, so its pixels do not move."""
+    def X(t):
+        if tb is not None and t < tb:
+            return left + (t - t0) / (tb - t0) * brk
+        if not gaps:  # no gap: the axis as it always was, to the byte
+            if tb is None:
+                return left + (t - t0) / (t1 - t0) * (right - left)
+            return left + brk + (t - tb) / (t1 - tb) * (right - left - brk)
+        start = tb if tb is not None else t0  # the plain axis runs from here, every gap brk wide
+        x = left + (brk if tb is not None else 0)
+        k = (right - left - (brk if tb is not None else 0) - len(gaps) * brk) / ((t1 - start) - sum(b - a for a, b in gaps))
+        cur = start
+        for a, b in gaps:
+            if t <= a:
+                return x + (t - cur) * k
+            x += (a - cur) * k
+            if t <= b:
+                return x + (t - a) / (b - a) * brk
+            x, cur = x + brk, b
+        return x + (t - cur) * k
+    return X
+
+
 def theme_tones():
     """(the hierarchy figure's pale boxes, the tiles' outline): TINT and TILE_BORDER for the built-in navy, the set's band and its
     rule for any other, so a figure in another colour keeps no pale blue"""
@@ -303,13 +329,18 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
     L, R = 54 * S, 8 * S
     BRK = 36 * S  # the squeezed span's width (the wave sits 4 px clear of both year labels)
     XB = L + BRK / 2  # the wave's x
+    # Gaps: spans inside the axis squeezed behind the same double wave, for a long stretch where only a study runs
+    # (summary.timeline.gaps: [["2014.06", "2016.01"], ...]: a degree that ran on for years after the first job).
+    # A gap must lie after the lead-in and inside the axis; overlapping ones are dropped.
+    gaps = []
+    for g in tl.get("gaps") or []:
+        a, b = (ym(str(g[0])), ym(str(g[1]))) if isinstance(g, (list, tuple)) and len(g) == 2 else (None, None)
+        if a is not None and b is not None and (tb if tb is not None else t0) < a < b < t1 and (not gaps or a > gaps[-1][1]):
+            gaps.append((float(a), float(b)))
+    gaps.sort()
 
-    def X(t):
-        if tb is None:
-            return L + (t - t0) / (t1 - t0) * (W - R - L)
-        if t < tb:
-            return L + (t - t0) / (tb - t0) * BRK
-        return L + BRK + (t - tb) / (t1 - tb) * (W - R - L - BRK)
+    X = axis_map(t0, t1, tb, gaps, L, W - R, BRK)  # a fractional year to x
+    XG = [X(a) + BRK / 2 for a, _ in gaps]  # each gap's wave
 
     role_l, nr = lanes(roles)
     edu_l, ne = lanes(edus) if edus else ([], 0)
@@ -345,20 +376,22 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
     d = ImageDraw.Draw(im)
     axis_y = H - 18 * S
 
-    def wave(ya, yb):
-        """A double wave at XB from ya to yb, blank between the lines (marks the squeezed span on the axis and bars)"""
+    def wave(ya, yb, xc=None):
+        """A double wave at xc (the lead-in's XB unless given) from ya to yb, blank between the lines (marks a squeezed span
+        on the axis and the bars)"""
+        xc = XB if xc is None else xc
         WA, WP, WG = 1.5 * S, 7 * S, 3.5 * S  # amplitude, period, gap between the two lines
         n = int((yb - ya) / S * 2) + 1
         ys = [ya + (yb - ya) * i / max(1, n - 1) for i in range(n)]
         off = [WA * math.sin(2 * math.pi * (yy - ya) / WP) for yy in ys]
-        left = [(XB - WG / 2 + o, yy) for o, yy in zip(off, ys)]
-        right = [(XB + WG / 2 + o, yy) for o, yy in zip(off, ys)]
+        left = [(xc - WG / 2 + o, yy) for o, yy in zip(off, ys)]
+        right = [(xc + WG / 2 + o, yy) for o, yy in zip(off, ys)]
         d.polygon(left + right[::-1], fill="white")
         for line in (left, right):
             d.line(line, fill=mix(GREY, .40), width=S, joint="curve")
 
     # Year ticks and faint vertical lines; years inside the squeezed span are not labeled
-    years = [y0 for y0 in range(int(t0), int(t1) + 1) if tb is None or y0 >= tb or y0 == int(t0)]
+    years = [y0 for y0 in range(int(t0), int(t1) + 1) if (tb is None or y0 >= tb or y0 == int(t0)) and not any(a < y0 < b for a, b in gaps)]
     step = 1 if len(years) <= 15 else 2  # long careers label every other year
     for i, yr in enumerate(years):
         if step == 2 and i % 2 and yr != years[-1]:
@@ -372,6 +405,8 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
     d.line([(L, axis_y), (W - R, axis_y)], fill=FAINT, width=S)
     if tb is not None:
         wave(axis_y - 5 * S, axis_y + 4 * S)
+    for xc in XG:  # each gap's wave on the axis
+        wave(axis_y - 5 * S, axis_y + 4 * S, xc)
 
     names = dict(zip(("career", "edu", "svc"), LABELS[lang]))
     by_recent = sorted(roles, key=lambda x: x[1][0], reverse=True)
@@ -420,6 +455,9 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
                 if tb is not None and x0 < XB < x1:  # a bar through the squeezed span is cut by the wave, its text starts after it
                     wave((yy - 2) * S, (yy + h + 2) * S)
                     tx = XB + 1.75 * S + 1.5 * S + 4 * S
+                cut = [xc for xc in XG if x0 < xc < x1]  # the gaps this bar runs through: each cuts it with a wave
+                for xc in cut:
+                    wave((yy - 2) * S, (yy + h + 2) * S, xc)
                 dark = contrast_white(color) >= 4.5 if ramp else sum(color) < 450  # a ramp's bar: white words only where they read
                 ink = "white" if dark and not fade else navy
                 sub_ink = ink  # the sub line takes the label's color
@@ -427,6 +465,9 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
                 if key == "svc":
                     sub = ""
                 room = (W - R - tx) if fade else (x1 - tx)  # a fading bar may carry its label past its end
+                ahead = [xc for xc in cut if xc > tx]
+                if ahead:  # a label never runs under a gap's wave: it fits in front of the first one
+                    room = min(room, ahead[0] - 3.5 * S - tx)
                 two = bool(sub) and h >= 30
                 need = max(label_w(d, label, z), d.textlength(sub, font=font(zs)) if two else 0) + 4 * S
                 block_h = (z + 1.5 + zs + 2) if two else z + 1
