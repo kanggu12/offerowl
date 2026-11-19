@@ -6,6 +6,17 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-11-19
+
+An application's own edition can order its core competencies.
+
+### Fixed
+
+- An application's own edition (one brought in, or started from another edition's words) can send core competencies to the
+  back or leave them out. Its layout choices per language (`form`) now carry `competencyWeak` and `competencyDrop`, which a job
+  drafted from the profile takes from its posting analysis ([DOCUMENTS.md](docs/DOCUMENTS.md)). Before, an own edition printed
+  its competencies only in the profile's order.
+
 ## [0.12.1] - 2026-11-17
 
 A rule for the person's own part of the work.
@@ -643,7 +654,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.12.2...HEAD
+[0.12.2]: https://github.com/kanggu12/offerowl/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/kanggu12/offerowl/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/kanggu12/offerowl/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/kanggu12/offerowl/compare/v0.11.0...v0.11.1
