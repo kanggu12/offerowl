@@ -306,8 +306,9 @@ every dated step.
   picked from a list. Each answer is written by the agent from the kept facts ranked for that question (BM25) and the posting, with the facts
   it used, then checked: length (over the limit, or under 60% of it), a number, name or tool the cited facts do not hold, the
   style pack. One that fails is written once more with the reasons; what still fails keeps its problems on screen. An edit is
-  checked the same way. Copy one, copy all, or save them as one text file (never while one has a problem); a run for the job
-  answers them as its own step.
+  checked the same way. Copy one, copy all, or save them as one text file on the Desktop (never while one has a problem), named
+  as the exported PDFs are, with the day the answers were last written (홍길동_감마_지원서_문항_20261120.txt, never over another
+  file); a run for the job answers them as its own step.
 
 ### An application's interview
 
