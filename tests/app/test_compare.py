@@ -371,6 +371,19 @@ class EditionTests(unittest.TestCase):
 # ---------------------------------------------------------------- the command line's build
 
 
+class WordXmlTests(unittest.TestCase):
+    """The word boxes of any reader parse: PDFium marks a hyphen that ends a line with U+FFFE, which XML cannot hold (0.13.1;
+    the public CI, which reads PDFs with PDFium, stopped on it)."""
+
+    def test_a_line_end_hyphen_and_control_characters_do_not_stop_the_parser(self):
+        import check_lines as CL  # src/check_lines.py, the parser the checks share
+        box = 'xMin="1" yMin="1" xMax="2" yMax="2"'  # one box for every element
+        xml = (f'<doc><page width="10" height="10"><flow><block {box}><line {box}><word {box}>blue\ufffe</word></line></block>'
+               f'<block {box}><line {box}><word {box}>green\x02</word><word {box}>deployment</word></line></block></flow></page></doc>')
+        words = [w[2] for w in CL.words_from_xml(xml)]  # the texts, in reading order
+        self.assertEqual(["blue-", "green", "deployment"], words)  # the hyphen it stood for; the control character gone
+
+
 class CommandLineBuildTests(unittest.TestCase):
     """`offerowl build` runs the checks across documents after the document check, as the panel's build does: the resume
     against its deck, and a blind edition against its twin, which it typesets with no bars."""

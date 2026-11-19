@@ -24,7 +24,6 @@ import xml.etree.ElementTree as ET  # the word boxes
 
 import llm  # the message helper and the language setting
 
-NS = {"h": "http://www.w3.org/1999/xhtml"}  # the namespace of pdftotext's -bbox-layout XML
 HL_RANGE = {"ko": (6, 24), "en": (2, 9)}  # a highlight's size when the pack sets none: write_resume.py RESUME_DEFAULTS["highlight"]
 SHORT_TAIL = {"ko": 5, "en": 10}  # two words on a paragraph's last line still read as one alone when they hold this many letters or fewer
 MSG = {  # what this check says, in both languages with the same keys
@@ -78,13 +77,18 @@ def norm(s: str) -> str:
 
 
 def words_from_xml(xml: str) -> list:
-    """The PDF's words in reading order from pdftotext's -bbox-layout XML: (page, line number, text, x0, y0, x1, y1)."""
-    root = ET.fromstring(re.sub(r"<!DOCTYPE[^>]*>", "", xml))  # its DOCTYPE names an outside DTD ElementTree cannot read
+    """The PDF's words in reading order from the -bbox-layout XML of either reader: (page, line number, text, x0, y0, x1, y1).
+    poppler writes it in the XHTML namespace and PDFium (src/pdftools.py) in none, so the tags are read by their plain names."""
+    xml = re.sub(r"<!DOCTYPE[^>]*>", "", xml)  # its DOCTYPE names an outside DTD ElementTree cannot read
+    xml = re.sub(r'\sxmlns="[^"]*"', "", xml)  # poppler's default namespace: without it both readers' tags have the same names
+    xml = xml.replace("\ufffe", "-")  # a reader that marks a line-end hyphen with U+FFFE (PDFium): the hyphen it stands for
+    xml = re.sub("[\x00-\x08\x0b\x0c\x0e-\x1f\uffff]", "", xml)  # characters XML 1.0 cannot hold stop the parser: they carry no word
+    root = ET.fromstring(xml)  # the document
     out, line_no = [], 0  # the words; a line number over the whole document, so lines of two pages stay apart
-    for pi, page in enumerate(root.findall(".//h:page", NS)):  # each page
-        for line in page.findall(".//h:line", NS):  # each line on it
+    for pi, page in enumerate(root.findall(".//page")):  # each page
+        for line in page.findall(".//line"):  # each line on it
             line_no += 1
-            for w in line.findall("h:word", NS):  # each word
+            for w in line.findall("word"):  # each word
                 if w.text and w.text.strip():  # a box of spaces is no word
                     out.append((pi, line_no, norm(w.text), float(w.get("xMin")), float(w.get("yMin")), float(w.get("xMax")), float(w.get("yMax"))))
     return out
