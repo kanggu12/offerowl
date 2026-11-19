@@ -57,7 +57,7 @@ def lang_of(v) -> str:
 
 
 def theme_of(v) -> str:
-    """A colour pack from a request: navy, teal or mono, navy when unknown."""
+    """A colour pack from a request: one of src/themes.json's (tasks.THEMES), navy when unknown."""
     return v if v in THEMES else "navy"  # only the packs there are
 
 

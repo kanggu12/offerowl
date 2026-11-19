@@ -488,8 +488,9 @@ removed, a quiet key says how many wait in the Trash: under the profile's files,
   stays as it is; a round emblem keeps its shape. The live pages follow at once, the PDFs the next time they are made; off, every
   corner is rounded as before ([Figures and logo tiles](DOCUMENTS.md#figures-and-logo-tiles-srcoverview_figurespy)). A deck written
   from your own deck source draws its own boxes, and gets the same switch in its build's environment (`OFFEROWL_CORNERS`).
-- **Theme**: the resume's form (detailed, one column, tables), the deck's look (classic, light), the colour of both (navy, teal, grey, wine, forest, slate), and the
-  app's light, dark or automatic look.
+- **Theme**: the resume's form (detailed, one column, tables), the deck's look (classic, light), the colour of both (navy, teal, grey, wine, forest, slate, and black with crimson),
+  and the app's light, dark or automatic look. The figures follow the colour: the resume's timeline, hierarchy figure and
+  tiles' outline, and the deck's figures and boxes ([The portfolio deck](DOCUMENTS.md#the-portfolio-deck)).
 - **History**: every change, newest first. A click asks first on the panel's own sheet (there is no redo), then undoes it
   and everything after it.
 

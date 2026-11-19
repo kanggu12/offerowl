@@ -26,7 +26,7 @@ PROTOCOLS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")  # the MCP 
 STAGES = ("preparing", "submitted", "interview", "result")  # the board's columns (apps/api/workspace.py)
 ROUND_KINDS = ("call", "first", "second", "third", "final", "coding", "assignment", "culture", "other")  # an interview round's kind (apps/api/tracker.py)
 LANGS = ("ko", "en")  # the document languages
-THEMES = ("navy", "teal", "mono", "wine", "forest", "slate")  # the colour packs: src/themes.json's six, as apps/api/tasks.py takes them
+THEMES = ("navy", "teal", "mono", "wine", "forest", "slate", "crimson")  # the colour packs: src/themes.json's seven, as apps/api/tasks.py takes them
 FILES = ("resume.txt", "resume.pdf", "deck.pdf", "cover.pdf")  # an edition's files the API serves by name
 LOCAL = ("127.0.0.1", "localhost")  # the panel answers on this PC only
 WAIT_MAX = 600  # seconds a single task call may wait: a client's own timeout is usually near this
@@ -244,7 +244,7 @@ def S(props: dict, required: tuple = ()) -> dict:
 
 JOB = {"type": "string", "description": "the job's id, as list_jobs shows it ('-general' for the general edition)"}  # every job tool takes it
 LANG = {"type": "string", "enum": list(LANGS), "description": "the document language (default ko)"}  # Korean or English
-THEME = {"type": "string", "enum": list(THEMES), "description": "the colour pack (default navy)"}  # the six packs
+THEME = {"type": "string", "enum": list(THEMES), "description": "the colour pack (default navy)"}  # the seven packs
 
 
 OPEN_WORLD = {"add_job"}  # tools that may reach outside this PC: add_job fetches a posting's link

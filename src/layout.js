@@ -113,7 +113,7 @@ function fsec(title, note, en) {
   PARTS.sections.push(String(title));                                  // the section order the checks read, as printed
   const kids = [run(title, { bold: true, size: 24, color: T.sec })];   // 12 pt: a step above the company bands (11 pt) and sub-headings (10 pt)
   if (note) kids.push(run(note, { size: 18, color: GREY }));
-  if (en && !PLAIN) { kids.push(run("\t")); kids.push(run(en, { size: 14, color: "8A94A3", cs: 40 })); }   // no English name in the plain look
+  if (en && !PLAIN) { kids.push(run("\t")); kids.push(run(en, { size: 14, color: T.label || "8A94A3", cs: 40 })); }   // no English name in the plain look; its faint grey the set's own label tone when it names one
   return new Paragraph({
     tabStops: [{ type: TabStopType.RIGHT, position: RTAB - 140 }],
     spacing: { before: 250, after: 100 },

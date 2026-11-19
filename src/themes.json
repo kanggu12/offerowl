@@ -2,7 +2,9 @@
  "_comment": [
   "Color sets of the resume (layout.js reads them). Each set uses a single accent color, and the body text stays in greys whichever set is chosen. OFFEROWL_THEME picks a set, and OFFEROWL_THEME_FILE adds sets or overrides sets of the same name.",
   "navy: the structure is a dark navy, the small accent is one bright blue, and the background tints are two very pale steps of the same blue family. Its colors must match src/portfolio/theme.css.",
-  "Fields: nameFill name cell background, nameText name text, sec section title, rule rule lines, band band background, bandText band text, head table header background, headText table header text, key first table column, acc accent, acc2 small accent (acc when absent)"
+  "Fields: nameFill name cell background, nameText name text, sec section title, rule rule lines, band band background, bandText band text, head table header background, headText table header text, key first table column, acc accent, acc2 small accent (acc when absent)",
+  "Optional, the figures' and the deck's tones (src/portfolio/deck.js palette): deep the dark panels, paper the figure frame, n2 and n3 the dark steps, b1 to b5 the accent's steps from dark to pale, hair thin dividers, label the faint English labels, ink2 the headings' near black. A set that leaves one out gets it derived from its dark colour and its accent; the resume's figures take the bars from the dark colour, the hierarchy's boxes from band and the tiles' outline from rule.",
+  "crimson: a black base with one crimson accent; it names every figure tone itself, so no step of the navy family is left in its figures."
  ],
  "mono": {
   "nameFill": "E4E4E4",
@@ -79,5 +81,30 @@
   "key": "F6F7F9",
   "acc": "2F3B47",
   "acc2": "4F6D8A"
+ },
+ "crimson": {
+  "nameFill": "18181B",
+  "nameText": "FFFFFF",
+  "sec": "18181B",
+  "rule": "D4D4D8",
+  "band": "EFEFF1",
+  "bandText": "18181B",
+  "head": "18181B",
+  "headText": "FFFFFF",
+  "key": "F8F8F9",
+  "acc": "18181B",
+  "acc2": "BE123C",
+  "deep": "0E0E10",
+  "paper": "F5F5F6",
+  "n2": "3F3F46",
+  "n3": "71717A",
+  "b1": "9F1239",
+  "b2": "FB7185",
+  "b3": "FECDD3",
+  "b4": "FFE4E6",
+  "b5": "FFF1F2",
+  "hair": "E4E4E7",
+  "label": "8B8B94",
+  "ink2": "111113"
  }
 }

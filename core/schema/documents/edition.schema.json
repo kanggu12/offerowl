@@ -7,7 +7,7 @@
   "required": ["lang", "theme", "pages", "slides", "issues", "at"],
   "properties": {
     "lang": {"enum": ["ko", "en"]},
-    "theme": {"enum": ["navy", "teal", "mono", "wine", "forest", "slate"]},
+    "theme": {"enum": ["navy", "teal", "mono", "wine", "forest", "slate", "crimson"]},
     "form": {"enum": ["detailed", "compact", "table"]},
     "deckStyle": {"enum": ["classic", "clean"]},
     "pages": {"type": "integer", "minimum": 0},

@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """Figures and logo tiles for the resume and deck.
 
-It draws the overview figures at a fixed size, in fixed fonts, colors and bar shapes; every value comes from the profile:
+It draws the overview figures at a fixed size, in fixed fonts and bar shapes, in the colours of the edition's set (the bars in its
+dark colour, the hierarchy's boxes in its band, the tiles' outline in its rule; the built-in navy keeps its own); every value
+comes from the profile:
   timeline   career, education and service on one time axis. Labels go inside a bar when they fit (bold name, regular note after
              two spaces, a sub line under it), above the bar for short career bars, else beside it. A long education-only lead-in
              before the first role is squeezed behind a double wave (summary.timeline.break, or found by itself).
@@ -59,22 +61,41 @@ def hex_rgb(h):
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) if re.fullmatch(r"[0-9A-Fa-f]{6}", h) else None
 
 
-def theme_navy():
-    """The bar color: the theme's name-cell color, or a darker theme color when that one is light (light bars got light text)"""
+def theme_set():
+    """The colour set the figures are drawn in: OFFEROWL_THEME, else OFFEROWL_FIG_THEME (the edition's, which the build names),
+    else navy, from src/themes.json with the sets of OFFEROWL_THEME_FILE over it. None for the built-in navy, whose figures keep
+    the colours above exactly."""
     name = os.environ.get("OFFEROWL_THEME") or os.environ.get("OFFEROWL_FIG_THEME") or "navy"  # the theme the build uses
     themes = json.loads((ROOT / "src" / "themes.json").read_text(encoding="utf-8"))  # built-in themes
     if os.environ.get("OFFEROWL_THEME_FILE"):  # a user's theme file adds to or overrides the built-in ones
         themes.update(json.loads(pathlib.Path(os.environ["OFFEROWL_THEME_FILE"]).read_text(encoding="utf-8")))
     elif name == "navy":  # the built-in navy keeps the colors above exactly
-        return NAVY
+        return None
     t = themes.get(name)
     if not t:
         raise SystemExit(f"unknown theme '{name}'")
+    return t
+
+
+def theme_navy():
+    """The bar color: the theme's name-cell color, or a darker theme color when that one is light (light bars got light text)"""
+    t = theme_set()  # the set, None for the built-in navy
+    if t is None:  # its own navy, exactly
+        return NAVY
     for key in ("nameFill", "sec", "acc"):  # darkest usable first
         c = hex_rgb(t.get(key))
         if c and (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) < 140:  # dark enough for white text
             return c
     return INK  # no dark color in the theme: near black
+
+
+def theme_tones():
+    """(the hierarchy figure's pale boxes, the tiles' outline): TINT and TILE_BORDER for the built-in navy, the set's band and its
+    rule for any other, so a figure in another colour keeps no pale blue"""
+    t = theme_set()  # the set, None for the built-in navy
+    if t is None:  # its own tones, exactly
+        return TINT, TILE_BORDER
+    return hex_rgb(t.get("band")) or TINT, hex_rgb(t.get("rule")) or TILE_BORDER  # a set without one keeps the figure's own
 
 
 def font(px, bold=False):
@@ -402,11 +423,11 @@ def timeline(prof, lang, path, navy, active=None, width=694, active_edu=None):
     return path
 
 
-def stack(prof, lang, path, navy):
+def stack(prof, lang, path, navy, tint=TINT):
     """Hierarchy figure (the reference stack figure): each layer's name on an arrow plate, the plates stepping out toward the
     bottom like a staircase of layers and darker as they go down, the skills and where they were used in a pale box on the
     right. The plates of equal width drawn from 2026-11-03 read as a plain list; the stepped arrows are the figure the
-    author's submitted resumes carried (2026-10-16) and asked for again (2026-11-13)."""
+    author's submitted resumes carried (2026-10-16) and asked for again (2026-11-13). tint: the pale boxes' colour (theme_tones)."""
     layers = (prof.get("summary") or {}).get("layers") or []
     layers = [r for r in layers if isinstance(r, (list, tuple)) and r]
     if not layers:
@@ -432,7 +453,7 @@ def stack(prof, lang, path, navy):
         d.polygon([(0, y0), (end, y0), (end + tip, (y0 + y1) / 2), (end, y1), (0, y1)], fill=c)  # the arrow plate
         b = d.textbbox((0, 0), name, font=f)  # center the name by its ink height (fonts differ in top room)
         draw_text(d, (pad * S, y0 + (row * S - (b[3] - b[1])) / 2 - b[1]), name, "white", f)
-        corners.box(d, [right, y0, W, y1], 3 * S, fill=TINT)  # the pale box of the skills, its corners as the run asks
+        corners.box(d, [right, y0, W, y1], 3 * S, fill=tint)  # the pale box of the skills, its corners as the run asks
         # The two right lines (skills, where) sit as one block centered in the row, 6 apart
         b1, b2 = d.textbbox((0, 0), tech or " ", font=ft), d.textbbox((0, 0), where or " ", font=fw)
         h1, h2, lead = b1[3] - b1[1], b2[3] - b2[1], 6 * S
@@ -506,10 +527,11 @@ def squared(im):
     return out
 
 
-def logo_tile(spec, path, navy):
+def logo_tile(spec, path, navy, outline=TILE_BORDER):
     """One square logo tile. An image is trimmed of near-white edges and fitted in 70% of a white rounded tile with a light
     outline (the reference tile style); a monogram draws its initials on a filled rounded tile. Under square corners
-    (src/corners.py) both tiles are square, and a finished rounded tile brought in as the logo has its plate squared."""
+    (src/corners.py) both tiles are square, and a finished rounded tile brought in as the logo has its plate squared. outline: the
+    white tile's outline colour (theme_tones)."""
     t = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
     d = ImageDraw.Draw(t)
     if spec.get("monogram"):
@@ -541,7 +563,7 @@ def logo_tile(spec, path, navy):
         bb = im.getchannel("A").getbbox()
         if bb:
             im = im.crop(bb)
-        plate(d, fill=(255, 255, 255, 255), outline=TILE_BORDER, width=6)  # the white tile with its light outline, its corners as the run asks
+        plate(d, fill=(255, 255, 255, 255), outline=outline, width=6)  # the white tile with its light outline, its corners as the run asks
         box = int(TILE * 0.70)
         k = min(box / im.width, box / im.height)
         m = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
@@ -559,8 +581,9 @@ def main() -> int:
     job = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None  # the edition's job.json, when the build passes it
     prof = load_profile(sys.argv[1], lang, job)
     navy = theme_navy()
+    tint, outline = theme_tones()  # the hierarchy's boxes and the tiles' outline, in the set's own tones
     suffix = "_en" if lang == "en" else ""
-    for kind, fn in (("timeline", timeline), ("stack", stack)):
+    for kind, fn in (("timeline", timeline), ("stack", lambda *a: stack(*a, tint=tint))):  # the hierarchy's boxes in the set's tone
         p = OUT / f"{out}_{kind}{suffix}.png"
         p.unlink(missing_ok=True)  # a field removed from the profile removes its figure too
         try:
@@ -608,14 +631,14 @@ def main() -> int:
             spec = {"file": str(f)} if f else None
         if spec:
             try:
-                logo_tile(spec, OUT / f"{out}_logo_ch_{key}.png", navy)
+                logo_tile(spec, OUT / f"{out}_logo_ch_{key}.png", navy, outline=outline)
             except Exception as e:  # an unreadable logo leaves the chapter without one
                 WARN.append(f"logo for chapter '{key}' failed: {type(e).__name__}: {e}")
     tiles = 0
     for x in (prof.get("roles") or []) + (prof.get("education") or []):
         if x.get("logo") and x.get("logoId"):
             try:
-                logo_tile(x["logo"], OUT / f"{out}_logo_{x['logoId']}.png", navy)
+                logo_tile(x["logo"], OUT / f"{out}_logo_{x['logoId']}.png", navy, outline=outline)
                 tiles += 1
             except Exception as e:  # an unreadable logo file leaves that row without a logo
                 WARN.append(f"logo for '{x.get('org') or x.get('school')}' failed: {type(e).__name__}: {e}")
