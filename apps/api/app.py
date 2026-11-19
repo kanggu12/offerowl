@@ -279,7 +279,7 @@ class Api:
                 or not (printed.get("not_a_but_b") is None or (isinstance(printed.get("not_a_but_b"), int) and not isinstance(printed.get("not_a_but_b"), bool))):
             raise ValueError("style")
         import check_parity  # src/check_parity.py: the parity object's own shape (docs/DOCUMENTS.md "Checks across documents")
-        if check_parity.pack_problem(pack):  # aliases, glossary, deck_only, whole_period, newest_first
+        if check_parity.pack_problem(pack):  # aliases, glossary, deck_only, whole_period, newest_first, terms
             raise ValueError("style")
         for row in [*(pack.get("banned_patterns") or []), *printed.get("editing_notes", []), *[[p, ""] for p in printed.get("colloquial", [])]]:  # each pattern must compile, or every check would stop on it
             if not (isinstance(row, list) and len(row) == 2 and all(isinstance(x, str) for x in row)):  # [pattern, why]

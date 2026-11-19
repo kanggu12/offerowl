@@ -697,10 +697,13 @@ new words: it is refused with `parity:<n>` (`n` differences), or `parity_uncheck
 | for a project whose name holds a word of the pack's `whole_period`, the resume prints the slide's whole period, every spell of it | `deck_whole_period` |
 | the deck's page uses the resume's colours: the theme's name fill, accent, band and rule, and the highlight (`FFF0A0`) | `deck_theme` |
 | the two PDFs share a font family | `deck_font` |
+| one thing has one word in both: for each group of the pack's `terms` that the words of both PDFs name, the resume and the deck use the same members of it. The words are read from the pages, a line end inside a term reading as a space, without regard to case; where two members match the same words, the one that starts first, then the longer, counts. A group that only one of them names says nothing | `term_drift` |
 | a dated list the pack's `newest_first` names runs newest first; a table whose first cells name kinds (first author, co-author) runs newest first within each kind | `dates_order` |
 
-A deck Offerowl draws prints the resume's names, periods, colours and faces by construction; the check matters most for a
-deck written from your own deck source (`deck/`). A portfolio you made as a PDF is yours as it is and is not measured.
+A deck Offerowl draws prints the resume's names, periods, colours and faces by construction, but its words are drafted apart
+from the resume's, so the pack's `terms` hold the two to one word for one thing. The other checks matter most for a deck
+written from your own deck source (`deck/`). A portfolio you made as a PDF is yours as it is: only its words are read, for
+the `terms`.
 
 ### A blind edition and its ordinary twin
 
@@ -753,7 +756,8 @@ when the pack is added.
  "glossary": [["백업", "backup"], ["무중단", "without (?:downtime|interruption)|zero-downtime"]],
  "deck_only": ["Platform work at a glance"],
  "whole_period": ["Payments platform"],
- "newest_first": ["Awards", "Talks", "Publications"]
+ "newest_first": ["Awards", "Talks", "Publications"],
+ "terms": [["멱등 키", "idempotency key", "중복 방지 키"], ["runbook", "playbook"]]
 }
 ```
 
@@ -764,6 +768,7 @@ when the pack is added.
 | `deck_only` | titles of slides that stand for no single project of the resume |
 | `whole_period` | words of project names whose resume period must be the slide's whole period |
 | `newest_first` | words of the names of the lists that must run newest first (a list grouped by kind, or ordered by weight, is left as it is) |
+| `terms` | groups of two or more patterns that name one thing, the word to use first: when the resume and its deck both name the thing, they name it with the same words. A finding names the first as the word to use, so write it as it should print |
 
 ## The profile format
 

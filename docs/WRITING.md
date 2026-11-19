@@ -445,7 +445,8 @@ already made.
 
 A pack's `parity` object holds the person's own words for the checks that hold an application's documents together: the
 Korean and the English edition, and the resume and its deck. `aliases` and `glossary` say what the English may say for a Korean
-word, `deck_only` and `whole_period` name slides and projects, and `newest_first` names the lists that must run newest first.
+word, `deck_only` and `whole_period` name slides and projects, `newest_first` names the lists that must run newest first, and
+`terms` names the words for one thing, the one to use first, so the resume and its deck say it with one word.
 [Checks across documents](DOCUMENTS.md#checks-across-documents) says what each check looks at and the shape of each key.
 
 ## Cover letters
