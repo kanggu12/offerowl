@@ -6,6 +6,18 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-11-20
+
+The form answers' text file on the Desktop is named as the other files handed out are.
+
+### Fixed
+
+- Saving an application's form answers as one text file named it with spaces and no day (`홍길동 감마 지원서 문항.txt`),
+  and a second file got ` (2)`: the one Desktop file left out when 0.13.2 named the exported PDFs, the kept portfolio and the
+  talk. It now takes the same name rule: the words joined by underscores with no space, the day the answers were last written
+  at the end (`홍길동_감마_지원서_문항_20261120.txt`), and `_2`, `_3` for a name a file has already
+  ([APP.md](docs/APP.md#applications)).
+
 ## [0.14.2] - 2026-11-20
 
 The deck cover's career path takes a colour set's ramp, the same steps as the overview's career bars.
@@ -779,7 +791,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.2...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.3...HEAD
+[0.14.3]: https://github.com/kanggu12/offerowl/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/kanggu12/offerowl/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/kanggu12/offerowl/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/kanggu12/offerowl/compare/v0.13.2...v0.14.0
