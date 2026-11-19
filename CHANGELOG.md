@@ -6,6 +6,18 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-11-19
+
+The files Offerowl puts on the Desktop are named with no spaces and with the day they were made.
+
+### Fixed
+
+- The export, the portfolio kept on the Desktop and the talk's slides named their files with spaces ("홍길동 포트폴리오.pdf"),
+  which upload forms and command lines take badly, and the name did not say when the document was made. The words are now
+  joined by underscores and the day the build made the document comes last: 홍길동_포트폴리오_20261119.pdf,
+  Gildong_Hong_Resume_20261119.pdf ([APP.md](docs/APP.md#documents-the-live-canvas)). A name a file already has takes _2,
+  _3. The portfolio kept on the Desktop takes the day of each new build, and its copy of an earlier day goes.
+
 ## [0.13.1] - 2026-11-19
 
 The resume and its deck name one thing with one word, the drafts say the whole scope of the work, the portfolio on the
@@ -695,7 +707,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.13.2...HEAD
+[0.13.2]: https://github.com/kanggu12/offerowl/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/kanggu12/offerowl/compare/v0.12.2...v0.13.1
 [0.12.2]: https://github.com/kanggu12/offerowl/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/kanggu12/offerowl/compare/v0.12.0...v0.12.1
