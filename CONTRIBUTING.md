@@ -167,6 +167,12 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
    accent (`palette` in `src/portfolio/deck.js`), and one that names them all, as crimson does, leaves nothing of the navy
    family on its pages. `ramp1`, `ramp2`, ... (three or more, light to dark) are optional too: the resume's career bars and
    hierarchy plates are drawn in them instead of shades of the set's dark colour (`theme_ramp` in `src/overview_figures.py`).
+   So are the tones of the classic deck's dark panels, `deepMark` (a chapter's number, the last slide's rule), `deepEyebrow`
+   (the small eyebrows) and `deepLabel` (the labels and the English name lines), which otherwise take the accent's pale `b2`
+   and `b3`: pick them on the set's `deep`, where a pale accent can read as a tint of itself. And `a3`, `a4`, `t3` and `t4`,
+   the figures' amber and teal fills and grounds, for a set whose pale accent sits close to them: keep the grounds 4 or more
+   apart in OKLab and the amber and teal words on them at 4.5:1, as crimson's do (`darkPanelCss` and `themeMap` in
+   `src/portfolio/deck.js`).
 2. Offer it on the panel and to agents: `inspTheme` in `apps/panel/static/side.js` (its name in `i18n/ko.js` too), `THEMES` in `apps/api/tasks.py` and in `apps/mcp/server.py`, and the `theme` lists in `core/schema/documents/edition.schema.json` and `resume.schema.json`.
 3. Build it: `OFFEROWL_THEME=<name> ./offerowl build examples/sample_full_en.json examples/job_full_en.json`, and look at both documents.
    Add it to the colour sets `tests/deck/run.py` builds, which hold the deck to every measure in it.

@@ -216,6 +216,16 @@ itself with the optional keys of `src/themes.json` (`deep`, `paper`, `n2`, `n3`,
 them derived from its dark colour and its accent. Crimson, a black base with one crimson accent, names them all. A figure drawn
 in its own dark scheme keeps that scheme's colours in every set.
 
+The classic look's dark panels take the accent's pale steps, `b2` for the large accent and `b3` for the small words, unless the
+set names their tones: `deepMark` (a chapter's number, the last slide's rule, the rail's marker beside a chapter's panel),
+`deepEyebrow` (PORTFOLIO, CHAPTER, END OF DOCUMENT) and `deepLabel` (the field labels and the English name lines; the last
+slide's tagline then turns white, as the cover's is). The light look's paper panels keep their own colours. The figures' amber
+and teal fills and grounds stay their own unless the set names `a3`, `a4`, `t3` or `t4` (the fills that carry dark words, then
+the group grounds), in either look. Crimson names both kinds: a crimson number and eyebrows with grey labels, where its pale
+pinks read as pink on black, and apricot and mint grounds that stand apart from its pale crimson (the figures' own pale amber
+was 2.2 from it in OKLab, apricot is 4.4), with amber and teal words still reading at 4.5:1. A set that names none of them
+draws as before, byte for byte.
+
 Square corners (`OFFEROWL_CORNERS=square`, the same setting as the [figures'](#figures-and-logo-tiles-srcoverview_figurespy)) square every box
 of the deck too, in either look: the boxes of the figures and the simple templates (`src/corners.js`), the bars written into the
 slides, and the stylesheet's (`src/portfolio/style_square.css`, added after the others). A dot stays round: the bullets, the number
