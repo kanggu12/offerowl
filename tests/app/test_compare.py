@@ -309,6 +309,54 @@ class EditionTests(unittest.TestCase):
         (self.tmp / "deck.probe.json").write_text(json.dumps({"slides": [{"n": 1, "title": "", "issues": []}], "own": True}), encoding="utf-8")
         self.assertEqual(([], 0), self.codes(deck))
 
+    def terms(self, found) -> list:
+        """The term_drift findings as (the word to use, the resume's words, the deck's words, a note?)."""
+        return [(x.values["first"], x.values["resume"], x.values["deck"], x.polish) for x in found if x.code == "term_drift"]
+
+    def test_one_thing_named_with_two_words_in_the_resume_and_the_deck(self):
+        pack = {"parity": {"terms": [["idempotency key", "dedup keys?", "duplicate-request keys?"], ["runbook", "playbook"]]}}  # the first is the word to use
+        write_pdf(self.resume, [[(72, 72, 12, "Gildong Hong"), (72, 100, 11, "Split authorization out and set idempotency"),
+                                 (72, 114, 11, "keys and a retry policy."), (72, 128, 11, "Wrote a runbook for each incident type.")]])  # a term the line broke inside
+        slide = lambda text: ("project", "Alpha Pay", "Payment authorization service redesign", "2023.01 - 2023.09 " + text)  # noqa: E731  the project's slide, its period printed
+        deck = self.deck([slide("Dedup keys stopped double charges.")])  # another member of the same group
+        self.assertEqual((["term_drift"], 1), self.codes(deck, pack))  # one finding, and the slide is still paired
+        found = CP.edition(self.view, self.cfg, self.raw, self.resume, deck, pack)[0]
+        self.assertEqual([("idempotency key", "idempotency key", "Dedup keys", False)], self.terms(found))  # the words as printed, the line end a space; a defect
+        self.assertEqual(([], 1), self.codes(deck))  # no terms in the pack: nothing to hold the words to
+        probe = self.tmp / "deck.probe.json"  # a portfolio the person made: its pages are not measured, its words are read
+        probe.write_text(json.dumps({"slides": [{"n": 1, "title": "", "issues": []}], "own": True}), encoding="utf-8")
+        self.assertEqual((["term_drift"], 0), self.codes(deck, pack))
+        probe.unlink()  # a deck no measurement came with: the same
+        self.assertEqual((["term_drift"], 0), self.codes(deck, pack))
+        same = self.deck([slide("Idempotency keys stopped double charges.")])  # the same member in both, whatever its case
+        self.assertEqual(([], 1), self.codes(same, pack))  # and the runbook only the resume names says nothing
+        rep, style = self.tmp / "rep.json", self.tmp / "pack.json"  # the command line, as a build runs it
+        style.write_text(json.dumps(pack), encoding="utf-8")
+        deck = self.deck([slide("Duplicate-request keys stopped double charges.")])
+        argv = ["edition", str(EX / "sample_full_en.json"), str(EX / "job_full_en.json"), str(self.resume), str(deck), "--style", str(style), "--report", str(rep)]
+        self.assertEqual(1, CP.main(argv))  # a defect
+        got = [x for x in read_json(rep, {})["defects"] if x["code"] == "term_drift"]
+        self.assertEqual([("idempotency key", "idempotency key", "Duplicate-request keys")], [(x["first"], x["resume"], x["deck"]) for x in got])  # with its values, for the panel's own words
+
+    def test_one_place_is_one_word_and_a_line_broken_at_a_hyphen_reads_whole(self):
+        pack = {"parity": {"terms": [["canary release", "staged rollout", "rollout plan"], ["blue-green deployment", "red-black deployment"]]}}
+        write_pdf(self.resume, [[(72, 72, 12, "Gildong Hong"), (72, 100, 11, "Set a staged rollout plan for each service"),
+                                 (72, 114, 11, "and moved every release to blue-"), (72, 128, 11, "green deployment.")]])  # a line broken after a hyphen
+        deck = self.deck([("project", "Alpha Pay", "Payment authorization service redesign", "2023.01 - 2023.09 A staged rollout with red-black deployment.")])
+        found = CP.edition(self.view, self.cfg, self.raw, self.resume, deck, pack)[0]
+        self.assertEqual([("blue-green deployment", "blue-green deployment", "red-black deployment", False)], self.terms(found))  # the rollout is one word in both: 'staged rollout plan' holds 'rollout plan' too
+        self.assertEqual(["staged rollout"], [w for _, w in CP.term_uses("a staged rollout plan", CP.term_groups(pack["parity"])[0][1])])  # the match that starts first takes the place
+        lines = [["blue-"], ["green\u00a0deployment", "and/"], ["or", "a", "C\u2060++"], [" ", "rule", "-"], ["next"]]  # lines of words, as a PDF's boxes hold them
+        self.assertEqual("blue-green deployment and/or a C++ rule - next", CP.term_text(lines))  # the typesetting's ties go; a line broken inside a word joins, a dash alone does not
+        self.assertEqual("C++", CP.as_written(r"C\+\+"))  # the word to use, as the person reads it
+
+    def test_a_malformed_terms_object_is_refused(self):
+        self.assertEqual("", CP.pack_problem({"parity": {"terms": [["idempotency key", "dedup keys?"]]}}))
+        for bad in ("idempotency key", ["idempotency key", "dedup key"], [["idempotency key"]], [["idempotency key", " "]],
+                    [["idempotency key", 3]], [["idempotency key", "dedup (keys"]]):  # not groups, one word, a blank, not a word, a pattern that does not compile
+            self.assertEqual("parity.terms", CP.pack_problem({"parity": {"terms": bad}}), bad)
+        self.assertEqual([], CP.term_groups({"terms": [["idempotency key", "dedup (keys"], ["runbook"]]}))  # a pack given by hand: such a group is left out, never a stop
+
     def test_a_list_the_person_keeps_newest_first(self):
         self.assertEqual([], CP.edition(self.view, self.cfg, self.raw, self.resume, None, {})[0])  # a list's order is the person's own: not held by default
         found, _ = CP.edition(self.view, self.cfg, self.raw, self.resume, None, {"parity": {"newest_first": ["Talks"]}})

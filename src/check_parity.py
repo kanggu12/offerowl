@@ -24,6 +24,9 @@ the deck use, src/profile_loader.js, with the job's own choices), never from nam
              whole_period names projects whose slide's whole period the resume must print;
            - the deck uses the resume's colours (the theme's name fill, accent, band, rule and the highlight) and shares a
              font family with it;
+           - one thing has one word in both: each group of the pack's parity.terms (patterns that name one thing, the first
+             the word to use) that the text of both PDFs names is named with the same members in both. A deck the person
+             made is read for this too, though nothing else of it is measured;
            - a dated list the pack's parity.newest_first names runs newest first (within each kind of entry, when a table's
              first cells name kinds: first-author papers, then co-author ones).
 
@@ -72,6 +75,7 @@ MSG = {  # what these checks say, in both languages with the same keys
         "deck_whole_period": "slide {n} '{title}': the resume prints {period}, not the slide's whole period {deck}",
         "deck_theme": "the deck does not use the resume's colours: {missing}",
         "deck_font": "the deck's fonts ({deck}) share no family with the resume's ({resume})",
+        "term_drift": "one thing, two words: the resume says '{resume}', the portfolio '{deck}'. Use '{first}' in both",
         "cards": "cards",
         "highlights": "selected projects",
         "layers": "hierarchy rows",
@@ -103,6 +107,7 @@ MSG = {  # what these checks say, in both languages with the same keys
         "deck_whole_period": "{n}장 '{title}': 이력서가 장의 기간 전체 {deck} 대신 {period}만 적었다",
         "deck_theme": "덱이 이력서의 색을 쓰지 않는다: {missing}",
         "deck_font": "덱의 글꼴({deck})이 이력서 글꼴({resume})과 한 갈래도 겹치지 않는다",
+        "term_drift": "같은 것을 이력서는 '{resume}', 포트폴리오는 '{deck}'라고 쓴다. 둘 다 '{first}' 하나로 맞춘다",
         "cards": "카드",
         "highlights": "대표 프로젝트",
         "layers": "계층도 행",
@@ -481,6 +486,88 @@ def theme_colours(name: str) -> dict:
     return {k: str(v).lstrip("#").upper() for k, v in got.items() if not str(k).startswith("_")}
 
 
+INVISIBLE = dict.fromkeys(map(ord, "\u2060\u200b\ufeff\u00ad"), None)  # joiners and a soft hyphen: no part of a word as it reads (as src/check_blind.py takes them)
+
+
+def pdf_lines(pdf) -> list:
+    """A PDF's lines, each a list of its words, in reading order, read alike by both PDF readers from the words' boxes
+    (src/check_lines.py): poppler's plain text drops the hyphen of a word the line broke after it (blue- on one line and
+    green on the next reads bluegreen), and its word boxes keep it."""
+    lines = {}  # line number -> its words, in the order they are read
+    for _, line, word, *_ in CL.words_of(str(pdf)):  # (page, line, text, box)
+        lines.setdefault(line, []).append(word)
+    return list(lines.values())
+
+
+def term_text(lines: list) -> str:
+    """A document's words in one line, as the pack's terms are looked for in them: one space between two words, a line end
+    among them (a term the line broke inside reads as it does on one line), except after a word that ends in a hyphen or a
+    slash, which the line broke inside (blue-green on two lines is one word, as printed). The joiners and soft hyphens the
+    typesetting puts in go, and a no-break space and a no-break hyphen read as the plain ones."""
+    out = []  # the words so far
+    for line in lines:  # each line of the document, in reading order
+        fresh = True  # the next word starts this line
+        for w in line:
+            w = str(w).translate(INVISIBLE).replace("\u00a0", " ").replace("\u2011", "-")  # the typesetting's ties, as their plain marks
+            if not w.strip():  # a box with no letter in it
+                continue
+            if fresh and out and len(out[-1]) > 1 and out[-1][-1] in "-/":  # the line before ended inside this word (a dash alone ends no word)
+                out[-1] += w
+            else:
+                out.append(w)
+            fresh = False
+    return " ".join(" ".join(out).split())  # one space between words, however the boxes held them
+
+
+def term_groups(rules: dict) -> list:
+    """The pack's terms that can be looked for: (the patterns as written, the same compiled without regard to case) for each
+    group of two or more patterns that name one thing, the first the word to use. A group of another shape, or with a
+    pattern that does not compile, is left out: the panel refuses such a pack before it is kept (pack_problem), and a pack
+    given by hand never stops the other checks."""
+    groups = rules.get("terms") if isinstance(rules.get("terms"), list) else []  # a list of groups, or none
+    out = []  # the groups to look for
+    for g in groups:
+        if not (isinstance(g, list) and len(g) >= 2 and all(isinstance(x, str) and x.strip() for x in g)):  # two patterns at least, none blank
+            continue
+        try:
+            out.append((g, [re.compile(x, re.I) for x in g]))  # 'Runbook' at the head of a line and 'runbook' inside one are one word
+        except re.error:  # a broken pattern leaves its group out
+            continue
+    return out
+
+
+def term_uses(text: str, members: list) -> list:
+    """(member, the words) of each place a text names a group's thing, in reading order. Where members match over the same
+    letters ('staged rollout plan' holds both 'staged rollout' and 'rollout plan'), the match that starts first, then the
+    longer, takes them: one place is one word. An empty match is none."""
+    found = sorted((m.start(), m.start() - m.end(), i, m.group(0)) for i, rx in enumerate(members)
+                   for m in rx.finditer(text) if m.end() > m.start())  # every match of every member: by where it starts, the longest first
+    out, end = [], 0  # the places taken, and where the last of them ends
+    for start, minus_len, i, words in found:
+        if start >= end:  # past the place before it: a place of its own
+            out.append((i, words))
+            end = start - minus_len  # where this one ends
+    return out
+
+
+def as_written(pattern: str) -> str:
+    """A pattern as the word it stands for, for the person to read: a backslash before a mark is left out (C\\+\\+ reads C++)."""
+    return re.sub(r"\\(.)", r"\1", pattern)
+
+
+def term_drift(resume_text: str, deck_text: str, groups: list) -> list:
+    """The pack's terms against the words of the resume and of the deck, each in one line (term_text): a term_drift finding
+    for each group that both name, but not with the same members (the resume's '멱등 키' where the deck says 'idempotency
+    key'). A group that one of them alone names says nothing: the other may have no place for it."""
+    forms = lambda uses: ", ".join(list(dict.fromkeys(w for _, w in uses))[:4])  # noqa: E731  the words as printed, each once, in reading order
+    out = []  # the findings
+    for written, members in groups:  # the patterns as the person wrote them, and compiled
+        ua, ub = term_uses(resume_text, members), term_uses(deck_text, members)  # where each document names the thing, and with which member
+        if ua and ub and {i for i, _ in ua} != {i for i, _ in ub}:  # both name it, one with a word the other does not use
+            out.append(issue("term_drift", first=as_written(written[0]), resume=forms(ua), deck=forms(ub)))
+    return out
+
+
 def edition(view: dict, cfg: dict, raw: dict, resume_pdf, deck_pdf, pack: dict) -> tuple:
     """One edition's resume against its deck, and its dated lists: ([findings], project slides paired)."""
     rules = pack.get("parity") if isinstance(pack.get("parity"), dict) else {}  # the person's own words
@@ -498,6 +585,9 @@ def edition(view: dict, cfg: dict, raw: dict, resume_pdf, deck_pdf, pack: dict) 
                     out.append(issue("dates_order", where=name, dates=", ".join(ds)))
     if not deck_pdf or not pathlib.Path(deck_pdf).is_file():  # no deck in this edition
         return out, paired
+    terms = term_groups(rules)  # the person's groups of words for one thing
+    if terms and resume_pdf and pathlib.Path(resume_pdf).is_file():  # one thing, one word: any deck, a portfolio the person made too
+        out += term_drift(term_text(pdf_lines(resume_pdf)), term_text(pdf_lines(deck_pdf)), terms)  # every word of both, in one line each
     probe_f = pathlib.Path(str(deck_pdf)[:-4] + ".probe.json")  # the deck's measurement, beside it
     probe = json.loads(probe_f.read_text(encoding="utf-8")) if probe_f.is_file() else {}
     if not probe_f.is_file() or probe.get("own"):  # a portfolio the person made (or one no measurement came with): theirs as it is
@@ -546,8 +636,8 @@ def edition(view: dict, cfg: dict, raw: dict, resume_pdf, deck_pdf, pack: dict) 
 
 def pack_problem(pack: dict) -> str:
     """Why a style pack's "parity" object cannot be used ("" when it can, or when there is none): aliases, glossary, deck_only,
-    whole_period and newest_first of their shapes, every glossary pattern compiling. The panel refuses such a pack before it is
-    kept (apps/api/app.py add_style), so a broken pattern never stops a build."""
+    whole_period, newest_first and terms of their shapes, every glossary and terms pattern compiling. The panel refuses such a
+    pack before it is kept (apps/api/app.py add_style), so a broken pattern never stops a build."""
     rules = pack.get("parity", {}) if isinstance(pack, dict) else None  # the object, when the pack has one
     if not isinstance(rules, dict):  # an object or nothing
         return "parity"
@@ -567,6 +657,14 @@ def pack_problem(pack: dict) -> str:
             re.compile(row[1])
         except re.error:
             return "parity.glossary"
+    for group in rules.get("terms", []) if isinstance(rules.get("terms", []), list) else [None]:  # groups of patterns, each for one thing
+        if not (isinstance(group, list) and len(group) >= 2 and all(isinstance(x, str) and x.strip() for x in group)):  # two words at least, none blank
+            return "parity.terms"
+        try:
+            for x in group:
+                re.compile(x, re.I)  # each must compile, as the check looks for it, or its group could never be looked for
+        except re.error:
+            return "parity.terms"
     return ""
 
 

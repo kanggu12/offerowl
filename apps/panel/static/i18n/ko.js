@@ -896,6 +896,7 @@ CATALOGS.ko = {
   "Slide {n} '{title}': the resume prints {period}, not the slide's whole period {deck}.": "{n}장 '{title}': 이력서가 장의 기간 전체 {deck} 대신 {period}만 적었습니다.",
   "The deck does not use the resume's colours: {missing}.": "덱이 이력서의 색을 쓰지 않습니다: {missing}.",
   "The deck's fonts ({deck}) share no family with the resume's ({resume}).": "덱의 글꼴({deck})이 이력서 글꼴({resume})과 한 갈래도 겹치지 않습니다.",
+  "One thing, two words: the resume says '{resume}', the portfolio '{deck}'. Use '{first}' in both.": "같은 것을 이력서는 '{resume}', 포트폴리오는 '{deck}'라고 씁니다. 둘 다 '{first}' 하나로 맞춥니다.",
   "The blind edition has {after} pages where the ordinary one has {before}: its bars moved the text.": "블라인드판은 {after}쪽, 원본판은 {before}쪽입니다. 막대가 글을 밀었습니다.",
   "Words the bars moved from their place in the ordinary edition: {n}. The first is '{word}' on page {page} ({dx} pt across, {dy} pt down).": "막대가 원본판 자리에서 옮긴 낱말이 {n}개입니다. 처음은 {page}쪽 '{word}'입니다(가로 {dx}pt, 세로 {dy}pt).",
   "Words the bars pushed out of their place in the ordinary edition: {n}. The first is '{word}' on page {page}.": "막대가 원본판 자리 밖으로 민 낱말이 {n}개입니다. 처음은 {page}쪽 '{word}'입니다.",

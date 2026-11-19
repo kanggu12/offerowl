@@ -680,6 +680,7 @@ const CHECK_WORDS = {
   deck_unpaired: "Slide {n} '{title}' names no project of your profile. Give it the resume's name for that project, or list it in your rules' deck_only.",
   deck_period: "Slide {n} '{title}': the resume prints {period}, the slide {deck}.", deck_whole_period: "Slide {n} '{title}': the resume prints {period}, not the slide's whole period {deck}.",
   deck_theme: "The deck does not use the resume's colours: {missing}.", deck_font: "The deck's fonts ({deck}) share no family with the resume's ({resume}).",
+  term_drift: "One thing, two words: the resume says '{resume}', the portfolio '{deck}'. Use '{first}' in both.",
   blind_pages: "The blind edition has {after} pages where the ordinary one has {before}: its bars moved the text.",
   blind_moved: "Words the bars moved from their place in the ordinary edition: {n}. The first is '{word}' on page {page} ({dx} pt across, {dy} pt down).",
   blind_pushed: "Words the bars pushed out of their place in the ordinary edition: {n}. The first is '{word}' on page {page}.",

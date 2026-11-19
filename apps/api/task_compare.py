@@ -7,7 +7,7 @@ edition in the other language, its own deck, and the pages of the copy that last
     language the facts are written in is the source, so the differences are notes on it and defects of the other one, which
     the export holds to the source as it is at that moment.
   - The resume is compared with its deck (src/check_parity.py edition): the slides' project names and periods, the colours
-    and the fonts.
+    and the fonts, and the words the style pack's parity.terms hold to one for one thing.
   - The pages of the copy that last went out (export, lock) are kept small (src/baseline.py), with the profile they were
     typeset from, and every later build says which pages changed since, with a picture of the changed bands; POST
     /api/v1/jobs/baseline keeps a build as the new one. The depth review reads the kept profile (apps/api/depth.py).
