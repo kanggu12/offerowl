@@ -328,7 +328,7 @@ class RubricTests(unittest.TestCase):  # 0.11.0: the drafting rubric and the per
         self.assertIn("Circumstances are not achievements", summary)
         self.assertIn("why it worked, with exactly one ==highlight==", summary)
 
-    def test_the_prompts_ask_for_the_whole_scope_and_the_system_first(self):  # 0.13.0: what an application's review asked for, one clause each
+    def test_the_prompts_ask_for_the_whole_scope_and_the_system_first(self):  # 0.13.1: what an application's review asked for, one clause each
         _, _, m = run_draft()  # one run
         asked = dict(m.calls)  # each stage's prompt by its task
         items, summary, deck = asked["write-items"], asked["write-summary"], asked["write-deck"]

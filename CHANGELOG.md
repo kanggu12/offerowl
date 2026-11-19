@@ -6,10 +6,11 @@ fixes come first in a release.
 
 ## [Unreleased]
 
-## [0.13.0] - 2026-11-19
+## [0.13.1] - 2026-11-19
 
-The resume and its deck name one thing with one word, the drafts say the whole scope of the work, and the portfolio on
-the Desktop can be kept under a size.
+The resume and its deck name one thing with one word, the drafts say the whole scope of the work, the portfolio on the
+Desktop can be kept under a size, and a PC without poppler reads the words of the PDFs it checks. 0.13.0 was not
+released: the public tests of its commit stopped on the last of these, so its changes come out in this release.
 
 ### Added
 
@@ -38,6 +39,13 @@ the Desktop can be kept under a size.
   a set of parts gives each part a fact of its own; and a system's result leads a facility detail.
 - The procedure's check step names the terms, and has the agent read the overview cards, the titles and the deck's tiles
   before it calls an edition done ([MCP.md](docs/MCP.md#the-procedure)).
+
+### Fixed
+
+- On a PC without poppler, where Offerowl reads PDFs with PDFium (the desktop app), the checks that read a PDF's words
+  read none: the line checks said no words could be read from the resume, and the checks of the company bands and of
+  the deck's terms had nothing to measure. The word boxes PDFium gives now read as poppler's do, and a hyphen that ends
+  a line, which PDFium gives as U+FFFE, a character XML cannot hold, reads as the hyphen it is.
 
 ## [0.12.2] - 2026-11-19
 
@@ -687,8 +695,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.13.0...HEAD
-[0.13.0]: https://github.com/kanggu12/offerowl/compare/v0.12.2...v0.13.0
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/kanggu12/offerowl/compare/v0.12.2...v0.13.1
 [0.12.2]: https://github.com/kanggu12/offerowl/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/kanggu12/offerowl/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/kanggu12/offerowl/compare/v0.11.1...v0.12.0
