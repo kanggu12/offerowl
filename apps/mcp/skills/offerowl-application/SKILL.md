@@ -83,15 +83,21 @@ Gate: `read_document` shows no sentence without evidence (`counts.unsupported` i
 
 Make the PDFs and read what the checks found: the printed words (marks, editing notes, the person's banned wording), the
 phrases fixed once (claims), the edition against the profile (periods, required words, core projects), the pages (fill,
-gaps, bands), the two languages, the resume against its deck, a blind edition against its twin, and what changed since the
-copy that went out. A defect keeps the PDFs home: fix each one at its source (a fact, a sentence, a rule), never by
-cutting margins or merging items. Notes to polish are worth a look.
+gaps, bands), the two languages, the resume against its deck (with the person's `parity.terms`: one thing, one word in
+both), a blind edition against its twin, and what changed since the copy that went out. A defect keeps the PDFs home: fix
+each one at its source (a fact, a sentence, a rule), never by cutting margins or merging items. Notes to polish are worth a
+look.
+
+Before you call an edition done, read what no check reads: the overview cards (the strengths show the record's breadth and
+hands-on depth; the target names the role, then its scope in the posting's words), the titles (the whole scope), the deck's
+tiles (results, scale, outside validation), a fact for each part of a named family, and a system's result before a facility.
 
 | MCP | API | CLI |
 |---|---|---|
 | `build_pdfs`, `task`, `checks` | `POST /api/v1/jobs/build`, `GET /api/v1/state` (`general`, `editions`), `GET /api/v1/jobs` (each edition's `builds`) | `offerowl api post /api/v1/jobs/build '{"job": "<job>"}'`, `offerowl baseline show <job>` |
 
-Gate: no defect is left, and every changed page since the copy that went out is a change you meant.
+Gate: no defect is left, every changed page since the copy that went out is a change you meant, and the cards, titles and
+tiles read as above.
 
 ## 7. The depth review: thin items are a gate, the rest suggestions
 

@@ -23,16 +23,16 @@ them, and JSON Resume import and export.
 
 | Part | Profile field | Notes |
 |---|---|---|
-| Headline | `summary.headline` | one line, no highlight |
+| Headline | `summary.headline` | one line that leads with what the target cares about most, no highlight |
 | Introduction | `summary.intro` | one or two sentences with one `==highlight==` |
-| Overview cards | `summary.cards` | target role, focus, strengths, industries; the target card may use the posting's words |
+| Overview cards | `summary.cards` | target role (the role first, then its scope in the posting's words: an aim, not a claim of past work), focus, strengths (the breadth of the record across its field and the depth of the person's own hands-on scope, not two narrow skills), industries; the target card may use the posting's words |
 | Selected projects | `summary.highlights` | challenge, action and result rows; the result row has one highlight; the place line ("Nara Cloud  2024 ~ 2025") is computed, not written |
 | Core competencies | `competencies` | four to six (the pack decides), each `{name, text, evidence}`; `evidence` is the projects its cited blocks belong to |
 | Company line | `roles[].desc` | one sentence per role, from the role's head and context blocks |
 | Work-history items | `roles[].projects[].title`, `short`, `summary` | one item is one project; sentences in the order scope, decision, result ([The rubric](#the-rubric)); exactly one highlight per item |
 | About me | `about` | the pack's number of sections (three by default), an optional quote box |
 | Motivation | `motivation` | two or three sentences; a sentence about the company may only use the posting's own text |
-| Deck cover and overview | `summary.stats`, `summary.focus`, `roles[].journey`, `summary.contents`, `summary.glance` | four proof tiles `[value, note]`, four focus columns `[title, line]` and a career path station per printed role `{phase, line, key}` for the deck's cover, one line over the contents and one over the career at a glance; no highlight |
+| Deck cover and overview | `summary.stats`, `summary.focus`, `roles[].journey`, `summary.contents`, `summary.glance` | four proof tiles `[value, note]` (each a result, the scale of a system or an outside validation, never a bare constraint or a count of facilities or parts), four focus columns `[title, line]` and a career path station per printed role `{phase, line, key}` for the deck's cover, one line over the contents and one over the career at a glance; no highlight |
 
 Every text is written in Korean and in English (`--langs ko,en`), as a language pair (`{"ko": ..., "en": ...}`), which the
 profile loader (`src/profile_loader.js`) reads for each edition. Projects the draft does not choose stay in the profile with
@@ -57,6 +57,12 @@ What the prompts ask of each part, in `src/prompts/write_items.md` and the rules
   person joined. The work stands in their place.
 - **The person's own forms stand**: a job title with two positions or a gloss in parentheses is written whole, and a
   phrase the person's rules keep is never rewritten (below).
+- **A title says the whole scope**: a system the person both ran and improved is titled for both (운영 및 고도화, operation
+  and upgrade), and a design names what was designed, never one bare verb for wider work.
+- **A named family shows each part**: a title, card or opening line that names a family, a suite or a set of parts gives
+  each part it names a fact of its own, or names only the parts the evidence covers.
+- **The system leads**: where the work has a result of a system or a model, it comes first; a facility or hardware detail
+  (rooms, racks, power, a count of machines) leads only when the facility is the work.
 
 A part added to a prompt can make the fields it already wrote worse, so each addition is one clause. One real draft of the
 fictional example before and after the rubric (the six calls of a draft): 184 and 182 texts, 20 and 14 sent to repair on
@@ -292,7 +298,8 @@ answer and document check uses it (`Tasks.style_spec`). The interview scenes and
 | `ko_ending` | `nominal` | Korean items, cards and competencies end in a noun (resume bullet style); `plain` allows ~했다 |
 
 The rules every pack shares are in the prompts (`src/prompts/write_rules.md`): only facts of the cited evidence, the
-person's part as the evidence states it (scope words kept), no dressed-up routine work, names kept, the industry's terms.
+person's part as the evidence states it (scope words kept), no dressed-up routine work, each part of a named family shown,
+the result of a system before a facility detail, names kept, the industry's terms.
 
 ### Printed words
 
