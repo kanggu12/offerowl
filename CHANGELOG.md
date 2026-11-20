@@ -6,6 +6,20 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.14.5] - 2026-11-20
+
+The resume's small headings and about-me stage rails can take a colour set's own tone, so crimson's headings read as one system.
+
+### Changed
+
+- The resume's small headings (a sub-heading over a table or a group, a quote box's heading, the header's field names) and the
+  bar beside an about-me stage title and a quote box took the dark accent `acc`, which a set with a black dark accent prints
+  black while its section titles carry a bar in the small accent. A colour set may now name `subHead` and `stageRail`
+  ([DOCUMENTS.md](docs/DOCUMENTS.md#resume-parts-srcresume_formjs)); crimson names its accent for both, with the card labels
+  and department lines of 0.14.4: section and stage titles in black beside a crimson bar, small headings and labels in
+  crimson, tables and body in black. The page check that finds the about-me bands reads the same rail colour. A set that names
+  neither, the built-in navy and the five other sets among them, prints as before, byte for byte.
+
 ## [0.14.4] - 2026-11-20
 
 The resume's card labels and department line can take a colour set's own tone, and crimson's no longer print black.
@@ -804,7 +818,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.4...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.5...HEAD
+[0.14.5]: https://github.com/kanggu12/offerowl/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/kanggu12/offerowl/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/kanggu12/offerowl/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/kanggu12/offerowl/compare/v0.14.1...v0.14.2
