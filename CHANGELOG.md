@@ -6,6 +6,19 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.14.6] - 2026-11-20
+
+The line check finds a highlight that breaks inside a resume card, which it could pass before.
+
+### Fixed
+
+- A resume's selected-project cards stand side by side, and a PDF's text reads them row by row, so a highlight that wrapped
+  onto a card's second line was not in one piece of the reading order. The line check then measured the same words wherever
+  they stood on one line further down (the item the card sums up) and passed a highlight broken over two lines. A highlight is
+  now also read down its own column, as a card's paragraph already was, and the place that comes first in the document is
+  the one measured ([WRITING.md](docs/WRITING.md#printed-words)). A highlight on one line, in a card or not, measures as
+  before.
+
 ## [0.14.5] - 2026-11-20
 
 The resume's small headings and about-me stage rails can take a colour set's own tone, so crimson's headings read as one system.
@@ -818,7 +831,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.5...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.6...HEAD
+[0.14.6]: https://github.com/kanggu12/offerowl/compare/v0.14.5...v0.14.6
 [0.14.5]: https://github.com/kanggu12/offerowl/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/kanggu12/offerowl/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/kanggu12/offerowl/compare/v0.14.2...v0.14.3
