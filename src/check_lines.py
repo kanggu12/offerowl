@@ -205,6 +205,36 @@ def place_in_column(text: str, owner: list, words: list, lines: dict, toks: list
     return None, None
 
 
+def seek_in_column(text: str, owner: list, words: list, lines: dict, phrase: str, cur: int, taken) -> tuple | None:
+    """seek() for a highlight that a card's column breaks: the text layer reads side-by-side cards row by row, so a highlight
+    wrapped inside a card is not in one piece of the reading order, and the same words standing on one line elsewhere (the
+    item the card sums up) would be measured in its place. Its first word found from the start of a word, after the last
+    highlight first, else from the top; the rest read down its column with follow(). ((its first letter, its first word, its
+    last word, the letter after its first word), the words it stands on) or None."""
+    toks = norm(phrase).split()  # its words
+    key = re.sub(r"\s+", "", norm(phrase))  # its letters, as the joined text holds them
+    if len(toks) < 2:  # one word does not break over a line here (a hyphen's break reads in one piece)
+        return None
+    for start in (cur, 0):  # after the last highlight first, else from the top
+        h = locate(text, owner, toks[0], start, taken)
+        while h:
+            if h[0] == 0 or owner[h[0] - 1] != owner[h[0]]:  # the start of a word (not the same letters inside another)
+                line = words[h[1]][1]  # the line it starts on
+                before = sum(len(words[k][2]) for k in range(lines[line][4], h[1]))  # the letters before it on that line
+                got = follow(words, lines, line, len(key) + before)  # its column, read down
+                got = [k for k in got if k >= h[1] or words[k][1] != line]  # from its first word on
+                joined, last, read = "", None, 0  # the letters read, and the word where the highlight ends
+                for k in got:
+                    joined += words[k][2]
+                    read += len(words[k][2])
+                    if last is None and read >= len(key):  # its last letter is in this word
+                        last = k
+                if last is not None and joined.startswith(key):  # the column reads as the highlight
+                    return (h[0], h[1], last, h[3]), [words[k] for k in got[:got.index(last) + 1]]
+            h = locate(text, owner, toks[0], h[0] + 1, taken)  # the next place of its first word
+    return None
+
+
 def split_rows(ws: list) -> list:
     """Words as the lines they stand on: on one page, a centre more than six tenths of a letter's height away starts a
     new line (a superscript or a smaller face stays on its line)."""
@@ -240,19 +270,31 @@ def analyze(words: list, data: dict, lang: str = "ko", hl_range: tuple | None = 
     en = lang == "en"
     lo, hi = hl_range or HL_RANGE["en" if en else "ko"]  # a highlight's size
     text, owner = stream(words)
+    lines = lines_of(words)  # the lines with their boxes, for a highlight or a paragraph the reading order splits
     bad = []
     # 1 and 2: the highlights, in the order the typesetting drew them
     hs = [norm(h) for h in data.get("highlights") or [] if norm(h)]
     found, cur, taken = 0, 0, set()
+
+    def after(at: int, from_: int) -> int:  # how far a place stands after the last highlight, the top counting after the end
+        return at - from_ if at >= from_ else at + len(text)
+
     for h in hs:
-        hit, cur = seek(text, owner, h, cur, taken)
+        hit, nxt = seek(text, owner, h, cur, taken)  # in one piece of the reading order
+        col = seek_in_column(text, owner, words, lines, h, cur, taken)  # or down a card's column
+        if col and (not hit or after(col[0][0], cur) < after(hit[0], cur)):  # the column's place comes first: it is this one
+            hit, on = col  # its place and the words it stands on, down the column
+            nxt = hit[3] if hit[0] >= cur else cur  # the next one after its first word (as for a card's paragraph); never back
+        else:
+            on = words[hit[1]:hit[2] + 1] if hit else []
+        cur = nxt
         if not hit:  # not measured: said, never passed over
             bad.append(issue("hl_missing", polish, text=h[:60]))
             continue
         found += 1
         at, s, e, _ = hit
         taken.add(at)
-        rows = split_rows(words[s:e + 1])  # the lines its words stand on
+        rows = split_rows(on)  # the lines its words stand on
         if len(rows) > 1:  # its yellow breaks in two
             bad.append(issue("hl_broken", polish, text=h[:60], rows=" / ".join(rows)[:120]))
         size = len(h.split()) if en else len(h.replace(" ", ""))  # words, or letters without spaces
@@ -264,7 +306,6 @@ def analyze(words: list, data: dict, lang: str = "ko", hl_range: tuple | None = 
     # 3: a paragraph's last line. A cell with its own line breaks (a table's company cell) and a text under four words are left out
     paras = [norm(p) for p in data.get("paras") or [] if "\n" not in p and len(norm(p).split()) >= 4]
     measured, lost, cur, taken = 0, [], 0, set()
-    lines = lines_of(words)  # the lines with their boxes, for a paragraph the reading order splits
     for p in paras:
         toks = p.split()
         head, tail = place(text, owner, toks, cur, taken)

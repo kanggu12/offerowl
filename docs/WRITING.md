@@ -338,7 +338,9 @@ The rest are the pack's, in its `printed` object, and off until it turns them on
 introduction, a card's cells, a competency, an item, about me, the motivation). They say when a highlight breaks across two
 lines, when it is shorter or longer than the pack's `highlight` range, when it holds a name of `highlight_names` or of the
 blind table, and when a paragraph's last line holds one word alone. A highlight or a paragraph the checks cannot find on the
-page is said too: a check that measured nothing does not pass in silence.
+page is said too: a check that measured nothing does not pass in silence. Cards stand side by side and a PDF's text reads
+them row by row, so a card's paragraph and a card's highlight are also read down their own column: a highlight that breaks
+inside its card is measured there, never passed as the same words standing on one line in an item further down.
 
 **A deck source's own checks.** When the workspace's `deck/` folder ships `tools/check_deck.py`, `check_align.py`,
 `check_density.py` or `check_contrast.py`, each runs on every build's deck (the first on its PDF and its `.probe.json`, the
