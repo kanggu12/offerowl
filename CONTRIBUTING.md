@@ -176,7 +176,8 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
    apart in OKLab and the amber and teal words on them at 4.5:1, as crimson's do (`darkPanelCss` and `themeMap` in
    `src/portfolio/deck.js`). On the resume, `cardLabel` and `subLine` colour the selected-project cards' row labels and the
    department line under each company band, which otherwise take the dark accent `acc`: name them when that accent is black
-   (`fhighlights` and `fsub` in `src/layout.js`).
+   (`fhighlights` and `fsub` in `src/layout.js`), with `subHead` (the small headings and the header's field names: `tcap`,
+   `fquote`, `fheader`) and `stageRail` (the about-me stage rail and the quote bar: `fband`, `fquote`).
 2. Offer it on the panel and to agents: `inspTheme` in `apps/panel/static/side.js` (its name in `i18n/ko.js` too), `THEMES` in `apps/api/tasks.py` and in `apps/mcp/server.py`, and the `theme` lists in `core/schema/documents/edition.schema.json` and `resume.schema.json`.
 3. Build it: `OFFEROWL_THEME=<name> ./offerowl build examples/sample_full_en.json examples/job_full_en.json`, and look at both documents.
    Add it to the colour sets `tests/deck/run.py` builds, which hold the deck to every measure in it.

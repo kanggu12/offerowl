@@ -144,7 +144,8 @@ function fband(left, right, o = {}) {
     spacing: { before: o.before === undefined ? 200 : o.before, after: 50, line: 300 },
     keepNext: true,
     shading: shade(T.band),
-    ...(o.rail ? { border: { left: { style: BorderStyle.SINGLE, size: 36, color: T.acc, space: 8 } },
+    // the rail beside an about-me stage title: the set's own bar tone when it names one (stageRail), as the section titles' bar is
+    ...(o.rail ? { border: { left: { style: BorderStyle.SINGLE, size: 36, color: T.stageRail || T.acc, space: 8 } },
                   indent: { left: 180 } } : {}),
     tabStops: [{ type: TabStopType.RIGHT, position: RTAB }],
     children: [
@@ -478,15 +479,16 @@ function fquote(head, text) {
   PARTS.about.push(String(head));                                      // a boxed statement is one part of about me too
   // The plain look: the heading and the paragraph without the bar
   if (PLAIN) return [
-    new Paragraph({ spacing: { before: 60, after: 30 }, keepNext: true, children: [run(head, { size: 16, bold: true, color: T.acc })] }),
+    new Paragraph({ spacing: { before: 60, after: 30 }, keepNext: true, children: [run(head, { size: 16, bold: true, color: T.subHead || T.acc })] }),
     new Paragraph({ spacing: { after: 60, line: 270 }, children: [run(text, { size: 18, color: INK })] }),
   ];
   return [
     new Paragraph({ spacing: { before: 60, after: 30 }, keepNext: true,
-      border: { left: { style: BorderStyle.SINGLE, size: 24, color: T.acc, space: 8 } }, indent: { left: 160 },
-      children: [run(head, { size: 16, bold: true, color: T.acc })] }),
+      // its heading in the set's small-heading tone and its bar in the stage rail's (subHead, stageRail), else the dark accent
+      border: { left: { style: BorderStyle.SINGLE, size: 24, color: T.stageRail || T.acc, space: 8 } }, indent: { left: 160 },
+      children: [run(head, { size: 16, bold: true, color: T.subHead || T.acc })] }),
     new Paragraph({ spacing: { after: 60, line: 270 },
-      border: { left: { style: BorderStyle.SINGLE, size: 24, color: T.acc, space: 8 } }, indent: { left: 160 },
+      border: { left: { style: BorderStyle.SINGLE, size: 24, color: T.stageRail || T.acc, space: 8 } }, indent: { left: 160 },
       children: [run(text, { size: 18, color: INK })] }),
   ];
 }
@@ -552,7 +554,8 @@ function fheader(name, en, tag, contacts, photo) {
     children: contacts.map(([k, v, link]) => new Paragraph({
       spacing: { after: 20, line: 240 },
       tabStops: [{ type: TabStopType.LEFT, position: 1250 }],
-      children: [run(k, { size: 15, bold: true, color: T.acc }), run("\t"),
+      // a field's name in the set's small-heading tone when it names one (subHead), else the dark accent
+      children: [run(k, { size: 15, bold: true, color: T.subHead || T.acc }), run("\t"),
         link ? new ExternalHyperlink({ link, children: [new TextRun({ text: v, font: F, size: 16, color: INK })] })
              : run(v, { size: 16, color: INK })],
     })),
@@ -659,7 +662,7 @@ function frow(main, sub, right) {
 function tcap(text) {
   return new Paragraph({
     spacing: { before: 140, after: 60 }, keepNext: true,
-    children: [run(text, { bold: true, size: 20, color: T.acc })],
+    children: [run(text, { bold: true, size: 20, color: T.subHead || T.acc })],   // the set's small-heading tone when it names one
   });
 }
 
@@ -749,7 +752,7 @@ function render(ch, outPath) {
   // the highlights and paragraphs set, beside the document, for the line checks (written before the save, so a document
   // that saved always has them, and an older pair is never read beside a newer document)
   // with the parts the form set, and the colours the bands were painted in (the band check finds them by colour)
-  const parts = { ...PARTS, band: T.band, rail: T.acc, badgeFill: accent2(), plain: PLAIN };
+  const parts = { ...PARTS, band: T.band, rail: T.stageRail || T.acc, badgeFill: accent2(), plain: PLAIN };
   require("fs").writeFileSync(outPath.replace(/\.docx$/, ".highlights.json"), JSON.stringify({ highlights: HIGHLIGHTS, paras: PARAS, parts }, null, 1));
   require("./save").save(doc, outPath, { fieldResults: PLAIN || !!FOOTER_NAME });   // page fields filled in when the footer or the plain look shows them
 }

@@ -52,6 +52,19 @@ async function build(cfg) {
   ok("a set that names subLine prints the department line in it", colourOf(crimson.body, subLine) === sets.crimson.subLine, String(colourOf(crimson.body, subLine)));
   ok("a set that names neither keeps its dark accent on the card labels", colourOf(navy.body, label) === sets.navy.acc, String(colourOf(navy.body, label)));
   ok("and on the department line", colourOf(navy.body, subLine) === sets.navy.acc, String(colourOf(navy.body, subLine)));
+  // The small headings (the sub-heading over the cards, the header's field names) and the about-me stage rail: subHead and
+  // stageRail where a set names them, the dark accent where it does not
+  const railOf = (xml, text) => {                                        // the left bar's colour of the paragraph that holds this text
+    const m = new RegExp("<w:p>(?:(?!</w:p>).)*?<w:left w:val=\"single\" w:color=\"([0-9A-Fa-f]{6})\" w:sz=\"36\"(?:(?!</w:p>).)*?<w:t[^>]*>" + text + "</w:t>", "s").exec(xml);
+    return m ? m[1].toUpperCase() : null;
+  };
+  const caption = "대표 프로젝트", field = "연락처", stage = sample.about[0][0];   // the cards' sub-heading, a field name, the first stage
+  ok("a set that names subHead prints the sub-heading in it", colourOf(crimson.body, caption) === sets.crimson.subHead, String(colourOf(crimson.body, caption)));
+  ok("and the header's field names", colourOf(crimson.body, field) === sets.crimson.subHead, String(colourOf(crimson.body, field)));
+  ok("a set that names stageRail draws the stage's rail in it", railOf(crimson.body, stage) === sets.crimson.stageRail, String(railOf(crimson.body, stage)));
+  ok("a set that names neither keeps the dark accent on the sub-heading", colourOf(navy.body, caption) === sets.navy.acc, String(colourOf(navy.body, caption)));
+  ok("on the field names", colourOf(navy.body, field) === sets.navy.acc, String(colourOf(navy.body, field)));
+  ok("and on the stage's rail", railOf(navy.body, stage) === sets.navy.acc, String(railOf(navy.body, stage)));
   fs.rmSync(OUT, { recursive: true, force: true });                      // nothing left behind
   console.log(`form choices tests: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
