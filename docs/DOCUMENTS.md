@@ -61,7 +61,11 @@ preset column widths per language, and `job.widths` overrides them.
 The selected-project cards' row labels (problem, what was done, result) and the department line under each company band take
 the colour set's dark accent `acc`. A set may name its own tone for them, `cardLabel` and `subLine` (`src/themes.json`): a set
 whose dark accent is black, as crimson's is, names its accent there, so those labels do not print black beside the overview
-cards' labels, which take the small accent `acc2`. A set that names neither prints as before, byte for byte.
+cards' labels, which take the small accent `acc2`. Likewise `subHead` for the small headings (a sub-heading over a table or a
+group, a quote box's heading, the header's field names) and `stageRail` for the bar beside an about-me stage title and a quote
+box: crimson names its accent for all four, so its headings read as one system (section titles and stage titles in black beside
+a crimson bar, small headings and labels in crimson, tables and body in black). A set that names none of them prints as before,
+byte for byte.
 
 ### Figures and logo tiles (`src/overview_figures.py`)
 
