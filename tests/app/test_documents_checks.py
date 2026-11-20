@@ -246,6 +246,24 @@ class LineChecksTests(unittest.TestCase):
         self.assertNotIn("para_missing", codes)
         self.assertIn("last_word", codes)  # the first card ends on one word: found where it stands
 
+    def test_a_cards_highlight_broken_down_its_column_is_found_there(self):
+        # two cards side by side read row by row, the second card's highlight wrapped onto its second line, and the same
+        # words on one line in an item further down: the highlight is measured in the card, where it breaks, not passed
+        # as the item's one-line words (as an English resume card's result once was)
+        def line(words, y):  # one line of word boxes at height y
+            return "<line>" + "".join(f'<word xMin="{x0}" yMin="{y}" xMax="{x1}" yMax="{y + 10}">{w}</word>' for w, x0, x1 in words) + "</line>"
+        rows = [line([("Kept", 10, 35), ("the", 40, 55), ("old", 60, 75), ("racks", 80, 105)], 100),                    # card 1, line 1
+                line([("Moved", 210, 240), ("nightly", 245, 280), ("jobs", 285, 305), ("to", 310, 320), ("shared", 325, 360)], 100),  # card 2, line 1
+                line([("running", 10, 50)], 114),                                                                       # card 1, line 2
+                line([("queues", 210, 245), ("and", 250, 268), ("cut", 273, 290), ("waits", 295, 320)], 114),          # card 2, line 2
+                line([("Each", 10, 35), ("team", 40, 65), ("joined", 70, 100), ("the", 105, 120), ("shared", 125, 160), ("queues", 165, 200), ("later", 205, 230)], 200)]  # an item
+        xml = f'<html xmlns="http://www.w3.org/1999/xhtml"><body><doc><page width="595" height="842"><flow><block>{"".join(rows)}</block></flow></page></doc></body></html>'
+        data = {"highlights": ["old racks", "shared queues"], "paras": []}
+        bad, seen = CL.analyze(CL.words_from_xml(xml), data, "en", hl_range=(1, 9))
+        broken = [x.values.get("text") for x in bad if x.code == "hl_broken"]
+        self.assertEqual(["shared queues"], broken, [x.code for x in bad])  # the card's, and not the one on one line
+        self.assertEqual(2, seen["found"])
+
     def test_no_sidecar_means_nothing_to_measure(self):
         self.assertEqual([], CL.check(str(ROOT / "output" / "no_such_resume.pdf")))
 
