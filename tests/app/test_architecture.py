@@ -75,8 +75,11 @@ def imports(name: str, path: Path, tree):
 
 
 def is_module_of(service: str, name: str) -> bool:
-    """Is `name` one of a service's own modules (a file or a sub-package of its folder)?"""
-    return (SERVICES / service / f"{name}.py").is_file() or (SERVICES / service / name / "__init__.py").is_file()
+    """Is `name` one of a service's own modules (a file or a sub-package of its folder)? Matched against the folder's names as
+    written: a Mac's or Windows's disk finds Facts.py as facts.py, and so took the class Facts for the module facts."""
+    folder = SERVICES / service  # the service's own folder
+    own = {p.name for p in folder.iterdir()}  # its files and folders, spelt as on disk
+    return f"{name}.py" in own or (name in own and (folder / name / "__init__.py").is_file())  # a module, or a sub-package
 
 
 class Imports(unittest.TestCase):
