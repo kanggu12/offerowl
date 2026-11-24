@@ -18,6 +18,7 @@ import subprocess  # is the render image built here
 import sys  # the import path
 import tempfile  # a data folder per class
 import threading  # the server in the background
+import time  # a working folder made old
 import unittest  # the runner
 import urllib.error  # refused requests
 import urllib.parse  # names and job ids in addresses
@@ -481,6 +482,26 @@ class ConverterCommand(unittest.TestCase):
         self.assertTrue(cmd[5].startswith("output/_materials/") and cmd[6].endswith("/in.pptx"))  # a folder the container sees, a plain name
         self.assertNotIn("감마", " ".join(cmd))  # the person's file name never reaches a command line
         self.assertFalse(list((ROOT / "output" / "_materials").glob("*")) if (ROOT / "output" / "_materials").is_dir() else [])  # and its copy is gone again
+
+    def test_a_copy_a_stopped_conversion_left_goes_with_the_next(self):
+        place = ROOT / "output" / "_materials"  # the container's working folders
+        left = place / "0123456789ab"  # a conversion stopped mid-way left it (the PC shut down, the server was killed)
+        busy = place / "ba9876543210"  # a conversion running now, in another process
+        temp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-convert-"))  # this PC's kind of working folder, left the same way
+        self.addCleanup(shutil.rmtree, busy, True)  # the running one is the test's to remove
+        self.addCleanup(shutil.rmtree, left, True)  # and the others, should the sweep miss them
+        self.addCleanup(shutil.rmtree, temp, True)
+        for d in (left, busy):
+            d.mkdir(parents=True, exist_ok=True)
+        for d in (left, busy, temp):
+            (d / "in.pptx").write_bytes(b"fictional")  # the copy of a person's file each holds
+        old = time.time() - M.STALE_S - 60  # past any conversion's limit
+        for d in (left, temp):
+            os.utime(d, (old, old))  # left long ago
+        cmds, why = self.command(local=False, inside=False, which={"docker": "/usr/bin/docker"})  # the next conversion
+        self.assertEqual("", why)  # made
+        self.assertEqual((False, False), (left.exists(), temp.exists()))  # the copies left behind are gone
+        self.assertTrue((busy / "in.pptx").is_file())  # a conversion running now keeps its own
 
     def test_inside_the_app_image_and_on_this_pc(self):
         cmds, why = self.command(local=True, inside=True, which={})  # the app image: LibreOffice is here

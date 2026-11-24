@@ -130,16 +130,21 @@ class LivePagesBreakAsThePdf(unittest.TestCase):
             cls.srv.wait(timeout=20)  # a skipped class has no tearDownClass: the server is reaped here
             cls.srv.stdout.close()
             raise unittest.SkipTest(f"no Chromium for Playwright: {exc}")
-        ctx = cls.browser.new_context(viewport={"width": 1440, "height": 900}, locale="ko-KR", bypass_csp=True)
-        ctx.add_init_script("try { localStorage.setItem('offerowl-setup-seen', '1'); } catch (_) {}")  # the setup guide is not the subject here
-        cls.page = ctx.new_page()
         cls.errors = []
-        cls.page.on("pageerror", lambda e: cls.errors.append(str(e)))
-        cls.page.goto(base + "?lang=ko")  # the Korean example, as its PDF was made
-        cls.page.wait_for_function("document.querySelector('[data-act=example]')", timeout=60000)
-        cls.page.click("[data-act=example]")  # the fictional person's resume
-        cls.page.wait_for_function("document.getElementById('canvas').dataset.ready === 'resume'", timeout=60000)
-        cls.page.wait_for_timeout(600)
+        try:  # a class whose start fails gets no tearDownClass: without this its server and browser outlived the run
+            ctx = cls.browser.new_context(viewport={"width": 1440, "height": 900}, locale="ko-KR", bypass_csp=True)
+            ctx.add_init_script("try { localStorage.setItem('offerowl-setup-seen', '1'); } catch (_) {}")  # the setup guide is not the subject here
+            cls.page = ctx.new_page()
+            cls.page.on("pageerror", lambda e: cls.errors.append(str(e)))
+            cls.page.goto(base + "?lang=ko")  # the Korean example, as its PDF was made
+            cls.page.wait_for_function("document.querySelector('[data-act=example]')", timeout=60000)
+            cls.page.click("[data-act=example]")  # the fictional person's resume
+            cls.page.wait_for_function("document.getElementById('canvas').dataset.ready === 'resume'", timeout=60000)
+            cls.page.wait_for_timeout(600)
+        except BaseException:
+            sys.stderr.write(f"the page did not start: errors {cls.errors[:5]}\n")  # what the page raised, for the reader of the log
+            cls.tearDownClass()  # the browser, the server and the folder go as at the end
+            raise
 
     @classmethod
     def tearDownClass(cls):

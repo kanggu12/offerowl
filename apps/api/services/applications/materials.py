@@ -32,6 +32,7 @@ import struct  # a page picture's size, from its PNG header
 import subprocess  # LibreOffice, here or in the render container
 import tempfile  # a working folder for LibreOffice on this PC
 import threading  # one preview made at a time
+import time  # the age of a working folder a stopped conversion left
 import unicodedata  # one spelling of a name that a Mac sends decomposed
 import urllib.parse  # a file's own name in a header, as RFC 6266 writes it
 from pathlib import Path  # paths
@@ -60,6 +61,7 @@ HTML_BYTES = 5_000_000  # a saved page larger than this is not put in the previe
 PAGE_PX = 1100  # the width a page picture is drawn at, whatever the page's size: sharp in the pane, small on disk
 CONVERT_S = 180  # seconds LibreOffice may take for one file before it is stopped
 FIRST_RUN_S = 900  # seconds render/run.sh may take: the first call may build the render image
+STALE_S = 2 * FIRST_RUN_S  # a working folder older than this outlived any conversion: its process was stopped before it could clean up
 LOCK = threading.Lock()  # one preview made at a time: LibreOffice and the pictures are the heavy part
 ODD = re.compile(r'[\x00-\x1f\x7f<>:"/\\|?*]')  # never in a file name here: Windows refuses them, and so does a backup's restore (backup.ODD_NAME)
 RESERVED = re.compile(r"(?i)(?:con|prn|aux|nul|com\d|lpt\d)")  # names Windows keeps for its devices, with any extension
@@ -595,6 +597,7 @@ def convert(src: Path, dest: Path) -> str:
     soffice = "soffice" if inside or container else soffice_path()  # the browser renderer: this PC's own LibreOffice, if it has one
     if not soffice:  # none
         return "no_tools"
+    sweep_stale()  # the copies a conversion stopped mid-way (a PC shut down, a server killed) left behind go first
     work = Path(tempfile.mkdtemp(prefix="offerowl-convert-")) if not container else ROOT / "output" / "_materials" / os.urandom(6).hex()  # the container sees only the repository
     try:
         work.mkdir(parents=True, exist_ok=True)  # the container's folder is made here
@@ -620,6 +623,26 @@ def convert(src: Path, dest: Path) -> str:
         return "unreadable"
     finally:
         shutil.rmtree(work, ignore_errors=True)  # the copy of the person's file does not stay in the engine's folder
+
+
+def sweep_stale() -> None:
+    """Removes the working folders of conversions whose process was stopped before its own cleanup ran: each holds a copy of
+    a person's file. Only folders older than STALE_S go, so a conversion running now (another process's too) keeps its own."""
+    cutoff = time.time() - STALE_S  # anything older ran out of time long ago
+    places = [(ROOT / "output" / "_materials", "*"), (Path(tempfile.gettempdir()), "offerowl-convert-*")]  # the container's folders and this PC's
+    for folder, pattern in places:
+        try:
+            kids = list(folder.glob(pattern))  # this place's working folders
+        except OSError:  # a place that cannot be read
+            continue
+        for kid in kids:
+            try:
+                old = kid.is_dir() and kid.stat().st_mtime < cutoff  # a folder left long ago
+            except OSError:  # gone meanwhile
+                continue
+            if old:
+                shutil.rmtree(kid, ignore_errors=True)  # its copy of the person's file goes
+                log.info("removed a conversion's folder left behind: %s", kid.name)  # the folder's random name, never the file's
 
 
 def run(cmd: list[str], timeout: float) -> tuple[int | None, str]:
