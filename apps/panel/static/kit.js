@@ -181,7 +181,10 @@ function render(md, lead) {  // a small block parser: fields, tables, lists, cod
         if (!/<mark class="hl">/.test(html)) html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.length <= 80 ? `<span class="lead">${s1}</span>${s2}` : m0));
         led = true;
       }
-      if (cls.startsWith("en") || (cls === "note" && /\s\/\/\s/.test(html))) html = scriptHtml(html);  // English answers and follow-up answers read as a script, line by line
+      if (kos && f[1] === "나" && !/<mark class="hl">/.test(html))  // a Korean answer without its phrase marked: its first sentence, the conclusion, stands out
+        html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.replace(/<[^>]+>/g, "").length <= 90 && !/<[^>]*$/.test(s1) ? `<span class="lead">${s1}</span>${s2}` : m0));
+      if (kos && f[1] === "해석" && who === "나") html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.replace(/<[^>]+>/g, "").length <= 160 && !/<[^>]*$/.test(s1) ? `<span class="lead">${s1}</span>${s2}` : m0));   // the English under a Korean answer: its conclusion first too
+      if (cls.startsWith("en") || (cls === "note" && /\s\/\/\s/.test(html)) || (kos && f[1] === "해석")) html = scriptHtml(html);   // a script line by line; a Korean scene's English note too  // English answers and follow-up answers read as a script, line by line
       out.push(`<div class="fld ${cls}"><p>${lab ? `<span class="lab">${esc(lab)}</span>` : ""}${html}</p></div>`);
       continue;
     }
@@ -258,9 +261,18 @@ function markQuery(el, ws0) {  // underline the query's words inside an element'
 // <<< engine:script
 // >>> engine:lines
 function scriptHtml(html) {  // script lines: ' // ' ends a thought (a new line), ' / ' is a short breath (a faint slash), Korean brackets are unspoken stage notes
-  const dir = (t) => t.replace(/\(([^()<>]*[\uac00-\ud7a3][^()<>]*)\)/g, '<span class="dir">($1)</span>');
-  if (!/\s\/\/?\s/.test(html)) return dir(html);  // prose without marks stays prose
-  return html.split(/\s+\/\/\s+/).map((t) => `<span class="th">${dir(t).replace(/ \/ /g, ' <span class="br">/</span> ')}</span>`).join("");
+  // a stage note stands apart (the line's start or a space before it) and holds Korean, no Latin letters: "(웃으며)". A bracket
+  // joined to its word, or one with Latin in it, is a gloss the person says aloud: "PoC(Proof of Concept, 개념 검증)"
+  const dir = (t) => t.replace(/(^|\s)\(([^()<>A-Za-z]*[\uac00-\ud7a3][^()<>A-Za-z]*)\)/g, '$1<span class="dir">($2)</span>');
+  const breath = (t) => dir(t).replace(/ \/ /g, ' <span class="br">/</span> ');
+  const whole = (t) => ["b", "i", "mark", "code", "span"].every((k) => (t.match(new RegExp(`<${k}[ >]`, "g")) || []).length === (t.match(new RegExp(`</${k}>`, "g")) || []).length);  // no tag left open
+  let parts = /\s\/\/\s/.test(html) ? html.split(/\s+\/\/\s+/) : [html];  // the writer's own breaks between thoughts
+  if (parts.length === 1 && html.replace(/<[^>]+>/g, "").length >= 80) {  // a long line without them: one sentence a line, as a script reads
+    const said = html.split(/(?<=[.?!](?:<\/[a-z]+>)*)\s+(?=\S)/);
+    if (said.length > 1 && said.every(whole)) parts = said;  // never inside a highlight or a stressed run
+  }
+  if (parts.length === 1 && !/\s\/\s/.test(html)) return dir(html);  // a short line without marks stays prose
+  return parts.map((t) => `<span class="th">${breath(t)}</span>`).join("");
 }
 // <<< engine:lines
 // >>> engine:groups
@@ -405,12 +417,15 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   const out = [];
   // Term entries (role "terms") come first for a "What is X?" question or a single word, and step back for a scenario question,
   // so a long list of terms does not push the scenes down (on a 30-question eval set, top-1 fell from 29/30 to 25/30 without it)
+  const plainTitle = (s) => String(s || "").toLowerCase().replace(/[\s★?!.,·:/()'"“”-]+/g, "");  // a title as words alone
+  const qn = plainTitle(q);  // the question the same way
   const defQ = words.length <= 1 || /\bwhat\s*(is|are|'s)\b|\bwhat\s+does\b.*\b(mean|stand)|\bstands?\s+for\b|\bdefin|\bexplain\s+\S+\s*\??$|뭐야|뭔가요|뭐예요|무엇인가|무슨\s*뜻|이란\b|란\s*\??$/i.test(q);
   ITEMS.forEach((it, i) => {
     const kn = kmax > 0 ? kw[i] / kmax : 0;  // keyword, 0..1
     const ds = d ? d.map.get(it.id) : null;  // [s, label, text]
     const dn = ds ? clamp((ds[0] - d.med) / span, 0, 1) : 0;  // similarity, 0..1
-    const score = (wk * kn + (1 - wk) * dn) * (it.role === "terms" ? (defQ ? 1.25 : 0.6) : 1);  // convex blend; terms lead for "what is X" and step back for scenario questions
+    const tn = [it.tko, it.ten].map(plainTitle), hit = tn.includes(qn) ? 1.5 : qn.length >= 2 && tn.some((x) => x.includes(qn)) ? 1.15 : 1;  // a title that is the question, or holds it whole, leads
+    const score = (wk * kn + (1 - wk) * dn) * (it.role === "terms" ? (defQ ? 1.25 : 0.6) : 1) * hit;  // convex blend; terms lead for "what is X" and step back for scenario questions
     if (score > 0.04) out.push({ i, score, kn, dn, sim: ds ? ds[0] : null, why: ds && dn > 0.55 ? ds : null });
   });
   out.sort((a, b) => b.score - a.score);  // best first
@@ -625,7 +640,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
       const k = isRef(g) ? letterOf(g) : g.name[0];                                 // the letter its items start with
       const hd = headOf(g.name), plain = g.name.replace(/^[A-Z]\.\s+/, "");        // its name without its letter (the row shows the letter)
       const short = SHORT[g.name[0]] || (isRow(g) && hd ? hd.tail : plain);         // a deep dive's row says what follows its colon: "이력 {name}" doubled the heading's own words
-      const label = g.role === "terms" ? fmt("toc_terms") : isRow(g) ? fmt("toc_deep", { name: short }) : isRef(g) ? refName(g) : short;
+      const pre = fmt("toc_deep", { name: "" }).replace(/[:\s]+$/, "");             // "이력", "Resume": a name that starts with it already says it
+      const label = g.role === "terms" ? fmt("toc_terms") : isRow(g) ? (short.startsWith(pre) ? short : fmt("toc_deep", { name: short })) : isRef(g) ? refName(g) : short;
       return `<button type="button" data-g="${esc(g.name)}" data-c="${cat(k)}"><span class="kit-id">${esc(k)}</span><span>${esc(fmt("toc_count", { name: label, n: g.items.length }))}</span></button>`;
     };
     el.innerHTML = `<div class="kit-toc">${tocBoxes(folded).map((b) => `<div class="kit-tg${(b.items || b.rows).length <= 12 ? " keep" : ""}"${b.items ? ` data-c="${cat(ITEMS[b.items[0]].id)}"` : ""}><h3>${esc(b.name)}</h3>` +

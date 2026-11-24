@@ -453,18 +453,15 @@ input, textarea { caret-color: var(--eye-mark); }
 html[data-motion="off"][data-working="on"] .brand::before, html[data-motion="off"][data-working="on"] .brand::after { animation: none; opacity: .9; box-shadow: 0 0 7px 2px rgba(242, 199, 68, .5); }
 .lit.busy::before { background: var(--eye-mark); box-shadow: 0 0 6px color-mix(in srgb, var(--eye) 60%, transparent); }   /* working: the lamp's own colour */
 
-/* ================================================================ the rainbow rim: what goes to the AI agent, and nothing else
-   The rim marks only the places that hand something to the agent (11-10: the bar where the person writes to the agent, and
-   the places that take the files it reads): the command bar's key and its box (below), and on Make and the profile the
-   drop zones and the box for paths (class "ai"). Every other field keeps its plain rim and, in use, the panel's focus
-   colour. The rim is the box's own border: a transparent border over two backgrounds, its fill inside and the rainbow under
-   the rim; while a file is held over it, or the box is in use, the light runs slowly along it. */
-.sendbox.ai, .drop.ai { border: 1.5px solid transparent !important; background: linear-gradient(var(--ai-fill, var(--surface)), var(--ai-fill, var(--surface))) padding-box, var(--rainbow) border-box !important;
-  background-size: 100% 100%, 200% 100% !important; }
-.drop.ai { --ai-fill: var(--surface-2); }                                             /* a drop zone's own well */
-.drop.ai.over { --ai-fill: color-mix(in srgb, var(--blue) 6%, var(--surface)); }       /* a file held over it */
-.sendbox.ai:focus-within, .drop.ai.over { box-shadow: var(--rainbow-glow) !important; animation: rainbow-run 7s linear infinite; }
-@keyframes rainbow-run { to { background-position: 0 0, 200% 0; } }
+/* ================================================================ what goes to the AI agent: a drop zone and a box, plainly
+   The drop zones and the box for paths on Make and the profile (class "ai") are wells with a dashed rim, as a place to put
+   things reads; a file held over one, or the box in use, takes the focus colour and its soft ring. No rainbow rims and no
+   glow: colour stays where it means something. */
+.drop.ai { border: 1.5px dashed var(--line-2) !important; background: var(--surface-2) !important; transition: border-color .15s var(--ease), background-color .15s var(--ease), box-shadow .15s var(--ease); }
+.drop.ai:hover { border-color: color-mix(in srgb, var(--ink) 40%, var(--line-2)) !important; }
+.drop.ai.over { border-style: solid !important; border-color: var(--focus) !important; background: var(--hover) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 16%, transparent) !important; }
+.sendbox.ai { border: 1px solid var(--line-2) !important; background: var(--surface) !important; }
+.sendbox.ai:focus-within { border-color: var(--focus) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent) !important; }
 .input:focus, .field :is(input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select):focus, .sendbox:not(.ai):focus-within, .lib-q:focus-within,
 .combo-btn[aria-expanded="true"], .combo-btn:focus-visible {                          /* any other field in use: the panel's focus colour, still */
   outline: none; border-color: var(--focus) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent) !important; }
@@ -977,27 +974,37 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 #askbar { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
 #askbar > * { pointer-events: auto; }
 /* "AI에게 요청하기", closed: a floating button at the window's bottom right, as the owner asked (11-10 "우측 하단 플로팅 버튼",
-   11-12 and 11-13 "플로팅 버튼"; 0.8.1's 300 px box read as a field to type in). A raised pill in the panel's main key colour, the
-   AI's mark and its words, the rainbow ring that marks what goes to the agent at its edge; it rises a little under the
-   pointer. A dot on the mark says the agent is not ready; the mark breathes while it works. The same on a phone. */
-.ask-fab { position: relative; display: inline-flex; align-items: center; gap: 9px; height: 52px; padding: 0 22px 0 18px; border: 0; border-radius: 999px; cursor: pointer;
-  font: inherit; color: var(--primary-ink); background: var(--primary);
-  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .5), 0 3px 8px -2px rgba(0, 0, 0, .22); transition: transform .16s var(--ease), box-shadow .16s var(--ease); }
-.ask-fab::before { content: ""; position: absolute; inset: -2px; padding: 2px; border-radius: inherit; pointer-events: none; background: var(--rainbow); background-size: 200% 100%;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }   /* the ring alone, just outside the pill */
-.ask-fab:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -12px rgba(0, 0, 0, .55), 0 4px 10px -2px rgba(0, 0, 0, .25); }
-.ask-fab:hover::before { animation: rim-run 7s linear infinite; } .ask-fab.working::before { animation: rim-run 3s linear infinite; }   /* the light runs along the ring */
-.ask-fab:active { transform: none; }
+   11-12 and 11-13 "플로팅 버튼"): a pill with the AI's mark and its words. Glass since 0.15.0, the page showing
+   through it a little: a frosted pane over the page, its rim lit along the top, a soft shadow under it.
+   Under the pointer it rises, its pane thickens, a band of light crosses it once and the mark turns a little; pressed, it
+   settles. A dot on the mark says the agent is not ready; the mark breathes while it works. No navy, no rainbow. */
+:root, :root[data-theme="light"] { --fab-glass: rgba(255, 255, 255, .56); --fab-glass-hi: rgba(255, 255, 255, .76); --fab-rim: rgba(255, 255, 255, .8);
+  --fab-edge: rgba(0, 0, 0, .1); --fab-lit: rgba(255, 255, 255, .95); --fab-sheen: rgba(255, 255, 255, .7); --fab-mark: var(--owl-eye-ink, #8a6400); }
+:root[data-theme="dark"] { --fab-glass: rgba(40, 41, 46, .5); --fab-glass-hi: rgba(52, 53, 59, .68); --fab-rim: rgba(255, 255, 255, .16);
+  --fab-edge: rgba(0, 0, 0, .45); --fab-lit: rgba(255, 255, 255, .14); --fab-sheen: rgba(255, 255, 255, .16); --fab-mark: #f2c744; }
+.ask-fab { position: relative; display: inline-flex; align-items: center; gap: 9px; height: 52px; padding: 0 22px 0 18px; border: 1px solid var(--fab-rim); border-radius: 999px;
+  cursor: pointer; font: inherit; color: var(--ink); background: var(--fab-glass); overflow: hidden; isolation: isolate;
+  -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: inset 0 1px 0 var(--fab-lit), 0 0 0 1px var(--fab-edge), 0 16px 36px -16px rgba(0, 0, 0, .45), 0 3px 8px -3px rgba(0, 0, 0, .16);
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), box-shadow .28s var(--ease), background-color .28s var(--ease); }
+.ask-fab::before { content: ""; position: absolute; top: 0; bottom: 0; left: -70%; width: 46%; z-index: -1; pointer-events: none;
+  background: linear-gradient(100deg, transparent 0, var(--fab-sheen) 50%, transparent 100%); transform: skewX(-20deg); opacity: 0; }   /* the band of light, waiting off the left edge */
+.ask-fab:hover { transform: translateY(-2px); background: var(--fab-glass-hi);
+  box-shadow: inset 0 1px 0 var(--fab-lit), 0 0 0 1px var(--fab-edge), 0 22px 42px -18px rgba(0, 0, 0, .5), 0 6px 14px -6px rgba(0, 0, 0, .2); }
+.ask-fab:hover::before { animation: fab-sheen .9s cubic-bezier(.3, .6, .2, 1) 1; }     /* once per hover: nothing moves while the pointer rests */
+.ask-fab:active { transform: translateY(0) scale(.98); transition-duration: .08s; }
 .ask-fab:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
-.ask-fab-i { position: relative; display: inline-flex; }
-.ask-fab-i svg { width: 20px; height: 20px; }
+.ask-fab-i { position: relative; display: inline-flex; color: var(--fab-mark); }
+.ask-fab-i svg { width: 20px; height: 20px; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.ask-fab:hover .ask-fab-i svg { transform: rotate(-14deg) scale(1.12); }               /* the mark turns toward the words */
 .ask-fab[data-lamp="warn"] .ask-fab-i::after, .ask-fab[data-lamp="off"] .ask-fab-i::after { content: ""; position: absolute; right: -3px; top: -2px; width: 8px; height: 8px;
-  border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 2px var(--primary); }   /* the agent off or signed out: said by a dot, the sheet says what to do */
+  border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 2px var(--surface); }   /* the agent off or signed out: said by a dot, the sheet says what to do */
 .ask-fab[data-lamp="busy"] .ask-fab-i { animation: lamp 1.2s var(--ease) infinite; }   /* working: the mark breathes, as the bar's chip does */
 .ask-fab-w { font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
-html[data-motion="off"] .ask-fab, html[data-motion="off"] .ask-fab::before, html[data-motion="off"] .ask-fab-i { animation: none !important; transition: none; }
-@keyframes rim-run { to { background-position: 200% 0; } }
+@keyframes fab-sheen { 0% { left: -70%; opacity: 0; } 12% { opacity: 1; } 100% { left: 130%; opacity: 0; } }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .ask-fab { background: var(--surface); } }   /* no glass: a solid pill */
+html[data-motion="off"] .ask-fab, html[data-motion="off"] .ask-fab::before, html[data-motion="off"] .ask-fab-i, html[data-motion="off"] .ask-fab-i svg { animation: none !important; transition: none; transform: none !important; }
+@media (prefers-reduced-motion: reduce) { .ask-fab, .ask-fab-i svg { transition: none; } .ask-fab:hover { transform: none; } .ask-fab:hover::before { animation: none; } }
 .layout { padding-bottom: 96px; }                                                    /* the page's end scrolls clear of the closed prompt (46 px, 20 px off the foot) */
 /* the applications: the list is fitted to the window and scrolls itself, so a foot under the page only made the page scroll
    96 px past it; the open application's end is what has to scroll clear of the prompt */
@@ -1024,8 +1031,8 @@ html[data-motion="off"] #askpanel, #askpanel.stay { animation: none !important; 
 .ask-empty { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-3); }
 .ask-input { display: flex; align-items: stretch; gap: 8px; padding: 10px 12px 4px; border-top: 1px solid var(--line); }
 .ask-input textarea { flex: 1; min-height: 44px; max-height: 160px; resize: vertical; padding: 8px 10px; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--ink);
-  border: 1.5px solid transparent; border-radius: 2px; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--rainbow) border-box; background-size: 100% 100%, 200% 100%; }
-.ask-input textarea:focus { outline: none; box-shadow: var(--rainbow-glow); animation: rainbow-run 7s linear infinite; }
+  border: 1px solid var(--line-2); border-radius: 2px; background: var(--surface); transition: border-color .15s var(--ease), box-shadow .15s var(--ease); }
+.ask-input textarea:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent); }
 .ask-input .btn { align-self: stretch; min-width: 44px; justify-content: center; }
 .ask-hint { display: flex; align-items: center; gap: 5px; margin: 0; padding: 4px 12px 10px; font-size: 11.5px; color: var(--ink-3); }   /* the keys, each with its word */
 .ask-hint kbd { padding: 0 5px; border: 1px solid var(--line); border-radius: 2px; font: 500 10.5px/16px var(--mono); color: var(--ink-2); background: var(--surface); }
@@ -2357,3 +2364,181 @@ body:has(#depthpanel) #askbar { display: none; }                                
   #depthsheet { top: auto; left: 0; height: 78dvh; }
   .depth-panel { width: 100%; border-left: 0; border-top: 1px solid var(--line-2); }
   body:has(#depthpanel) #scrim { inset: 0; } }
+
+/* ================================================================ the 0.15.0 design pass
+   Glass where it was missing, no navy, keys that show, notes in their colours, no empty room under a card, "more" rows that
+   read as rows, a pager that is not a row of numbers, motion under the pointer. What this layer decides, last so that it
+   holds:
+   - the one main key of a view is ink (black by day, white at night), never the owl's navy; colour stays on what means
+     something (stages, met or not, the state of the agent);
+   - a key is flat paper with a rim you can see and a hairline shadow under it, never a gradient or a 3D lift (11-09);
+     under the pointer its face and rim deepen in 150 ms, the main key rises a pixel, and a mark that points (open,
+     back and on, down, up, add) leans the way it points; motion off in the menu stops all of it;
+   - a sticky note is flat paper with its folded corner and lifted corners: canary yellow while its interview is on, plain
+     paper while it waits, grey once it ended; it is as tall as what it says, never a fixed square with an empty middle;
+   - "more" under a list is a key on a hairline (a way on), or quiet words on the same line (a count with nowhere to go);
+   - pages turn with one back key, the page with its picker, and one on key, never a row of numbered squares. */
+:root, :root[data-theme="light"] {
+  --primary: #171717; --primary-ink: #ffffff; --primary-hi: #333333; --focus: #171717;
+  --key-face: #ffffff; --key-face-hi: #f5f5f5; --key-held: #ebebeb;
+  --key-edge: rgba(0, 0, 0, .18); --key-edge-hi: rgba(0, 0, 0, .32);
+  --key-lift: 0 1px 1px rgba(0, 0, 0, .05); --key-lift-hi: 0 3px 6px -3px rgba(0, 0, 0, .18); --key-sunk: none;
+  --note-preparing: #fbfaf7; --note-submitted: #f8f7f3; --note-interview: #fff2ad; --note-result: #ececea;
+  --note-flap: #e7e3d6; --note-flap-int: #ecd77a; --note-lift: rgba(60, 50, 20, .22);
+}
+:root[data-theme="dark"] {
+  --primary: #ededed; --primary-ink: #111111; --primary-hi: #ffffff;
+  --key-face: #232427; --key-face-hi: #2c2d31; --key-held: #1b1c1f;
+  --key-edge: rgba(255, 255, 255, .15); --key-edge-hi: rgba(255, 255, 255, .3);
+  --key-lift: none; --key-lift-hi: 0 4px 10px -4px rgba(0, 0, 0, .7); --key-sunk: none;
+  --note-preparing: #27282c; --note-submitted: #242529; --note-interview: #3f3820; --note-result: #1f2023;
+  --note-flap: #34353a; --note-flap-int: #574d2a; --note-lift: rgba(0, 0, 0, .55);
+}
+/* keys */
+.btn, .btn.icon, .iconbtn, .btn.small, .btn.sm, :root[data-theme] .btn { background: var(--key-face); border: 1px solid var(--key-edge); box-shadow: var(--key-lift); color: var(--ink);
+  transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease), opacity .15s var(--ease); }
+:root .btn:hover:not(:disabled), :root .iconbtn:hover:not(:disabled) { background: var(--key-face-hi); border-color: var(--key-edge-hi); box-shadow: var(--key-lift-hi); }
+.btn:active:not(:disabled), :root .btn:active:not(:disabled) { background: var(--key-held); box-shadow: none; transform: none; transition-duration: .06s; }
+.btn[aria-pressed="true"], :root .btn[aria-pressed="true"]:hover { background: var(--key-held); border-color: var(--key-edge-hi); box-shadow: inset 0 0 0 1px var(--key-edge); }
+.btn:is(.quiet, .ghost), .btn.small:is(.quiet, .ghost), .btn.sm:is(.quiet, .ghost), :root[data-theme] .btn:is(.quiet, .ghost) { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-2); }
+:root .btn:is(.quiet, .ghost):hover:not(:disabled) { background: var(--hover); border-color: transparent; box-shadow: none; color: var(--ink); }
+.btn.danger, :root[data-theme] .btn.danger { background: transparent; border-color: transparent; box-shadow: none; color: var(--red); }
+:root .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 9%, transparent); border-color: color-mix(in srgb, var(--red) 30%, transparent); box-shadow: none; }
+.btn.primary, .btn.small.primary, .btn.sm.primary, a.btn.primary, :root[data-theme] .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
+:root .btn.primary:hover:not(:disabled), :root .btn.small.primary:hover:not(:disabled), :root .btn.sm.primary:hover:not(:disabled) {
+  background: var(--primary-hi); border-color: var(--primary-hi); opacity: 1; transform: translateY(-1px); box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .55); }
+.btn.primary:active:not(:disabled) { background: var(--primary); transform: none; box-shadow: none; }
+.btn:disabled, .iconbtn:disabled { box-shadow: none; transform: none; }
+/* a mark that points leans the way it points */
+.btn svg, .iconbtn svg, .more-key svg, .pgr-step svg { transition: transform .22s cubic-bezier(.34, 1.4, .64, 1); }
+:is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="open"] { transform: translate(1.5px, -1.5px); }
+:is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="download"] { transform: translateY(1.5px); }
+:is(.btn, .iconbtn):hover:not(:disabled) svg:is([data-i="upload"], [data-i="send"]) { transform: translateY(-1.5px); }
+:is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="plus"] { transform: rotate(90deg); }
+:is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="refresh"] { transform: rotate(-60deg); }
+:is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="edit"] { transform: rotate(-10deg) translateY(-1px); }
+:is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="back"]:not(.flip svg) { transform: translateX(-2px); }
+.tabs [role="tab"], .seg button, .views button, .ivseg button { transition: color .15s var(--ease), background-color .15s var(--ease), border-color .15s var(--ease); }
+html[data-motion="off"] :is(.btn, .iconbtn, .more-key, .pgr-step, .tabs [role="tab"], .seg button, .views button) { transition: none !important; transform: none !important; }
+html[data-motion="off"] :is(.btn, .iconbtn, .more-key, .pgr-step) svg { transition: none !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) { .btn, .iconbtn, .btn svg, .iconbtn svg { transition: none; } :root .btn.primary:hover:not(:disabled) { transform: none; } }
+
+/* sticky notes: flat paper, the fold and the lifted corners make the note */
+.active-card, .tcard, :root[data-theme] .active-card, :root[data-theme] .tcard {
+  --fold: 16px; --flap: var(--note-flap);
+  background:
+    linear-gradient(to left top, transparent 50%, var(--flap) 50%) right bottom / var(--fold) var(--fold) no-repeat,   /* the corner's back, turned up */
+    linear-gradient(-45deg, transparent calc(var(--fold) * .7071), var(--note) 0) left bottom / 100% var(--fold) no-repeat,   /* the foot, its corner gone */
+    linear-gradient(var(--note), var(--note)) left top / 100% calc(100% - var(--fold)) no-repeat; }   /* the paper, one even colour */
+:is(.active-card, .tcard)[data-stage="interview"] { --flap: var(--note-flap-int); }
+:is(.active-card, .tcard)::before, :is(.active-card, .tcard)::after { box-shadow: 0 7px 9px var(--note-lift); }
+:is(.active-card, .tcard) :is(.btn, .mono), :root[data-theme] :is(.active-card, .tcard) :is(.btn, .mono) { background: var(--key-face); border: 1px solid var(--key-edge); box-shadow: var(--key-lift); }
+:is(.active-card, .tcard) .btn:hover:not(:disabled) { background: var(--key-face-hi); border-color: var(--key-edge-hi); }
+@media (min-width: 861px) { .active-card { aspect-ratio: auto; } }                  /* as tall as what it says: the row's notes share one foot */
+.active-card .ac-track { margin-top: auto; padding-top: 6px; }                     /* the stage and the keys at the note's foot */
+.active-card .ac-next { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin: 2px 0 0; }   /* the next step: three lines at most */
+
+/* "more" under a list */
+.more-row { display: flex; align-items: center; gap: 12px; margin: 12px 0 2px; min-width: 0; }
+.more-row::before, .more-row::after { content: ""; flex: 1 1 0; min-width: 16px; height: 1px; background: var(--line); }
+.more-key { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--key-face);
+  box-shadow: var(--key-lift); color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 500; white-space: nowrap; cursor: pointer;
+  transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease); }
+.more-key svg { width: 13px; height: 13px; transform: rotate(-90deg); }               /* the back mark turned to point down: what follows */
+.more-key.on svg { transform: rotate(180deg); }                                      /* a way to another view: it points on */
+.more-key:hover { background: var(--key-face-hi); border-color: var(--key-edge-hi); color: var(--ink); }
+.more-key:hover svg { transform: rotate(-90deg) translateX(-2px); } .more-key.on:hover svg { transform: rotate(180deg) translateX(-2px); }
+.more-key:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.more-row .more-note { font-size: 12px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* pages: back, the page with its picker, on */
+.pgr { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 2px 2px; }
+.pgr-info { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pgr-keys { display: inline-flex; align-items: stretch; height: 32px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--key-face); box-shadow: var(--key-lift); }
+.pgr-step { display: inline-grid; place-items: center; width: 34px; padding: 0; border: 0; background: transparent; color: var(--ink-2); cursor: pointer;
+  transition: background-color .15s var(--ease), color .15s var(--ease); }
+.pgr-step svg { width: 15px; height: 15px; }
+.pgr-step.next svg { transform: scaleX(-1); }
+.pgr-step:hover:not(:disabled) { background: var(--key-face-hi); color: var(--ink); }
+.pgr-step.prev:hover:not(:disabled) svg { transform: translateX(-2px); } .pgr-step.next:hover:not(:disabled) svg { transform: scaleX(-1) translateX(-2px); }
+.pgr-step:disabled { color: var(--ink-3); opacity: .4; cursor: default; }
+.pgr-step:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.pgr-keys .combo { display: flex; }                                                  /* the page's list: the middle of the three, joined to its neighbours */
+.pgr-keys .combo-btn, :root .pgr-keys .combo-btn { height: 100%; min-height: 0; width: auto; gap: 6px; padding: 0 10px 0 12px; border: 0; border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none !important; font-size: 13px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums; transition: background-color .15s var(--ease); }
+.pgr-keys .combo-btn:hover:not(:disabled) { background: var(--key-face-hi); }
+.pgr-keys .combo-btn[aria-expanded="true"], .pgr-keys .combo-btn:focus-visible { border-color: var(--line) !important; background: var(--key-face-hi); outline: 2px solid var(--focus); outline-offset: -2px; }
+.pgr-keys .combo-mark { width: 12px; height: 12px; color: var(--ink-3); }
+@media (max-width: 720px) { .pgr { flex-direction: column; align-items: stretch; gap: 10px; } .pgr-info { text-align: center; }
+  .pgr-keys { align-self: center; height: 44px; } .pgr-step { width: 52px; } .pgr-keys .combo-btn { padding: 0 16px; } }
+html[data-motion="off"] .pgr-step svg, html[data-motion="off"] .more-key svg { transition: none; }
+
+/* scripts: one sentence a line, the conclusion first and stronger, the phrase to land lit in the dark too */
+.kit-body .fld.en .th + .th { margin-top: .2em; }                                    /* a breath between the sentences of an answer */
+.kit-body .fld.me .lead { font-weight: 650; color: var(--ink); }                      /* a Korean answer's first sentence: what to say first */
+:root[data-theme="dark"] .kit-body mark.hl { color: #ffe39a;
+  background: linear-gradient(rgba(242, 199, 68, .13), rgba(242, 199, 68, .13)), linear-gradient(transparent 82%, rgba(242, 199, 68, .8) 82%, rgba(242, 199, 68, .8) 97%, transparent 97%); }
+:root[data-theme="dark"] .kit-body .fld.me p { color: #f0f0f2; }                     /* my lines, the brightest words of the card */
+:root[data-theme="dark"] .kit-body .fld.iv p { color: #a4a5aa; }                     /* the interviewer's, a step back */
+
+/* the desk and its glass (frosted glass). Glass reads only over something, and coloured pools of light behind it read as
+   decoration: the desk is neutral, with a fine
+   grid of dots fixed under the page, fading toward the foot, sharp in the gaps and frosted under each pane. The panes that
+   hold controls are frosted glass with a lit top edge and a hairline; what holds words to read stays opaque (its own
+   rules: the job's page, the lists, the tables, the documents, the menus); a bar over words to read is glass thick enough
+   that no word behind it crosses its own. */
+:root, :root[data-theme="light"] {
+  --desk: #f3f3f4; --desk-top: #f8f8f9; --desk-low: #ececed; --lamp-wide: transparent; --shade: transparent; --lamp-box-now: transparent;
+  --pane-glass: rgba(255, 255, 255, .6); --pane-rim: rgba(0, 0, 0, .075); --pane-lit: inset 0 1px 0 rgba(255, 255, 255, .95);
+  --pane-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 14px 30px -22px rgba(0, 0, 0, .3); --dot: rgba(0, 0, 0, .11);
+  --bar-glass: rgba(247, 247, 248, .86); --board: rgba(255, 255, 255, .42); --board-rim: rgba(0, 0, 0, .06);
+}
+:root[data-theme="dark"] {
+  --desk: #121214; --desk-top: #161619; --desk-low: #0e0e10; --lamp-wide: transparent; --shade: transparent; --lamp-box-now: transparent;
+  --pane-glass: rgba(31, 32, 36, .62); --pane-rim: rgba(255, 255, 255, .08); --pane-lit: inset 0 1px 0 rgba(255, 255, 255, .07);
+  --pane-shadow: 0 1px 0 rgba(0, 0, 0, .4), 0 18px 38px -24px rgba(0, 0, 0, .95); --dot: rgba(255, 255, 255, .075);
+  --bar-glass: rgba(19, 20, 23, .86); --board: rgba(255, 255, 255, .025); --board-rim: rgba(255, 255, 255, .07);
+}
+body::before { background: linear-gradient(180deg, var(--desk-top) 0, var(--desk) 45%, var(--desk-low) 100%) !important; }
+body::after { display: block; content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.35px); background-size: 22px 22px; background-position: 11px 11px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, rgba(0, 0, 0, .6) 55%, rgba(0, 0, 0, .28) 100%); mask-image: linear-gradient(180deg, #000 0, rgba(0, 0, 0, .6) 55%, rgba(0, 0, 0, .28) 100%); }
+.card, .glass, .dochead, .jobs-viz, .rhead, .ins-tile, .ins-kpi, .lib-top {
+  background: var(--pane-glass); border-color: var(--pane-rim); box-shadow: var(--pane-lit), 0 0 0 1px var(--pane-rim), var(--pane-shadow); }
+:root[data-theme] :is(.card, .glass, .dochead, .jobs-viz, .rhead, .ins-tile, .ins-kpi, .lib-top) { -webkit-backdrop-filter: blur(14px) saturate(1.15); backdrop-filter: blur(14px) saturate(1.15); }
+.kit.narrow .kit-bar { background: var(--bar-glass); -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2); }
+.bar::before { background: var(--bar-glass); }
+
+/* a review by area (Make, profile, insights, library; applications, documents; the interview): room, rows and colour */
+.board, .flow { align-items: start; }                                                /* a column or a step as tall as what it holds: no glass standing empty */
+.active-card .ac-next { -webkit-line-clamp: 2; }                                     /* a note's next step: two lines at most; a row's notes stretch alike and their bars meet at the foot */
+.tfoot { display: flex; align-items: center; gap: 6px; } .tfoot .when { margin-right: auto; }   /* a board card's foot: its day, then its keys */
+.tcard .btn.add-next { width: var(--ctl-h-sm); min-width: var(--ctl-h-sm); min-height: var(--ctl-h-sm); padding: 0; justify-content: center; color: var(--ink-3); }   /* "add a next step": a key in the foot, never an empty row */
+.tcard .btn.add-next svg { width: 14px; height: 14px; }
+:root, :root[data-theme] { --key-lift-hi: none; }                                     /* no lifted shadow under the pointer (11-09): the face and the rim deepen */
+:root .btn.primary:hover:not(:disabled), :root .btn.small.primary:hover:not(:disabled), :root .btn.sm.primary:hover:not(:disabled) { box-shadow: none; }   /* the main key rises a pixel, flat */
+#canvas { padding-bottom: 104px; }                                                    /* the last lines and the page keys scroll clear of the floating ask key */
+.swatches { grid-template-columns: repeat(4, minmax(0, 1fr)); }                       /* seven themes: four and three, never one alone on its row */
+.kit [data-c] { --h: var(--ink-2); }                                                  /* the kit's section letters in one ink: a hue for each letter read as a rainbow */
+.kit-tg h3 { color: var(--ink); }
+.kit-ch .kit-id { background: var(--badge-bg); box-shadow: inset 0 0 0 1px var(--badge-rim); }
+@media (min-width: 861px) { .kit-menu { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; } }   /* every section's chip in sight on a wide window, never past the edge */
+.hint.pr-topic { font-size: 12.5px; line-height: 1.5; }                               /* the line a question was phrased from: read, not squinted at */
+.pr-clock b { font: 600 13px/1 var(--sans, inherit); font-variant-numeric: tabular-nums; }   /* the timers in the panel's own words */
+:root[data-theme="dark"] { --note-interview: #2e2b21; --note-flap-int: #3e3a2b; }    /* in the dark a note stays dark paper; the interview's has its yellow strip */
+:root[data-theme="dark"] :is(.active-card, .tcard)[data-stage="interview"] { box-shadow: inset 0 3px 0 #e2b93b; }
+@media (max-width: 720px) { .seg.lib-groups { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .seg.lib-groups::-webkit-scrollbar { display: none; }
+  .seg.lib-groups button { flex: none; } }                                            /* the Library's seven groups: one row that slides on a phone, not three ragged rows */
+.lib-table, .tl-wrap, .daystable { scroll-margin-top: calc(var(--bar-h) + 16px); }   /* a new page of a list read from its top, clear of the bar */
+.menu-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+.menu-head h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.menu .seg { padding: 2px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--well); }   /* a choice of three in the settings: a filled pick, not a tab's line */
+.menu .seg button[aria-pressed="true"], :root[data-theme] .menu .seg button[aria-pressed="true"] { background: var(--key-face); color: var(--ink); box-shadow: inset 0 0 0 1px var(--key-edge); }
+.kit-body .fld.tr .th { display: block; padding-left: 0; text-indent: 0; } .kit-body .fld.tr .lab + .th { display: inline; }   /* a Korean scene's English note: a sentence a line too */
+.kit-body .fld.tr .th + .th { margin-top: .15em; }
+.kit-body .fld.tr.me .lead { font-weight: 650; color: var(--ink); }                   /* its conclusion first, as in the Korean above it */
+.jobrow .mono, .jobrow[data-stage="result"] .mono { width: 30px; height: 30px; font-size: 12px; justify-self: start; }   /* one size of initials down the list: an ended row is quieter in its words, not smaller in its box */
+.seg.stages, :root[data-theme] .seg.stages { padding: 2px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--well); }   /* the stage rail: one rimmed control, not a second row of tabs */
+.seg.stages button[aria-pressed="true"], :root[data-theme] .seg.stages button[aria-pressed="true"] { background: var(--key-face); color: var(--ink); box-shadow: inset 0 0 0 1px var(--key-edge); }

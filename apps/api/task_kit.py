@@ -19,6 +19,9 @@ SCRIPTS_AT_ONCE = 10  # interview scripts one click writes: about ten minutes of
 SCRIPT_WORKERS = 3  # scripts written side by side by a CLI agent
 
 
+
+NAMES_MADE = "# the resume's English names, made again on each refresh (lines above this one are the kit's own)"  # names.txt: where the made block starts
+
 class Kits:
     """Each job's interview kit: its server for the panel's /kit/<job>/, its folder and question map, and the scripts the agent
     writes for it."""
@@ -127,10 +130,21 @@ class Kits:
         st = self.ws.job(job_id) or {}  # the job's card
         company = str(st.get("company") or st.get("role") or job_id)  # how the questions name the company
         kit = read_json(iv / "kit.json", {}) or {}  # earlier settings, kept
-        kit.update(ui=lang, company={"ko": company, "en": company}, resume="interview/resume.txt")  # what this kit needs
+        was = kit.get("company") if isinstance(kit.get("company"), dict) else {}  # the kit's names for it so far
+        latin = re.search(r"\(([A-Za-z][\w .&+-]*)\)", company)  # 감마시스(gammasys): the Latin name written beside the Korean one
+        en = was["en"] if was.get("ko") == company and was.get("en") and was["en"] != company else (latin.group(1).strip() if latin else company)  # an English name written for this same company stays
+        kit.update(ui=lang, company={"ko": company, "en": en}, resume="interview/resume.txt")  # what this kit needs
         names = self.english_names(job_id)  # how the resume spells names in English
-        if names:  # the scenes' English lines take these spellings, and the checks accept them
-            (iv / "names.txt").write_text("".join(f"- {ko} = {en}\n" for ko, en in names.items()), encoding="utf-8")  # one pair a line; .txt, so it is not read as scenes
+        nf = iv / "names.txt"  # one pair a line; .txt, so it is not read as scenes
+        own = []  # the kit's own lines, written by hand or carried from another kit: kept as they are
+        for ln in nf.read_text(encoding="utf-8").splitlines() if nf.is_file() else []:
+            if ln.strip() == NAMES_MADE:  # the resume's block starts here: made again below
+                break
+            own.append(ln)
+        spelled = {ln.split(" = ", 1)[0].strip("- ").strip() for ln in own if " = " in ln}  # the names the kit spells itself
+        made = [f"- {ko} = {en}" for ko, en in names.items() if ko not in spelled]  # the resume's spellings of the rest
+        if made or spelled:  # the scenes' English lines take these spellings, and the checks accept them
+            nf.write_text("\n".join(own + ([NAMES_MADE] + made if made else [])) + "\n", encoding="utf-8")
             kit["names"] = "interview/names.txt"  # named in the kit
         else:  # no English names known
             kit.pop("names", None)  # a name of an older run must not stay

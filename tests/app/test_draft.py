@@ -521,6 +521,30 @@ class Draft(unittest.TestCase):
         entry = {"text": "a question", "ask": {"en": ["a question"]}, "source": "posting.md:1", "kind": "posting"}  # any entry
         self.assertIn("알파페이 = Alpha Pay", Evidence(job, []).collect(entry))  # and the prompt carries it
 
+    def test_a_refresh_keeps_the_kit_s_own_names_and_its_english_company_name(self):
+        """Names written by hand or carried from another kit, and the English name of the company, stay through a refresh;
+        the resume's spellings are added under them for the rest, and made again each time."""
+        self.write()  # a draft, whose English sentences declare their spellings of names
+        d = self.stored()
+        d["evidence"].append({"at": "summary.intro", "lang": "en", "text": "At Alpha Pay.", "ev": [], "names": {"Alpha Pay": "알파페이", "Beta Labs": "베타랩스"}})
+        (self.tmp / "workspace" / "jobs" / GENERAL / "draft.json").write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        jid = self.c.post("/api/v1/jobs", {"company": "감마", "posting": POSTING})["job"]
+        self.c.wait(f"analyze:{jid}")
+        iv = self.tmp / "workspace" / "jobs" / jid / "interview"
+        iv.mkdir(parents=True, exist_ok=True)
+        (iv / "names.txt").write_text("- 감마 = Gamma\n- 베타랩스 = Beta Lab\n", encoding="utf-8")  # the kit's own, one spelled its own way
+        (iv / "kit.json").write_text(json.dumps({"company": {"ko": "감마", "en": "Gamma"}}), encoding="utf-8")
+        for _ in range(2):  # twice: the made block is made again, never stacked
+            self.c.api.tasks.ensure_kit(jid, "ko")
+        text = (iv / "names.txt").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(["- 감마 = Gamma", "- 베타랩스 = Beta Lab"], text[:2])  # the kit's own lines first, as written
+        self.assertIn("- 알파페이 = Alpha Pay", text)  # the resume's spelling of the rest
+        self.assertNotIn("- 베타랩스 = Beta Labs", text)  # never a second spelling of a name the kit spells itself
+        self.assertEqual(1, sum(ln.startswith("# the resume") for ln in text))
+        kit = json.loads((iv / "kit.json").read_text(encoding="utf-8"))
+        self.assertEqual({"ko": "감마", "en": "Gamma"}, kit["company"])  # the English name written for the company stays
+        self.assertEqual("interview/names.txt", kit["names"])
+
     def test_write_more_scripts_goes_on_and_the_kit_shows_them(self):
         """One click writes the likeliest questions, the search view's items hold them at once, and the next click goes on."""
         jid = self.c.post("/api/v1/jobs", {"company": "감마", "posting": POSTING})["job"]  # a job

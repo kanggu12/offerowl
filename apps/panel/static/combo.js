@@ -148,6 +148,7 @@
     btn.removeAttribute("aria-activedescendant");
     open = null;
     if (focus && btn.isConnected) btn.focus({ preventScroll: true });
+    if (typeof UI !== "undefined" && UI.redrawAfterList) { UI.redrawAfterList = false; setTimeout(() => { if (typeof render === "function") render(); }, 0); }   // a redraw that waited for the list
   }
 
   function keys(e, sel, btn) {                                                      // the keyboard on a key
@@ -179,6 +180,7 @@
       if (sel._combo.disabled !== sel.disabled) sel._combo.disabled = sel.disabled;
     }
   });
+  window.comboOpenIn = (el) => !!(open && open.btn.isConnected && el.contains(open.btn));   // app.js keeps a pane as it is while one of its lists is open
   window.comboDress = (root) => { for (const sel of (root || document).querySelectorAll("select:not(.combo-native)")) dress(sel); };   // app.js dresses a pane right after drawing it, before the keyboard goes back
   function start() {
     for (const sel of document.querySelectorAll("select")) dress(sel);

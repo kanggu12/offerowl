@@ -89,6 +89,8 @@ class Api:
         self.tasks = Tasks(self.ws, self.facts, self.card)  # long tasks
         self._fit_cache: dict = {}  # (job, posting hash, profile hash) -> fit
         self._fit_lock = threading.Lock()  # the page's polls and a write may ask for the same fit at once
+        self._fit_pending: dict = {}  # job -> (key, posting): fits to make again in the background after the profile changed
+        self._fit_worker = None  # the one thread that makes them
         self._settings_lock = threading.Lock()  # two changes of the settings at once (two quick switches) never lose one
         self._restoring = threading.Lock()  # one restore at a time
         threading.Thread(target=self.card.refresh, kwargs={"force": True}, daemon=True, name="agent").start()  # first look
@@ -524,13 +526,59 @@ class Api:
         with self._fit_lock:  # one computation per key, and the cache never changes while it is read
             return self._fit_for(key, job_id, posting, F)  # cached or made now
 
+    def fit_summary(self, job_id: str, posting: str, ended: bool = False) -> dict:
+        """The fit the lists show (the cards, the board, the list): the one for the profile now when it is made, else the last
+        one made for this posting while a thread makes the new one, so a change of one fact answers at once instead of after
+        every application's fit is made again (seconds with a few dozen applications). The fit tab asks fit() itself, made now."""
+        from . import fit as F  # the fit by words
+        key = (job_id, hashlib.sha1(posting.encode("utf-8")).hexdigest(), self.profile_hash())  # what the fit depends on
+        with self._fit_lock:
+            if key in self._fit_cache:  # made for this profile
+                return self._fit_cache[key]
+            older = next((v for k, v in self._fit_cache.items() if k[0] == job_id and k[1] == key[1]), None)  # the same posting, an older profile
+            if older is None:  # never made for this posting: made now
+                return self._fit_for(key, job_id, posting, F)
+            if ended:  # an application that ended keeps the fit it had in the lists; its fit tab makes the new one when opened
+                return older
+            self._fit_pending[job_id] = (key, posting)  # made again in the background
+            if self._fit_worker is None:
+                self._fit_worker = threading.Thread(target=self._fit_run, name="fit-again", daemon=True)
+                self._fit_worker.start()
+        return older  # the last fit, until the new one is there (the next poll)
+
+    def _fit_run(self) -> None:
+        """Make the pending fits again, one at a time, then stop. Each is made outside the lock, so a poll that reads the
+        lists meanwhile is never kept waiting."""
+        from . import fit as F
+        time.sleep(0.8)  # after the answer that changed the profile has gone: a thread busy with fits slows every read of a file (the GIL)
+        while True:
+            with self._fit_lock:
+                if not self._fit_pending:  # all made
+                    self._fit_worker = None
+                    return
+                job_id, (key, posting) = self._fit_pending.popitem()
+            try:
+                if key[2] != self.profile_hash():  # the profile changed again: the next poll asks for the newer one
+                    continue
+                made = self._fit_make(key, posting, F)  # the slow part, unlocked
+                with self._fit_lock:
+                    if key not in self._fit_cache and key[2] == self.profile_hash():
+                        self._fit_cache = {k: v for k, v in self._fit_cache.items() if k[0] != job_id}  # older fits of this job go
+                        self._fit_cache[key] = made
+            except Exception:  # noqa: BLE001  one job's fit failing never stops the others; fit() says it when asked
+                log.exception("fit for %s", job_id)
+
+    def _fit_make(self, key: tuple, posting: str, F) -> dict:
+        """A fit made now, for a cache key."""
+        prof = self.facts.profile()  # the profile now
+        return F.compute(prof, posting, evmap=self.facts.evidence(), cands=self.facts.candidates(), profile_key=key[2]) if posting.strip() and prof.get("roles") else \
+            {"score": 0, "by": "words", "counts": {"strong": 0, "weak": 0, "none": 0}, "lines": [], "gaps": [], "reason": "no_profile" if posting.strip() else "no_posting"}
+
     def _fit_for(self, key: tuple, job_id: str, posting: str, F) -> dict:
         """The fit for a cache key (the caller holds the lock)."""
         if key not in self._fit_cache:  # not computed for this pair yet
-            prof = self.facts.profile()  # the profile now
             self._fit_cache = {k: v for k, v in self._fit_cache.items() if k[0] != job_id}  # older fits of this job go
-            self._fit_cache[key] = F.compute(prof, posting, evmap=self.facts.evidence(), cands=self.facts.candidates(), profile_key=key[2]) if posting.strip() and prof.get("roles") else \
-                {"score": 0, "by": "words", "counts": {"strong": 0, "weak": 0, "none": 0}, "lines": [], "gaps": [], "reason": "no_profile" if posting.strip() else "no_posting"}
+            self._fit_cache[key] = self._fit_make(key, posting, F)
         return self._fit_cache[key]  # the same answer while nothing changed
 
     def general_view(self) -> dict:
@@ -568,7 +616,7 @@ class Api:
         for b in builds.values():  # each edition
             b["stale"] = self.stale(st["id"], b)  # facts, the draft or the job's own edition changed since
         posting = self.ws.posting(st["id"])  # empty when it is gone
-        f = self.fit(st["id"], posting)  # the fit (cached), from the same reading
+        f = self.fit_summary(st["id"], posting, st.get("stage") == "result")  # the fit (cached; after a change of the profile, the last one while the new one is made)
         return {**st, "plan": {k: plan.get(k) for k in ("skillsFocus", "competencyWeak", "projectOrder", "at", "by")},  # only what the page shows
                 "questions": self.questions_of(st["id"]),  # the application's own questions and their answers
                 "materials": materials.listing(self.ws, st["id"]),  # the decks, notes and briefs brought in for its interview
@@ -615,6 +663,13 @@ class Api:
         with self.tasks.one_read():  # the deck source's stamp worked out once for every edition, not once per edition
             return self._state()
 
+    def materials_now(self) -> list[dict]:
+        """The person's files, each read one with the facts it holds now: the count kept when it was read falls behind once a
+        fact of it is merged or deleted, and the Make view showed one more than the profile."""
+        from collections import Counter  # facts per file
+        held = Counter((c.get("source") or {}).get("material") for c in self.facts.candidates())
+        return [{**m, "facts": held.get(m["id"], 0)} if m.get("state") == "done" else m for m in self.ws.materials()]
+
     def facts_summary(self) -> dict:
         """The facts as the state carries them: the counts, and a stamp of the rows (a short hash of them) that changes with any
         fact's state, edit or text, so the profile view knows when to read the rows again."""
@@ -634,7 +689,7 @@ class Api:
         current = pick if pick == GENERAL or any(j["id"] == pick for j in jobs + editions) else (jobs[-1]["id"] if jobs else None)
         undo_id, undo_label = self.ws.newest()  # what the undo key takes back, and its name: a toast's Undo sends the name, so it never takes back a later change
         return {  # one answer redraws the whole page
-            "app": "offerowl", "api": API_VERSION, "version": app_version(), "settings": self.settings(), "styles": self.style_names(), "blind": self.blind_view(), "desk": self.desk_view(), "photo": self.photo_state(), "agent": self.card.card(), "agent_calls": self.agent_calls(), "materials": self.ws.materials(),
+            "app": "offerowl", "api": API_VERSION, "version": app_version(), "settings": self.settings(), "styles": self.style_names(), "blind": self.blind_view(), "desk": self.desk_view(), "photo": self.photo_state(), "agent": self.card.card(), "agent_calls": self.agent_calls(), "materials": self.materials_now(),
             "facts": self.facts_summary(), "details": self.facts.details(), "draft": self.draft_view(prof), "problems": problems(prof),
             "jobs": jobs, "job": current, "general": self.general_view(), "editions": editions, "tasks": tasks, "runs": autopilot_runs(self.ws), "onboarding": self.onboarding(),
             "english": bool(self.tasks.english_for(current)), "profile_lang": self.tasks.profile_lang(), "engine": self.tasks.engine_ready(),
@@ -1042,7 +1097,9 @@ class Api:
                 st = self.ws.job(jid)  # read again inside the step
                 if req.get("stage") in STAGES and req["stage"] != st.get("stage"):  # a move
                     st["stage"] = req["stage"]  # the new column
-                    st.setdefault("dates", {})[req["stage"]] = today()  # the day it moved
+                    dates = st.setdefault("dates", {})
+                    if not dates.get(req["stage"]):  # the day it first reached that stage stays: moving back and forth never rewrites it
+                        dates[req["stage"]] = today()  # the day it moved
                 if isinstance(req.get("date"), str) and (not req["date"] or is_day(req["date"])):  # a real day (YYYY-MM-DD), or empty to clear
                     st.setdefault("dates", {})[st["stage"]] = req["date"]  # the date of the stage it is in
                 for stage, day in (req.get("dates") or {}).items() if isinstance(req.get("dates"), dict) else ():  # any stage's day, as the progress tab edits them

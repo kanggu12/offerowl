@@ -460,7 +460,7 @@ class Practice:  # one per server
         from interview import transcribe  # the optional speech model
         stt_ok, stt_why = (True, "stand-in") if self.stt else transcribe.available()  # is a speech model installed
         return {"agent": self.agent(), "stt": stt_ok, "stt_why": stt_why, "kinds": list(KINDS), "default_kinds": list(DEFAULT_KINDS),
-                "long_pause": LONG_PAUSE, "history": self.store.list(10)}
+                "long_pause": LONG_PAUSE, "history": self.store.list(10), "speak": self.lang()}   # the interview's language: the page asks for answers in it
 
     # ----- the questions -----
 

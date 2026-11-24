@@ -103,7 +103,7 @@ function prAskHtml(busy) {  // the question being asked, with the answer control
   return `<div class="pr-card pr-ask"><div class="pr-qhead"><span class="pr-chip">${esc(fmt("pr_q", { i: PR.qi + 1, n }))}</span><span class="pr-chip pr-kind">${esc(kind)}</span></div>` +
     `${topic}<p class="pr-question">${esc(PR.ask)}</p>${ko}` +
     `<div class="pr-actions">${rec}</div>` +
-    `<textarea id="prText" rows="4" placeholder="${esc(fmt("pr_placeholder"))}"${busy || recording ? " disabled" : ""}>${esc(PR.draft || "")}</textarea>` +
+    `<textarea id="prText" rows="4" placeholder="${esc(fmt(PR.setup && PR.setup.speak === "ko" ? "pr_placeholder_ko" : "pr_placeholder"))}"${busy || recording ? " disabled" : ""}>${esc(PR.draft || "")}</textarea>` +
     `<div class="pr-actions"><button type="button" class="pr-key pr-go" id="prSubmit"${busy || recording ? " disabled" : ""}>${esc(fmt("pr_submit"))}</button>` +
     `<button type="button" class="pr-key" id="prSkip"${busy || recording ? " disabled" : ""}>${esc(fmt("pr_skip"))}</button>` +
     `<button type="button" class="pr-key" id="prEnd"${busy || recording ? " disabled" : ""}>${esc(fmt("pr_end"))}</button>` +

@@ -61,6 +61,8 @@ class RenameTest(Tmp):
         ws = Workspace(self.root / "ws")
         self.make_job(ws, "감마클라우드", "감마클라우드")
         write(ws.root / "out" / "interview" / "감마클라우드" / "map.json", {"q": 1})  # the kit's output
+        write(ws.root / "out" / "interview" / "감마클라우드" / "plan.json", {"job": "감마클라우드", "questions": []})  # the question map
+        write(ws.root / "out" / "runs.json", [{"job": "감마클라우드", "made": 1}, {"job": "omega", "made": 2}])  # the autopilot's runs
         ws.set_prefs(job="감마클라우드")
         write(ws.root / ".history" / "000001.json", {"t": 1.0, "label": {"code": "undo_board"}, "coalesce": None,
                                                     "files": {"jobs/감마클라우드/status.json": '{\n "id": "감마클라우드"\n}'}, "made": {}})
@@ -69,6 +71,9 @@ class RenameTest(Tmp):
         self.assertFalse((ws.root / "jobs" / "감마클라우드").exists())
         self.assertEqual("gamma", ws.job("gamma")["id"])
         self.assertTrue((ws.root / "out" / "interview" / "gamma" / "map.json").is_file())
+        self.assertEqual("gamma", json.loads((ws.root / "out" / "interview" / "gamma" / "plan.json").read_text(encoding="utf-8"))["job"])
+        runs = json.loads((ws.root / "out" / "runs.json").read_text(encoding="utf-8"))
+        self.assertEqual(["gamma", "omega"], [r["job"] for r in runs])  # a finished run opens the job under its new id; others stay
         self.assertEqual("gamma", ws.prefs()["job"])
         self.assertEqual("gamma", ws.resolve_job("감마클라우드"))  # an old address still finds it
         step = json.loads((ws.root / ".history" / "000001.json").read_text(encoding="utf-8"))
@@ -110,6 +115,10 @@ SRC_QA = """# Gamma kit
 **해석** 자기소개 부탁드립니다.
 **나** I build **GPU clusters** / and run them.
 **해석** 저는 GPU 클러스터를 만들고 운영합니다.
+**면접관** (웃으며) Busy work?
+**해석** (웃으며) 바쁘셨겠네요?
+**나** (잠시 생각하고) Yes, / **every** night.
+**해석** 네, 매일 밤이요.
 
 ### R2. Why Gamma / Why Gamma?
 
@@ -119,6 +128,40 @@ SRC_QA = """# Gamma kit
 **해석** 왜 감마클라우드인가요?
 **나** Because Gamma Cloud runs GPUs.
 **해석** 감마클라우드가 GPU를 운영하기 때문입니다.
+
+## G. Gamma Cloud, the company
+
+### G1. Our platform / Our platform
+
+**면접관** What do you know about our platform?
+**해석** 저희 플랫폼에 대해 아는 것은요?
+**나** It runs GPUs for banks.
+**해석** 은행을 위해 GPU를 운영합니다.
+
+### G2. The early-stage risk / The early-stage risk
+
+**면접관** What worries you about joining early?
+**해석** 초기에 합류하는 데 걱정은요?
+**나** Little: the work is the same.
+**해석** 별로 없습니다. 일은 같습니다.
+
+## T. Tech
+
+### T1. The roadmap / The roadmap
+
+**면접관** How would you serve our models?
+**해석** 저희 모델을 어떻게 서빙하겠어요?
+**나** With a router in front of the replicas.
+**해석** 복제본 앞에 라우터를 두겠습니다.
+
+- **주의**: company.md N4 의 로드맵에 기댄 답.
+
+### T2. KV cache / KV cache
+
+**면접관** What is a KV cache?
+**해석** KV 캐시가 뭔가요?
+**나** The keys and values kept for the next token.
+**해석** 다음 토큰을 위해 남겨 둔 키와 값입니다.
 
 ## C. Short cues
 
@@ -156,7 +199,8 @@ class CarryTest(Tmp):
         src = self.root / "jobs" / "gamma" / "interview"
         dst = self.root / "jobs" / "delta" / "interview"
         write(src / "qa.md", SRC_QA)
-        write(src / "kit.json", {"company": {"ko": "감마클라우드", "en": "Gamma Cloud"}, "sources": [{"file": "qa.md", "role": "scenes"}]})
+        write(src / "kit.json", {"company": {"ko": "감마클라우드", "en": "Gamma Cloud"}, "sources": [{"file": "qa.md", "role": "scenes"}],
+                                 "sections": {"R": "About me", "T": "Tech", "C": "Cues", "G": "Gamma"}})
         write(src / "alts.json", {"R1": ["Introduce yourself"], "R2": ["Why us?"]})
         write(dst / "qa.md", DST_QA)
         write(dst / "kit.json", {"company": {"ko": "델타", "en": "Delta"}, "sources": [{"file": "qa.md", "role": "scenes"}]})
@@ -167,7 +211,7 @@ class CarryTest(Tmp):
         ids of its own; the target's own file and ids are untouched; kit.json names the carried file after its own."""
         src, dst = self.kits()
         report = C.carry(src, dst, korean=False)
-        self.assertEqual(["Why Gamma / Why Gamma?"], report["left"])
+        self.assertEqual(["Why Gamma / Why Gamma?", "Our platform / Our platform", "The early-stage risk / The early-stage risk", "The roadmap / The roadmap"], report["left"])
         self.assertEqual({"R1": "R101"}, report["moved"])
         carried = (dst / "qa-carried.md").read_text(encoding="utf-8")
         self.assertIn("### R101. Tell me about yourself", carried)
@@ -181,6 +225,24 @@ class CarryTest(Tmp):
         ids = [it["id"] for it in __import__("interview.corpus", fromlist=["load"]).load(Job(dst.parent))[0]]
         self.assertEqual(len(ids), len(set(ids)))  # no id twice in the kit, so no "-2" ever renames the target's own
 
+    def test_a_section_about_the_company_and_a_scene_on_its_research_stay_behind(self):
+        """A section whose heading names the earlier company stays behind whole (scenes in it need not name it), as does a scene
+        that rests on that company's research (its notes cite company.md); the carried sections' tab names come along where the
+        target has none for their letter."""
+        src, dst = self.kits()
+        write(dst / "kit.json", {"company": {"ko": "델타", "en": "Delta"}, "sources": [{"file": "qa.md", "role": "scenes"}], "sections": {"R": "Delta's R"}})
+        report = C.carry(src, dst)
+        carried = (dst / "qa-carried.md").read_text(encoding="utf-8")
+        self.assertNotIn("Gamma Cloud, the company", carried)
+        self.assertNotIn("The early-stage risk", carried)  # in that section, though it does not name the company
+        self.assertNotIn("The roadmap", carried)  # rests on company.md
+        self.assertIn("KV cache", carried)  # the rest of its section comes
+        self.assertTrue({"The early-stage risk / The early-stage risk", "The roadmap / The roadmap"} <= set(report["left"]))
+        sections = json.loads((dst / "kit.json").read_text(encoding="utf-8"))["sections"]
+        self.assertEqual("Delta's R", sections["R"])  # the target's own name for its letter stays
+        self.assertEqual("Tech", sections["T"])
+        self.assertNotIn("G", sections)  # the section that stayed behind brings no tab
+
     def test_for_a_korean_interview_an_english_scene_is_turned_round(self):
         """The checked Korean goes on top, spoken; the English goes under it, plain; the kit reads as spoken in Korean."""
         src, dst = self.kits()
@@ -188,6 +250,10 @@ class CarryTest(Tmp):
         carried = (dst / "qa-carried.md").read_text(encoding="utf-8")
         self.assertIn("**나** 저는 GPU 클러스터를 만들고 운영합니다.\n**해석** I build GPU clusters and run them.", carried)
         self.assertNotIn("**", carried.split("**해석** I build")[1].split("\n")[0])  # no stress marks left in the English
+        # a Korean stage note marks how a line is said: an English line with one is still English and is turned round, the note
+        # stays on the spoken Korean (put there when the Korean lacked it) and leaves the English note under it
+        self.assertIn("**면접관** (웃으며) 바쁘셨겠네요?\n**해석** Busy work?", carried)
+        self.assertIn("**나** (잠시 생각하고) 네, 매일 밤이요.\n**해석** Yes, every night.", carried)
         self.assertEqual("ko", check.speaks(Job(dst.parent)))
         _, _, bad = check.run(Job(dst.parent))  # the checker reads the turned scenes as Korean scenes
         self.assertEqual([], [(it["id"], p) for it, p in bad if it["id"] == "R101"])

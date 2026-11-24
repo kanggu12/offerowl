@@ -351,11 +351,25 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         try:
             jid = api.need_job({"job": urllib.parse.unquote(job)})
         except ValueError:  # no such application, one in the Trash, or a name no job can have (any other error is a bug: answered as one)
+            if method == "GET" and self.headers.get("Sec-Fetch-Mode") == "navigate" and self.headers.get("Sec-Fetch-Dest") == "document":
+                self.send_response(302)  # a person opening an address of an application that is gone: the panel, not a bare answer
+                self.send_header("Location", "/")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             return self.refuse(404, {"error": "no_job"})  # a body still on its way is read first
         if method == "GET" and jid != urllib.parse.unquote(job):  # an id from before a rename (a bookmark): the address the job has now
             self.send_response(301)
             self.send_header("Location", f"/kit/{urllib.parse.quote(jid, safe='')}/{urllib.parse.quote(sub, safe='/')}"
                              + (f"?{urllib.parse.quote(parts.query, safe='=&%+')}" if parts.query else ""))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if method == "GET" and not sub and self.headers.get("Sec-Fetch-Mode") == "navigate" and self.headers.get("Sec-Fetch-Dest") == "document":
+            # a person opening the kit's own address (a bookmark, a link from before): its scripts in the panel's Interview
+            # tab, inside the panel's menus. Its printable pages, its practice and its API stay at /kit/<job>/...
+            self.send_response(302)
+            self.send_header("Location", f"/?job={urllib.parse.quote(jid, safe='')}&show=scripts")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return

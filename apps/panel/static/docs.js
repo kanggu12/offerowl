@@ -723,14 +723,14 @@ function checksBand(b) {                                                        
   if (!lines.length) return null;                                                   // passed, or not made
   return h("div", { class: "band", role: "status" }, h("p", { text: t("These documents did not pass their checks:") }),
     h("ul", { class: "checklist" }, lines.slice(0, 8).map((x) => h("li", { text: checkWords(x) }))),
-    lines.length > 8 ? h("p", { class: "hint", text: t("{n} more", { n: lines.length - 8 }) }) : null);
+    lines.length > 8 ? moreRow(t("{n} more", { n: lines.length - 8 })) : null);
 }
 function polishBand(b) {                                                            // what the checks would polish: said beside the pages, never a reason to keep them home
   const items = b && Array.isArray(b.polish) ? b.polish : [];
   if (!items.length || (b.issues || []).length) return null;                        // nothing to polish, or a failure says more first
   return h("div", { class: "band info", role: "status" }, h("p", { text: t("Worth a look before you send them:") }),
     h("ul", { class: "checklist" }, items.slice(0, 5).map((x) => h("li", { text: checkWords(x) }))),
-    items.length > 5 ? h("p", { class: "hint", text: t("{n} more", { n: items.length - 5 }) }) : null);
+    items.length > 5 ? moreRow(t("{n} more", { n: items.length - 5 })) : null);
 }
 // The pages an edition changed since the copy that last went out (its baseline: apps/api/task_compare.py), above the pages:
 // which pages of which document, the picture of the changed bands on a click, and the key that keeps these pages as the baseline

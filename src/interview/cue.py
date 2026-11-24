@@ -80,7 +80,7 @@ def scene_cards(job, ids=None, sections=None, roles=("scenes",)):
 
 CSS = """
 @font-face { font-family: "Pretendard Variable"; src: url("fonts/PretendardVariable.woff2") format("woff2-variations"); font-weight: 45 920; }
-:root { --ink: #1d1c1d; --ink-2: #3f3e3f; --off: #767676; --rule: #bbbabb; --hl: rgba(240, 186, 20, .9); --red: #e8453f; --chip: #0366ab; }
+:root { --ink: #1d1c1d; --ink-2: #3f3e3f; --off: #767676; --rule: #bbbabb; --hl: rgba(240, 186, 20, .9); --red: #e8453f; --chip: #3f3e3f; }
 * { box-sizing: border-box; }
 html { background: #f2f2f3; }
 body { margin: 0; padding: 18px; color: var(--ink); font: 400 10.5pt/1.5 "Pretendard Variable", Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
@@ -88,12 +88,13 @@ body { margin: 0; padding: 18px; color: var(--ink); font: 400 10.5pt/1.5 "Preten
 .bar { display: flex; align-items: center; gap: 12px; max-width: 210mm; margin: 0 auto 14px; font-size: 10pt; color: var(--ink-2); }
 .bar h1 { margin: 0; font-size: 13pt; font-weight: 750; }
 .bar .n { color: var(--off); }
-.bar button { margin-left: auto; height: 32px; padding: 0 14px; border: 1px solid rgba(0, 0, 0, .14); border-radius: 5px; cursor: pointer;
-  background: linear-gradient(#fff, rgba(255, 255, 255, .6)); box-shadow: 1px 2px 3px rgba(0, 0, 0, .18), inset 0 1px 0 #fff; font: inherit; font-weight: 650; }
+.bar button { margin-left: auto; height: 32px; padding: 0 14px; border: 1px solid rgba(0, 0, 0, .18); border-radius: 2px; cursor: pointer;
+  background: #fff; box-shadow: 0 1px 1px rgba(0, 0, 0, .05); font: inherit; font-weight: 650; transition: background-color .15s, border-color .15s; }
+.bar button:hover { background: #f5f5f5; border-color: rgba(0, 0, 0, .32); }
 .sheet { max-width: 210mm; margin: 0 auto; column-count: 2; column-gap: 6mm; }
 .cue { break-inside: avoid; margin: 0 0 6mm; padding: 4mm 4.5mm 3.5mm; background: #fff; border: 1px dashed var(--rule); border-radius: 2px; }
 .cue h2 { display: flex; gap: 6px; align-items: baseline; margin: 0 0 1.5mm; padding-bottom: 1.5mm; border-bottom: 1.5px solid var(--rule); font-size: 10.5pt; line-height: 1.35; font-weight: 720; }
-.cue h2 .id { flex: none; padding: 0 5px; border-radius: 2px; font-size: 9pt; color: var(--chip); background: rgba(3, 102, 171, .12); }
+.cue h2 .id { flex: none; padding: 0 5px; border-radius: 2px; font-size: 9pt; color: var(--chip); background: rgba(24, 24, 27, .07); }
 .cue h2 .ko { display: block; font-size: 8pt; font-weight: 500; color: var(--off); }
 .cue .q { margin: 2mm 0 .6mm; font-size: 8.5pt; line-height: 1.4; color: var(--off); }
 .cue .q::before { content: attr(data-who) " "; font-weight: 700; }

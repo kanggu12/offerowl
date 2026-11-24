@@ -53,8 +53,8 @@ def script_data(result: dict, folder: pathlib.Path) -> dict:
     brief = result["brief"]
     lang = brief["lang"]
     W = WORDS[lang]
-    accent = str((brief.get("theme") or {}).get("accent") or "")  # the company's accent marks order, else the deck's navy
-    accent = accent if re.fullmatch(r"#[0-9a-fA-F]{6}", accent) else "#1B2E4B"  # only a colour: a planted talk.json must not reach the style
+    accent = str((brief.get("theme") or {}).get("accent") or "")  # the company's accent marks order, else ink (11-24: no navy)
+    accent = accent if re.fullmatch(r"#[0-9a-fA-F]{6}", accent) else "#18181B"  # only a colour: a planted talk.json must not reach the style
     num = lambda v: int(v) if isinstance(v, (int, float)) or (isinstance(v, str) and v.isdigit()) else 0  # noqa: E731  a page or a time, as a number only
     slides = result["slides"]
     pics = pictures(folder)  # one per slide

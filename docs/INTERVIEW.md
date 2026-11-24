@@ -85,6 +85,10 @@ My lines carry speech marks: ` / ` for a breath, ` // ` between sentences inside
 one minute. What the person did comes only from evidence, and how a tool works may come from general knowledge, in the
 present tense.
 
+On the page and in the panel a line reads as a script: each ` // ` starts a new line, and a long line written without
+them reads one sentence a line (never inside a highlight or a stressed run). In a scene spoken in Korean, an answer whose
+phrase is not marked has its first sentence, the conclusion, in bold.
+
 ## Carrying a kit
 
 A new application's interview starts from everything prepared before: the Interview tab's **Bring its scripts** (on the
@@ -129,7 +133,7 @@ Every key is optional.
 | `resume`, `portfolio` | first `submitted/*resume*` and `*portfolio*` file | relative to the job folder; `.txt`, `.md` or `.pdf` |
 | `materials` | `posting.md`, `research/*.md`, `submitted/*.txt`, `submitted/*.md` | job-relative patterns that ground facts, besides the profile, the stories, the submitted resume and portfolio (PDFs too) and every markdown file of the interview folder |
 | `research` | `research/*.md` | company research for the question map |
-| `names` | none | a job-relative file of `Korean = English` lines: the spellings a scene's English lines use for names. They join the evidence of every drafted scene and ground the checks. The panel writes it from the resume draft and the profile's English names |
+| `names` | none | a job-relative file of `Korean = English` lines: the spellings a scene's English lines use for names. They join the evidence of every drafted scene and ground the checks. The panel writes it from the resume draft and the profile's English names, under the kit's own lines (written by hand or carried), which a refresh keeps |
 | `grow_skip` | none | ids or section letters left out of the length-growth rule |
 | `draft_sections` | `asked L, posting P, resume R, portfolio F, term Q, behavioral D, company C, opening O, scenario E, technical T` | the section letter a drafted scene of each kind joins (`asked`: a free letter when the kit already uses L) |
 | `evidence_chars` | `18000` | characters of evidence for one drafted scene; lower it for a local model with a small context |
@@ -396,7 +400,9 @@ body but the recording.
 | `POST /api/practice/transcribe` | The recording as the body, at most 30 MiB: its words, or 503 when no speech model runs here |
 
 In the panel, a job that is not there answers 404 `no_job`, one with no kit 404 `no_kit`, and a kit whose server stopped
-502 `kit_unreachable`.
+502 `kit_unreachable`. A person who opens `/kit/<job>/` itself in a browser (a bookmark, an older link) is sent to the job's
+scripts in the panel's Interview tab (`/?job=<job>&show=scripts`), inside the panel's menus; the printable pages, the practice
+and the API under it answer as above, and an id the job had before a rename is sent on to the one it has now.
 
 ## Checks
 

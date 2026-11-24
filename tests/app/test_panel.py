@@ -358,6 +358,11 @@ class TestTracker(PanelCase):
         self.assertEqual("2026-10-05", job["dates"]["submitted"])
         self.assertNotIn("nope", job["dates"].values())  # what is no day is left out
         self.assertEqual({"preparing": "2026-10-01", "submitted": "2026-10-05"}, job["days"])  # the days that count
+        # moving back and forth keeps the day a stage was first reached (11-24 review: a press on the stage rail rewrote it to today)
+        self.post("/api/v1/tracker/edit", {"job": jid, "stage": "preparing"})
+        self.post("/api/v1/tracker/edit", {"job": jid, "stage": "submitted"})
+        job = next(j for j in self.get("/api/v1/state")["jobs"] if j["id"] == jid)
+        self.assertEqual(("submitted", "2026-10-05"), (job["stage"], job["dates"]["submitted"]))
         self.assertEqual([], validate.check_file("job", self.tmp / "data" / "workspace" / "jobs" / jid / "status.json"))  # still fits its schema
         self.assertIsNone(self.post("/api/v1/tracker/round", {"job": jid, "id": call["id"], "remove": True})["round"])  # off the card
         self.post("/api/v1/undo", {})  # and back

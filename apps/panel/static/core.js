@@ -33,6 +33,7 @@ function icon(name, w) {                                                        
   const filled = name === "pause";                                                  // the one solid mark
   for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", fill: filled ? "currentColor" : "none", stroke: filled ? "none" : "currentColor", "stroke-width": "1.8",
     "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false" })) s.setAttribute(k, v);  // outline in the text's colour
+  s.setAttribute("data-i", name);                                                   // its name, so a key can move its mark the way it points (skin.css)
   if (w) { s.setAttribute("width", w); s.setAttribute("height", w); }               // a size of its own; else the stylesheet's
   s.innerHTML = ICONS[name] || "";                                                  // fixed paths written here, never data
   return s;                                                                         // ready to put inside a key
@@ -645,19 +646,22 @@ function go(view) {                                                             
 }
 
 // ---------------------------------------------------------------- pages of a long list
-function pager(page, pages, turn, info) {                                           // where the list stands on the left; the pages, numbered, on the right
+function pager(page, pages, turn, info) {                                           // where the list stands on the left; on the right one key back, the page with its list, one key on
   if (pages <= 1) return info ? h("div", { class: "pgr" }, h("span", { class: "pgr-info", text: info })) : null;
-  const shown = new Set([0, pages - 1, page - 1, page, page + 1].filter((p) => p >= 0 && p < pages));   // the ends, and the pages around this one
-  const nums = [...shown].sort((a, b) => a - b), keys = [];
-  nums.forEach((p, i) => {
-    if (i && p - nums[i - 1] > 1) keys.push(h("span", { class: "pgr-gap", "aria-hidden": "true", text: "…" }));   // pages left out
-    keys.push(h("button", { type: "button", class: "pgr-n", "aria-current": p === page ? "page" : null, "aria-label": t("Page {n}", { n: p + 1 }), onclick: () => turn(p), text: String(p + 1) }));
-  });
-  return h("nav", { class: "pgr", "aria-label": t("Pages") }, info ? h("span", { class: "pgr-info", text: info }) : null,
+  const pick = h("select", { class: "pgr-pick", "aria-label": t("Go to page"), onchange: (e) => turn(Number(e.target.value)) },   // the panel's own dropdown (combo.js): "3 / 14" on its key, every page in its list
+    Array.from({ length: pages }, (_, p) => h("option", { value: String(p), selected: p === page, "data-short": `${p + 1} / ${pages}`, text: t("Page {n}", { n: p + 1 }) })));
+  return h("nav", { class: "pgr", "aria-label": t("Pages") }, h("span", { class: "pgr-info", text: info || "" }),
     h("div", { class: "pgr-keys" },
-      h("button", { type: "button", class: "pgr-n pgr-arrow", disabled: page <= 0 || null, "aria-label": t("Previous page"), onclick: () => turn(page - 1) }, icon("back")),
-      keys,
-      h("button", { type: "button", class: "pgr-n pgr-arrow flip", disabled: page >= pages - 1 || null, "aria-label": t("Next page"), onclick: () => turn(page + 1) }, icon("back"))));
+      h("button", { type: "button", class: "pgr-step prev", disabled: page <= 0, title: t("Previous page"), "aria-label": t("Previous page"), onclick: () => turn(page - 1) }, icon("back")),
+      pick,
+      h("button", { type: "button", class: "pgr-step next", disabled: page >= pages - 1, title: t("Next page"), "aria-label": t("Next page"), onclick: () => turn(page + 1) }, icon("back"))));
+}
+function readFromTop(sel) {                                                          // a list's new page read from its top: after the redraw has put the window back where it was
+  requestAnimationFrame(() => requestAnimationFrame(() => { const s = document.querySelector("#canvas " + sel); if (s) s.scrollIntoView({ block: "start" }); }));
+}
+function moreRow(words, go) {                                                       // under a list: a key on a hairline when there is a way on ("N more in ..."), quiet words on it when there is only a count
+  if (!go) return h("div", { class: "more-row" }, h("span", { class: "more-note", text: words }));
+  return h("div", { class: "more-row" }, h("button", { type: "button", class: "more-key" + (go.on ? " on" : ""), onclick: go.run || go }, h("span", { text: words }), icon("back")));
 }
 
 // ---------------------------------------------------------------- days and times, written one way across the panel

@@ -172,7 +172,7 @@ function viewTrash(d, q, setUI) {                                               
     (d.rows || []).length ? h("div", { class: "lib-table", role: "table", "aria-label": t("Trash") },
       h("div", { class: "lib-row lib-headrow", role: "row" }, [t("Name"), t("Whose"), t("About it"), t("Size"), t("Removed"), ""].map((w) => h("span", { role: "columnheader", text: w }))),
       shown.length ? shown.map(trashRow) : h("p", { class: "ins-none lib-none", text: t("Nothing matches.") })) : null,
-    (d.rows || []).length ? pager(page, pages, (p) => setUI("libPage", p), rows.length ? t("{a}–{b} of {n}", { a: page * LIB_PAGE + 1, b: page * LIB_PAGE + shown.length, n: rows.length }) : "") : null,
+    (d.rows || []).length ? pager(page, pages, (p) => { setUI("libPage", p); readFromTop(".lib-table"); }, rows.length ? t("{a}–{b} of {n}", { a: page * LIB_PAGE + 1, b: page * LIB_PAGE + shown.length, n: rows.length }) : "") : null,
     asides.length ? h("section", { class: "trash-asides" },
       h("h3", { text: t("Folders kept at a restore") }),
       h("p", { class: "hint", text: t("Each holds your workspace as it was before you restored a backup. Nothing in Offerowl reads them.") }),
@@ -243,5 +243,5 @@ function viewLibrary(host) {
           r.export ? h("button", { class: "btn small", type: "button", title: t("Save to the Desktop"), "aria-label": t("Save {name} to the Desktop", { name: fileName(r) }), onclick: () => libDo(r, "export") }, icon("desktop"), h("span", { text: t("Export") })) : h("span", { class: "lib-slot", "aria-hidden": "true" }),
           r.remove ? h("button", { class: "btn small danger", type: "button", "aria-label": t("Remove {name}", { name: fileName(r) }), onclick: () => libDo(r, "remove") }, icon("close"), h("span", { text: t("Remove") })) : h("span", { class: "lib-slot", "aria-hidden": "true" }))))
         : h("p", { class: "ins-none lib-none", text: t("No file matches.") })),
-    trash ? null : pager(page, pages, (p) => setUI("libPage", p), match.length ? t("{a}–{b} of {n}", { a: page * LIB_PAGE + 1, b: page * LIB_PAGE + shown.length, n: match.length }) : "")));   // the pages, numbered
+    trash ? null : pager(page, pages, (p) => { setUI("libPage", p); readFromTop(".lib-table"); }, match.length ? t("{a}–{b} of {n}", { a: page * LIB_PAGE + 1, b: page * LIB_PAGE + shown.length, n: match.length }) : "")));   // the pages, numbered
 }

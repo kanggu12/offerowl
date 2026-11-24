@@ -76,6 +76,11 @@ async function makeFrom({ files = [], paths = [], posting } = {}) {             
     toast(files.length ? t("None of these files can be read. Use PDF, Word, PowerPoint, pictures or text.") : t("Drop files or folders, or paste their paths."), null, files.length ? "bad" : "info");
     return;
   }
+  const unread = S.agent && S.agent.state === "ready" ? [] : take.filter((f) => !/\.json$/i.test(f.name));   // with the agent off only a profile file (.json) can be read
+  if (unread.length) {                                                              // the run would stop at reading them: said now, with the one fix
+    toast(t("The agent is off, so these files cannot be read yet. Turn it on, then drop them again."), { words: t("Turn on the agent"), run: () => openAgentMenu() }, "bad");
+    return;
+  }
   if (UI.view !== "make") go("make");                                               // the run is followed here
   closeSetup();                                                                     // files dropped over the setup guide start the run it leads to: the run in sight
   const ids = take.length ? await sendFiles(take) : [];                             // sent first
@@ -399,8 +404,7 @@ function madeCard() {                                                           
       h("button", { class: "linkish nm", type: "button", onclick: () => open(x.id), text: x.name }),
       h("span", { class: "lang", text: x.lang === "en" ? t("English") : t("Korean") }),
       h("span", { class: "hint", text: x.at })))),
-    all.length > rows.length ? h("button", { class: "btn ghost sm more", type: "button", onclick: () => { UI.libGroup = "made"; UI.libQuery = ""; go("library"); } },   // the rest, where every made file is listed
-      t("All {n} in the Library", { n: all.length })) : null);
+    all.length > rows.length ? moreRow(t("All {n} in the Library", { n: all.length }), { on: true, run: () => { UI.libGroup = "made"; UI.libQuery = ""; go("library"); } }) : null);   // the rest, where every made file is listed
 }
 function colHead(n, title, sub) {                                                   // a column's number, name and one line
   return h("div", { class: "colhead", title: sub || null }, h("div", {}, h("h2", { text: title })));   // its line on hover; its step's colour (app.css)
@@ -468,7 +472,7 @@ function materialsCard() {                                                      
     h("h2", {}, t("Files added"), h("span", { class: "n", text: String(mats.length) })),
     mats.length ? h("ul", { class: "matlist" }, mats.slice(0, 8).map((m) => h("li", {}, h("span", { class: "nm", text: m.name, title: m.name }),
       m.state === "reading" ? pill("busy", t("Reading")) : h("span", { class: "chip" + (m.state === "done" ? " ok" : ""), text: materialState(m) }))),
-      mats.length > 8 ? h("li", { class: "more" }, h("button", { class: "btn sm ghost", onclick: () => go("profile"), text: t("{n} more in your profile", { n: mats.length - 8 }) })) : null)
+      mats.length > 8 ? h("li", { class: "more" }, moreRow(t("{n} more in your profile", { n: mats.length - 8 }), { on: true, run: () => go("profile") })) : null)
       : h("p", { class: "usage-none", text: t("Nothing read yet.") }),
     h("div", { class: "fill", "aria-hidden": "true" }),                                       // the foot line sits on the card's foot
     null);                                                                            // each file's row already says how many facts it gave

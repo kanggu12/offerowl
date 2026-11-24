@@ -310,13 +310,14 @@ function practiceView(j, kit0) {                                                
     const rec = recording                                                           // Record, or Stop while recording
       ? [keyBtn(fmt("pr_stop"), stop, { primary: true, disabled: busy, icon: "stop" }), h("span", { class: "pr-meter", "aria-hidden": "true" }, h("span", { "data-level": "1" })), h("span", { class: "hint", role: "status", text: fmt("pr_recording") })]
       : [keyBtn(fmt("pr_record"), record, { disabled: busy || PR.starting, icon: "mic" })];   // held while the browser opens the microphone
-    const box = h("textarea", { rows: 5, "data-key": "pr-text-" + j.id, placeholder: fmt("pr_placeholder"), "aria-label": fmt("pr_placeholder"), disabled: shut || null, value: PR.draft || "",
+    const hint = fmt(PR.setup && PR.setup.speak === "ko" ? "pr_placeholder_ko" : "pr_placeholder");   // the interview's own language: a Korean interview is answered in Korean
+    const box = h("textarea", { rows: 5, "data-key": "pr-text-" + j.id, placeholder: hint, "aria-label": hint, disabled: shut || null, value: PR.draft || "",
       oninput: (e) => { PR.draft = e.target.value; },                               // the draft survives a redraw
       onkeydown: (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); submitTyped(); } } });   // Ctrl+Enter sends a typed answer
     return h("div", { class: "card pr-ask" },
       h("div", { class: "pr-qhead" }, h("span", { class: "chip count", text: fmt("pr_q", { i: PR.qi + 1, n }) }), h("span", { class: "chip pc", text: PR.turn ? fmt("pr_followup") : fmt("kind_" + q.kind) }),
         q.draft ? h("span", { class: "chip ai", text: t("Draft by the agent") }) : null),   // its script is a draft the person has not made their own yet
-      PR.turn || !q.topic || same(q.topic, PR.ask) ? null : h("p", { class: "hint pr-topic", text: q.topic }),   // where the question comes from: the posting's line, the resume's (an earlier round's question is its own; a standard question's topic is the question, said once)
+      PR.turn || !q.topic || same(q.topic, PR.ask) || !(PR.session && PR.session.interviewer && PR.session.interviewer !== "fixed") ? null : h("p", { class: "hint pr-topic", text: q.topic }),   // the line a question was phrased from, when the agent phrased it: the fixed list asks a scene's own line, which that topic may not match   // where the question comes from: the posting's line, the resume's (an earlier round's question is its own; a standard question's topic is the question, said once)
       h("p", { class: "pr-question", text: PR.ask }),                                // as the interviewer asks it
       PR.askKo ? h("details", { class: "pr-ko" }, h("summary", { text: fmt("pr_show_ko") }), h("p", { text: PR.askKo })) : null,   // its translation, folded
       h("div", { class: "part-keys pr-rec" }, rec),

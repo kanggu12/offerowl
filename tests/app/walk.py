@@ -451,7 +451,9 @@ def main() -> int:  # 0 only when nothing was found
             page.click(".remind button[type=submit]"); w.settle(800)  # kept (today: due now)
             w.shoot("jobs_progress")  # the stage, the reminder that is due
             page.evaluate("go('tracker')"); w.settle()  # every application by stage
-            page.click(".tcard button.btn.small"); w.settle(800)  # moved to submitted
+            page.click(".tcard button.btn.small.move"); w.settle(800)  # moved to submitted (the card's move key, not its "add a next step")
+            if page.locator(".tcard button.add-next").count():  # a card with no next step yet: its box open, focused, as the walk switches looks
+                page.locator(".tcard button.add-next").first.click(); w.settle(300)  # each switch draws the board again and takes the focused box away (its blur asks for a draw inside that draw)
             w.shoot("tracker_board")  # the board, a due reminder
             page.evaluate("UI.jobsMode = 'timeline'; render()"); w.settle()  # the timeline
             w.shoot("tracker_timeline")  # every dated step

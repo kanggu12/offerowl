@@ -252,6 +252,19 @@ class PanelKeys(unittest.TestCase):
             "10분 전 입장, 60분", "10분 전 입장", ""].map((notes) => roundMinutes({ notes }))""")
         self.assertEqual([30, 90, 90, 120, 45, 60, 60, 60], got)  # "10분 전 입장" is when to be there, not how long; none: an hour
 
+    def test_7e_a_draw_asked_for_inside_another_waits_for_it(self):
+        # a board card's next-step box has the keyboard when the page draws again (a poll, a change of look): taking the box
+        # away blurs it, and its blur asks for a draw inside that draw; the page stopped half drawn with an error before
+        p = self.page
+        p.evaluate("UI.jobsMode = 'board'; go('jobs')")
+        p.wait_for_timeout(500)
+        p.evaluate("editNext(S.jobs[0].id)")  # the box open, as the card's key or its words open it
+        p.wait_for_function("document.activeElement && document.activeElement.classList.contains('tnext')", timeout=5000)
+        p.evaluate("redrawAll()")  # the whole page drawn again while the box has the keyboard (raised NotFoundError here)
+        p.wait_for_timeout(300)
+        self.assertEqual(0, p.locator(".tcard input.tnext").count())  # the box left with its blur, and the board was drawn after it
+        p.evaluate("UI.jobsMode = 'list'; render()")
+
     def test_8_no_page_errors(self):
         self.assertEqual([], self.errors)
 

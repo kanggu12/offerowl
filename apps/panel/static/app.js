@@ -17,7 +17,8 @@ function drawBar(el) {                                                          
         eds.map((e) => h("option", { value: e.id, selected: e.id === S.job || null, text: e.name }))),   // each named one, by its name
       jobs.length ? h("optgroup", { label: t("Applications") },                     // then each application
         jobs.map((j) => h("option", { value: j.id, selected: j.id === S.job || null, "data-short": j.company && j.role ? j.company : null, text: [j.company, j.role].filter(Boolean).join(", ") || j.id }))) : null)) : null;   // closed, the bar shows the company: the role is in the list and in the page's own heading
-  const undoText = S.undo ? undoLabel(S.undo) : "";                                 // what undo takes back
+  const trashLast = trashUndoNow();                                                  // a removal to the Trash after the last undo step: the key puts it back
+  const undoText = trashLast ? trashLast.what : S.undo ? undoLabel(S.undo) : "";     // what undo takes back
   const views = h("nav", { class: "views", "aria-label": t("Navigation") }, VIEWS.map(([k, w]) => {  // the views, as keys of one choice
     const n = viewCount(k);                                                         // a number that asks for attention
     return h("button", { "aria-current": UI.view === k ? "page" : null, onclick: () => go(k), "aria-label": n ? `${t(w)}, ${n[1]}` : t(w) },
@@ -31,8 +32,8 @@ function drawBar(el) {                                                          
       views, pickJob, h("span", { class: "grow" }), h("span", { class: "saved", "aria-hidden": "true", text: t("Saved") }),
       runChip(), agentChip(),
       h("div", { class: "actions" },
-        h("button", { class: "btn icon", id: "undo", disabled: !S.undo || null, title: S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."),
-          "aria-label": S.undo ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."), onclick: undo }, icon("undo")),
+        h("button", { class: "btn icon", id: "undo", disabled: !(S.undo || trashLast) || null, title: undoText ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."),
+          "aria-label": undoText ? t("Undo: {what}", { what: undoText }) : t("Nothing to undo."), onclick: undo }, icon("undo")),
         h("button", { class: "btn icon", id: "more", title: t("Settings"), "aria-label": t("Settings"), "aria-expanded": UI.menu ? "true" : "false", "aria-controls": "menu",
           onclick: () => { UI.menu = !UI.menu; UI.agentPop = false; render(); if (UI.menu) focusSheet("#menu"); } }, icon("gear")),
         UI.menu ? drawMenu() : null)),
@@ -99,6 +100,7 @@ function drawMenu() {                                                           
   const motionNow = document.documentElement.dataset.motionChoice || "on";          // the motion's choice
   const pickMotion = (m) => { try { localStorage.setItem("offerowl-motion", m); } catch (_) { /* blocked */ } applyMotion(m); redrawAll(); };
   return h("div", { class: "menu", id: "menu", role: "dialog", "aria-modal": "true", "aria-label": t("Settings") },
+    h("div", { class: "menu-head" }, h("h2", { text: t("Settings") }), h("button", { class: "btn icon ghost", type: "button", "aria-label": t("Close"), title: t("Close"), onclick: () => { UI.menu = false; render(); } }, icon("close"))),   // its name, and a key that closes it (Esc and a click outside close it too)
     h("button", { class: "item", type: "button", onclick: () => openSetup(0) }, icon("list"), t("Setup guide")),   // the four steps again (setup.js); a list of steps, not a tick a menu reads as "chosen"
     h("hr"),
     h("h3", {}, icon("sun"), t("Theme")),
@@ -140,7 +142,13 @@ async function restoreBackup(file) {                                            
   toast(t({ not_a_backup: "This file is not an Offerowl backup.", busy: "Wait until the work in progress ends, then try again.", too_large: "This file is too large to be a backup." }[j.error] || "The backup could not be restored."), null, "bad");  // why, in words
 }
 function openAgentMenu() { UI.agentPop = true; UI.menu = false; render(); window.scrollTo({ top: 0 }); focusSheet(".barpop .pop"); }  // the agent's panel opens from the bar, the keyboard in it
-async function undo() {                                                             // the bar's undo
+function trashUndoNow() {                                                           // the last removal to the Trash (a photo has no undo step), while no undo step came after it
+  const tu = UI.trashUndo;
+  return tu && (S.undo_id || null) === tu.step ? tu : null;
+}
+async function undo() {                                                             // the bar's undo: the latest change, a removal to the Trash too
+  const tu = trashUndoNow();
+  if (tu) { UI.trashUndo = null; await act("/api/v1/removed/restore", { id: tu.id }, tu.done); return; }   // put back from the Trash, as its note's key does
   const r = await act("/api/v1/undo", {});                                          // the files back
   if (r) toast(r.undone ? t("Undone: {what}", { what: undoLabel(r.undone) }) : t("Nothing to undo."), null, r.undone ? "done" : "info");
 }
@@ -208,7 +216,7 @@ function kitFrameDocs() {                                                       
 function paneKey(name) {                                                            // what a pane shows; it is drawn again only when this changes
   const look = [LANG, document.documentElement.dataset.theme, document.documentElement.dataset.themeChoice, UI.offline];   // the page's language and look
   const base = [...look, rev()];                                                    // shared by the panes that show the workspace
-  if (name === "bar") return JSON.stringify([...base, UI.view, S.job, S.undo, UI.menu, UI.agentPop, S.settings, S.agent, S.agent_calls, (S.jobs || []).map((j) => [j.id, j.company, j.role]),
+  if (name === "bar") return JSON.stringify([...base, UI.view, S.job, S.undo, (trashUndoNow() || {}).id, UI.menu, UI.agentPop, S.settings, S.agent, S.agent_calls, (S.jobs || []).map((j) => [j.id, j.company, j.role]),
     S.facts.counts, S.due, task("autopilot").state, (task("autopilot").steps || []).map((s) => s.state).join()]);
   // the setup guide shows none of the workspace's history or the tasks' clocks, which change at every poll while a run goes:
   // a redraw then would close an open list and drop an address being typed
@@ -235,6 +243,7 @@ function drawPane(el, name, fn) {                                               
   if (UI.inplace && el.id === "canvas") return;
   if (UI.dragging && el.id === "canvas") return;                                    // a card is held on the board: a redraw would drop it from the hand                                     // a sentence is being typed on the page: drawn again when it ends
   if (UI.composing && el.contains(document.activeElement)) return;                  // a Korean syllable is being put together here: a new box would break it
+  if (window.comboOpenIn && window.comboOpenIn(el)) { UI.redrawAfterList = true; return; }   // a dropdown's list is open in this pane: drawn once it closes (combo.js), never shut under the pointer
   const focus = document.activeElement && el.contains(document.activeElement) ? keyOf(document.activeElement) : null;  // where the keyboard was
   const scroll = el.scrollTop;                                                      // where a scrolling pane was
   // the canvas scrolls with the page, and a resume's pages are laid out a frame after it is drawn: the same view drawn again
@@ -272,7 +281,14 @@ function restoreFocus(el, f) {                                                  
   if (typeof f.start === "number" && n.setSelectionRange) try { n.setSelectionRange(f.start, f.end); } catch (_) { /* not a text field */ }   // the caret where it was, not at the end
   return true;
 }
-function render() {                                                                 // the whole page from S and UI
+let renderDepth = 0, renderAgain = 0;                                               // a draw under way, and the draws asked for while it was
+function render() {                                                                 // the whole page from S and UI, never one draw inside another
+  if (renderDepth) { renderAgain += 1; return; }                                    // asked while a pane is being replaced (a field's blur as it leaves the page): done once this draw ends
+  renderDepth = 1;
+  try { renderNow(); } finally { renderDepth = 0; }
+  if (renderAgain) { renderAgain = 0; render(); }                                  // the page as it stands after them: the global render, with the bar's and the sheet's drawing (ask.js, depth.js)
+}
+function renderNow() {                                                              // one draw of the page
   if (!S) return;                                                                   // nothing yet
   document.title = "Offerowl";                                                      // the tab's name
   if (S.open === 2 && !UI.opened) { UI.opened = true; UI.view = "profile"; }       // the fact review screen (src/ui) opens on the profile
@@ -412,7 +428,7 @@ function fromAddress() {                                                        
   if (!jid || q.get("show") !== "scripts") return;                                  // any other address: the view this browser was on
   history.replaceState(null, "", location.pathname);                                // read once: a reload stays where the person is by then
   if (!(S.jobs || []).some((j) => j.id === jid)) return;                            // an application that is gone
-  UI.ivWide = true; UI.ivPart = "search"; UI.jobsMode = "list";                     // its scripts, the list folded away (this window only: the choice kept in the browser is the other window's)
+  UI.ivWide = true; UI.ivPart = "search"; UI.jobsMode = "list"; UI.jobPhone = true;  // its scripts, the list folded away, and on a phone the application alone (this window only: the choice kept in the browser is the other window's)
   (S.job === jid ? Promise.resolve() : act("/api/v1/jobs/select", { job: jid })).then(() => go("interview"));
 }
 function redrawAll() {                                                              // every pane again (a new size or look)

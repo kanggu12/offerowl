@@ -25,7 +25,11 @@ KOREAN_SCENE = """
 **해석** If a release goes wrong, how do you roll it back?
 **나** Git에서 이전 버전으로 되돌리면 / ==배포 도구가 클러스터를 그 상태로 맞춥니다==.
 **해석** I revert to the previous version in Git, and the deployment tool brings the cluster back to that state.
-"""  # a scene for a Korean interview: spoken in Korean, its English under each line
+**면접관** 그 방식의 장점은요?
+**해석** And what does that give you?
+**나** (잠깐 쉬고) 이 방식은 되돌린 기록이 Git에 남고, TTFT(첫 토큰까지 시간)가 늘지 않습니다.
+**해석** This way, every rollback stays on record in Git, and TTFT, the time to the first token, does not grow.
+"""  # a scene for a Korean interview: spoken in Korean, its English under each line; "(잠깐 쉬고) 이" is "this", no particle
 
 
 class CheckTest(unittest.TestCase):  # the checker on the clean example and on copies with planted defects

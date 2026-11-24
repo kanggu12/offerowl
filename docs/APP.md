@@ -149,7 +149,7 @@ scaled down to the width (a pinch enlarges them).
 
 - **Your details**: name, email, the English name, phone, the headline and the introduction, saved as you type (one
   undo step per field and pause), and the resume's photo in a 3:4 cell (a JPEG or a PNG by its bytes, kept as
-  `profile/photo.*`; "On the resume" takes it off without removing it, and "Remove" puts it in the Trash, its note holding
+  `profile/photo.*`, a PNG's transparency kept, so the theme's header colour shows behind a cut-out photo; "On the resume" takes it off without removing it, and "Remove" puts it in the Trash, its note holding
   Undo). They stay on this PC.
 - **Your files**: drop them or choose them, or try the example person. Each file shows its reading state and how many
   facts it gave, and "Remove" takes it and its facts out at once; its note holds Undo, and the Trash puts both back later.

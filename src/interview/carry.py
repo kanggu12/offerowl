@@ -27,11 +27,15 @@ HEAD = re.compile(r"^### ([A-Z])(\d+)(b?)\.(.*)$")  # a scene's heading: its let
 CAT = re.compile(r"^## ([A-Z])\.\s+(.*)$")  # a category's heading
 BULLET = re.compile(r"^-\s+\*\*(.+?)\*\*\s*[:：]?\s*(.*)$")  # a bold-labelled bullet
 HANGUL = re.compile(r"[가-힣]")  # a Korean letter
+CITES = re.compile(r"(?<![\w-])(?:company(?:_facts)?|research[\w-]*)\.md\b")  # a scene that cites the earlier kit's research on its company
+STAGE = re.compile(r"\([^()]*[가-힣][^()]*\)")  # a Korean stage note, "(웃으며)": how a line is said, never words of it
 SCENE_ROLES = (("deep", "deep"), ("terms", "terms"), ("english", "reference"), ("notes", "reference"), ("research", "reference"))  # a file's role by its name, as the panel's upload reads it
 
 
 def plain_en(s):
-    """An English line as the note under a Korean one: without breath, stress or key-phrase marks."""
+    """An English line as the note under a Korean one: without breath, stress or key-phrase marks, and without Korean stage
+    notes, which the spoken Korean line carries."""
+    s = STAGE.sub(" ", s)  # "(웃으며)": said, not read
     s = s.replace("**", "").replace("==", "")  # stress and key-phrase marks
     s = re.sub(r"\s+//\s+|\s+/\s+", " ", s)  # breath marks
     return re.sub(r"\s{2,}", " ", s).strip()
@@ -44,8 +48,10 @@ def turn_round(lines):
     while k < len(lines):
         m = DLG.match(lines[k])  # a spoken line
         t = TR.match(lines[k + 1]) if m and k + 1 < len(lines) else None  # and the line under it
-        if m and t and HANGUL.search(t.group(1)) and not HANGUL.search(m.group(3)):  # English above, Korean under
-            out.append(f"{m.group(1)}**{m.group(2)}** {t.group(1).strip()}")  # the Korean, spoken
+        if m and t and HANGUL.search(t.group(1)) and not HANGUL.search(STAGE.sub(" ", m.group(3))):  # English above (its stage notes aside), Korean under
+            said = t.group(1).strip()  # the Korean, spoken
+            notes = [n for n in STAGE.findall(m.group(3)) if n not in said]  # a stage note the Korean does not have yet goes with it
+            out.append(f"{m.group(1)}**{m.group(2)}** {' '.join(notes + [said])}")
             out.append(f"{m.group(1)}**해석** {plain_en(m.group(3))}")  # the English, under it
             k += 2
             continue
@@ -136,6 +142,15 @@ def carry_file(text, deny, taken, korean, moved):
     while k < len(lines):
         ln = lines[k]
         c = CAT.match(ln)
+        if c and deny is not None and deny.search(c.group(2)):  # a section about the earlier company ("C. 감마시스 이해와 지원 동기"): left behind whole
+            j = k + 1
+            while j < len(lines) and not lines[j].startswith("## "):
+                h = HEAD.match(lines[j])
+                if h:
+                    left.append(h.group(4).strip()[:60])
+                j += 1
+            k = j
+            continue
         if c:  # a category: its bullets may need ids of their own
             j = k + 1
             while j < len(lines) and not lines[j].startswith("## ") and not lines[j].startswith("### "):
@@ -156,7 +171,7 @@ def carry_file(text, deny, taken, korean, moved):
                 j += 1
             block = lines[k:j]
             whole = "\n".join(block)
-            if deny is not None and deny.search(whole):  # about the earlier interview
+            if (deny is not None and deny.search(whole)) or CITES.search(whole):  # about the earlier interview, or resting on that company's research
                 left.append(m.group(4).strip()[:60])
                 k = j
                 continue
@@ -226,6 +241,11 @@ def carry(src_iv: Path, dst_iv: Path, korean: bool = False, names=(), job_from: 
     more = [ln for ln in names_src if ln.strip() and ln not in names_dst]
     if more:  # the Korean and English names of the person's own companies, for the search
         (dst_iv / "names.txt").write_text("\n".join(names_dst + more) + "\n", encoding="utf-8")
+    src_sections = src_kit.get("sections") if isinstance(src_kit.get("sections"), dict) else {}
+    letters = {m.group(1) for f in report["files"] for m in re.finditer(r"^## ([A-Z])\.", (dst_iv / f["file"]).read_text(encoding="utf-8"), re.M)} if src_sections else set()
+    more_sections = {k: v for k, v in src_sections.items() if k in letters and k not in (dst_kit.get("sections") or {})}
+    if more_sections:  # a carried section's tab name, unless the target names that letter itself
+        dst_kit["sections"] = {**(dst_kit.get("sections") or {}), **more_sections}
     dst_kit.setdefault("carried", []).append({"from": job_from or src_iv.parent.name, "names": [n for n in deny_names if n],
                                               "korean": bool(korean), "at": datetime.date.today().isoformat()})
     (dst_iv / "kit.json").write_text(json.dumps(dst_kit, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

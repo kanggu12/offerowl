@@ -205,6 +205,14 @@ class Workspace:
             out_old, out_new = self.path("out", "interview", old), self.path("out", "interview", new)  # the kit's map, caches and practice
             if out_old.is_dir() and not out_new.exists():
                 os.replace(out_old, out_new)
+            plan = read_json(out_new / "plan.json", None)  # the question map says whose it is
+            if isinstance(plan, dict) and plan.get("job") == old:
+                plan["job"] = new
+                write_json(out_new / "plan.json", plan)
+            runs = self.path("out", "runs.json")  # the autopilot's finished runs, each opening its job
+            listed = read_json(runs, None)
+            if isinstance(listed, list) and any(isinstance(r, dict) and r.get("job") == old for r in listed):
+                write_json(runs, [{**r, "job": new} if isinstance(r, dict) and r.get("job") == old else r for r in listed])
             prefs = self.prefs()
             aliases = {k: (new if v == old else v) for k, v in (prefs.get("job_aliases") or {}).items()}  # an older name follows it too
             aliases[old] = new

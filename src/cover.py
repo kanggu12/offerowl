@@ -215,7 +215,7 @@ HEADINGS = [
     ("preferred", r"preferred(?: qualifications?| skills?| experience| requirements?)?|nice[- ]to[- ]haves?|bonus(?: points)?|a plus|desired(?: skills| qualifications)?|우대(?: ?사항| ?조건| ?요건)?|이런 (?:분|경험)(?:이면|이라면) 더 좋"),
     ("requirement", r"(?:minimum |basic |required |key )?(?:qualifications?|requirements?)|required skills|what (?:you(?:'|’)ll|you will) (?:need|bring)|what we(?:'|’)re looking for|who we(?:'|’)re looking for|must[- ]haves?|who you are|about you|your profile|you have|what you bring|(?:the )?ideal candidate|skills (?:and|&) experience|experience (?:and|&) skills|자격 ?요건|지원 ?자격|필수(?: ?요건| ?자격| ?사항)?|이런 분을 찾"),
     ("duty", r"(?:key |main |primary )?(?:responsibilities|duties)|what (?:you(?:'|’)ll|you will) do|the role|about the role|day[- ]to[- ]day|주요 ?업무|담당 ?업무|하는 일|업무 ?내용|업무 ?소개|합류하면 함께 할 일"),
-    ("other", r"job overview|overview|about (?:us|the company|the team|the job)|company(?: overview)?|benefits|perks|compensation|location|how to apply|hiring process|process|전형(?: ?절차)?|복지|혜택|근무 ?(?:조건|지|환경)|회사 ?소개|팀 ?소개|공고 ?개요"),
+    ("other", r"job overview|overview|about (?:us|the company|the team|the job)|company(?: overview)?|benefits|perks|compensation|location|how to apply|hiring process|process|전형(?: ?절차)?|복지|혜택|근무 ?(?:조건|지|환경)|회사(?: ?소개| ?정보)?|기업 ?(?:소개|정보)|팀 ?소개|공고 ?개요"),
 ]
 META = re.compile(r"^(?:date posted|requisition id|job id|posted|location|team|department|company|role|title|type|근무지|부서|직무|회사)\s*[:：]\s*(.+)$", re.I)  # "Key: value" lines
 
@@ -224,6 +224,7 @@ def heading_kind(line: str) -> str | None:
     """The section kind a line introduces (duty, requirement, preferred, other), or None when it is not a heading."""
     s = re.sub(r"^[■□▶▷◆◇●○▪•※★☆▣]+\s*", "", strip_md(line).strip())  # a square or star in front of a Korean heading is decoration
     s = s.strip(" \t:：[]【】<>-")  # drop brackets and the trailing colon
+    s = re.sub(r"\s*[(（][^()（）]*[)）]$", "", s).strip(" \t:：")  # a note after the heading words: "회사 (헤드헌터 소개와 기사)" is the heading "회사"
     if not s or len(s) > 50 or len(s.split()) > 8:  # headings are short; a long line is text
         return None
     for kind, pat in HEADINGS:  # in priority order, so that "Preferred Qualifications" is not read as "Qualifications"

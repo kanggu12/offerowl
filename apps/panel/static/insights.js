@@ -361,7 +361,7 @@ function readyTile(d) {
           r.questions ? h("small", { class: "rd-q", text: t("form answers {a}/{n}", { a: r.answered, n: r.questions }) }) : null,
           r.next ? h("small", { class: "rd-next", text: r.next }) : r.interview ? h("small", { class: "rd-next", text: t("Interview {d}", { d: shortDay(r.interview) }) }) : null));
     })) : h("p", { class: "ins-none", text: t("No application is open.") }),
-    all.length > rows.length ? h("button", { class: "btn small ghost ins-more", type: "button", onclick: () => { UI.jobsMode = "board"; go("jobs"); }, text: t("{n} more on the board", { n: all.length - rows.length }) }) : null);
+    all.length > rows.length ? moreRow(t("{n} more on the board", { n: all.length - rows.length }), { on: true, run: () => { UI.jobsMode = "board"; go("jobs"); } }) : null);
 }
 
 // ---------------------------------------------------------------- the career and its evidence

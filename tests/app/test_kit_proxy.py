@@ -5,6 +5,7 @@ frame and connection policy. No model is called.
 
     python3 -m unittest tests/app/test_kit_proxy.py -v
 """
+import http.client  # a request with a browser's navigation headers
 import json  # the kit's health answer
 import os  # the model's setting
 import pathlib  # paths
@@ -130,6 +131,30 @@ class TestKitProxy(PanelCase):
         code, _, body = self.page(f"/kit/{q(jid)}/")
         self.assertEqual(200, code)
         self.assertNotIn(b"OUTSIDE-SECRET-LINE", body)  # nothing of the file out there
+
+    def test_a_person_opening_the_kit_s_address_lands_in_the_panel(self):
+        """A browser's own navigation to /kit/<job>/ goes to the job's scripts in the panel's Interview tab; the printable pages
+        and the API under it, and a fetch of the page itself, are served as before."""
+        jid = self.jobs[0][0]
+        nav = {"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document"}  # what a browser sends when a person opens an address
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=60)
+        conn.request("GET", f"/kit/{q(jid)}/", headers=nav)
+        r = conn.getresponse()
+        r.read()
+        self.assertEqual(302, r.status)
+        self.assertEqual(f"/?job={q(jid)}&show=scripts", r.getheader("Location"))
+        conn.request("GET", f"/kit/{q(jid)}/api/health", headers=nav)  # under it: the kit's own
+        r = conn.getresponse()
+        r.read()
+        self.assertEqual(200, r.status)
+        conn.close()
+        self.assertEqual(200, self.page(f"/kit/{q(jid)}/")[0])  # not a navigation: the page
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=60)
+        conn.request("GET", "/kit/no-such-job/", headers=nav)  # an application that is gone, opened by a person: the panel
+        r = conn.getresponse()
+        r.read()
+        self.assertEqual((302, "/"), (r.status, r.getheader("Location")))
+        conn.close()
 
     def test_the_start_route_answers_for_the_job(self):
         jid = self.jobs[1][0]

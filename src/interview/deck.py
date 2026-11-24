@@ -196,7 +196,7 @@ def note_html(line):
 
 CSS = """
 @font-face { font-family: "Pretendard Variable"; src: url("{fonts}/PretendardVariable.woff2") format("woff2-variations"); font-weight: 45 920; }
-:root { --ink: #1d1c1d; --ink-2: #3f3e3f; --off: #6e6e73; --rule: #d4d6db; --navy: #1b2e4b; --hl: rgba(242, 199, 68, .9); --well: #f3f4f6; }
+:root { --ink: #1d1c1d; --ink-2: #3f3e3f; --off: #6e6e73; --rule: #d4d6db; --navy: #18181b; --hl: rgba(242, 199, 68, .9); --well: #f3f4f6; }
 * { box-sizing: border-box; }
 html { background: #e9eaed; }
 html.embedded { background: transparent; }   /* inside the Offerowl panel (?embed=1): its desk shows through and the pages stand on it, as its documents do */
@@ -206,8 +206,9 @@ body { margin: 0; padding: 16px; color: var(--ink); font: 400 10pt/1.55 "Pretend
 .bar { display: flex; align-items: center; gap: 12px; max-width: 297mm; margin: 0 auto 12px; font-size: 10pt; color: var(--ink-2); }
 .bar h1 { margin: 0; font-size: 13pt; font-weight: 750; }
 .bar .n { color: var(--off); }
-.bar button { margin-left: auto; height: 32px; padding: 0 14px; border: 1px solid rgba(0, 0, 0, .14); border-radius: 5px; cursor: pointer;
-  background: linear-gradient(#fff, rgba(255, 255, 255, .6)); box-shadow: 1px 2px 3px rgba(0, 0, 0, .18), inset 0 1px 0 #fff; font: inherit; font-weight: 650; }
+.bar button { margin-left: auto; height: 32px; padding: 0 14px; border: 1px solid rgba(0, 0, 0, .18); border-radius: 2px; cursor: pointer;
+  background: #fff; box-shadow: 0 1px 1px rgba(0, 0, 0, .05); font: inherit; font-weight: 650; transition: background-color .15s, border-color .15s; }
+.bar button:hover { background: #f5f5f5; border-color: rgba(0, 0, 0, .32); }
 .pg { width: 297mm; min-height: 167mm; margin: 0 auto 8mm; padding: 9mm 11mm; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 .pg + .pg { break-before: page; }
 .flow { min-height: 0; }   /* the scripts, one after another: a page holds as many as fit, so no page ends half empty */
@@ -232,7 +233,7 @@ table.lines tr { break-inside: avoid; }
 table.lines td.by { width: 34%; } table.lines td.lamp { width: 13%; white-space: nowrap; }
 .lamp i { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; vertical-align: 1px; box-shadow: inset 0 0 0 1.5px #9a9aa0; }
 .lamp.strong i { background: #13966b; box-shadow: none; } .lamp.weak i { background: #ecb22e; box-shadow: none; } .lamp.draft i { background: #e2702a; box-shadow: none; }
-.id { flex: none; padding: 0 4px; border-radius: 2px; font-size: 8.5pt; font-weight: 700; color: var(--navy); background: rgba(27, 46, 75, .09); }
+.id { flex: none; padding: 0 4px; border-radius: 2px; font-size: 8.5pt; font-weight: 700; color: var(--navy); background: rgba(24, 24, 27, .07); }
 .scene header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1mm 6mm; align-items: start; margin-bottom: 3mm; padding-bottom: 2.5mm; border-bottom: 1.5px solid var(--navy); }
 .scene header .part { font-size: 9pt; font-weight: 700; color: var(--navy); }
 .scene header h2 { margin: .5mm 0 0; font-size: 13pt; line-height: 1.35; font-weight: 750; }

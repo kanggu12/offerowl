@@ -27,6 +27,9 @@ from interview.job import Job, read_text  # base folders; material text
 HERE = pathlib.Path(__file__).resolve().parent  # src/interview
 DLG = re.compile(r"^(?:-\s+)?\*\*(면접관|나|해석)\*\*\s*[:：]?\s*(.*)$")  # a dialogue line in either file style
 SPOKEN = ("면접관", "나")  # the English lines
+# a Korean stage note, "(웃으며)": how a line is said, standing apart (spaces or the line's ends around it); a gloss joined to its
+# word, "TTFT(첫 토큰까지 시간)가", is part of the sentence
+STAGE_KO = re.compile(r"(?:^|(?<=\s))\([^()]*[가-힣][^()]*\)(?=\s|$)")
 # A Korean particle written with a space after a Latin word or a number ("Kubernetes 로" must be "Kubernetes로").
 JOSA = re.compile(r"(?<=[A-Za-z0-9\)\]])\s+(은|는|이|가|을|를|의|에|에서|으로|로|와|과|도|만|까지|부터|보다|처럼|이나|이고|이며|이라는|라는|에게)(?=[\s.,!?)]|$)")
 # Words that start sentences or link them; capitalised, they are still not names.
@@ -427,7 +430,9 @@ def check_scene(it, dialogue, notes, rules, pool, base_words, grow, grow_skip, o
     m = rules["padding"].search(en) if rules["padding"] else None  # wording: filler phrases
     if m:  # a filler phrase was found
         probs.append(("padding", {"word": m.group(0)}))  # the first one is enough to report
-    m = JOSA.search(ko) if rules["josa"] else None  # spelling: particles attach to Latin words
+    # spelling: particles attach to Latin words. A Korean stage note goes first: "(잠깐 쉬고) 이 결과가" is "this result", and the
+    # note's bracket is no Latin word a particle could follow
+    m = JOSA.search(STAGE_KO.sub("", ko)) if rules["josa"] else None
     if m:  # a spaced particle was found
         probs.append(("josa", {"word": m.group(0).strip()}))  # the particle itself, without the space before it
     bad_chars = sorted({c for c in en + ko if c in rules["chars"]})  # banned characters
