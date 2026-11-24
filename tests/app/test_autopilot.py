@@ -523,19 +523,18 @@ class Run(unittest.TestCase):
     def test_a_folder_with_no_documents_says_so(self):
         empty = self.tmp / "empty"  # a folder with nothing readable
         (empty / "node_modules").mkdir(parents=True)
-        self.c.post("/api/v1/autopilot", {"paths": [str(empty)]})  # one action
-        rec = self.c.wait("autopilot", 120)  # it ends at once
-        self.assertEqual("error", rec["state"])
-        self.assertEqual("no_files", rec["error"]["code"])  # the page names the problem
+        with self.assertRaises(RuntimeError) as e:  # refused at once: no run that says it started and stops a moment later
+            self.c.post("/api/v1/autopilot", {"paths": [str(empty)]})  # one action
+        self.assertIn("no_files_at_paths", str(e.exception))  # the page names the problem
+        self.assertNotEqual("running", (self.c.api.tasks.tasks.get("autopilot") or {}).get("state"))
 
     def test_without_an_agent_it_stops_after_reading(self):
-        """No agent: the run says so, and writes nothing."""
+        """No agent: files only the agent reads are refused before a run starts, and nothing is written."""
         os.environ.pop("OFFEROWL_PANEL_AGENT", None)  # the stand-in off
         self.c.post("/api/v1/settings", {"backend": "none"})  # no agent
-        self.c.post("/api/v1/autopilot", {"paths": [str(career_folder(self.tmp))]})  # one action
-        rec = self.c.wait("autopilot", 120)  # it ends
-        self.assertEqual("error", rec["state"])
-        self.assertEqual("agent_unavailable", rec["error"]["code"])  # the page offers to turn the agent on
+        with self.assertRaises(RuntimeError) as e:  # said at once, with the fix (turn the agent on), never a run that stops
+            self.c.post("/api/v1/autopilot", {"paths": [str(career_folder(self.tmp))]})  # one action
+        self.assertIn("needs_agent_files", str(e.exception))
         self.assertEqual([], self.built)  # nothing typeset
 
     def test_a_stop_ends_the_run_after_the_step_in_progress(self):

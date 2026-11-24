@@ -447,7 +447,7 @@ def main() -> int:  # 0 only when nothing was found
 
             # ---- the application's progress, then every application by stage and by date
             page.evaluate("go('jobs'); UI.jobsMode = 'list'; UI.jobTab = 'progress'; render()"); w.settle()  # its stage, next step and reminders
-            page.fill("[data-key=r-text]", "서류 결과 확인")  # a reminder
+            page.fill(".remind [data-key^='r-'][data-key$='-text']", "서류 결과 확인")  # a reminder (its fields keyed by the application)
             page.click(".remind button[type=submit]"); w.settle(800)  # kept (today: due now)
             w.shoot("jobs_progress")  # the stage, the reminder that is due
             page.evaluate("go('tracker')"); w.settle()  # every application by stage
@@ -654,7 +654,7 @@ def main() -> int:  # 0 only when nothing was found
             page.evaluate("document.activeElement.blur()")  # no ring in the next pictures
             # ---- the setup guide again, from the settings menu: the agent now signed in through the stand-in
             page.evaluate("UI.menu = true; render()"); w.settle()  # the menu
-            page.click("#menu .item:has-text('설치 마법사')"); w.settle()  # its first item
+            page.click("#menu .item:has-text('시작 안내')"); w.settle()  # its first item (the setup guide)
             w.wait("document.querySelector('#setup:not([hidden]) .setup')")  # open
             w.shoot("setup_agent_ready")  # the agent's step, ready
             page.keyboard.press("Escape"); w.settle()  # closed by the keyboard, which goes back to the settings key

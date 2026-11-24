@@ -31,7 +31,9 @@ const SVGNS = "http://www.w3.org/2000/svg";                                     
 function icon(name, w) {                                                            // a line icon in Sidenote's hand: a 24 grid, round ends, the text's colour
   const s = document.createElementNS(SVGNS, "svg");                                 // the svg
   const filled = name === "pause";                                                  // the one solid mark
-  for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", fill: filled ? "currentColor" : "none", stroke: filled ? "none" : "currentColor", "stroke-width": "1.8",
+  // drawn on the 24 grid, shown through its middle 21: every mark 14% larger in its box (the median mark used 17 of 24, so a
+  // 16 px box drew an 11 px mark), the line kept as thick on screen (1.8 x 21/24)
+  for (const [k, v] of Object.entries({ viewBox: "1.5 1.5 21 21", fill: filled ? "currentColor" : "none", stroke: filled ? "none" : "currentColor", "stroke-width": "1.575",
     "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false" })) s.setAttribute(k, v);  // outline in the text's colour
   s.setAttribute("data-i", name);                                                   // its name, so a key can move its mark the way it points (skin.css)
   if (w) { s.setAttribute("width", w); s.setAttribute("height", w); }               // a size of its own; else the stylesheet's
@@ -174,6 +176,8 @@ async function api(path, body, tries = 2) {                                     
   return j;                                                                         // callers read extra fields such as started or undone
 }
 async function postFile(url, file, tries = 2) {                                     // a file sent as its raw bytes and its own name, as every upload goes; a busy server is asked again, as api() asks it
+  const cap = /^\/api\/v1\/photo/.test(url) ? 10e6 : /^\/api\/v1\/workspace\/restore/.test(url) ? 4e9 : 60e6;   // the server's own limits (web.py MAX_PHOTO, MAX_BACKUP, MAX_UPLOAD)
+  if (file.size > cap) return new Response(JSON.stringify({ error: "too_large" }), { status: 413, headers: { "Content-Type": "application/json" } });   // said here as the server says it: sent, it reset the connection and read as "not answering"
   const r = await fetch(url, { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream", "X-File-Name": enc(file.name) } });
   if (r.status === 503 && tries > 0) {                                              // every slot of the server was taken (src/ownport.py): the file never reached the API
     const j = await r.clone().json().catch(() => ({}));
@@ -385,7 +389,22 @@ function errorText(e) {                                                         
     depth_unsupported: t("The item's evidence does not hold those words, so they were not used. Answer its question instead."),
     depth_finding: t("That finding is not in the review any more. Open the review again."), depth_none: t("This edition has no review yet."),
     depth_no_project: t("That answer names no project, so it was not kept: an answer never prints by itself. Pick the project the page is about."),
-    rule: t("That rule is not in the shape your writing rules keep.") };
+    rule: t("That rule is not in the shape your writing rules keep."),
+    // 0.15.1: refusals said before anything changes
+    example_over_own: t("Your own facts are kept, so the example was not added: it would replace your profile."),
+    fact_empty: t("Write a title or what it says first."),
+    talk_minutes: t("A talk lasts 5 to 120 minutes."),
+    already_carried: t("Its scripts were brought in already. Undo the earlier one first to bring them again."),
+    questions_moved: t("The questions changed in another window, so nothing was saved here. Open the application again."),
+    body_too_large: t("That is too long to send in one piece. Shorten it, or add it as a file."),
+    program: t("Programs are not added. Add documents, pictures or notes."),
+    not_that_kind: t("That file is not what its name says, so it was not added."),
+    fields: t("That could not be done. Open the page again and try once more."),
+    no_kit: t("That application has no interview kit yet."),
+    no_files_at_paths: t("Nothing readable was found at those paths."),
+    needs_agent_files: t("The agent is off, so these files cannot be read yet. Turn it on, then add them again."),
+    agent_off: t("Requests need Claude Code or Codex, switched on and signed in."),
+    needs_tool_agent: t("The command bar needs Claude Code or Codex: a local model cannot act through Offerowl's tools.") };
   if (words[what]) return words[what];                                              // a known refusal
   if (e.status >= 400 && e.status < 500 && what !== "bad_request") return t("That could not be done. Open the page again and try once more.");   // a refusal with no words of its own: never "a problem on this PC"
   return errorInfo(e.message === "bad_request" ? "unexpected" : e.message).msg;    // the general words
@@ -519,7 +538,7 @@ async function removeAct(path, body, words) {                                   
     // the key pressed went with its row: the keyboard lands on the note's Undo, never on the page's top (the body), so a
     // keyboard user can take it back or go on from there
     const k = $("toast").querySelector(".toast-key");
-    if (k && (document.activeElement === document.body || !document.activeElement)) k.focus({ preventScroll: true });
+    if (k) k.focus({ preventScroll: true });                                        // always: a redraw put the keyboard on the next row's key of the same words, and a second Enter removed that one too
     return j;
   } catch (e) { toast(e.message === "offline" ? t("Offerowl is not answering, so this was not saved.") : errorText(e), null, "bad"); return null; }    // the reason in words
 }
@@ -706,11 +725,15 @@ const jobNameOf = (id, fallback = "") => jobName((S.jobs || []).find((j) => j.id
 const fileWords = (name) => String(name || "").split(/(?<=[_-])|(?=\.[^.]+$)/).flatMap((part, i) => (i ? [h("wbr"), part] : [part]));
 // a row that slides sideways says which way more of it lies: its edge fades on that side, so a word cut at the edge reads
 // as the row going on, not as a word cut short
+function fadeRow(row) { requestAnimationFrame(() => edgeFade(row)); return row; }   // a row made now that may slide sideways: its fades follow it from the start (edgeFade watches its size)
 function edgeFade(row) {
   const more = row.scrollWidth - row.clientWidth;                                   // how far it can slide
   row.classList.toggle("fade-l", more > 1 && row.scrollLeft > 1);
   row.classList.toggle("fade-r", more > 1 && row.scrollLeft < more - 1);
-  if (!row.fadeOn) { row.fadeOn = true; row.addEventListener("scroll", () => edgeFade(row), { passive: true }); }   // kept as it slides
+  if (!row.fadeOn) {                                                                // kept as it slides, and as it is laid out or resized
+    row.fadeOn = true; row.addEventListener("scroll", () => edgeFade(row), { passive: true });
+    if (typeof ResizeObserver === "function") new ResizeObserver(() => edgeFade(row)).observe(row);   // measured before it was on the page (0 wide), it showed no fade until a scroll
+  }
 }
 const hourOf = (at) => (String(at || "").match(/[T ](\d{2}:\d{2})/) || ["", ""])[1];   // 2026-11-09 14:32 (or T14:32:05) as 14:32; "" for a day alone
 const pad2 = (n) => String(n).padStart(2, "0");

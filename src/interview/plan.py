@@ -32,6 +32,11 @@ KINDS = ("asked", "posting", "resume", "portfolio", "term", "behavioral", "compa
 META = re.compile(r"^[\w ./-]{1,24}:\s")  # "Location: ..." style metadata lines of a posting
 # Words that name a duty or requirement section, in English and Korean; a posting without lists is read only there
 DUTY = re.compile(r"responsib|qualif|requir|prefer|what you|you will|you'll|duties|skills|about the role|자격|우대|업무|담당|요건|역할|필수", re.I)
+# A Korean posting's section headings, written without a colon and with no upper case ("주요 업무", "자격 요건", "우대 사항"):
+# the whole line is the heading, so a requirement that names a duty ("MLOps 업무 경험") is never taken for one
+KO_HEAD = re.compile(r"^(?:[■□▶▷●○◆◇※#\-]\s*)?(?:\[\s*)?(?:주요\s*|담당\s*|핵심\s*)?(?:업무(?:\s*내용)?|하는\s*일|자격\s*요건|지원\s*자격|필수\s*(?:요건|역량|조건|사항)|"
+                     r"우대\s*(?:사항|조건|역량|요건)|역할(?:과\s*책임)?|이런\s*분을\s*찾(?:아요|습니다)|이런\s*분이면\s*더\s*좋아요|팀\s*소개|회사\s*소개|"
+                     r"채용\s*절차|전형\s*절차|근무\s*(?:조건|환경|지)|복지(?:\s*및\s*혜택)?|혜택|기술\s*스택|사용\s*기술)(?:\s*\])?\s*[:：]?$")
 # Mail, links and phone numbers: resume lines that hold contact details, not claims to ask about
 CONTACT = re.compile(r"@|https?://|www\.|linkedin|github\.com|\+\d{2}\s?\d|\b\d{2,4}-\d{3,4}-\d{4}\b", re.I)
 
@@ -42,7 +47,8 @@ def posting_lines(text):
     lines = T.doc_lines(text)  # content lines with marks stripped
     has_bullets = any(b for _, _, b, _ in lines)  # list items decide when there are any
     for n, s, is_bullet, is_head in lines:  # walk the posting in order, so each line knows its section
-        if is_head or (not is_bullet and len(s.split()) <= 6 and (s.endswith(":") or s.isupper())):  # a section heading
+        caps = s.isupper() and not re.search(r"[가-힣]", s)  # an English heading in capitals ("RESPONSIBILITIES"); a Korean line with "API" in it is no heading (isupper ignores Hangul)
+        if is_head or (not is_bullet and len(s.split()) <= 6 and (s.endswith(":") or caps or KO_HEAD.match(s))):  # a section heading (a Korean one by its words)
             section = s.rstrip(":").strip()  # remembered as the section of the lines below it
             continue
         if META.match(s) and not is_bullet:  # Location:, Date Posted: and the like

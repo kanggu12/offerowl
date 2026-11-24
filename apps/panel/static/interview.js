@@ -289,8 +289,9 @@ function practiceView(j, kit0) {                                                
     const sw = s.agent ? h("button", { class: "switch", type: "button", role: "switch", "aria-checked": PR.useAgent ? "true" : "false", "aria-label": fmt("pr_agent", { name: prWho(s.agent) }),
       onclick: () => { PR.useAgent = !PR.useAgent; store.set("pr-agent", PR.useAgent ? "1" : "0"); draw(); } }) : null;   // the agent asks, or the scripts' own questions
     const row = (label, ...kids) => h("div", { class: "pr-row" }, h("span", { class: "pr-lab", text: label }), h("div", { class: "pr-val" }, kids));   // one setting
-    const hist = (s.history || []).length ? h("div", { class: "pr-hist" }, h("h4", { text: fmt("pr_history") }),   // earlier sessions on this PC
-      h("table", {}, h("tbody", {}, s.history.map((x) => h("tr", {}, h("td", { text: String(x.started || "").replace("T", " ").slice(0, 16) }),
+    const done = (s.history || []).filter((x) => x.summary && x.summary.answers > 0);   // a session started and never answered says nothing worth a row
+    const hist = done.length ? h("div", { class: "pr-hist" }, h("h4", { text: fmt("pr_history") }),   // earlier sessions on this PC
+      h("table", {}, h("tbody", {}, done.map((x) => h("tr", {}, h("td", { text: String(x.started || "").replace("T", " ").slice(0, 16) }),
         h("td", { text: prWho(x.interviewer) }), h("td", { text: sumLine(x.summary) })))))) : null;
     return h("div", { class: "card pr-setup" },
       row(fmt("pr_interviewer"), sw, h("span", { class: s.agent ? "" : "hint", text: s.agent ? fmt("pr_agent", { name: prWho(s.agent) }) : fmt("pr_no_agent") })),

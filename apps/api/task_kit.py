@@ -224,6 +224,9 @@ class Kits:
             raise ValueError("bad_brief")
         keep = {k: brief[k] for k in ("lang", "minutes", "qa", "when", "format", "where", "request", "topics", "pages", "challenge", "order", "headline",
                                       "theme", "company") if k in brief}  # only the brief's own keys
+        m = keep.get("minutes")  # the talk's length, as the form's field allows it: never kept outside 5 to 120 (talk.normalize read 999 as 30 but the brief kept 999)
+        if m is not None and not (isinstance(m, (int, float)) and not isinstance(m, bool) and 5 <= m <= 120):
+            raise ValueError("talk_minutes")
         try:
             ivtalk.normalize(keep, "en" if keep.get("lang") == "en" else "ko")  # the same checks the talk runs
         except ivtalk.TalkError as e:

@@ -130,7 +130,7 @@ function factsSheet(rows, c) {                                                  
   const rest = rows.length - named.slice(0, 5).reduce((s, [, n]) => s + n, 0);       // every other fact, the unnamed kinds with them: one "Other", never two
   return h("section", { class: "paper facts-sheet", "aria-label": t("Facts") },
     rows.length ? h("div", { class: "facts-viz" }, segBar([...named.slice(0, 5).map(([k, n]) => ({ n, words: t(KIND[k]), color: KIND_COLOR[k] || "var(--ink-3)" })),   // the five biggest named kinds, then the rest together
-      ...(rest > 0 ? [{ n: rest, words: t("Other"), color: "var(--ink-3)" }] : [])],   // "Other" as Make draws it (line-2 was 1.5:1)
+      ...(rest > 0 ? [{ n: rest, words: t("The rest"), color: "var(--ink-3)" }] : [])],   // "the rest" as Make and Insights draw it: never the kind "Other" of the list's picker (line-2 was 1.5:1)
       { label: t("Facts by kind"), id: "kinds" })) : null,
     h("div", { class: "facts-tools" },
       h("div", { class: "seg", "aria-label": t("Show") }, [["todo", "To confirm", c.to_confirm], ["kept", "Kept", c.kept], ["dropped", "Dropped", c.dropped], ["all", "All", c.found]].map(([k, w, n]) =>
@@ -144,7 +144,7 @@ function factsSheet(rows, c) {                                                  
       h("select", { class: "input fk", "aria-label": t("Kind"), onchange: (e) => { UI.factKind = e.target.value; UI.factPage = 0; render(); } },
         h("option", { value: "", text: t("All kinds") }),
         Object.keys(byKind).map((k) => h("option", { value: k, selected: kind === k || null, text: `${t(KIND[k] || "Other")} ${byKind[k]}` }))),
-      h("span", { class: "hint", text: found.length ? t("{from}–{to} of {n}", { from: page * FACT_PAGE + 1, to: page * FACT_PAGE + shown.length, n: found.length }) : "" })) : null,
+      null) : null,                                                                // where the list is: said once, by the pager under it
     UI.factAdd ? factForm() : null,
     h("div", { class: "factlist" }, shown.length ? shown.map(factRow)                 // one page of rows
       : h("p", { class: "empty", text: q || kind ? t("No fact matches.") : UI.filter === "todo" ? t("Nothing left to confirm.") : t("No facts here yet.") })),
@@ -153,13 +153,14 @@ function factsSheet(rows, c) {                                                  
 function factForm() {                                                              // a fact typed by the person: its own evidence, kept at once
   const kinds = ["role", "project", "education", "skill", "certificate", "award", "paper", "patent", "other"];  // the kinds the profile knows
   const form = h("form", { class: "add-fact", "aria-label": t("Add a fact"), onsubmit: (e) => { e.preventDefault(); const f = e.target.elements;
+    if (!f.title.value.trim() && !f.statement.value.trim()) { toast(t("Write a title or what it says first."), null, "info"); f.title.focus(); return; }   // a fact needs words: said here, never a request refused
     act("/api/v1/facts/add", { kind: f.kind.value, title: f.title.value, org: f.org.value, period: f.period.value, statement: f.statement.value }, t("Added. Undo takes it back."))
       .then((r) => { if (r) { UI.factAdd = false; forget("f-add-");                   // the form closes
         if (UI.filter !== "all") UI.filter = "kept";                                   // a typed fact is kept at once: shown where it now is
         UI.factQuery = ""; UI.factKind = ""; UI.factJump = r.cid; render(); } }); } },   // no search or kind hides it; factsSheet takes the list to its row
     h("p", { class: "hint", text: t("A fact you type is its own evidence: write what you did, as you would say it.") }),
     h("div", { class: "details" },
-      h("label", { class: "field" }, h("span", { text: t("Kind") }), h("select", { name: "kind", "data-key": "f-add-kind" }, kinds.map((k) => h("option", { value: k, text: t(KIND[k]) })))),
+      h("label", { class: "field" }, h("span", { text: t("Kind") }), h("select", { name: "kind", "data-key": "f-add-kind" }, kinds.map((k) => h("option", { value: k, selected: k === "other" || null, text: t(KIND[k]) })))),   // "Other" until picked: a note never files itself as a job
       h("label", { class: "field" }, h("span", { text: t("Title") }), h("input", { name: "title", "data-key": "f-add-title" })),
       h("label", { class: "field" }, h("span", { text: t("Company or place") }), h("input", { name: "org", "data-key": "f-add-org" })),
       h("label", { class: "field" }, h("span", { text: t("Period") }), h("input", { name: "period", "data-key": "f-add-period", placeholder: "2023.01 ~ 2023.09" })),
@@ -175,7 +176,7 @@ function photoCell() {                                                          
       h("button", { class: "btn small", onclick: () => $("photopick").click(), text: ph ? t("Change") : t("Add a photo") }),
       ph ? h("button", { class: "btn small danger", onclick: async () => {   // said in words, as every removal key; kept in the Trash: its note puts it back from there (a picture has no undo step)
         const j = await act("/api/v1/photo/remove", {});                            // the answer names it in the Trash
-        if (j && j.removed) UI.trashUndo = { id: j.removed, step: S.undo_id || null, what: t("Your photo"), done: t("Photo put back.") };   // the bar's undo puts it back too, until another change
+        if (j && j.removed) { UI.trashUndo = { id: j.removed, step: S.undo_id || null, what: t("Your photo"), done: t("Photo put back.") }; render(); }   // the bar's undo puts it back too, until another change: drawn now, not at the next poll
         if (j) toast(t("Photo removed."), j.removed ? { words: t("Undo"), run: () => { UI.trashUndo = null; return act("/api/v1/removed/restore", { id: j.removed }, t("Photo put back.")); } } : null);
       } }, icon("trash"), t("Remove the photo")) : null),
     ph ? h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-photo", checked: ph.on, onchange: (e) => act("/api/v1/settings", { photo: e.target.checked }) }), h("span", { class: "track" }), t("On the resume")) : null);
@@ -205,7 +206,7 @@ function factRow(r) {                                                           
   // too, for a fact read from a file or typed (the profile files them by kind); an item imported from a profile file keeps
   // its place in that profile, so its kind is not offered
   const kinds = ["role", "project", "education", "skill", "certificate", "award", "paper", "patent", "other"];
-  const body = editing ? h("div", { class: "add-fact" },
+  const body = editing ? h("div", { class: "add-fact", onkeydown: (e) => { if (e.key === "Escape") { e.stopPropagation(); UI.factEdit = null; forget("f-"); render(); } } },   // Esc closes it, as Cancel
     h("div", { class: "details" },
       r.origin !== "profile" ? h("label", { class: "field" }, h("span", { text: t("Kind") }), h("select", { "data-key": "f-kind" },
         kinds.map((k) => h("option", { value: k, selected: (v.kind || "other") === k || null, text: t(KIND[k]) })))) : null,
@@ -218,7 +219,8 @@ function factRow(r) {                                                           
     : null;
   const open = !editing && UI.factOpen === r.cid;                                   // its words and source shown
   const plain = (x) => unmarked(x).replace(/…$/, "").trim();                         // a text without marks, for comparing and for showing
-  const said = r.quote && plain(r.quote) !== plain(v.title) ? plain(r.quote) : "";  // the source's words, unless they are the title itself
+  const same = (a, b) => { const x = plain(a || ""), y = plain(b || ""); return !!x && !!y && (x === y || x.includes(y) || y.includes(x)); };   // one holds the other: the same words twice
+  const said = r.quote && !same(r.quote, v.title || v.statement) ? plain(r.quote) : "";  // the source's words, unless the title already says them
   // closed, the source's words in sight as a retrieval interface shows them, but never cut mid-way with an ellipsis: whole
   // when short, else their first sentence whole and a word that says there is more (a sentence too long to stop early stays
   // whole); the row opens all of them
@@ -247,6 +249,7 @@ function factRow(r) {                                                           
 }
 function saveFact(cid) {                                                            // the edit form's fields to the server
   const val = (k) => (document.querySelector(`[data-key="f-${k}"]`) || {}).value;  // one field's value
+  if (!String(val("title") || "").trim() && !String(val("statement") || "").trim()) { toast(t("Write a title or what it says first."), null, "info"); return; }   // a blank fact is never saved: the form stays
   UI.factEdit = null; forget("f-");                                                 // the form closes
   const fields = { title: val("title"), org: val("org"), period: val("period"), statement: val("statement") };   // the shown fields
   if (val("kind")) fields.kind = val("kind");                                       // and its kind, where the form offers it
@@ -264,7 +267,11 @@ function openJob() {                                                            
   const jobs = S.jobs || [];                                                        // the jobs, oldest first
   return jobs.find((j) => j.id === S.job) || jobs.find((j) => j.stage !== "result") || jobs[0] || null;
 }
+function askResult(jid) {                                                          // a card moved to its result: the note asks how it ended, its key opens the choice
+  toast(t("Moved to {stage}", { stage: t(STAGE.result) }) + " " + t("How did it end?"), { words: t("Write the result"), run: () => { openApplication(jid, "progress"); go("jobs"); } }, "info");
+}
 function editNext(jid) {                                                            // a card's next step, typed in its own box
+  UI.nextOrig = ((S.jobs || []).find((j) => j.id === jid) || {}).next || "";       // the words before, for Esc
   UI.nextEdit = jid; render();
   requestAnimationFrame(() => { const i = document.querySelector(`[data-key="b-${CSS.escape(jid)}-next"]`); if (i) i.focus(); });
 }
@@ -307,7 +314,9 @@ function dueBand() {                                                            
   // no live region: the band is drawn again with the page, and a screen reader would read the whole list out each time; the
   // bar's Applications key already says how many are due ("지원, 할 일 2")
   return h("div", { class: "band info due" }, h("p", {}, h("b", { text: t("Due now") }), " ",
-    due.slice(0, DUE_SHOWN).map((d, i) => [i ? " · " : "", h("b", { text: d.name }), " ", linked(d.text)])),   // a meeting's long address reads as "Zoom", as on the timeline
+    due.slice(0, DUE_SHOWN).map((d, i) => [i ? " · " : "",
+      h("button", { class: "due-name", type: "button", title: t("Open the application"), onclick: () => { openApplication(d.job, "progress"); go("jobs"); }, text: d.name }), ": ", linked(d.text), " ",   // whose, then what: the name opens the application
+      h("button", { class: "btn small due-done", type: "button", onclick: () => act("/api/v1/reminders", { job: d.job, id: d.id, done: true }, t("Marked done. Undo takes it back.")) }, t("Mark done"))])),   // dealt with, from here
     more > 0 ? h("button", { class: "btn small", type: "button", onclick: () => { UI.jobsMode = "timeline"; UI.editDays = false; render(); } },   // every reminder is on the timeline, by day
       tn(more, "{n} more on the timeline", "{n} more on the timeline")) : null);
 }
@@ -383,15 +392,21 @@ async function addJob(form) {                                                   
 // ---------------------------------------------------------------- the application's own questions (apps/api/answers.py)
 const qCount = (text, unit) => (unit === "words" ? String(text || "").trim().split(/\s+/).filter(Boolean).length : [...String(text || "").trim()].length);   // as the form counts, and as the server does (apps/api/answers.py count): characters, not UTF-16 halves
 const qUnit = (q) => (q.unit === "words" ? t("words") : t("characters"));       // the limit's unit
+function factWords(rest) {                                                          // what the fact check found, in the panel's language (src/factcheck.py words it in the server's)
+  const FC = [[/^number not in the evidence: (.*)$/s, "A number not in your facts: {x}"], [/^counted word not in the evidence: (.*)$/s, "A counted word not in your facts: {x}"],
+    [/^Latin word not in the evidence: (.*)$/s, "An English word not in your facts: {x}"], [/^organisation not in the evidence: (.*)$/s, "A company or body not in your facts: {x}"]];
+  for (const [re, w] of FC) { const m = re.exec(rest || ""); if (m) return t(w, { x: m[1] }); }
+  return /^근거에 없는/.test(rest || "") ? rest : t("Not in your facts: {what}", { what: rest });   // the Korean words already say it
+}
 function issueWords(code) {                                                         // one problem of an answer, in words
   const [k, rest] = String(code).split(/:(.*)/s);                                   // its kind, and what it names
   const [n, lim] = String(rest || "").split("/");                                   // a length and its limit
   return { too_long: t("Over the limit: {n} of {limit}", { n, limit: lim }), too_short: t("Short: {n} of {limit}, room for more", { n, limit: lim }),
-    unsupported: t("Not in your facts: {what}", { what: rest }), style: rest || t("Against your rules"), empty: t("Empty"), markup: t("Marks such as ** or # show as they are in a form's box."), agent_stopped: t("The agent stopped part way."),
+    unsupported: factWords(rest), style: rest || t("Against your rules"), empty: t("Empty"), markup: t("Marks such as ** or # show as they are in a form's box."), agent_stopped: t("The agent stopped part way."),
     placeholder: t("Still a blank to fill in: {what}", { what: rest }) }[k] || code;   // a slot left in the answer (<link>, TODO, ○○): a form would send it as it is
 }
-async function saveQuestions(j, list) {                                             // the job's questions, in order
-  await act("/api/v1/jobs/questions", { job: j.id, questions: list.map((q) => ({ text: q.text, limit: q.limit, unit: q.unit })) });
+async function saveQuestions(j, list, done) {                                       // the job's questions, in order (done: the words of the note, with its Undo)
+  return act("/api/v1/jobs/questions", { job: j.id, seen: (j.questions || []).map((q) => q.id), questions: list.map((q) => ({ text: q.text, limit: q.limit, unit: q.unit })) }, done);   // seen: the list this page had, so another window's question is never written over
 }
 function answerRow(j, q) {                                                          // one question: its answer, its length, its problems, its facts
   const key = `qa-${j.id}-${q.id}`;                                                 // the answer box
@@ -406,7 +421,7 @@ function answerRow(j, q) {                                                      
   box.value = UI.typed[key] !== undefined ? UI.typed[key] : q.answer || "";         // the words survive a redraw
   return h("article", { class: "qa" },
     h("div", { class: "qa-head" }, h("b", { text: q.text }), counter, limitPick,
-      h("button", { class: "btn sm quiet", type: "button", onclick: () => saveQuestions(j, (j.questions || []).filter((x) => x.id !== q.id)) }, icon("close", 15), t("Remove the question"))),   // said in words
+      h("button", { class: "btn sm quiet", type: "button", onclick: () => saveQuestions(j, (j.questions || []).filter((x) => x.id !== q.id), t("Question removed.")) }, icon("close", 15), t("Remove the question"))),   // said in words; one undo step: its note's Undo brings it back with its answer
     box,
     (q.issues || []).length ? h("ul", { class: "problist" }, q.issues.map((i) => h("li", { class: "lit bad", text: issueWords(i) }))) : null,
     (q.cited || []).length ? h("p", { class: "hint", text: t("From your facts: {names}", { names: q.cited.map((c) => c.title).filter(Boolean).join(", ") }) }) : null,
@@ -434,7 +449,7 @@ function questionsCard(j) {                                                     
     qs.length ? h("div", { class: "nextkeys" },
       h("button", { class: "btn primary", disabled: busy || !agentOn() || null, onclick: () => act("/api/v1/jobs/questions/write", { job: j.id }) }, icon("edit"), qs.some((q) => q.answer) ? t("Write every answer again") : t("Write the answers")),
       qs.some((q) => q.answer) ? h("button", { class: "btn", onclick: () => navigator.clipboard.writeText(qs.filter((q) => q.answer).map((q, i) => `${i + 1}. ${q.text}\n\n${q.answer}`).join("\n\n")).then(() => toast(t("Copied."))) }, icon("copy"), t("Copy all")) : null,
-      qs.some((q) => q.answer) ? h("button", { class: "btn", onclick: async () => { const r = await act("/api/v1/jobs/questions/export", { job: j.id }); if (r && r.exported && r.exported.length) toast(t("Saved to the Desktop: {name}", { name: r.exported[0] }), null, "done"); } }, icon("download"), t("Save to the Desktop")) : null) : null,
+      qs.some((q) => q.answer) ? h("button", { class: "btn", disabled: qs.some((q) => (q.issues || []).length) || null, title: qs.some((q) => (q.issues || []).length) ? t("An answer still needs your fix. Its problems are under it.") : null, onclick: async () => { const r = await act("/api/v1/jobs/questions/export", { job: j.id }); if (r && r.exported && r.exported.length) toast(t("Saved to the Desktop: {name}", { name: r.exported[0] }), null, "done"); } }, icon("download"), t("Save to the Desktop")) : null) : null,   // refused while an answer has a problem: the key says so by waiting
     tk.state === "error" ? band(tk.error.code, { retry: () => act("/api/v1/jobs/questions/write", { job: j.id }) }) : null);
 }
 function jobDetail(j, phone) {                                                      // one application: its head, its tabs and the part open (on a phone, the way back to the list)
@@ -469,7 +484,7 @@ function jobDetail(j, phone) {                                                  
         j.company && j.role ? h("span", { class: "ro", text: j.role }) : null),
       h("span", { class: "grow" }),
       h("div", { class: "jd-acts" },
-        j.locked ? h("button", { class: "btn", type: "button", onclick: () => { UI.doc = "resume"; go("documents"); }, text: t("See what was sent") })   // submitted: its documents are the sent copies, kept as they went
+        j.locked ? h("button", { class: "btn", type: "button", onclick: () => { UI.doc = "resume"; if (j.locked.lang) UI.docLang = j.locked.lang; go("documents"); }, text: t("See what was sent") })   // in the language it went in   // submitted: its documents are the sent copies, kept as they went
         : h("button", { class: j.stage === "result" || tab === "interview" || tab === "progress" ? "btn" : "btn primary", "data-act": "job-make", disabled: tk.state === "running" || run || null, onclick: () => makeForJob(j.id),   // the main key, unless the tab has its own (Practice, Remind me) or the application ended: one main key in sight
           text: run ? t("A run is going") : t("Make this job's documents") }))),
     todayBand(j, tab),                                                              // a round today: its hour, the time left, its call's link; once it ends, the questions to write down
@@ -579,12 +594,12 @@ function boardOf(jid) {                                                         
 function speech(text) {                                                             // a scripted line with its speech marks drawn as the interview view draws them
   const thought = (part) => {                                                       // one thought: stress, the key phrase and breaths
     const out = [];                                                                 // nodes
-    part.split(/(\s\/\s|==[^=]+==|\*\*[^*]+\*\*|`[^`]+`|\([^()]*[\uac00-\ud7a3][^()]*\))/).forEach((p) => {   // breath, key phrase, stress, code, a stage note
+    part.split(/(\s\/\s|==[^=]+==|\*\*[^*]+\*\*|`[^`]+`|(?<=^|\s)\([^()A-Za-z]*[\uac00-\ud7a3][^()A-Za-z]*\))/).forEach((p) => {   // breath, key phrase, stress, code, a stage note (standing apart, no Latin: a gloss joined to its word is said, as kit.js reads it)
       if (p === " / ") out.push(" ", h("span", { class: "br", "aria-hidden": "true", text: "/" }), " ");  // a short breath: a faint slash
       else if (/^==[^=]+==$/.test(p)) out.push(h("mark", { class: "hl" }, thought(p.slice(2, -2))));   // the key phrase: its stress and breaths drawn too, never its marks
       else if (/^\*\*[^*]+\*\*$/.test(p)) out.push(h("strong", { text: p.slice(2, -2) }));         // stress
       else if (/^`[^`]+`$/.test(p)) out.push(h("code", { text: p.slice(1, -1) }));                  // a command or a file name, in its own letters
-      else if (/^\([^()]*[\uac00-\ud7a3][^()]*\)$/.test(p)) out.push(h("span", { class: "dir", text: p }));   // a stage note in Korean brackets: not spoken, in grey as the kit draws it
+      else if (/^\([^()A-Za-z]*[\uac00-\ud7a3][^()A-Za-z]*\)$/.test(p)) out.push(h("span", { class: "dir", text: p }));   // a stage note in Korean brackets: not spoken, in grey as the kit draws it
       else if (p) out.push(document.createTextNode(p));                             // plain words
     });
     return out;                                                                     // for the thought's line
@@ -616,8 +631,16 @@ function interviewPart(j) {                                                     
   const carryKeys = () => {                                                         // another application's kit brought in whole: its scripts, deep dives and terms (src/interview/carry.py)
     const others = (S.jobs || []).filter((x) => x.id !== j.id && x.kit && !x.removed);   // the applications that have a kit
     if (!others.length) return null;
-    const go = h("button", { class: "btn", type: "button", disabled: true, onclick: () => pick.value &&   // nothing is carried before an application is picked
-      act("/api/v1/interview/carry", { job: j.id, from: pick.value }, t("Brought in.")).then(() => { if (typeof boardReload === "function") boardReload(j.id); }) },
+    const go = h("button", { class: "btn", type: "button", disabled: true, onclick: async () => {   // nothing is carried before an application is picked
+      if (!pick.value || go.classList.contains("busy")) return;                   // one carry at a time: a second click doubled everything
+      go.disabled = true; go.classList.add("busy");
+      const r = await act("/api/v1/interview/carry", { job: j.id, from: pick.value });
+      go.classList.remove("busy"); go.disabled = !pick.value;
+      if (!r) return;                                                              // refused: the note says why (carried from there already, no kit)
+      const n = (r.files || []).reduce((a, f) => a + (f.scenes || 0), 0);
+      toast(t("Brought in {n} scenes; {left} about that company stayed there, {same} were here already.", { n, left: (r.left || []).length, same: r.same || 0 }),
+        r.step ? { words: t("Undo"), run: () => undoOnly(r.step) } : null, "done");   // what came, what stayed, with its Undo
+      if (typeof boardReload === "function") boardReload(j.id); } },
       icon("copy"), t("Bring its scripts"));                                         // a Korean posting turns its English scripts round, Korean on top
     const pick = h("select", { class: "input", "data-key": "iv-carry-from", "aria-label": t("Scripts of another application"), onchange: (e) => { go.disabled = !e.target.value; } },
       h("option", { value: "", text: t("Pick an application") }),                    // no default: a click never merges a kit by accident
@@ -635,11 +658,12 @@ function interviewPart(j) {                                                     
       h("button", { class: "btn", onclick: () => { UI.ivPart = "talk"; render(); }, text: t("Prepare a presentation") }))), materialsPart(j));   // a talk the interviewers asked for, without the map
   const tk = task("scripts:" + j.id);                                                // the writing task, when one runs
   const writing = tk.state === "running";                                           // writing now
-  const parts = [["search", t("Search the scripts"), "search"], ["deck", t("Interview deck"), "slides"], practice ? ["practice", t("Practice"), "mic"] : null,
-    ["map", t("Question map and scripts"), "map"], ["talk", t("Presentation"), "chart"]].filter(Boolean);   // practice when the kit has it
+  const parts = [["search", t("Search the scripts"), "search", t("Search")], ["deck", t("Interview deck"), "slides", t("Deck")], practice ? ["practice", t("Practice"), "mic", t("Practice")] : null,
+    ["map", t("Question map and scripts"), "map", t("Question map")], ["talk", t("Presentation"), "chart", t("Presentation")]].filter(Boolean);   // practice when the kit has it; each with a phone's short name
   const part = parts.some(([k]) => k === UI.ivPart) ? UI.ivPart : "search";         // what the tab shows: the search view, the deck, practice, the map and its scripts, or the talk
   const switcher = h("div", { class: "seg ivseg", role: "tablist", "aria-label": t("Interview") },
-    parts.map(([k, w, ic]) => h("button", { type: "button", role: "tab", "aria-selected": part === k ? "true" : "false", onclick: () => { UI.ivPart = k; render(); } }, icon(ic), w)));
+    parts.map(([k, w, ic, ws]) => h("button", { type: "button", role: "tab", "aria-selected": part === k ? "true" : "false", "aria-label": w, onclick: () => { UI.ivPart = k; render(); } },
+      icon(ic), h("span", { class: "w-l", text: w }), h("span", { class: "w-s", text: ws }))));   // the whole name, or on a phone the short one: five parts on one row
   if (part === "talk") return h("div", { class: "ivpart" }, h("div", { class: "ivtop" }, switcher, keysFor(part)), talkPart(j), materialsPart(j));   // the presentation interview
   if (part !== "map") return h("div", { class: "ivpart" }, h("div", { class: "ivtop" }, switcher, keysFor(part)),
     part === "deck" ? ivDeck(j) : part === "practice" ? ivPractice(j) : ivKit(j),   // each drawn by the panel itself: the deck and practice (interview.js), the contents, the search and the scripts (kit.js)
@@ -791,12 +815,12 @@ async function saveMaterial(jid, m) {                                           
 const PLAIN_TITLE = /^(질문|문항|question|q)$/i;                                    // a Korean title that names no question ("### D1. 질문 / Tell me about yourself."), as kit.js reads it
 const koTitle = (x) => (PLAIN_TITLE.test(String(x || "").trim()) ? "" : x);         // said only when it says something
 function scriptsPart(list) {                                                        // the scripts: every title on the left, the one open read on the right
-  const at = Math.min(Math.max(0, UI.scriptOpen || 0), list.length - 1);            // the open one, within range
+  const at = Math.min(Math.max(0, UI.scriptOpenJob === S.job ? UI.scriptOpen || 0 : 0), list.length - 1);   // the open one, within range: this application's own (another's place never carries over)
   const s = list[at];                                                               // its scenes
   return h("section", { class: "scripts", "aria-label": t("Script cards") },
     h("h2", { class: "scripts-h", text: t("Script cards") }),
     h("nav", { class: "scriptlist paper", "aria-label": t("Script cards") }, list.map((x, i) => h("button", { class: "scriptrow", "aria-current": i === at ? "true" : "false",
-      onclick: () => { UI.scriptOpen = i; render(); } },
+      onclick: () => { UI.scriptOpen = i; UI.scriptOpenJob = S.job; render(); } },
       h("b", { text: x.title_en || x.title_ko }), x.title_en && koTitle(x.title_ko) ? h("span", { class: "ro", text: x.title_ko }) : null,
       x.draft ? h("span", { class: "chip ai", text: t("Draft by the agent") }) : null))),
     h("article", { class: "script paper", "aria-label": s.title_en || s.title_ko },
@@ -906,7 +930,7 @@ function progressPart(j) {                                                      
   const reached = stages.slice(0, stages.indexOf(j.stage) + 1);                     // the stages it went through, the one it is in last
   return h("div", { class: "progress" },
     h("div", { class: "seg stages", role: "group", "aria-label": t("Stage") }, stages.map((st) =>   // its stage, chosen in place
-      h("button", { "aria-pressed": j.stage === st ? "true" : "false", onclick: () => act("/api/v1/tracker/edit", { job: j.id, stage: st }) },
+      h("button", { "aria-pressed": j.stage === st ? "true" : "false", onclick: () => j.stage === st ? null : act("/api/v1/tracker/edit", { job: j.id, stage: st }, t("Moved to {stage}", { stage: t(STAGE[st]) })) },
         t(STAGE[st]), (j.days || j.dates || {})[st] ? h("span", { class: "when", text: shortDay((j.days || j.dates)[st]) }) : null))),   // the days that count (tracker.stage_days)
     h("div", { class: "pdates", role: "group", "aria-label": t("Days of the stages") }, reached.map((st) =>   // each stage's day, each its own field (a card added late keeps the real ones)
       h("label", { class: "field" }, h("span", { text: t("{stage} day", { stage: t(STAGE[st]) }) }), dayField({ "data-key": `p-${j.id}-date-${st}` }, (j.dates || {})[st] || "",
@@ -918,6 +942,11 @@ function progressPart(j) {                                                      
           onclick: () => { if (on && j.result !== k) return; act("/api/v1/tracker/edit", { job: j.id, result: on ? "" : k }); } }, h("span", { class: "lit " + (on ? RESULT_CLS[k] : "off"), "aria-hidden": "true" }), t(RESULT[k])); }))) : null,   // lit when chosen: an unchosen offer is no green
       h("label", { class: "field" }, h("span", { text: t("Next step") }), h("input", { "data-key": `p-${j.id}-next`, value: j.next || "", placeholder: t("Add a next step"),
         oninput: debounce((e) => act("/api/v1/tracker/edit", { job: j.id, next: e.target.value }), 700) }))),
+    h("div", { class: "prow names" },                                               // its company and role, as the posting gave them or as the person writes them (POST /api/v1/tracker/edit)
+      h("label", { class: "field" }, h("span", { text: t("Company") }), h("input", { "data-key": `p-${j.id}-company`, value: j.company || "", placeholder: t("Company"),
+        onchange: (e) => act("/api/v1/tracker/edit", { job: j.id, company: e.target.value.trim() }, t("Saved. Undo takes it back.")) })),   // saved when the box is left: one undo step
+      h("label", { class: "field" }, h("span", { text: t("Role") }), h("input", { "data-key": `p-${j.id}-role`, value: j.role || "", placeholder: t("Role"),
+        onchange: (e) => act("/api/v1/tracker/edit", { job: j.id, role: e.target.value.trim() }, t("Saved. Undo takes it back.")) }))),
     linksIn(j.next).length ? h("p", { class: "next-links" }, linkKeys(j.next)) : null,   // the next step's links, to open from here
     ownResult(j) ? h("p", { class: "hint own-result" }, t("Result") + ": " + ownResult(j),   // a result the person wrote in words: a key above replaces it, undo brings it back
       resultDay(j) ? h("button", { class: "btn small", type: "button", onclick: () => act("/api/v1/tracker/edit", { job: j.id, dates: { result: resultDay(j) } }),
@@ -953,7 +982,15 @@ function trackBoard(jobs) {                                                     
         j.company && j.role ? h("span", { class: "ro", text: j.role }) : null,
         UI.nextEdit === j.id ? h("input", { class: "tnext", "data-key": `b-${j.id}-next`, value: j.next || "", placeholder: t("Add a next step"), "aria-label": t("Next step"), draggable: "false",   // a box only while it is typed in
           oninput: debounce((e) => { j.next = e.target.value; act("/api/v1/tracker/edit", { job: j.id, next: e.target.value }); }, 700),
-          onblur: () => { UI.nextEdit = null; render(); }, onkeydown: (e) => { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); } })
+          onblur: () => setTimeout(() => {                                         // a redraw (its own save coming back, a poll) takes the box away and draws it again with the keyboard in it (drawPane): the typing goes on
+            const again = document.querySelector(`[data-key="b-${CSS.escape(j.id)}-next"]`);
+            if (again && document.activeElement === again) return;
+            if (UI.nextEdit === j.id) { UI.nextEdit = null; render(); }
+          }, 0),
+          onkeydown: (e) => {
+            if (e.key === "Escape") { e.preventDefault(); if (e.target.value !== (UI.nextOrig ?? "")) { e.target.value = UI.nextOrig ?? ""; e.target.dispatchEvent(new Event("input")); } }   // Esc puts the words back, as the sentence editor's does
+            if (e.key === "Enter" || e.key === "Escape") e.target.blur();
+          } })
           : j.next ? h("button", { class: "tnext-view", type: "button", title: t("Next step"),   // words the card can be lifted by; a click opens the box
             onclick: () => editNext(j.id), text: unlinked(j.next) }) : null,       // no next step: no empty row, its key sits in the foot
         UI.nextEdit === j.id ? null : linkKeys(j.next),                             // its links beside the words, to open at once
@@ -968,10 +1005,10 @@ function trackBoard(jobs) {                                                     
       const job = e.dataTransfer.getData("text/plain"), j = (S.jobs || []).find((x) => x.id === job);
       UI.dragging = null;                                                           // landed
       if (!j || j.stage === st) { render(); return; }                               // the same column: nothing to save
-      j.stage = st; j.dates = { ...(j.dates || {}), [st]: S.today || "" };           // moved on the page at once; the server's answer confirms it
+      j.stage = st; j.dates = { ...(j.dates || {}), [st]: (j.dates || {})[st] || S.today || "" };   // moved on the page at once, keeping the day it first reached that stage (the server does); its answer confirms it
       UI.justMoved = job;                                                           // it settles into its new column (motion.js)
       render();
-      act("/api/v1/tracker/edit", { job, stage: st }, t("Moved to {stage}", { stage: t(STAGE[st]) })); });
+      act("/api/v1/tracker/edit", { job, stage: st }, t("Moved to {stage}", { stage: t(STAGE[st]) })).then((r) => { if (r && st === "result" && !j.result) askResult(job); }); });   // ended: how, asked at once
     return col;                                                                     // one column
   }));
 }
@@ -1140,16 +1177,18 @@ function roundForm(j, r) {                                                      
       r ? h("button", { class: "btn small quiet danger", type: "button", onclick: async () => { if (await removeAct("/api/v1/tracker/round", { job: j.id, id: r.id, remove: true }, t("Round removed."))) close(); }, text: t("Remove") }) : null));
 }
 function reminders(jobs, one) {                                                     // add a reminder; let the PC show them (one: the application they belong to)
-  const form = h("form", { onsubmit: (e) => { e.preventDefault(); const f = e.target;
+  const rk = `r-${one ? one.id : "all"}-`;                                          // its fields' keys: words half typed for one application never follow to the next
+  const form = one && one.stage === "result" ? null : h("form", { onsubmit: (e) => { e.preventDefault(); const f = e.target;   // an ended application asks nothing more (tracker.due): no new reminder offered there
+    if (!f.elements.text.value.trim()) { f.elements.text.setCustomValidity(t("Write what to be reminded of.")); f.elements.text.reportValidity(); return; }   // said here, never a request refused
     const day = isoDay(f.elements.day.value), time = isoTime(f.elements.time.value);   // read the way the fields read them
     if (!day) { f.elements.day.setCustomValidity(t("Write the day as 2026-11-09.")); f.elements.day.reportValidity(); return; }   // a reminder needs its day
     if (time === null) { f.elements.time.setCustomValidity(t("Write the time as 19:00.")); f.elements.time.reportValidity(); return; }
     const at = day + (time ? "T" + time : "");
-    act("/api/v1/reminders", { job: one ? one.id : f.elements.job.value, at, text: f.elements.text.value }, t("Reminder kept.")).then((r) => { if (r) forget("r-text"); }); } },
-    h("label", { class: "field" }, h("span", { text: t("What") }), h("input", { name: "text", "data-key": "r-text", placeholder: t("Reply to the invitation") })),
+    act("/api/v1/reminders", { job: one ? one.id : f.elements.job.value, at, text: f.elements.text.value }, t("Reminder kept.")).then((r) => { if (r) { forget(rk); render(); } }); } },   // saved: the whole form empties (its day and time too)
+    h("label", { class: "field" }, h("span", { text: t("What") }), h("input", { name: "text", "data-key": rk + "text", placeholder: t("Reply to the invitation") })),
     one ? null : h("label", { class: "field" }, h("span", { text: t("Job") }), h("select", { name: "job", "data-key": "r-job" }, jobs.map((j) => h("option", { value: j.id, selected: j.id === S.job || null, text: jobName(j) })))),
-    h("label", { class: "field" }, h("span", { text: t("Day") }), dayField({ name: "day", "data-key": "r-day" }, S.today)),
-    h("label", { class: "field" }, h("span", { text: t("Time") }), timeField({ name: "time", "data-key": "r-time" }, "")),
+    h("label", { class: "field" }, h("span", { text: t("Day") }), dayField({ name: "day", "data-key": rk + "day" }, S.today)),
+    h("label", { class: "field" }, h("span", { text: t("Time") }), timeField({ name: "time", "data-key": rk + "time" }, "")),
     h("button", { class: one && one.stage === "result" ? "btn" : "btn primary", type: "submit", text: t("Remind me") }));   // an ended application's reminder is a plain key: nothing is due on it
   const perm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;  // can this browser show notifications
   return h("section", { class: "remind" + (one ? " one" : " glass"), "aria-label": t("Reminders") },

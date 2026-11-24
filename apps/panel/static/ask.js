@@ -1,5 +1,5 @@
-// Offerowl's panel, the command bar: "Ask the AI", a closed prompt floating at the bottom right of every view (on a phone or a
-// tablet, a bar along the foot of the screen), as the owner asked: a box like a coding agent's prompt, where the person writes
+// Offerowl's panel, the command bar: "Ask the AI", a closed prompt floating at the bottom right of every view (a pill with its
+// mark and words, on a phone too, each page ending with room under its last line), as the owner asked: a box like a coding agent's prompt, where the person writes
 // to the AI agent ("Gamma Cloud's first call is done, write it down", "make a resume for this posting: ..."). It opens a sheet
 // at the window's right edge. The agent acts through Offerowl's own tools (POST /api/v1/ask, apps/api/ask.py) and its answer
 // comes back there with the tools that ran. Ctrl+K or Cmd+K opens and closes it; Enter sends, Shift+Enter starts a new line.
@@ -56,6 +56,10 @@ function askDoc() {                                                             
 async function askSend(box) {                                                       // the words to the agent
   const text = box.value.trim();
   if (!text || task("ask").state === "running") return;                            // nothing to send, or one is still working
+  if (!(["claude-code", "codex"].includes(S.agent.backend) && S.agent.state === "ready")) {   // no agent that can act: the words stay, the band above says why
+    toast(t("Requests need Claude Code or Codex, switched on and signed in."), { words: t("Open the AI agent"), run: () => { askToggle(false); UI.agentPop = true; UI.menu = false; render(); } }, "info");
+    return;
+  }
   UI.askDraft = ""; box.value = "";                                                 // the box is free at once: the redraw the request makes draws it empty
   UI.askHistLen = (askDoc().history || []).length;                                  // the asks kept before this one: its working note goes once the history holds it
   const r = await act("/api/v1/ask", { text });                                     // started, or refused with its reason
@@ -88,7 +92,8 @@ function askKey() {                                                             
   return h("button", { class: "ask-fab" + (working ? " working" : ""), type: "button", "data-lamp": working ? "busy" : lamp[0], "aria-haspopup": "dialog", "aria-controls": "askpanel",
     title: t("Ask the AI ({key})", { key: MAC ? "\u2318K" : "Ctrl+K" }), onclick: () => askToggle(true) },   // its key on this keyboard, said on the hover
     h("span", { class: "ask-fab-i", "aria-hidden": "true" }, icon("agent")),        // the AI's mark; a dot says when the agent is not ready
-    h("span", { class: "ask-fab-w", text: t("Ask the AI") }));                     // what it does, in words: a floating button, never a box to type in
+    h("span", { class: "ask-fab-w", text: t("Ask the AI") }),                      // what it does, in words: a floating button, never a box to type in
+    h("kbd", { class: "ask-fab-k", "aria-hidden": "true", text: MAC ? "\u2318K" : "Ctrl K" }));   // its key on this keyboard, small beside the words (hidden on a touch screen)
 }
 
 // what each of Offerowl's tools (apps/mcp/server.py) did, in words: a request's answer lists the steps it took
@@ -121,7 +126,7 @@ function drawAsk() {                                                            
   const log = h("div", { class: "ask-log", role: "log", "aria-live": "polite" },
     items.length ? items.map((it) => h("div", { class: "ask-item" },
       h("p", { class: "ask-me", text: it.text }),
-      h("div", { class: "ask-ans" + (it.ok ? "" : " bad") },
+      h("div", { class: "ask-ans" + (it.ok ? "" : " bad") }, h("span", { class: "ask-who", "aria-hidden": "true" }, icon("agent")),   // whose answer: the agent's mark beside it, as a conversation reads
         ASK_WORDS[it.answer] || !it.answer ? h("p", { text: t(ASK_WORDS[it.answer] || "No answer came back.") }) : answerView(it.answer),
         (it.tools || []).length ? h("div", { class: "ask-tools" }, [...new Set(it.tools)].map((x) => h("span", { class: "pill on", title: x, text: toolWords(x) }))) : null,   // a tool by what it did, its own name on the hover
         h("small", { text: [it.at, it.backend ? t(AGENT_NAME[it.backend] || it.backend) : "", it.seconds ? t("{n} s", { n: it.seconds }) : ""].filter(Boolean).join(" · ") }))))   // the agent by its name, not its setting's id
@@ -136,14 +141,14 @@ function drawAsk() {                                                            
       h("span", { class: "ask-sub" }, h("span", { class: "lit " + (working ? "busy" : lamp[0]), "aria-hidden": "true" }), h("span", { text: `${name} · ${t(lamp[1])}` })),   // which agent answers, and its state
       h("span", { class: "grow" }),
       hist.length ? h("button", { class: "btn small quiet", type: "button", "data-key": "ask-clear",
-        disabled: working || null, onclick: askClear }, icon("trash"), t("Clear this history")) : null,   // the asks and answers kept in the workspace, emptied: said in words
+        disabled: working || null, "aria-label": t("Clear this history"), onclick: askClear }, icon("trash"), h("span", { class: "w", text: t("Clear this history") })) : null,   // on a phone its sign alone (skin.css)   // the asks and answers kept in the workspace, emptied: said in words
       h("button", { class: "btn icon small", type: "button", "aria-label": t("Close"), onclick: () => askToggle(false) }, icon("close"))),
     able || working ? null : h("div", { class: "band info ask-need", role: "note" },   // said before anything is typed: a request needs an agent that can use the tools
       h("p", { text: t("Requests need Claude Code or Codex, switched on and signed in.") }),
       h("button", { class: "btn small", type: "button", onclick: (e) => { e.stopPropagation(); askToggle(false); UI.agentPop = true; UI.menu = false; render(); } }, t("Open the AI agent"))),   // the agent's own panel, where it is turned on (the click goes no further: a click outside the agent's panel closes it)
     log,
     h("div", { class: "ask-input" }, box,
-      h("button", { class: "btn primary", type: "button", disabled: working || null, "aria-label": t("Send"), onclick: () => { UI.askLast = box.value.trim(); askSend(box); } }, icon("send"))),
+      h("button", { class: "btn primary", type: "button", disabled: working || !able || null, "aria-label": t("Send"), title: able ? null : t("Requests need Claude Code or Codex, switched on and signed in."), onclick: () => { UI.askLast = box.value.trim(); askSend(box); } }, icon("send"))),   // no agent that can act: the key waits
     h("p", { class: "ask-hint" }, h("kbd", { text: "Enter" }), t("send"), h("kbd", { text: "Shift+Enter" }), t("new line")));   // the two keys, as a prompt shows them: no sentence
   if (document.getElementById("askpanel")) panel.classList.add("stay");            // drawn again while open: it slides in once, on opening, never at each answer
   fill(host, panel);                                                                // open: a sheet at the window's right edge, under the top bar (a phone: from the foot)

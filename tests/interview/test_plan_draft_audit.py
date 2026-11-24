@@ -112,6 +112,16 @@ class PlanTest(unittest.TestCase):  # plan: the question map built from the post
         finally:
             shutil.rmtree(tmp)
 
+    def test_a_korean_posting_s_headings_need_no_colon(self):
+        # a Korean posting with bare headings and no list marks (fictional): its duty sections give questions, a requirement
+        # line that names a duty stays a line, and a section that is no duty (복지) gives none
+        text = ("감마플랫폼 백엔드 엔지니어\n\n주요 업무\n결제 API 서버를 설계하고 운영합니다.\n장애 원인을 찾아 재발을 막는 절차를 만듭니다.\n\n"
+                "자격 요건\n백엔드 업무 경험 3년 이상\nKubernetes 위에서 서비스를 운영해 본 경험이 있는 분\n\n복지\n점심 식대와 장비를 지원합니다.\n")
+        rows = plan.posting_lines(text)
+        self.assertEqual(["주요 업무", "주요 업무", "자격 요건", "자격 요건"], [r[1] for r in rows])   # the headings read as headings
+        self.assertIn("백엔드 업무 경험 3년 이상", [r[2] for r in rows])   # a line naming a duty is a requirement, not a heading
+        self.assertNotIn("점심 식대와 장비를 지원합니다.", [r[2] for r in rows])   # benefits ask nothing
+
     def test_phrase_without_a_model_keeps_the_rule_questions(self):
         """plan --phrase with backend none says so and keeps the rule-made questions."""
         job = helpers.example_job()  # the example

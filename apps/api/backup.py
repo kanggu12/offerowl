@@ -12,6 +12,7 @@ import os  # the process id in a working name
 import re  # names a backup may hold
 import shutil  # the working folder
 import stat  # a link in a zip
+import tempfile  # the backup built in a file, never whole in memory
 import time  # the kept folder's name
 import zipfile  # the file
 from pathlib import Path, PurePosixPath  # paths on disk, and names in a zip
@@ -37,16 +38,38 @@ def _kept(rel: Path) -> bool:
     return not PASSING.search(rel.name)  # a person's own notes.tmp stays
 
 
+# Files that are compressed already: stored as they are (deflating PDFs, pictures and Office files again took most of a
+# backup's time and saved nothing).
+STORED = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".docx", ".pptx", ".xlsx", ".zip", ".gz", ".woff", ".woff2",
+          ".mp3", ".m4a", ".ogg", ".webm", ".mp4"}
+
+
+def write_file(ws: Workspace, version: int = 1) -> Path:
+    """The workspace as a zip in a temporary file, which the caller sends and then deletes. Never whole in memory: a real
+    workspace backs up to hundreds of megabytes. Files a job's working folder holds for a moment stay out."""
+    fd, name = tempfile.mkstemp(prefix="offerowl-backup-", suffix=".zip")  # outside the workspace: it is not in its own backup
+    os.close(fd)
+    path = Path(name)
+    try:
+        with ws.lock, zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:  # no write of this workspace lands half way through
+            z.writestr(MARK, json.dumps({"app": "offerowl", "backup": version, "at": time.strftime("%Y-%m-%d %H:%M")}))  # what this file is
+            for f in sorted(p for p in ws.root.rglob("*") if p.is_file()):  # every file, in a fixed order
+                rel = f.relative_to(ws.root)  # its name in the zip
+                if _kept(rel):  # what a person would want back
+                    z.write(f, rel.as_posix(), compress_type=zipfile.ZIP_STORED if f.suffix.lower() in STORED else zipfile.ZIP_DEFLATED)
+    except BaseException:  # a half-made file goes
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
 def write(ws: Workspace, version: int = 1) -> bytes:
-    """The workspace as a zip's bytes. Files a job's working folder holds for a moment stay out."""
-    out = io.BytesIO()  # built in memory: the server answers it in one piece
-    with ws.lock, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:  # no write of this workspace lands half way through
-        z.writestr(MARK, json.dumps({"app": "offerowl", "backup": version, "at": time.strftime("%Y-%m-%d %H:%M")}))  # what this file is
-        for f in sorted(p for p in ws.root.rglob("*") if p.is_file()):  # every file, in a fixed order
-            rel = f.relative_to(ws.root)  # its name in the zip
-            if _kept(rel):  # what a person would want back
-                z.write(f, rel.as_posix())  # kept
-    return out.getvalue()  # the file
+    """The workspace as a zip's bytes (the command line and tests; the panel streams write_file's file)."""
+    path = write_file(ws, version)
+    try:
+        return path.read_bytes()
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def _checked(z: zipfile.ZipFile) -> None:

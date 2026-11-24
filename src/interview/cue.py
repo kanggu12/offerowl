@@ -47,7 +47,7 @@ def line_html(text):
     h = re.sub(r"==(.+?)==", r'<mark class="hl">\1</mark>', h)  # the key phrase on the highlighter
     h = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", h)  # stressed words in bold
     h = re.sub(r"`([^`]+)`", r"<code>\1</code>", h)  # commands and file names
-    h = re.sub(r"\(([^()<>]*[가-힣][^()<>]*)\)", r'<span class="dir">(\1)</span>', h)  # Korean stage notes are not spoken
+    h = re.sub(r"(^|\s)\(([^()<>A-Za-z]*[가-힣][^()<>A-Za-z]*)\)", r'\1<span class="dir">(\2)</span>', h)  # Korean stage notes standing apart are not spoken; a gloss joined to its word ("PoC(Proof of Concept, 개념 검증)") is said (kit.js's rule)
     h = re.sub(r"\s+//\s+", "<br>", h)  # a sentence ends: a new line
     h = re.sub(r"\s+//\s*$", "", h)  # a mark at the very end
     return re.sub(r"\s/\s", ' <span class="br">/</span> ', h)  # a breath: a faint slash

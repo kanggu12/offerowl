@@ -181,7 +181,8 @@ def keep_run(ws, end: dict) -> None:
     rec = {"at": round(time.time()), "state": end.get("state"), **(end.get("result") or {}), "error": (end.get("error") or {}).get("code")}  # one line of the list
     f = ws.path("out", "runs.json")  # beside the interview kit's outputs
     f.parent.mkdir(parents=True, exist_ok=True)  # a new workspace has no out/ yet
-    f.write_text(json.dumps([rec] + runs(ws)[: RUNS_KEPT - 1], ensure_ascii=False, indent=1), encoding="utf-8")  # newest first
+    from .workspace import write_json  # atomic: a run killed half way never leaves a list cut short
+    write_json(f, [rec] + runs(ws)[: RUNS_KEPT - 1])  # newest first
 
 
 def chain(api, mids: list[str], paths: list[str], posting: str, url: str, again: str = "", theme: str = "navy", max_pages: int = 3, job: str = "") -> None:

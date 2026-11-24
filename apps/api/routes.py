@@ -33,6 +33,13 @@ class NotFound(Exception):
     """A path the API does not have (a KeyError from a bug must stay a 500)."""
 
 
+class FileStream:
+    """A file on disk sent in pieces (web.py), then deleted when it was made for this answer: a workspace's backup."""
+
+    def __init__(self, path, delete: bool = True, headers: dict | None = None):
+        self.path, self.delete, self.headers = path, delete, dict(headers or {})
+
+
 class FileAnswer(bytes):
     """A file's bytes with headers of its own (web.py sends them): its name for a browser's Save as, and for a web page a
     sandbox, so it runs nothing at the panel's address."""
@@ -86,6 +93,7 @@ class Router:
                 answer = {"ok": True, **(out or {})}  # the action's own fields
                 if self.api.ws.mine() and "step" not in answer:  # the undo step this write made: {"only": step} takes back that one alone
                     answer["step"] = self.api.ws.mine()
+                self.api.state_dirty()  # a write: the next state is made anew
                 if str(query.get("state", "1")) != "0":  # the panel redraws from the state
                     answer["state"] = self.api.state()  # the whole new state
                 return 200, answer, JSON  # done
@@ -110,8 +118,8 @@ class Router:
         a = self.api  # the API object
         if path in ("/api/v1/health", "/health"):  # liveness: "app" tells Offerowl from another server on the port
             return 200, {"ok": True, "app": "offerowl", "api": 1}, JSON  # the desktop app's check reads it
-        if path == "/api/v1/state":  # everything the panel draws
-            return 200, a.state(), JSON  # read fresh on every call
+        if path == "/api/v1/state":  # everything the panel draws (a poll: polls that come together share one state)
+            return 200, a.state_for_poll(), JSON  # fresh, or the one being made when this poll came (nothing written since it began)
         if path == "/api/v1/photo":  # the resume's photo, for the details card
             f = a.photo_file()  # the file, if any
             if not f:  # none kept
@@ -263,7 +271,7 @@ class Router:
             return 200, {"due": tracker.due(a.jobs_view())}, JSON  # due and not done
         if path == "/api/v1/workspace/backup":  # the whole workspace as one file
             from . import backup  # only when asked
-            return 200, backup.write(a.ws), "application/zip"  # a file to save
+            return 200, FileStream(backup.write_file(a.ws)), "application/zip"  # a file to save, sent in pieces (hundreds of MB)
         if path == "/api/v1/reminders.ics":  # every open reminder for the person's calendar
             return 200, tracker.ics(a.jobs_view()).encode("utf-8"), "text/calendar; charset=utf-8"  # a file to open
         if path == "/api/v1/history":  # the undo steps
@@ -386,6 +394,8 @@ class Router:
             sent = (a.ws.job(jid) or {}).get("locked") or {}  # what was submitted, if it was
             if path.endswith("/export") and isinstance(sent, dict) and sent.get("lang") == lang:  # submitted in this language: the copies that went out, as they went
                 return {"exported": t.export(jid, lang)}  # the names written
+            if path.endswith("/lock") and sent:  # locked already: a second lock (a double click, another tab) made another frozen copy each time
+                raise ValueError("locked")
             model = documents.resume(t, lang, "navy", jid)  # its sentences
             letter = documents.cover(t, jid, lang)  # the cover letter's, when one was drafted
             bad = (model.get("counts") or {}).get("unsupported", 0) + (letter.get("counts") or {}).get("unsupported", 0)  # sentences without evidence in either

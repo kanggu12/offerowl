@@ -12,7 +12,7 @@ const LIB_KIND_ICON = { pdf: "file", md: "edit", txt: "edit", json: "list", png:
 const LIB_KIND_WORD = { md: "Markdown", txt: "Text", json: "JSON", html: "Web page", pdf: "PDF", pptx: "Slides", docx: "Word", png: "Picture", jpg: "Picture", py: "Code" };   // a file's kind in words
 // rows to a page: as many as the window holds under the Library's head (a row is 54 px), so a tall screen is not left two
 // thirds empty under 14 rows and a short one does not scroll; 8 at the least, 40 at the most
-const libPageSize = () => Math.max(8, Math.min(40, Math.floor((innerHeight - 400) / 54)));   // 54 px a row; 400 px of head, filters, the columns' row, the pager and the foot kept clear of the AI prompt (measured at 1440 x 900: 8 rows left a row's room)
+const libPageSize = () => (PHONE.matches ? 10 : 20);   // twenty rows a page (the page scrolls under its head): fitted to the window it held 9 at 1440 x 900, so 229 files took 26 pages
 const TRASH_ICON = { source: "upload", photo: "person", job: "case", edition: "file", material: "file", aside: "folder" };   // a removed thing's mark, by what it was
 const trashKind = (k) => ({ source: t("Your file"), photo: t("Resume photo"), job: t("Application"), edition: t("Edition"), material: t("Application file"),
   aside: t("Workspace before a restore") }[k] || t("File"));                           // what it was, in words
@@ -216,11 +216,11 @@ function viewLibrary(host) {
         h("label", { class: "btn small" }, icon("upload"), t("Restore a backup"), h("input", { type: "file", accept: ".zip", hidden: true, onchange: (e) => { const f = e.target.files[0]; e.target.value = ""; restoreBackup(f); } })),
         h("button", { class: "btn small", type: "button", onclick: async () => { const r = await act("/api/v1/open", { what: "workspace" }); if (r && !r.opened) toast(t("This PC has no file manager to open it with."), null, "warn"); } }, icon("folder"), t("Open the folder")))),
     h("div", { class: "lib-filters" },
-      h("div", { class: "seg lib-groups", role: "group", "aria-label": t("What the files are") }, LIB_GROUPS.map(([k, w, ic]) =>
+      fadeRow(h("div", { class: "seg lib-groups", role: "group", "aria-label": t("What the files are") }, LIB_GROUPS.map(([k, w, ic]) =>
         h("button", { type: "button", "data-key": "lib-g-" + k, "aria-pressed": group === k ? "true" : "false", onclick: () => setUI("libGroup", k) },
           icon(ic), h("span", { text: t(w) }), h("span", { class: "chip count", text: String(k === "all" ? rows.length : counts[k] || 0) }))),
         h("button", { type: "button", class: "lib-trash", "data-key": "lib-g-trash", "aria-pressed": trash ? "true" : "false", onclick: () => setUI("libGroup", "trash") },   // apart from the kinds: what was removed
-          icon("trash"), h("span", { text: t("Trash") }), h("span", { class: "chip count", text: String(trashCount()) }))),
+          icon("trash"), h("span", { text: t("Trash") }), h("span", { class: "chip count", text: String(trashCount()) })))),   // fadeRow: on a phone the row slides, its edges saying where more are
       trash ? null : h("label", { class: "field lib-owner" }, h("span", { class: "sr", text: t("Whose") }),
         h("select", { "aria-label": t("Whose"), "data-key": "lib-owner", onchange: (e) => setUI("libOwner", e.target.value) },
           h("option", { value: "", selected: !owner || null, text: t("Every owner") }),

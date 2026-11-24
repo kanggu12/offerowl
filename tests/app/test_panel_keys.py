@@ -262,7 +262,11 @@ class PanelKeys(unittest.TestCase):
         p.wait_for_function("document.activeElement && document.activeElement.classList.contains('tnext')", timeout=5000)
         p.evaluate("redrawAll()")  # the whole page drawn again while the box has the keyboard (raised NotFoundError here)
         p.wait_for_timeout(300)
-        self.assertEqual(0, p.locator(".tcard input.tnext").count())  # the box left with its blur, and the board was drawn after it
+        self.assertEqual(1, p.locator(".tcard input.tnext").count())  # a redraw keeps the box open, the keyboard in it: typing goes on
+        self.assertTrue(p.evaluate("document.activeElement && document.activeElement.classList.contains('tnext')"))
+        p.evaluate("document.activeElement.blur()")  # the person leaves it
+        p.wait_for_timeout(300)
+        self.assertEqual(0, p.locator(".tcard input.tnext").count())  # then it closes
         p.evaluate("UI.jobsMode = 'list'; render()")
 
     def test_8_no_page_errors(self):

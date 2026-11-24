@@ -29,6 +29,8 @@ BULLET = re.compile(r"^-\s+\*\*(.+?)\*\*\s*[:：]?\s*(.*)$")  # a bold-labelled 
 HANGUL = re.compile(r"[가-힣]")  # a Korean letter
 CITES = re.compile(r"(?<![\w-])(?:company(?:_facts)?|research[\w-]*)\.md\b")  # a scene that cites the earlier kit's research on its company
 STAGE = re.compile(r"\([^()]*[가-힣][^()]*\)")  # a Korean stage note, "(웃으며)": how a line is said, never words of it
+FIELD = re.compile(r"^\s*(?:[-*]\s*)?\*\*([^*]{1,16})\*\*")  # a scene's field: "**나** ...", "**주의** ..."
+NOTE_FIELDS = {"핵심", "주의", "꼬리 대비", "꼬리대비", "근거", "메모", "출처", "참고", "물으면", "읽는 법", "note", "notes", "tip", "source", "key"}  # the person's own notes, never said aloud
 SCENE_ROLES = (("deep", "deep"), ("terms", "terms"), ("english", "reference"), ("notes", "reference"), ("research", "reference"))  # a file's role by its name, as the panel's upload reads it
 
 
@@ -133,11 +135,31 @@ def headed(cat_letter, cat_title, body_lines, taken):
     return [ln for block in out for ln in block]
 
 
-def carry_file(text, deny, taken, korean, moved):
-    """One file carried: scenes naming the earlier company left out, ids the target uses moved, bullet categories headed,
-    and, for a Korean interview, English scenes turned round. Returns (text, scenes kept, titles left out)."""
+def title_key(title):
+    """A scene's title as two kits can share it: letters and digits only, lower case."""
+    return re.sub(r"[\W_]+", "", str(title or "").lower())
+
+
+def note_lines(block):
+    """The indices of a scene's note lines (its fields of notes, with the lines that run on under them)."""
+    out, note = set(), False
+    for i, ln in enumerate(block[1:], 1):
+        f = FIELD.match(ln)
+        if f:  # a field starts: a note, or something said
+            note = f.group(1).strip().lower() in NOTE_FIELDS
+        if note:
+            out.add(i)
+    return out
+
+
+def carry_file(text, deny, taken, korean, moved, have=None):
+    """One file carried: scenes naming the earlier company left out (in their title or what is said; a note that names it
+    is dropped and the scene kept), scenes the target already holds under the same title skipped, ids the target uses moved,
+    bullet categories headed, and, for a Korean interview, English scenes turned round. have: the target's titles (title_key),
+    grown as scenes come in. Returns (text, scenes kept, titles left out, scenes the target had)."""
     lines = text.splitlines()
-    out, kept, left = [], 0, []
+    out, kept, left, same = [], 0, [], 0
+    have = have if have is not None else set()
     k = 0
     while k < len(lines):
         ln = lines[k]
@@ -170,11 +192,19 @@ def carry_file(text, deny, taken, korean, moved):
             while j < len(lines) and not lines[j].startswith("### ") and not lines[j].startswith("## "):
                 j += 1
             block = lines[k:j]
-            whole = "\n".join(block)
-            if (deny is not None and deny.search(whole)) or CITES.search(whole):  # about the earlier interview, or resting on that company's research
+            notes = note_lines(block)  # the person's notes under it
+            said = "\n".join(b for i, b in enumerate(block) if i not in notes)  # its title and what is said
+            if (deny is not None and deny.search(said)) or CITES.search("\n".join(block)):  # about the earlier interview (its title or what is said), or resting on that company's research (a note citing it: the answer was built on it)
                 left.append(m.group(4).strip()[:60])
                 k = j
                 continue
+            block = [b for i, b in enumerate(block) if not (i in notes and deny is not None and deny.search(b))]   # a note that only names that company goes, the answer stays
+            key = title_key(m.group(4))
+            if key and key in have:  # the target holds this scene already (its own, or carried before)
+                same += 1
+                k = j
+                continue
+            have.add(key)
             old = f"{m.group(1)}{m.group(2)}{m.group(3)}"
             new = free_id(m.group(1), m.group(2), m.group(3), taken)
             taken.add(new)
@@ -187,7 +217,7 @@ def carry_file(text, deny, taken, korean, moved):
             continue
         out.append(ln)
         k += 1
-    return "\n".join(out).rstrip("\n") + "\n", kept, left
+    return "\n".join(out).rstrip("\n") + "\n", kept, left, same
 
 
 def carry(src_iv: Path, dst_iv: Path, korean: bool = False, names=(), job_from: str = "") -> dict:
@@ -201,19 +231,28 @@ def carry(src_iv: Path, dst_iv: Path, korean: bool = False, names=(), job_from: 
     st = read_json(src_iv.parent / "status.json")
     deny_names += [st.get("company", "")] + [n for c in src_kit.get("carried") or [] for n in c.get("names") or []]  # its own, and what it was carried from
     deny = name_pattern(deny_names)
+    source = job_from or src_iv.parent.name
+    if any(c.get("from") == source for c in dst_kit.get("carried") or []):  # carried from there already: a second run would only double it
+        raise ValueError("already_carried")
     taken = ids_of(dst_iv)  # the target's own ids are never taken
+    own_letters = {m.group(1) for f in dst_iv.glob("*.md") for m in re.finditer(r"^## ([A-Z])\.", f.read_text(encoding="utf-8"), re.M)}   # the sections the target names itself
+    have = {title_key(x) for f in dst_iv.glob("*.md") for x in re.findall(r"^### [A-Z]\d+b?\.(.*)$", f.read_text(encoding="utf-8"), re.M)}   # the target's scene titles: one it holds is never carried again
     if dst_kit.get("sources") is None:  # a kit that reads every file as scenes: its files named once, with their roles
         dst_kit["sources"] = [{"file": f.name, "role": next((r for s, r in SCENE_ROLES if f.stem.lower().startswith(s)), "scenes")}
                               for f in sorted(dst_iv.glob("*.md"))] + [{"file": "@stories", "role": "reference"}]
-    report = {"files": [], "moved": {}, "alts": 0, "left": []}
+    report = {"files": [], "moved": {}, "alts": 0, "left": [], "same": 0, "kept_aside": []}
     for s in kit_sources(src_iv):
         if s["file"].startswith("@"):  # the workspace's stories: every kit reads them already
             continue
         f = src_iv / s["file"]
         if not f.is_file():
             continue
-        text, kept, left = carry_file(f.read_text(encoding="utf-8"), deny, taken, korean, report["moved"])
+        if re.match(r"(?:research|company)", f.stem, re.I) or source.lower() in f.stem.lower():  # that company's research, or a file named after it: about that interview whole
+            report["kept_aside"].append(f.name)
+            continue
+        text, kept, left, same = carry_file(f.read_text(encoding="utf-8"), deny, taken, korean, report["moved"], have)
         report["left"].extend(left)
+        report["same"] += same
         if not kept and not left:  # a file with no scene of its own (a note page): carried as it is
             kept = len(corpus.parse_text(text, f.stem, f.stem[:1].upper(), s.get("role", "scenes"), f.name))
         if not kept:
@@ -224,7 +263,7 @@ def carry(src_iv: Path, dst_iv: Path, korean: bool = False, names=(), job_from: 
             name, n = f"{f.stem}-carried-{n}.md", n + 1
         (dst_iv / name).write_text(text, encoding="utf-8")
         entry = {"file": name, "role": s.get("role", "scenes")}
-        if s.get("label"):
+        if s.get("label") and not (deny is not None and deny.search(s["label"])):  # its label, unless it names the earlier company ("감마시스 문답")
             entry["label"] = s["label"]
         dst_kit["sources"].append(entry)  # after the target's own files: its own ids come first
         report["files"].append({**entry, "scenes": kept, "left_out": len(left)})
@@ -243,10 +282,10 @@ def carry(src_iv: Path, dst_iv: Path, korean: bool = False, names=(), job_from: 
         (dst_iv / "names.txt").write_text("\n".join(names_dst + more) + "\n", encoding="utf-8")
     src_sections = src_kit.get("sections") if isinstance(src_kit.get("sections"), dict) else {}
     letters = {m.group(1) for f in report["files"] for m in re.finditer(r"^## ([A-Z])\.", (dst_iv / f["file"]).read_text(encoding="utf-8"), re.M)} if src_sections else set()
-    more_sections = {k: v for k, v in src_sections.items() if k in letters and k not in (dst_kit.get("sections") or {})}
+    more_sections = {k: v for k, v in src_sections.items() if k in letters and k not in (dst_kit.get("sections") or {}) and k not in own_letters}   # never over a section the target names itself
     if more_sections:  # a carried section's tab name, unless the target names that letter itself
         dst_kit["sections"] = {**(dst_kit.get("sections") or {}), **more_sections}
-    dst_kit.setdefault("carried", []).append({"from": job_from or src_iv.parent.name, "names": [n for n in deny_names if n],
+    dst_kit.setdefault("carried", []).append({"from": source, "names": [n for n in deny_names if n],
                                               "korean": bool(korean), "at": datetime.date.today().isoformat()})
     (dst_iv / "kit.json").write_text(json.dumps(dst_kit, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     return report

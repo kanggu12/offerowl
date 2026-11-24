@@ -477,6 +477,17 @@ class Practice:  # one per server
                 self._stamp = stamp  # up to date
             return self._scenes
 
+    # The interviewer's line a practice question asks in: a question or a request ("자기소개 부탁드립니다", "Tell me about..."),
+    # never an opening scene's talk about the format ("오늘은 먼저 저희 소개를 간단히 드리고...")
+    QUESTION_KO = re.compile(r"(?:\?|？|까요?|나요|가요|죠|세요|주세요|주시겠어요|주실래요|부탁드립니다|부탁드려요|부탁합니다|말씀해\s*주시겠어요)[.!]?\s*$")
+    QUESTION_EN = re.compile(r"\?\s*$|^\s*(?:tell|walk|describe|explain|talk|give|share|show|how|what|why|when|where|which|who|can|could|would|do|did|have|are|is|please)\b", re.I)
+
+    @classmethod
+    def asks(cls, turn) -> bool:
+        """Does a scene's first interviewer line ask something, in either language?"""
+        ko, en = str((turn or {}).get("q_ko") or "").strip(), str((turn or {}).get("q") or "").strip()
+        return bool((ko and cls.QUESTION_KO.search(ko)) or (en and (cls.QUESTION_EN.search(en) or cls.QUESTION_KO.search(en))))
+
     def questions(self, n=8, kinds=None, seed=None):
         """Up to n questions from the map, each with the scene that covers it; one per scene, kinds taken in turn."""
         scenes = self.scenes()  # also builds the map
@@ -486,7 +497,7 @@ class Practice:  # one per server
         for r in self._plan or []:  # each entry of the map
             if r["kind"] not in pools:  # a kind that was not asked for
                 continue
-            ok = [i for i, _ in r["covered_by"] if i in scenes and scenes[i][1]]  # covering scenes with dialogue, best first
+            ok = [i for i, _ in r["covered_by"] if i in scenes and scenes[i][1] and (r["kind"] == "asked" or self.asks(scenes[i][1][0]))]  # covering scenes with dialogue whose line asks something, best first
             real = [i for i in ok if scenes[i][0].get("role") != "terms"]  # a "what is X" entry answers a term, not a posting line
             sid = (real or (ok if r["kind"] == "term" else []) or [None])[0]  # the best real scene; a term entry only for a term question
             if sid:  # a question without a scene gets no feedback against a scene, so it is left out

@@ -91,6 +91,10 @@ class Api:
         self._fit_lock = threading.Lock()  # the page's polls and a write may ask for the same fit at once
         self._fit_pending: dict = {}  # job -> (key, posting): fits to make again in the background after the profile changed
         self._fit_worker = None  # the one thread that makes them
+        self._state_gen = 0  # bumped by every write: a state made before it is never answered after it
+        self._state_cv = threading.Condition()  # one poll's state made at a time: polls that come meanwhile take its answer
+        self._state_making = False  # a poll's state is being made now
+        self._state_last = None  # (writes seen when it began, state): the last one made for a poll
         self._settings_lock = threading.Lock()  # two changes of the settings at once (two quick switches) never lose one
         self._restoring = threading.Lock()  # one restore at a time
         threading.Thread(target=self.card.refresh, kwargs={"force": True}, daemon=True, name="agent").start()  # first look
@@ -110,25 +114,27 @@ class Api:
         """The resume's photo in the workspace (profile/photo.jpg or .png), or None."""
         return next((f for f in (self.ws.path("profile", "photo.jpg"), self.ws.path("profile", "photo.png")) if f.is_file()), None)
 
-    def set_photo(self, data: bytes) -> None:
+    def set_photo(self, data: bytes) -> str | None:
         """A JPEG or a PNG as the resume's photo, by what the file is, not by its name, kept without what the camera
-        wrote into it (apps/api/photo.py). It replaces the one before and goes on the resume (the setting can take it off again)."""
+        wrote into it (apps/api/photo.py). It replaces the one before, which waits in the Trash (put back from there or by the
+        change's Undo), and goes on the resume (the setting can take it off again). Returns the old photo's Trash id, or None."""
         from . import photo  # the metadata blocks out, the picture as it was
         kind = next((k for magic, k in self.PHOTO_KINDS.items() if data.startswith(magic)), None)  # what the bytes are
         if not kind:  # anything else is refused
             raise ValueError("photo")  # the page says to use a JPEG or a PNG
         clean = photo.clean(data, kind)  # no place, phone or time; a broken file is refused here like any other
-        self.remove_photo()  # one photo at a time
+        kept = self.remove_photo(keep=True)  # one photo at a time: the one before goes to the Trash, never lost
         f = self.ws.path("profile", f"photo.{kind}")  # where it is kept
         f.parent.mkdir(parents=True, exist_ok=True)  # a new workspace has no profile folder yet
         f.write_bytes(clean)  # the picture alone
         self.set_settings({"photo": True})  # on the resume
+        return kept  # the old photo's id in the Trash, for the page's Undo
 
     def remove_photo(self, keep: bool = False) -> str | None:
         """The resume's photo taken away. With keep (the person removed it) it waits in the Trash under a name of its own,
         profile/removed-photo-<day>-<time>.<kind>, until it is put back or deleted for good (removed.py): a second photo
         removed later never takes its place. A new photo that replaces it keeps nothing. Returns the Trash's id of the photo
-        kept aside ("photo:<day>-<time>"), or None."""
+        kept aside ("photo:<day>-<time>"), or None. A new photo that replaces it keeps it too (set_photo)."""
         with self.ws.lock:  # one writer: a put-back or a deletion never meets this half way
             f, kept = self.photo_file(), None  # the photo, if any; its id in the Trash
             if f and keep:  # removed by the person: aside, whole
@@ -196,8 +202,13 @@ class Api:
         from . import answers as A  # the checks
         jid = self.need_job(req)  # which job
         f = self.ws.job_dir(jid) / "questions.json"  # where they are kept
-        with A.LOCK:  # the answering task writes here too
-            qs = A.clean_questions(req.get("questions"), read_json(f, {}).get("questions") or [])  # checked, ids kept
+        st = self.ws.job(jid)  # its name, for the undo key
+        with A.LOCK, self.ws.change({"code": "undo_questions", "company": st.get("company") or st.get("role")}, [f"jobs/{jid}/questions.json"]):  # one undo step: a question removed comes back with its answer
+            now = read_json(f, {}).get("questions") or []  # as kept
+            seen = req.get("seen")  # the ids the page had when it sent this list
+            if isinstance(seen, list) and [str(x) for x in seen] != [q.get("id") for q in now]:  # another window changed them meanwhile: its question and answer would be lost
+                raise ValueError("questions_moved")
+            qs = A.clean_questions(req.get("questions"), now)  # checked, ids kept
             if any(q.get("issues") == ["recheck"] for q in qs):  # an answer under a new limit or unit: checked again now, against every kept fact
                 by_id = {x["id"]: x["text"] for x in self.tasks.answer_facts(notes=True)}  # what the answers may say, the profile's notes too
                 style = draft.style_pack(self.tasks.style_spec())  # the person's rules
@@ -214,7 +225,8 @@ class Api:
         if not found:  # nothing that reads as a question
             raise ValueError("no_questions")
         f = self.ws.job_dir(jid) / "questions.json"  # where they are kept
-        with A.LOCK:  # the answering task writes here too
+        st = self.ws.job(jid)  # its name, for the undo key
+        with A.LOCK, self.ws.change({"code": "undo_questions", "company": st.get("company") or st.get("role")}, [f"jobs/{jid}/questions.json"]):  # the answering task writes here too; one undo step
             old = read_json(f, {}).get("questions") or []  # as kept
             have = {q.get("text") for q in old}  # a question pasted twice is kept once
             rows = [{"text": q["text"], "limit": q["limit"], "unit": q["unit"]} for q in old] + [q for q in found if q["text"] not in have]
@@ -251,7 +263,8 @@ class Api:
             raise ValueError("question")  # refused
         style = draft.style_pack(self.tasks.style_spec())  # the person's rules
         facts = self.tasks.answer_facts(notes=True)  # what the answers may say: the person's own words are checked against the profile's notes too
-        with A.LOCK:  # the answering task writes here too: the file as it is now
+        st = self.ws.job(jid)  # its name, for the undo key
+        with A.LOCK, self.ws.change({"code": "undo_answer", "company": st.get("company") or st.get("role")}, [f"jobs/{jid}/questions.json"], coalesce=f"answer:{jid}:{qid}"):  # the answering task writes here too: the file as it is now; one undo step per answer and pause
             qs = read_json(f, {}).get("questions") or []  # read again under the lock
             if not any(q.get("id") == qid for q in qs):  # removed meanwhile
                 raise ValueError("question")
@@ -663,6 +676,31 @@ class Api:
         with self.tasks.one_read():  # the deck source's stamp worked out once for every edition, not once per edition
             return self._state()
 
+    def state_for_poll(self) -> dict:
+        """The state for a page's poll (GET /api/v1/state). Polls that come while one is being made wait for it and take its
+        answer, unless something was written since it began: five tabs polling at once made five states, and with many
+        applications two tabs took several times one tab's time. Never older than the poll by more than one state's making."""
+        with self._state_cv:
+            while self._state_making:  # one is being made: wait for it
+                self._state_cv.wait(timeout=30)
+                last = self._state_last
+                if last is not None and last[0] == self._state_gen:  # made from what is there now
+                    return last[1]
+            self._state_making, gen = True, self._state_gen
+        st = None
+        try:
+            st = self.state()
+            return st
+        finally:  # the next poll goes on, with this one's answer or making its own
+            with self._state_cv:
+                self._state_making = False
+                self._state_last = (gen, st) if st is not None else None
+                self._state_cv.notify_all()
+
+    def state_dirty(self) -> None:
+        """A write happened: the next state is made anew (never one from before it)."""
+        self._state_gen += 1
+
     def materials_now(self) -> list[dict]:
         """The person's files, each read one with the facts it holds now: the count kept when it was read falls behind once a
         fact of it is merged or deleted, and the Make view showed one more than the profile."""
@@ -707,6 +745,10 @@ class Api:
         """The fictional example person as material, read at once: the first run's "Try it with an example". In English when
         the panel is, so the first resume a person sees is one they can read."""
         example = EXAMPLE_EN if lang == "en" else EXAMPLE  # by the page's language
+        made_up = {m["id"] for m in self.ws.materials() if m.get("example")}  # the example's own files, if it was added before
+        st = self.facts.status()  # each fact's state
+        if any(st.get(c["cid"]) == "accepted" and (c.get("source") or {}).get("material") not in made_up for c in self.facts.candidates()):
+            raise ValueError("example_over_own")  # the person's own facts are kept: the made-up person would replace their profile
         rec = self.ws.add_material(example.name, example.read_bytes())  # kept in sources/ like a picked file
         self.ws.update_material(rec["id"], example=True)  # marked: a run on the person's own files takes it out first
         self.tasks.ingest([rec["id"]])  # read as a profile file: no agent
@@ -727,6 +769,11 @@ class Api:
         if cid not in known or act not in ("keep", "drop", "edit", "reset"):  # only a listed fact and a known action
             raise ValueError("fact")  # a stale page or a made-up request
         label = {"code": f"undo_{act}", "title": (known[cid].get("title") or known[cid].get("statement") or "")[:60]}  # the undo button's words
+        if act == "edit":  # the fact as it would read after the edit: a title or a statement must stay
+            fields = req.get("fields") or {}
+            after = {**known[cid], **(self.facts.edits().get(cid) or {}), **(fields if isinstance(fields, dict) else {})}
+            if not str(after.get("title") or "").strip() and not str(after.get("statement") or "").strip():
+                raise ValueError("fact_empty")  # a blank fact is never saved
         with self.ws.change(label, FACT_FILES):  # one undo step
             if act == "edit":  # their own wording of the fact
                 self.facts.set_edit(cid, req.get("fields") or {})  # their version
@@ -744,7 +791,7 @@ class Api:
         jid = self.need_job(req)  # which job, or a named general edition
         if jid == GENERAL:  # the general edition is the profile itself
             raise ValueError("job")
-        doc, langs = req.get("profile"), [x for x in (req.get("langs") or []) if x in ("ko", "en")]  # the edition and its languages
+        doc, langs = req.get("profile"), [x for x in (req.get("langs") if isinstance(req.get("langs"), list) else []) if x in ("ko", "en")]  # the edition and its languages (only a list of them)
         if not isinstance(doc, dict) or not doc.get("roles") or not langs:  # nothing a resume could print
             raise ValueError("profile")
         import shutil  # the staging folder
@@ -880,8 +927,8 @@ class Api:
 
     def add_fact(self, req: dict) -> str:
         """A fact typed by the person."""
-        if not str(req.get("statement") or req.get("title") or "").strip():  # a fact needs some words
-            raise ValueError("empty")  # nothing to keep
+        if not str(req.get("statement") or "").strip() and not str(req.get("title") or "").strip():  # a fact needs some words
+            raise ValueError("fact_empty")  # nothing to keep (its own word: "empty" is a posting's page with no text)
         with self.ws.change({"code": "undo_typed", "title": str(req.get("title") or "")[:60]}, FACT_FILES):  # one undo step
             cid = self.facts.add_typed(req)  # listed and kept
             self.facts.rebuild()  # the profile follows
@@ -889,7 +936,10 @@ class Api:
 
     def details(self, req: dict) -> None:
         """The person's own fields (autosaved while typing: one undo step per field and pause)."""
-        fields = {k: v for k, v in (req.get("fields") or {}).items() if isinstance(v, str)}  # text only
+        raw = req.get("fields") or {}
+        if not isinstance(raw, dict):  # a string, a number or a list where the fields go
+            raise ValueError("fields")
+        fields = {k: v for k, v in raw.items() if isinstance(v, str)}  # text only
         key = "details:" + ",".join(sorted(fields))  # one step while typing in the same field
         with self.ws.change({"code": "undo_details", "fields": sorted(fields)}, FACT_FILES, coalesce=key):  # pauses merge
             src = req.get("src") if isinstance(req.get("src"), dict) else None  # a run says which file each field came from
@@ -1010,6 +1060,12 @@ class Api:
         if not again and not job and not mids and not paths and not (with_job and self.facts.profile().get("roles")):  # nothing to read, and no career kept to tailor
             raise ValueError("no_files")
         files, skipped = AP.collect(paths)  # what the paths hold (walked once: the run reads this list)
+        if paths and not files and not mids and not again and not job and not (with_job and self.facts.profile().get("roles")):
+            raise ValueError("no_files_at_paths")  # nothing readable where the person pointed: said now, not by a run that stops at once
+        if (self.card.chosen() or "none") == "none":  # no agent: only Offerowl's own profile files can be read
+            names = [Path(str(f)).name for f in files] + [m.get("name") or "" for m in self.ws.materials() if m["id"] in mids]
+            if any(not n.lower().endswith(".json") for n in names):
+                raise ValueError("needs_agent_files")  # the run would stop at reading them: said now, with the one fix
         paths = [str(f) for f in files] or paths  # the files themselves, so the run does not walk the folders again (none found: the run says why)
         est = AP.estimate(len(mids) + len(files), with_job, agent=(self.card.chosen() or "none") != "none")  # calls and minutes; with no agent, the typesetting's few
         said = {"task": "autopilot", "files": len(mids) + len(files), "skipped": skipped[:20], "estimate": est}  # the answer's facts
@@ -1073,8 +1129,15 @@ class Api:
             letters = re.findall(r"[A-Za-z가-힣]", text)
             korean = bool(letters) and sum(1 for c in letters if "가" <= c <= "힣") / len(letters) > 0.3
         names = [str(n)[:80] for n in (req.get("names") or []) if isinstance(n, str) and n.strip()][:20]
-        with self.ws.lock:  # the folder and its kit.json change together
-            report = C.carry(src_iv, self.ws.job_dir(jid) / "interview", korean=korean, names=names, job_from=src)
+        iv = self.ws.job_dir(jid) / "interview"  # the files a carry may write, every one of them in its undo step
+        cands = [iv / "kit.json", iv / "alts.json", iv / "names.txt"]
+        for s in C.kit_sources(src_iv):
+            if not s["file"].startswith("@"):
+                stem = Path(s["file"]).stem
+                cands += [iv / s["file"], iv / f"{stem}-carried.md"] + [iv / f"{stem}-carried-{n}.md" for n in range(2, 10)]
+        st = self.ws.job(jid)  # its name, for the undo key
+        with self.ws.lock, self.ws.change({"code": "undo_carry", "company": st.get("company") or st.get("role")}, [str(p.relative_to(self.ws.root)) for p in cands]):   # one undo takes the carry back
+            report = C.carry(src_iv, iv, korean=korean, names=names, job_from=src)
         self._let_kit_go(jid)  # its server reads the new files
         report["questions"] = len(self.tasks.ensure_kit(jid, "ko" if korean else "en"))  # the map sees them
         report["korean"] = korean
@@ -1146,7 +1209,7 @@ class Api:
             jid = self.need_job(req)  # which job
             st = self.ws.job(jid)  # its status
             with self.ws.change({"code": "undo_round", "company": st.get("company") or st.get("role")}, self.ws.job_files(jid)):  # one undo step
-                rec = tracker.set_round(st, req)  # checked
+                rec = tracker.set_round(st, req)  # checked (a round never moves the card: a recruiter's call is a round too)
                 self.ws.save_job(st)  # saved
         return rec  # the round as kept
 
@@ -1156,7 +1219,8 @@ class Api:
         with self.ws.lock:  # looked up and changed in one step: a job deleted for good meanwhile is refused
             jid = self.need_job(req)  # which job
             st = self.ws.job(jid)  # its status
-            with self.ws.change({"code": "undo_reminder", "company": st.get("company") or st.get("role")}, self.ws.job_files(jid)):  # one undo step
+            how = "remove" if req.get("id") and req.get("remove") is True else "change" if req.get("id") else "add"  # what the undo key says
+            with self.ws.change({"code": "undo_reminder", "company": st.get("company") or st.get("role"), "how": how}, self.ws.job_files(jid)):  # one undo step
                 if req.get("id"):  # an existing reminder
                     tracker.set_reminder(st, str(req["id"]), done=req.get("done") if isinstance(req.get("done"), bool) else None,
                                          remove=req.get("remove") is True)  # done, not done, or removed

@@ -329,6 +329,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
     def _read(self, mids: list[str], stop=None) -> None:
         import ingest  # src/ingest.py
         recs = {m["id"]: m for m in self.ws.materials() if m["id"] in mids}  # the materials asked for
+        fresh = {mid for mid, m in recs.items() if m.get("state") == "new" and "removed" not in m}  # added for this reading (never read, never put back): its undo takes them off the list
         profiles = [m for m in recs.values() if m["kind"] == "profile"]  # Offerowl profile files
         files = [m for m in recs.values() if m["kind"] != "profile"]  # everything else goes to the agent
         for m in recs.values():  # every file shows that it is being read
@@ -371,7 +372,7 @@ class Tasks(OwnEdition, Kits, Exports, AnswerTasks, Comparisons):
                     log.info("ingest stopped: %s", exc)  # the reason for the log
         name_of = {str(self.ws.material_path(m)): (m["id"], m["name"]) for m in files}  # file -> material
         new = self.facts.ingest_candidates(kept, lambda f: name_of.get(f, ("", "")))  # panel candidates
-        with self.ws.change({"code": "undo_add_material", "n": len(recs)}, FACT_FILES):  # one undo takes it all back
+        with self.ws.change({"code": "undo_add_material", "n": len(recs)}, FACT_FILES, adopt={"sources/materials.json": fresh}):  # one undo takes it all back, the new files' rows too
             alive = {m["id"] for m in self.ws.materials()}  # a source taken off while it was read brings nothing in
             by_mid = {mid: v for mid, v in by_mid.items() if mid in alive}
             new = [c for c in new if c["source"]["material"] in alive]

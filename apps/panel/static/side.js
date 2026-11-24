@@ -121,7 +121,8 @@ async function saveSentence(text) {                                             
   const rec = sentenceOf(UI.sel);                                                   // the record the inspector and the page show
   if (rec && r.sentence && r.sentence.text) Object.assign(rec, r.sentence);         // the new words at once: the model drawn again from the server follows
   const st = (r.sentence || {}).state;                                              // what the check found
-  toast(st === "unsupported" ? t("Saved, but the evidence does not cover it: it will not be exported until it does.") : t("Saved. Undo takes it back."), null, st === "unsupported" ? "warn" : "done");
+  toast(st === "unsupported" ? t("Saved, but the evidence does not cover it: it will not be exported until it does.") : t("Saved. Undo takes it back."),
+    r.step ? { words: t("Undo"), run: () => undoOnly(r.step) } : null, st === "unsupported" ? "warn" : "done");   // one undo step either way: its Undo on the note
   render();                                                                         // drawn
 }
 async function regenerate(sid, way) {                                               // new words from the evidence, in a direction when one was picked
@@ -231,7 +232,9 @@ async function histUndo(n, newest) {                                            
     : r.undone && r.undone.length ? t("Undone.") : t("Nothing to undo."), null, r.moved ? "warn" : r.undone && r.undone.length ? "done" : "info");   // as a note's Undo says it
 }
 function undoLabel(l) {                                                             // an undo step in words
-  const x = l || {}, what = x.title || x.company || "";                             // the name it carries; a thing deleted for good leaves none
+  const x = l || {}, full = String(x.title || x.company || "").replace(/\s+/g, " ").trim();   // the name it carries; a thing deleted for good leaves none
+  const what = full ? `‘${full.length > 40 ? full.slice(0, 39) + "…" : full}’` : "";   // quoted the same way in every label, and never 300 characters long
+  const rem = { add: 0, remove: 1 }[x.how] ?? 2;                                  // a reminder added, removed, or changed
   // with a name, and without one: older steps, and steps whose thing was deleted for good, carry none
   const L = { undo_keep: ["Kept {what}", "Kept a fact"], undo_drop: ["Dropped {what}", "Dropped a fact"], undo_edit: ["Edited {what}", "Edited a fact"],
     undo_reset: ["Set {what} to confirm again", "Put a fact back to confirm"], undo_keep_all: ["Kept {n} facts"], undo_typed: ["Added {what}", "Added a fact"],
@@ -239,9 +242,12 @@ function undoLabel(l) {                                                         
     undo_add_job: ["Added the job {what}", "Added a job"], undo_posting: ["Changed the posting of {what}", "Changed a posting"], undo_add_edition: ["Added the edition {what}", "Added an edition"], undo_analysis: ["Ordered the resume for a job"],
     undo_draft: ["Wrote the resume"], undo_figures: ["Drew the deck's figures"], undo_board: ["Changed the card of {what}", "Changed a card"], undo_board_days: ["Cleared the day stamped on {n} applications"], undo_lock: ["Locked the submitted copies"],
     undo_sentence: ["Changed a sentence"], undo_lock_sentence: ["Locked a sentence"], undo_unlock_sentence: ["Unlocked a sentence"],
-    undo_reminder: ["Changed a reminder of {what}", "Changed a reminder"], undo_round: ["Changed an interview round of {what}", "Changed an interview round"],
+    undo_reminder: [["Added a reminder for {what}", "Added a reminder"], ["Removed a reminder of {what}", "Removed a reminder"], ["Changed a reminder of {what}", "Changed a reminder"]][rem], undo_round: ["Changed an interview round of {what}", "Changed an interview round"],
     undo_remove_job_material: ["Removed {what}", "Removed a file"], undo_blind: ["Changed the blind edition's table"], undo_remove_job: ["Removed the job {what}", "Removed a job"],
     undo_remove_edition: ["Removed the edition {what}", "Removed an edition"], undo_put_back: ["Put back {what}", "Put back from the trash"],
+    undo_questions: ["Changed the questions of {what}", "Changed the questions"],
+    undo_carry: ["Brought scripts into {what}", "Brought scripts in"],
+    undo_answer: ["Changed an answer of {what}", "Changed an answer"],
     undo_own_copy: ["Started {what} from another edition", "Started an edition from another"], undo_own_edition: ["Brought in an edition for {what}", "Brought in an edition"] };   // 0.10.0: an own edition started or brought in
   const words = L[x.code] || ["A change"];                                          // an unknown step still reads
   return t(what || words.length === 1 ? words[0] : words[1], { what, n: x.n || 0 });   // with its name when it has one

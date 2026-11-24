@@ -153,7 +153,7 @@ class TestKitProxy(PanelCase):
         conn.request("GET", "/kit/no-such-job/", headers=nav)  # an application that is gone, opened by a person: the panel
         r = conn.getresponse()
         r.read()
-        self.assertEqual((302, "/"), (r.status, r.getheader("Location")))
+        self.assertEqual((302, "/?job=no-such-job&show=scripts"), (r.status, r.getheader("Location")))   # the panel, which says it is gone
         conn.close()
 
     def test_the_start_route_answers_for_the_job(self):

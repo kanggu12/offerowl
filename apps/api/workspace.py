@@ -24,6 +24,7 @@ import shutil  # copies of submitted files
 import sys  # Windows, where an open file stops a move for a moment
 import threading  # one writer at a time
 import time  # undo coalescing
+import zlib  # a broken file's copy named by its content
 from pathlib import Path  # paths
 
 HISTORY_MAX = 50  # undo steps kept; the oldest goes first
@@ -46,11 +47,30 @@ def now_minute() -> str:
 
 
 def read_json(path: Path, default):
-    """A JSON file, or `default` when it is missing or unreadable (a half-written file must not stop the panel)."""
+    """A JSON file, or `default` when it is missing or unreadable (a half-written file must not stop the panel). A file
+    that is there but does not parse is copied aside first (<name>.broken-<time>) and said in the log: the next write
+    would put the default's few records over the real list, which then lives on in that copy."""
     try:
         return json.loads(path.read_text(encoding="utf-8"))  # the file as data
-    except (OSError, ValueError):
-        return default  # missing or broken: start from the default
+    except FileNotFoundError:
+        return default  # missing: start from the default
+    except (OSError, ValueError, RecursionError):
+        keep_broken(path)
+        return default  # broken: start from the default, the file itself kept
+
+
+def keep_broken(path: Path) -> None:
+    """A file that did not parse, copied beside itself once per content (a poll reads it again and again)."""
+    try:
+        data = path.read_bytes()
+        if not data.strip():  # an empty file holds nothing to keep
+            return
+        mark = path.with_name(f"{path.name}.broken-{len(data)}-{zlib.crc32(data):08x}")  # one copy per broken content
+        if not mark.exists():
+            mark.write_bytes(data)
+            logging.getLogger("offerowl.workspace").warning("unreadable JSON kept aside: %s", mark.name)
+    except OSError:  # unreadable even as bytes: nothing to copy
+        pass
 
 
 def tmp_name(path: Path) -> Path:
@@ -136,7 +156,10 @@ def slug(text: str) -> str:
     if alias and re.search(r"[가-힣]", t[:alias.start()]):  # beside a Korean one: the name the company writes in Latin itself
         t = alias.group(1)
     s = re.sub(r"[^0-9a-z]+", "-", romanize(t).lower()).strip("-")  # letters and digits only
-    return s[:32].strip("-") or "job"  # never empty
+    if len(s) > 32:  # cut at the last dash before 32 letters, never in a word ("...-backend-enginee")
+        cut = s[:33].rfind("-")
+        s = s[:cut] if cut >= 12 else s[:32]
+    return s.strip("-") or "job"  # never empty
 
 
 def sha256(path: Path) -> str:
@@ -181,7 +204,13 @@ class Workspace:
 
     def resolve_job(self, job_id: str) -> str:
         """The id a job has now: an id a job had before it was renamed (an old address, a bookmark) gives the new one."""
-        if job_id and not (self.root / "jobs" / job_id).is_dir():  # no folder under that name
+        if not job_id or len(job_id) > 120 or "/" in job_id or "\\" in job_id or "\x00" in job_id:  # no job's name: refused later by its pattern, never asked of the disk (a name over 255 bytes raised)
+            return job_id
+        try:
+            there = (self.root / "jobs" / job_id).is_dir()
+        except (OSError, ValueError):  # a name the system cannot even look up
+            return job_id
+        if not there:  # no folder under that name
             return (self.prefs().get("job_aliases") or {}).get(job_id, job_id)  # renamed, or simply unknown (refused later)
         return job_id
 
@@ -306,20 +335,30 @@ class Workspace:
             return []
 
     @contextlib.contextmanager
-    def change(self, label: dict, rels, coalesce: str | None = None):
+    def change(self, label: dict, rels, coalesce: str | None = None, adopt: dict | None = None):
         """Make a change that one undo can take back. `rels` names every file (relative to the workspace) the change
         may write. `label` says what it was, for the undo button. Changes with the same `coalesce` key made within a
-        few seconds are one undo step (typing in a field saves on every pause)."""
+        few seconds are one undo step (typing in a field saves on every pause). `adopt` ({merged list: ids}) names records
+        listed just before the step that belong to it (a file added, then read): the step's undo takes them away too."""
         with self.lock:  # one change at a time
             before = self._snapshot_files(rels)  # the files as they were
+            undo_to = dict(before)  # what the step's undo writes back: the records it owns taken out
+            for rel, ids in (adopt or {}).items():  # records the step owns although they were listed before it
+                if rel in self.MERGED and before.get(rel) and ids:
+                    try:
+                        recs = json.loads(before[rel])  # the list as it was
+                    except ValueError:  # a broken list: nothing to take apart
+                        continue
+                    undo_to[rel] = json.dumps([m for m in recs if not (isinstance(m, dict) and m.get("id") in ids)], ensure_ascii=False)
             try:
                 yield  # the caller writes
             except BaseException:  # it stopped half way: what it wrote has no undo step, so it goes now
-                self._put_back(before)  # the files as they were before the change
+                self._put_back(before)  # the files as they were before the change (the owned records too: a file whose reading broke stays listed)
                 raise  # the caller's error is still the answer
             after = self._snapshot_files(rels)  # the files as they are now
             if after == before:  # nothing changed: no undo step
                 return
+            before = undo_to  # the restore point
             made = {rel: self._ids(after[rel]) for rel in self.MERGED if rel in after}  # what each merged list held right after the step
             hist = self._history()  # existing steps
             if coalesce and hist:  # typing in the same field again
@@ -531,7 +570,13 @@ class Workspace:
         return read_json(self.path("sources", "materials.json"), [])  # the whole list
 
     def add_material(self, name: str, data: bytes) -> dict:
-        """Keep one file in sources/ under a safe name and list it. Returns its record."""
+        """Keep one file in sources/ under a safe name and list it. Returns its record. A program, or a file whose bytes are not
+        the kind its name says (a PDF that is no PDF), is refused: the page's own filter is not the API's."""
+        ext = Path(name).suffix.lower()
+        if data[:2] == b"MZ" or data[:4] in (b"\x7fELF", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xca\xfe\xba\xbe"):  # a Windows, Linux or Mac program
+            raise ValueError("program")
+        if ext in (".pdf", ".docx", ".pptx") and not self.sniff_ok(ext, data):  # named a document, holding something else
+            raise ValueError("not_that_kind")
         with self.lock:  # one writer
             items = self.all_materials()  # existing
             on_disk = [int(m.group(1)) for f in self.path("sources").glob("m*_*") if (m := re.match(r"m(\d+)_", f.name))]  # files kept, listed or not
@@ -572,7 +617,12 @@ class Workspace:
                     continue  # folders, kinds no reader knows, hidden files and a Mac's resource forks
                 if len(out) >= self.ARCHIVE_FILES or total + info.file_size > self.ARCHIVE_BYTES:  # a zip far larger than a career
                     break
-                body = z.read(info)  # its bytes
+                if info.file_size > 60_000_000 or (info.compress_size and info.file_size / info.compress_size > 200):  # one member larger than any upload, or packed beyond any document (0.58 MB unpacked to 200 MB)
+                    continue
+                with z.open(info) as member:  # read up to what it says it holds, never more
+                    body = member.read(info.file_size + 1)
+                if len(body) > info.file_size:  # it holds more than it said
+                    continue
                 total += len(body)
                 if body:  # an empty member is nothing to read
                     out.append(self.add_material(f"{stem} - {inner.name}", body))

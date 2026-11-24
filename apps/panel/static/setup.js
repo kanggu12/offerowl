@@ -109,7 +109,7 @@ function setupStart() {                                                         
     h("p", { class: "setup-lede", text: t("Bring what you already have: an old resume, a portfolio, notes. Offerowl reads them and makes the rest.") }),
     h("div", { class: "setup-start" },
       h("button", { class: "btn primary", type: "button", disabled: running || null, onclick: () => { closeSetup(); go("make"); $("filepick").click(); } }, icon("file"), t("Choose files")),
-      h("button", { class: "btn", type: "button", "data-act": "setup-example", disabled: running || null, onclick: () => { closeSetup(); seeExample(); } }, icon("person"), t("Try an example"))),
+      ownFacts() ? null : h("button", { class: "btn", type: "button", "data-act": "setup-example", disabled: running || null, onclick: () => { closeSetup(); seeExample(); } }, icon("person"), t("Try an example"))),   // facts kept already: the example would replace them
     n ? h("p", { class: "setup-note" }, pill("ok", tn(n, "{n} file added", "{n} files added"))) : null,
   ];
 }

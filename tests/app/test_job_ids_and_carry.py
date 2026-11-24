@@ -243,6 +243,28 @@ class CarryTest(Tmp):
         self.assertEqual("Tech", sections["T"])
         self.assertNotIn("G", sections)  # the section that stayed behind brings no tab
 
+    def test_a_note_naming_the_company_goes_and_its_answer_comes(self):
+        """A scene that names the earlier company only in a note comes, without that note; a scene the target holds under the
+        same title is not brought again; that company's research file stays; a second carry of the same kit is refused."""
+        src, dst = self.kits()
+        write(src / "qa.md", SRC_QA + "\n## S. Strengths\n\n### S1. Strength / Strength\n\n**주의** 감마클라우드 면접관이 깊게 물었다\n\n"
+              "**면접관** What is your strength?\n**해석** 강점이 뭔가요?\n**나** I fix outages fast.\n**해석** 장애를 빨리 고칩니다.\n")
+        write(src / "research_gamma.md", "# Gamma Cloud research\n\nFounded in 2020.\n")
+        write(src / "kit.json", {"company": {"ko": "감마클라우드", "en": "Gamma Cloud"},
+                                 "sources": [{"file": "qa.md", "role": "scenes"}, {"file": "research_gamma.md", "role": "reference"}]})
+        write(dst / "qa.md", DST_QA + "\n### D9. Tell me about yourself / Tell me about yourself\n\n**면접관** Tell me about yourself.\n**나** Hi.\n")
+        report = C.carry(src, dst, job_from="gamma")
+        carried = (dst / "qa-carried.md").read_text(encoding="utf-8")
+        self.assertIn("I fix outages fast.", carried)  # the answer came
+        self.assertNotIn("면접관이 깊게 물었다", carried)  # the note that named the company did not
+        self.assertNotIn("I build **GPU clusters**", carried)  # the target holds "Tell me about yourself" already
+        self.assertEqual(1, report["same"])
+        self.assertEqual(["research_gamma.md"], report["kept_aside"])
+        self.assertFalse((dst / "research_gamma.md").exists())
+        with self.assertRaises(ValueError) as e:  # brought from there already: a second run would double it
+            C.carry(src, dst, job_from="gamma")
+        self.assertEqual("already_carried", str(e.exception))
+
     def test_for_a_korean_interview_an_english_scene_is_turned_round(self):
         """The checked Korean goes on top, spoken; the English goes under it, plain; the kit reads as spoken in Korean."""
         src, dst = self.kits()

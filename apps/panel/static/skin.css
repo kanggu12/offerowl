@@ -1474,7 +1474,7 @@ body:has(#askpanel) #scrim { display: block; position: fixed; inset: var(--bar-h
   body:has(#askpanel) #askbar { left: 0; right: 0; bottom: 0; }
   #askpanel { width: 100%; height: 78dvh; max-height: none; border-radius: 0; border-width: 1px 0 0; } }
 .setup { min-height: min(460px, calc(100dvh - min(12vh, 112px) - var(--gap-l))); }   /* every step of the guide one height: Next and Done stay where the hand is */
-@media (max-width: 859px) { .setup { min-height: min(520px, calc(100dvh - 2 * var(--gap-l))); } }   /* a phone too (its steps ran 354 to 486 px) */
+@media (max-width: 859px) { .setup { min-height: 0; } }                              /* a phone: each step as tall as it is (the page scrolls; a fixed height left 180 px empty under the last step) */
 .dp .across { text-align: center; }                                                   /* one value for both languages sits under both, not under the first */
 .jtabs .w-s { display: none; }                                                        /* the questions tab's short name, for a phone */
 @media (max-width: 640px) { .jtabs .w-l { display: none; } .jtabs .w-s { display: inline; }   /* five tabs on one row of a phone: its underline in one row, not under either of two */
@@ -2421,7 +2421,11 @@ body:has(#depthpanel) #askbar { display: none; }                                
 :is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="back"]:not(.flip svg) { transform: translateX(-2px); }
 .tabs [role="tab"], .seg button, .views button, .ivseg button { transition: color .15s var(--ease), background-color .15s var(--ease), border-color .15s var(--ease); }
 html[data-motion="off"] :is(.btn, .iconbtn, .more-key, .pgr-step, .tabs [role="tab"], .seg button, .views button) { transition: none !important; transform: none !important; }
-html[data-motion="off"] :is(.btn, .iconbtn, .more-key, .pgr-step) svg { transition: none !important; transform: none !important; }
+html[data-motion="off"] :is(.btn, .iconbtn, .more-key, .pgr-step) svg { transition: none !important; }   /* motion off: nothing moves, and every mark keeps the way it points (a turn or a flip is its direction, not a motion) */
+html[data-motion="off"] :is(.btn, .iconbtn):hover:not(:disabled) svg:is([data-i="open"], [data-i="download"], [data-i="upload"], [data-i="send"], [data-i="plus"], [data-i="refresh"], [data-i="edit"]) { transform: none; }
+html[data-motion="off"] :is(.btn, .iconbtn):hover:not(:disabled) svg[data-i="back"]:not(.flip svg) { transform: none; }
+html[data-motion="off"] .more-key:hover svg { transform: rotate(-90deg); } html[data-motion="off"] .more-key.on:hover svg { transform: rotate(180deg); }
+html[data-motion="off"] .pgr-step.prev:hover:not(:disabled) svg { transform: none; } html[data-motion="off"] .pgr-step.next:hover:not(:disabled) svg { transform: scaleX(-1); }
 @media (prefers-reduced-motion: reduce) { .btn, .iconbtn, .btn svg, .iconbtn svg { transition: none; } :root .btn.primary:hover:not(:disabled) { transform: none; } }
 
 /* sticky notes: flat paper, the fold and the lifted corners make the note */
@@ -2542,3 +2546,126 @@ body::after { display: block; content: ""; position: fixed; inset: 0; z-index: -
 .jobrow .mono, .jobrow[data-stage="result"] .mono { width: 30px; height: 30px; font-size: 12px; justify-self: start; }   /* one size of initials down the list: an ended row is quieter in its words, not smaller in its box */
 .seg.stages, :root[data-theme] .seg.stages { padding: 2px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--well); }   /* the stage rail: one rimmed control, not a second row of tabs */
 .seg.stages button[aria-pressed="true"], :root[data-theme] .seg.stages button[aria-pressed="true"] { background: var(--key-face); color: var(--ink); box-shadow: inset 0 0 0 1px var(--key-edge); }
+/* the interview's board of answers (round 2): every card as tall as its words, the board's screens counted */
+.kit-slot > .kit-card:last-child { flex: none; }                                      /* the last card of a column ends with its words: a stretched card left an empty band under them */
+.kit-cards:not(.measure) .kit-block > .kit-card { height: auto; align-self: flex-start; }   /* a long answer balanced over its inner columns, as tall as its words (the plan measured it at the board's height) */
+.kit-screens { flex: none; height: var(--ctl-h); }                                    /* "2 / 5" between its keys, as tall as the bar's keys */
+.kit-screens[hidden] { display: none; }
+.kit-screens .kit-at { display: inline-grid; place-items: center; min-width: 52px; padding: 0 6px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.ivseg .w-s { display: none; }                                                        /* the interview's parts: their whole names on a wide window */
+@media (max-width: 640px) {                                                           /* a phone: the five parts on one row by their short names, and the application's head on two lines */
+  .seg.ivseg { flex-wrap: nowrap; } .ivseg .w-l { display: none; } .ivseg .w-s { display: inline; } .ivseg button svg { display: none; }
+  .ivseg button { flex: 1 1 auto; padding-inline: 6px; }
+  .jd-head { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 12px; }
+  .jd-head > .mono { width: 36px; height: 36px; font-size: 13px; } .jd-head > .grow { display: none; }
+  .jd-head > .jd-acts { grid-column: 1 / -1; }
+}
+/* round 2, area A (Make, profile, insights, library, settings) */
+.fact-t, .fact-ev q, .fact-body p { overflow-wrap: anywhere; }                        /* a title with no spaces wraps inside its row, never widening the page */
+.fact:not(.open) .fact-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }   /* a paragraph used as a title: three lines closed, all of it open */
+:root .btn.danger:not(.quiet):not(.ghost), :root[data-theme] .btn.danger:not(.quiet):not(.ghost) { border-color: color-mix(in srgb, var(--red) 38%, transparent); }   /* a removal key shows its rim, in its colour */
+:root .btn.quiet:not(.icon), :root[data-theme] .btn.quiet:not(.icon) { border-color: var(--line); }   /* a quiet key with words is still a key: a faint rim */
+.ins-grid { align-items: start; }                                                     /* each tile as tall as what it holds: no empty band under a chart */
+.ps-label { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }    /* "Sentences" and the edition they count on one line: every step's number on one line */
+.ps-of { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+.ac-next.past { color: var(--ink-3); }                                                /* a next step whose day is behind us */
+.ac-next .past-tag { display: inline-block; margin-right: 6px; padding: 0 5px; border: 1px solid var(--line-2); border-radius: 2px; font-size: 11px; font-weight: 600; color: var(--ink-2); vertical-align: 1px; }
+.pop > .card > .menu-head { margin: 0 0 10px; }                                       /* the agent's sheet: its name and close key, as the settings sheet */
+@media (max-width: 720px) {                                                           /* a phone: the Library's groups on one row that slides, never a grid of three rows */
+  :root .seg.lib-groups, :root[data-theme] .seg.lib-groups { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  :root .seg.lib-groups > button { flex: none; }
+  .ask-head { flex-wrap: nowrap; } .ask-head .ask-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* the ask sheet's head on one line */
+  .ask-head [data-key="ask-clear"] .w { display: none; }
+}
+.seg.lib-groups.fade-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.seg.lib-groups.fade-l { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+.seg.lib-groups.fade-l.fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.meter.bad > i { background: var(--red-bar, var(--red)); } .meter.warn > i { background: var(--amber-bar, var(--amber)); }   /* a run's bar in its lamp's colour */
+.rd-name b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }         /* a long name on one line: its stage and score stay on that line (the whole name on hover) */
+.rd-item { align-items: start; } .rd-item > .mono, .rd-fit { margin-top: 1px; }
+/* round 2, area B (applications, documents) */
+.tfoot { flex-wrap: nowrap; } .tfoot .when { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* a card's foot on one line at any width: its day gives way, never a key */
+.tfoot .btn.move { flex: none; white-space: nowrap; }
+.dochead .docstate:last-of-type { margin-right: 0; padding-right: 4px; border-right: 0; }   /* no divider after the last state: a line before nothing */
+.prow.names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-m); }   /* the company and the role, side by side */
+@media (max-width: 640px) { .prow.names { grid-template-columns: minmax(0, 1fr); } }
+.due-name { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }   /* the reminder's application: its name opens it */
+.band.due .due-done { margin-left: 4px; vertical-align: 1px; }
+.daystable input { min-height: var(--ctl-h); padding-inline: 12px; }                  /* a day's field as tall and as padded as the progress tab's */
+
+.kit-row.kit-more { display: flex; justify-content: center; align-items: center; width: auto; min-height: 28px; margin: 8px 6px 2px; padding: 0 12px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--key-face); color: var(--ink-2); font-weight: 600; }   /* "and 48 more": a key, as every "more" row's (core.moreRow), never grey words */
+.kit-row.kit-more:hover { background: var(--key-face-hi); color: var(--ink); }
+
+/* ================================================================ the AI's two surfaces, composed (0.15.1, the owner's "둘 다")
+   The agent's card: its account on the card's own surface (no box inside the card), its figures in the page's words, and the
+   day's requests as a captioned chart: two tones of one ink (waiting for the first token, then writing), a legend, the longest
+   request named, each bar's figures on its hover. The ask sheet: a conversation (the person's words on the right, the agent's
+   answers beside its mark) over one composer box that holds its key. The floating key keeps its pill and words, its keyboard
+   key small beside them. */
+.agentcard .who-box, :root[data-theme] .agentcard .who-box { padding: 2px 0; background: none; border: 0; box-shadow: none; }
+.agentcard .who-box .ava { width: 32px; height: 32px; font-size: 13px; }
+.ag-chart { margin: 14px 0 0; }
+.ag-cap { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
+.ag-cap .ag-max { font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.agentcard .ag-bars, :root[data-theme] .agentcard .ag-bars { height: 56px; gap: 2px; margin: 0; padding: 0; border-bottom: 1px solid var(--line-2); }
+.agentcard .ag-bars i { flex: 1 1 0; max-width: 18px; min-height: 3px; background: var(--ink-2); border-radius: 0; transition: background-color .12s var(--ease); }
+.agentcard .ag-bars i b { background: color-mix(in srgb, var(--ink-2) 32%, var(--surface)); }   /* the wait before the first token: the same ink, lighter */
+.agentcard .ag-bars i:hover { background: var(--ink); }
+.ag-key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 7px; font-size: 11.5px; color: var(--ink-3); }
+.ag-key span { display: inline-flex; align-items: center; gap: 6px; }
+.ag-key i { display: inline-block; width: 9px; height: 9px; }
+.ag-key i.wait { background: color-mix(in srgb, var(--ink-2) 32%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-2) 40%, transparent); }
+.ag-key i.write { background: var(--ink-2); }
+.agentcard .ag-err { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font-size: 12px; color: var(--red); }
+.agentcard .ag-err::before { content: "!"; display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1px solid currentColor; border-radius: 2px; font-size: 10px; font-weight: 700; }   /* a state with its sign, never colour alone */
+
+#askpanel .ask-head { padding: 12px 14px; gap: 10px; }
+#askpanel .ask-head b { font-size: 14px; font-weight: 650; }
+#askpanel .ask-log { padding: 16px 14px 12px; gap: 18px; }
+#askpanel .ask-item { gap: 8px; }
+#askpanel .ask-me { max-width: 84%; padding: 9px 12px; font-size: 13.5px; line-height: 1.55; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+#askpanel .ask-ans { position: relative; max-width: 100%; padding: 1px 0 0 32px; gap: 8px; }
+#askpanel .ask-who { position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 2px; background: var(--surface); color: var(--ink-2); }
+#askpanel .ask-who svg { width: 13px; height: 13px; }
+#askpanel .ask-ans.bad .ask-who { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+#askpanel .ask-input { margin: 0 14px; padding: 6px 6px 6px 4px; gap: 6px; align-items: flex-end; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--surface);
+  transition: border-color .12s var(--ease), box-shadow .12s var(--ease); }            /* one composer box: the words and their key together */
+#askpanel .ask-input:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 16%, transparent); }
+#askpanel .ask-input textarea, #askpanel .ask-input textarea:focus { min-height: 36px; padding: 8px 8px; border: 0; box-shadow: none; background: transparent; }
+#askpanel .ask-input .btn { width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
+#askpanel .ask-log + .ask-input, #askpanel .band + .ask-input { margin-top: 0; }
+#askpanel > .ask-input { margin-top: 10px; }
+#askpanel .ask-hint { padding: 7px 14px 12px; }
+
+.ask-fab-k { display: inline-grid; place-items: center; height: 20px; margin-left: 2px; padding: 0 6px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); border-radius: 2px;
+  font: 500 11px/1 var(--mono); color: var(--ink-3); background: color-mix(in srgb, var(--surface) 55%, transparent); }   /* the key that opens it, small beside the words */
+@media (hover: none), (max-width: 720px) { .ask-fab-k { display: none; } }         /* a touch screen has no keyboard to press it on */
+.agentcard .who-box .ava, :root[data-theme] .agentcard .who-box .ava { box-shadow: inset 0 0 0 1px var(--line-2); }   /* the account's initial in its square, in the dark too */
+@media (max-width: 720px) {                                                           /* a phone: the sheet's name on its line, the agent's state under it, the keys at the right */
+  #askpanel .ask-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "i t c x" "i s c x"; gap: 2px 10px; align-items: center; }
+  #askpanel .ask-head > svg { grid-area: i; } #askpanel .ask-head > b { grid-area: t; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #askpanel .ask-head .ask-sub { grid-area: s; } #askpanel .ask-head .grow { display: none; }
+  #askpanel .ask-head [data-key="ask-clear"] { grid-area: c; } #askpanel .ask-head > button:last-child { grid-area: x; }
+}
+
+/* ================================================================ icons a size up, keys a little taller (0.15.1, the owner: "아이콘과
+   버튼 박스 크기 … 적절히 잘 조절 … 아이콘이 너무 작지않게"). Measured before: of 392 icons in keys, 342 were 14 to 15 px beside
+   13 px words and 36 were 12 to 13 px. One scale now: a key's icon 17 px, a small key's, a tab's and a choice's 16 px, an
+   icon-only key's 18 px, the small signs (a list's chevron, a more row's arrow, a file's mark) 14 px; small keys 30 px tall. */
+:root { --ctl-h-sm: 30px; }
+@media (max-width: 860px) { :root { --ctl-h-sm: 44px; } }                            /* a finger's target on a phone, as before */
+.btn svg, a.btn svg, .tabs [role="tab"] svg, .views button svg { width: 17px; height: 17px; flex: none; }
+.btn.small svg, .btn.sm svg, .seg button svg, .ivseg button svg, .jtabs [role="tab"] svg, .pillkey svg, .barchip svg, .lib-trash svg, .seg.lib-groups button svg { width: 16px; height: 16px; flex: none; }
+.btn.icon:not(.small):not(.sm) svg, .iconbtn svg { width: 18px; height: 18px; }
+.btn.small.icon svg, .btn.sm.icon svg, .tcard .btn.add-next svg { width: 16px; height: 16px; }
+.more-key svg, .combo-btn .combo-mark, .combo-btn svg, .lib-ownkey svg, .fact-src svg, .fact-row .kind svg, .pipe-step .ps-icon svg { width: 14px; height: 14px; }
+.pgr-step svg { width: 17px; height: 17px; }
+.btn, a.btn { column-gap: 7px; } .btn.small, .btn.sm { column-gap: 6px; }           /* the words a little further from a bigger mark */
+.pipe-step .ps-icon svg { width: 16px; height: 16px; }                               /* the four counts' marks, beside 13 px words */
+.btn.go[aria-pressed="true"] svg { width: 16px; height: 16px; }                     /* "Kept" with its check: as the other small keys' marks */
+.ins-ic svg, .ins h4 svg { width: 15px; height: 15px; }                              /* the Insights tiles' marks beside their titles */
+#askpanel .ask-who svg { width: 14px; height: 14px; }
+.ps-doc svg { width: 14px; height: 14px; }
+svg[data-i] { overflow: visible; }                                                    /* a mark that reaches its grid's edge (the gear) is never cut by the closer frame */
+@media (max-width: 720px) { :root .seg.lib-groups, :root[data-theme] .seg.lib-groups { width: 0; min-width: 100%; max-width: 100%; } }   /* the sliding row adds no width of its own to its column (width 0, then the column's whole width): its 524 px widened the page to 536 at 390 */
+

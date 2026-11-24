@@ -726,7 +726,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     if (score > 0.04) out.push({ i, score, kn, dn, sim: ds ? ds[0] : null, why: ds && dn > 0.55 ? ds : null });
   });
   out.sort((a, b) => b.score - a.score);  // best first
-  const weak = d ? d.max < 0.6 : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62
+  const weak = d ? d.max < 0.6 || (kmax === 0 && d.max < 0.7) : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62; no word of the query in any script needs a closer match (gibberish reached 0.6)
   return { list: out.slice(0, 40), words, weak };
 }
 // <<< engine:rank
@@ -739,7 +739,8 @@ const LABELS = STR.labels || {};  // how each field label is shown in the page's
 const labelOf = (k) => (k ? LABELS[k] || k : "");  // a shown label; an empty speaker stays empty
 // Cross-references for the writer, such as "(see project 2)", mean nothing in the live moment. The job's kit.json lists them as
 // regular expressions ("strip"); they are removed from titles and text before showing.
-const REF = (KIT.strip || []).length ? new RegExp(KIT.strip.join("|"), "g") : null;
+const REF_DEFAULT = ["\\s*\\([^()]*\\b[\\w.-]+\\.(?:md|txt|json)\\b[^()]*\\)", "\\s*\\([^()]*\\bproject_[\\w-]+[^()]*\\)", "\\s*\\((?:[^()]*\\s)?대장(?=[\\s)\\d])[^()]*\\)"];  // the writer's own files named in brackets ("(qa.md D3)", "(project_x 메모)", "(대장 12)"), in every kit
+const REF = new RegExp(REF_DEFAULT.concat(KIT.strip || []).join("|"), "g");
 const unref = (s) => (REF ? String(s).replace(REF, "") : String(s));  // text without the writer's cross-references
 ITEMS.forEach((it) => { it.tko = unref(it.tko).replace(/==|\*\*|`/g, ""); });  // titles: no cross-references, no marks
 function inline(s) {  // highlight, bold, italic, inline code on escaped text, without the writer's cross-references
@@ -786,6 +787,7 @@ function render(md, lead) {  // a small block parser: fields, tables, lists, cod
         + (kos && (f[1] === "면접관" || f[1] === "나") ? " kos" : "");  // a 해석 line wears its speaker's colour; a Korean scene's script is marked for the language switch
       const lab = f[1] === "해석" ? labelOf(who) : labelOf(f[1] === "국문" || f[1] === "KO" ? "해석" : f[1]) + (f[2] ? ` (${f[2]})` : "");  // the Korean text is the 해석 of the English script
       let html = joinLines(buf);
+      if (cls === "note" && !html.replace(/<[^>]+>/g, "").trim()) continue;  // a note that held only the writer's references: no empty label left
       if (cls === "ko" && !led) {  // the conclusion comes first; skipped when the script already marks its own phrases
         if (!/<mark class="hl">/.test(html)) html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.length <= 80 ? `<span class="lead">${s1}</span>${s2}` : m0));
         led = true;

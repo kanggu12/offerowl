@@ -153,7 +153,7 @@ function problemItem(p, run) {                                                  
 function runError(code) {                                                           // why a run stopped, in words, and the one fix
   const E = {
     no_files: { short: t("No file to read"), msg: t("None of these files can be read. Use PDF, Word, PowerPoint, pictures or text.") },
-    agent_unavailable: { short: t("No AI agent"), msg: t("The AI agent is off, so the files could not be read."), fix: t("Turn on the agent"), go: () => act("/api/v1/settings", { agent: "on" }) },
+    agent_unavailable: { short: t("No AI agent"), msg: t("The AI agent is off, so the files could not be read."), fix: t("Turn on the agent"), go: () => openAgentMenu() },   // the agent's own panel, as every other "turn on" key
     no_roles: { short: t("No job found"), msg: t("No job you held was found in these files. Add an old resume or notes about your work.") },
   };
   return E[code] || { short: t("Stopped"), msg: errorInfo("unexpected").msg };       // anything else: the general words
@@ -306,6 +306,14 @@ function todayBand(j, where) {                                                  
     st.state === "over" && !String(r.asked || "").trim() ? h("span", { class: "hint", text: t("The questions you write down lead the question map, and the next scripts answer them first.") }) : null);
 }
 const STAGE_ORDER = { interview: 0, submitted: 1, preparing: 2 };                  // what needs the person first
+const fitRated = (j) => !!(j && j.fit && typeof j.fit.score === "number" && j.fit.counts && (j.fit.counts.strong + j.fit.counts.weak + j.fit.counts.none) > 0);   // a fit with rated lines, 0 included
+function nextPast(text) {                                                           // the first day a next step names ("11-11 16:30 ...", "2026.11.09", "11/9"), when it is behind us
+  const s = unlinked(text || "");                                                   // a day with its year, or a month and a two-digit day; never a range ("1-2명", "3.5배", "10-20%")
+  const m = /(?:^|[^\d.])(20\d\d)[-./](1[0-2]|0?[1-9])[-./](3[01]|[12]\d|0[1-9])(?![\d%])/.exec(s) || /(?:^|[^\d.])()(1[0-2]|0?[1-9])[-/](3[01]|[12]\d|0[1-9])(?![\d%.])/.exec(s);
+  if (!m) return false;
+  const now = new Date(), y = m[1] ? +m[1] : now.getFullYear();
+  return new Date(y, +m[2] - 1, +m[3]) < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
 function activeStrip() {                                                            // the applications still going, as cards: stage, company, role, next step
   const list = (S.jobs || []).filter((j) => j.stage !== "result").sort((a, b) => (STAGE_ORDER[a.stage] ?? 3) - (STAGE_ORDER[b.stage] ?? 3) || String(b.created || "").localeCompare(String(a.created || ""))).slice(0, 12);   // every one still going (a dozen at most), as dense cards
   if (!list.length) return null;                                                    // nothing going: no strip
@@ -314,12 +322,13 @@ function activeStrip() {                                                        
     h("div", { class: "active-h" }, h("h2", {}, t("Applications in progress"), h("span", { class: "chip count", text: String(list.length) })), h("button", { class: "btn ghost sm", type: "button", onclick: () => { UI.jobsMode = "board"; go("jobs"); } }, icon("columns"), t("See the board"))),
     h("div", { class: "active-row" + (list.length > 1 ? " many" : "") }, list.map((j) => h("article", { class: "card active-card", "data-stage": j.stage },   // square notes, as many as fit a row (skin.css); on a phone one row that slides
       h("div", { class: "ac-name" }, mono(j.company || j.id, "", j.stage), h("div", {}, h("b", { class: "ac-co", text: j.company || j.id }), h("span", { class: "ac-role", text: j.role || "" }))),
-      j.next ? h("p", { class: "ac-next" }, linked(j.next)) : null,                    // its next step, when one is written, its links live
+      j.next ? h("p", { class: "ac-next" + (nextPast(j.next) ? " past" : ""), title: unlinked(j.next) },   // its next step, its links live; the whole of it on hover (two lines show)
+        nextPast(j.next) ? h("span", { class: "past-tag", text: t("Past") }) : null, linked(j.next)) : null,   // a day it names is behind us: said, so a stale step gets rewritten
       stageTrack(j),                                                                   // where it stands, across the card's foot: every card's at one height
       h("div", { class: "ac-keys" },
         h("button", { class: "btn sm", type: "button", onclick: () => goJob(j, "docs") }, icon("file"), t("Docs")),   // the short word: a note's two keys and its fit share one line
         h("button", { class: "btn sm", type: "button", onclick: () => goJob(j, "interview") }, icon("chat"), t("Interview")),
-        (j.fit && j.fit.score) ? h("span", { class: "ac-fit", title: t("Fit {n}", { n: j.fit.score }) }, h("b", { text: String(j.fit.score) }), h("small", { text: t("Fit") })) : null)))));   // its fit, across from its keys
+        fitRated(j) ? h("span", { class: "ac-fit", title: t("Fit {n}", { n: j.fit.score }) }, h("b", { text: String(j.fit.score) }), h("small", { text: t("Fit") })) : null)))));   // its fit, across from its keys (a real 0 too)
 }
 const TRACK = ["preparing", "submitted", "interview", "result"];                    // an application's way, in order
 function stageTrack(j) {                                                            // the stage as four steps across a card: the ones passed, the one it is at, the rest
@@ -379,7 +388,7 @@ function chainCard() {                                                          
         { label: t("Facts by source"), id: "chain-files", compact: true, unit: (n) => tn(n, "{n} fact", "{n} facts") }) : h("p", { class: "ps-none", text: t("Drop your files below.") }), "profile"),   // a file's number is its facts: said
     step("facts", "check", kept, tn(kept, "Fact", "Facts"),
       top.length || rest ? segBar([...top.slice(0, 5).map(([k, v]) => ({ n: v, words: t(KIND[k] || "Other"), color: KIND_COLOR[k] || "var(--ink-3)" })),
-        ...(rest ? [{ n: rest, words: t("Other"), color: "var(--ink-3)" }] : [])], { label: t("Facts by kind"), id: "chain-kinds", compact: true })
+        ...(rest ? [{ n: rest, words: t("The rest"), color: "var(--ink-3)" }] : [])], { label: t("Facts by kind"), id: "chain-kinds", compact: true })
         : h("p", { class: "ps-none", text: t("Kept facts show here by kind.") }), "profile"),
     step("sentences", "edit", c.sentences || 0, tn(c.sentences || 0, "Sentence", "Sentences"),
       // while a run writes, a sentence without evidence yet is one still being checked: grey, not the red of a stopped one
@@ -444,6 +453,7 @@ function inCard(running, lead = true) {                                         
     posting,
     h("div", { class: "sentrow" }, sentLine(agentOn(), agentOn() ? t("The text of your files and the posting go to your AI agent.") : t("With no agent on, only an Offerowl profile file is read."))));
 }
+const ownFacts = () => ((S && S.facts && S.facts.counts && S.facts.counts.kept) || 0) > 0;   // the person's facts are kept: the example is offered no more (the server refuses it too)
 async function seeExample() {                                                       // the fictional person, read and kept, then their resume
   const ex = await act("/api/v1/example", { lang: LANG });                          // read as a profile file: no agent
   if (!ex) return;
@@ -459,11 +469,12 @@ async function seeExample() {                                                   
 }
 function field(key, placeholder, send, onPaste, tall, ai) {                         // a text box with its start key (ai: what it takes goes to the agent: the rainbow rim)
   const box = h("textarea", { "data-key": key, rows: tall ? 3 : 1, placeholder, "aria-label": placeholder,
-    onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } },   // Enter sends, Shift+Enter is a new line
+    onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (e.target.value.trim()) send(); } },   // Enter sends what is typed, Shift+Enter is a new line; an empty box sends nothing (its key says so by waiting)
     onpaste: (e) => { const text = (e.clipboardData || window.clipboardData).getData("text"); if (onPaste && onPaste(text)) e.preventDefault(); } });  // some pastes start at once
   box.value = UI.typed[key] || "";                                                  // the words survive a redraw
-  box.addEventListener("input", () => { UI.typed[key] = box.value; });              // kept as they are typed
-  return h("div", { class: "sendbox" + (tall ? " tall" : "") + (ai ? " ai" : "") }, box, h("button", { class: "btn icon", type: "button", "aria-label": t("Start"), title: t("Start"), onclick: send }, icon("send")));
+  const go = h("button", { class: "btn icon", type: "button", "aria-label": t("Start"), title: t("Start"), disabled: !box.value.trim() || null, onclick: send }, icon("send"));   // nothing typed: the key waits
+  box.addEventListener("input", () => { UI.typed[key] = box.value; go.disabled = !box.value.trim(); });   // kept as they are typed; the key wakes with the first word
+  return h("div", { class: "sendbox" + (tall ? " tall" : "") + (ai ? " ai" : "") }, box, go);
 }
 function materialsCard() {                                                          // the files already in, with what each gave
   const mats = (S.materials || []).filter((m) => !m.removed);                       // the files kept
@@ -515,16 +526,16 @@ function runPanel(r) {                                                          
   const secs = running ? Date.now() / 1000 - (r.started || r.t || Date.now() / 1000) : (r.result || {}).seconds || 0;   // its time
   return h("section", { class: "card conn", "aria-label": t("Automatic run") }, h("div", { class: "src", "data-state": lamp[0] }, head,
     err ? h("div", { class: "band", role: "alert", style: "margin-top:8px" }, h("p", { text: err.msg }), err.fix ? h("button", { class: "btn small", onclick: err.go, text: err.fix }) : null) : null,
-    h("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-label": t("Steps") }, h("i", { style: `width:${pct}%` })),
+    h("div", { class: "meter" + (err ? " bad" : halted || (!running && short) ? " warn" : ""), role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-label": t("Steps") }, h("i", { style: `width:${pct}%` })),   // in the lamp's colour: a stopped run's bar is never green
     h("ol", { class: "stepper" }, steps.map((s) => h("li", { class: "lit " + (partial(s) ? "warn" : lampOf[s.state] || ""), "data-step": s.id, "aria-current": s.state === "running" ? "step" : null },
       h("b", { text: t(RUN_STEPS[s.id] || s.id) }), h("span", { text: partial(s) ? (String(s.detail).trim() === "ko" ? t("Korean only") : t("English only"))   // part of it: which one came out
         : [word[s.state] || "", detail(s)].filter(Boolean).join(", ") })))),
     h("div", { class: "fill", "aria-hidden": "true" }),                                       // the figures sit on the card's foot
     h("div", { class: "usage" }, h("div", { class: "usage-top" },
-      h("span", { class: "stat" }, h("b", { text: clock(secs), "data-since": running && r.started ? String(r.started) : null }), h("span", { class: "k", text: t("Time") })),
+      h("span", { class: "stat" }, h("b", { text: clock(secs), "data-since": running && r.started ? String(r.started) : null }), h("span", { class: "k", text: t("Time taken") })),   // how long, not what time
       h("span", { class: "stat" }, h("b", { text: `${done} / ${steps.length}` }), h("span", { class: "k", text: t("Steps") })),
       h("span", { class: "stat" }, h("b", { text: String(((r.result || {}).files || []).length) }), h("span", { class: "k", text: t("On the Desktop") }))),
-      h("p", { class: "usage-sub" }, h("span", { text: running ? t("It finishes on its own; nothing to click") : halted ? t("Stopped. What was read waits in your profile.") : t("Ended") })))));
+      h("p", { class: "usage-sub" }, h("span", { text: running ? t("It finishes on its own; nothing to click") : halted ? t("Stopped. What was read waits in your profile.") : err ? t("Stopped") : t("Ended") })))));   // the same word as its lamp
 }
 const DOC_KINDS = [["r", "resume.pdf", "Resume"], ["d", "deck.pdf", "Portfolio"], ["c", "cover.pdf", "Cover letter"]];   // the documents, in their columns
 function docTiles(run) {                                                            // the documents the run made, a row per language and a column per document
@@ -603,7 +614,7 @@ function emptyOut() {                                                           
     h("h2", {}, t("Nothing made yet")),
     h("p", { class: "usage-none", text: t("A resume and a portfolio in Korean and English; with a posting, a cover letter and interview scripts too.") }),
     h("div", { class: "fill", "aria-hidden": "true" }),                                       // the key sits on the card's foot
-    h("div", { class: "nextkeys" }, h("button", { class: "btn", "data-act": "example", disabled: task("autopilot").state === "running" || null, onclick: seeExample }, icon("person"), t("Try an example"))));   // what comes out, before any file of one's own; not while a run reads the person's own
+    ownFacts() ? null : h("div", { class: "nextkeys" }, h("button", { class: "btn", "data-act": "example", disabled: task("autopilot").state === "running" || null, onclick: seeExample }, icon("person"), t("Try an example"))));   // what comes out, before any file of one's own; not while a run reads the person's own
 }
 function olderRuns(runs) {                                                          // the runs before, one line each
   return h("section", { class: "card", "aria-label": t("Earlier runs") },

@@ -130,7 +130,8 @@ const LABELS = STR.labels || {};  // how each field label is shown in the page's
 const labelOf = (k) => (k ? LABELS[k] || k : "");  // a shown label; an empty speaker stays empty
 // Cross-references for the writer, such as "(see project 2)", mean nothing in the live moment. The job's kit.json lists them as
 // regular expressions ("strip"); they are removed from titles and text before showing.
-const REF = (KIT.strip || []).length ? new RegExp(KIT.strip.join("|"), "g") : null;
+const REF_DEFAULT = ["\\s*\\([^()]*\\b[\\w.-]+\\.(?:md|txt|json)\\b[^()]*\\)", "\\s*\\([^()]*\\bproject_[\\w-]+[^()]*\\)", "\\s*\\((?:[^()]*\\s)?대장(?=[\\s)\\d])[^()]*\\)"];  // the writer's own files named in brackets ("(qa.md D3)", "(project_x 메모)", "(대장 12)"), in every kit
+const REF = new RegExp(REF_DEFAULT.concat(KIT.strip || []).join("|"), "g");
 const unref = (s) => (REF ? String(s).replace(REF, "") : String(s));  // text without the writer's cross-references
 ITEMS.forEach((it) => { it.tko = unref(it.tko).replace(/==|\*\*|`/g, ""); });  // titles: no cross-references, no marks
 function inline(s) {  // highlight, bold, italic, inline code on escaped text, without the writer's cross-references
@@ -177,6 +178,7 @@ function render(md, lead) {  // a small block parser: fields, tables, lists, cod
         + (kos && (f[1] === "면접관" || f[1] === "나") ? " kos" : "");  // a 해석 line wears its speaker's colour; a Korean scene's script is marked for the language switch
       const lab = f[1] === "해석" ? labelOf(who) : labelOf(f[1] === "국문" || f[1] === "KO" ? "해석" : f[1]) + (f[2] ? ` (${f[2]})` : "");  // the Korean text is the 해석 of the English script
       let html = joinLines(buf);
+      if (cls === "note" && !html.replace(/<[^>]+>/g, "").trim()) continue;  // a note that held only the writer's references: no empty label left
       if (cls === "ko" && !led) {  // the conclusion comes first; skipped when the script already marks its own phrases
         if (!/<mark class="hl">/.test(html)) html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.length <= 80 ? `<span class="lead">${s1}</span>${s2}` : m0));
         led = true;
@@ -329,6 +331,10 @@ function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
     h("span", { class: "kit-pref" }, h("span", { class: "hint", text: fmt("col_width") }),
       h("div", { class: "seg", role: "group", "data-pref": "colw", "aria-label": fmt("col_width") }, [[22, fmt("col_narrow")], [25, fmt("col_normal")], [29, fmt("col_wide")]].map(([v, w]) =>
         h("button", { type: "button", "data-v": String(v), "aria-pressed": "false", text: w })))));
+  const scrPrev = h("button", { type: "button", class: "pgr-step prev", title: t("Previous"), "aria-label": t("Previous") }, icon("back"));   // the board a screen back, as the pager's keys
+  const scrNext = h("button", { type: "button", class: "pgr-step next", title: t("Next"), "aria-label": t("Next") }, icon("back"));
+  const scrAt = h("span", { class: "kit-at", "aria-live": "polite" });              // which screen of how many: the board goes on sideways
+  const screensBox = h("div", { class: "pgr-keys kit-screens", role: "group", "aria-label": t("Pages"), hidden: true }, scrPrev, scrAt, scrNext);
   const elMenu = h("nav", { class: "kit-menu", "aria-label": fmt("menu_aria") });   // the sections, a key each
   const elRank = h("nav", { class: "kit-rank", "aria-label": fmt("rank_aria") });   // the answers on the board, in reading order
   const elCards = h("section", { class: "kit-cards", "aria-live": "polite" });      // the contents, or the answers
@@ -338,7 +344,7 @@ function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
       h("label", { class: "field lib-q kit-search" }, icon("search"), qIn),
       langSeg,
       sw ? h("span", { class: "kit-engine" }, lamp, h("span", { class: "kit-engine-lab", text: fmt("engine_label") }), sw) : null,
-      prefsKey),
+      screensBox, prefsKey),
     prefsRow, elMenu, elMain);
   const narrow = () => root.clientWidth > 0 && root.clientWidth <= 700;             // a phone, or a narrow column: one column of answers that scrolls down
   // measured once per draw, first, before anything is written: read again after the board was emptied or a class changed, the
@@ -429,7 +435,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     if (score > 0.04) out.push({ i, score, kn, dn, sim: ds ? ds[0] : null, why: ds && dn > 0.55 ? ds : null });
   });
   out.sort((a, b) => b.score - a.score);  // best first
-  const weak = d ? d.max < 0.6 : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62
+  const weak = d ? d.max < 0.6 || (kmax === 0 && d.max < 0.7) : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62; no word of the query in any script needs a closer match (gibberish reached 0.6)
   return { list: out.slice(0, 40), words, weak };
 }
 // <<< engine:rank
@@ -547,6 +553,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     el.innerHTML = board.map((r, k) => cardHtml(r, k)).join("");                    // no measuring: the column grows with the cards
     if (words.length) el.querySelectorAll(".kit-card").forEach((c) => markQuery(c, words));   // the query's words underlined
     boardOrder = board.map((_, k) => k);
+    screensBox.hidden = true;                                                       // a narrow view scrolls down: no screens to turn
   }
   let lastTop = -1;                                                                 // the top answer last drawn, so the rise does not replay for the same answer
   let tRest = 0;                                                                    // the board's later screens, placed after the first two are on screen
@@ -619,9 +626,21 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const on = new Set();
     el.querySelectorAll(".kit-card").forEach((c) => { const x = c.offsetLeft + (c.offsetParent === el ? 0 : c.parentElement.offsetLeft); if (x + c.offsetWidth > a + 4 && x < b - 4) on.add(c.dataset.id); });
     elRank.querySelectorAll(".kit-row").forEach((r) => r.setAttribute("aria-current", on.has(r.dataset.id) ? "true" : "false"));
+    screensNow();
+  }
+  function screensNow() {                                                           // the board's screens: "2 / 5" between its keys
+    const el = elCards, step = el.clientWidth + GAP;
+    const sliding = mode !== "toc" && !narrowNow && el.clientWidth > 0;            // a board of answers, side by side
+    const total = sliding ? Math.max(1, Math.round((el.scrollWidth + GAP) / step)) : 1;
+    screensBox.hidden = total <= 1;                                                 // one screen: nothing to turn
+    if (!sliding) return;
+    const at = Math.min(total, Math.round(el.scrollLeft / step) + 1);
+    scrAt.textContent = `${at} / ${total}`;                                         // the board turns a whole screen at a time, so a count says more lies on (a fade would dim whole words)
+    scrPrev.disabled = at <= 1; scrNext.disabled = at >= total;
   }
   function drawToc() {                                                              // the contents: every item with its full title; in a small view the largest groups fold into one row each until it all fits
     const el = elCards; el.className = "kit-cards tocv"; el.style.overflow = "";
+    screensBox.hidden = true;                                                       // the contents is one screen of its own
     root.classList.remove("short");                                                 // measured against the whole screenful first
     if (narrowNow) { tocHtml(el, new Set()); return; }                              // a narrow view: one column of every group, and the page scrolls
     if (!el.clientWidth || !el.clientHeight) { tocHtml(el, new Set()); return; }    // not laid out yet: every group, fitted when the view is on the page
@@ -641,7 +660,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
       const hd = headOf(g.name), plain = g.name.replace(/^[A-Z]\.\s+/, "");        // its name without its letter (the row shows the letter)
       const short = SHORT[g.name[0]] || (isRow(g) && hd ? hd.tail : plain);         // a deep dive's row says what follows its colon: "이력 {name}" doubled the heading's own words
       const pre = fmt("toc_deep", { name: "" }).replace(/[:\s]+$/, "");             // "이력", "Resume": a name that starts with it already says it
-      const label = g.role === "terms" ? fmt("toc_terms") : isRow(g) ? (short.startsWith(pre) ? short : fmt("toc_deep", { name: short })) : isRef(g) ? refName(g) : short;
+      const says = short.startsWith(pre) || /^(?:이력|resume)(?=[\s:：]|$)/i.test(short);   // the name says it already, in either language ("이력: …" read in the English panel was "Resume: 이력: …")
+      const label = g.role === "terms" ? fmt("toc_terms") : isRow(g) ? (says ? short : fmt("toc_deep", { name: short })) : isRef(g) ? refName(g) : short;
       return `<button type="button" data-g="${esc(g.name)}" data-c="${cat(k)}"><span class="kit-id">${esc(k)}</span><span>${esc(fmt("toc_count", { name: label, n: g.items.length }))}</span></button>`;
     };
     el.innerHTML = `<div class="kit-toc">${tocBoxes(folded).map((b) => `<div class="kit-tg${(b.items || b.rows).length <= 12 ? " keep" : ""}"${b.items ? ` data-c="${cat(ITEMS[b.items[0]].id)}"` : ""}><h3>${esc(b.name)}</h3>` +
@@ -832,6 +852,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   }, { passive: false });
   let tScroll = 0, keepLeft = 0;                                                    // one mark update per frame while sliding; where the board stands, for a redraw of the panel around it
   elCards.addEventListener("scroll", () => { keepLeft = elCards.scrollLeft; cancelAnimationFrame(tScroll); tScroll = requestAnimationFrame(markVisible); });
+  scrPrev.addEventListener("click", () => page(-1)); scrNext.addEventListener("click", () => page(1));   // the screen keys turn the board as the arrow keys do
   let lastEsc = 0;                                                                  // time of the previous Escape
   root.addEventListener("keydown", (e) => {                                         // the keyboard, while it is inside the view
     if (e.altKey && !e.ctrlKey) {                                                   // language shortcuts; Alt+letters open browser menus on Windows, so digits

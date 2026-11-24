@@ -28,8 +28,12 @@ from . import materials  # a job's own materials, sent as files
 from .routes import JSON, Router, dumps  # the API's table
 
 MAX_JSON = 2_000_000  # bytes of a JSON request
+
+
+class BodyTooLarge(Exception):
+    """A JSON body over MAX_JSON: answered 413 body_too_large."""
 MAX_UPLOAD = 60_000_000  # bytes of one uploaded file
-MAX_BACKUP = 500_000_000  # bytes of a workspace's backup, which holds every file and document: a real one is tens of megabytes
+MAX_BACKUP = 4_000_000_000  # bytes of a workspace's backup, which holds every file and document: a real one passed 500 MB, which was refused; as much as a backup may unpack to (backup.MAX_UNPACKED)
 MAX_PHOTO = 10_000_000  # bytes of a resume photo: a phone's full-size picture fits
 GZIP_MIN = 1024  # bytes below which compressing costs more than it saves
 GZIP_LEVEL = 6  # zlib's usual trade: a few milliseconds for a 100 KB state, a quarter of its bytes
@@ -147,6 +151,9 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
 
     def send(self, code: int, body, ctype: str = JSON, cache: bool = False, name: str | None = None, etag: str | None = None) -> None:
         """Send one answer. An answer with an ETag (the state) is compressed for a client that takes gzip."""
+        from .routes import FileStream  # a file sent in pieces
+        if isinstance(body, FileStream):
+            return self.send_stream(code, body, ctype)
         data = dumps(body)  # bytes (send_state hands them over already made, and dumps keeps bytes as they are)
         zipped = bool(etag) and len(data) >= GZIP_MIN and self.takes_gzip()  # only the state is compressed (the page polls it)
         if zipped:
@@ -174,18 +181,42 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):  # the client hung up first (a refused request it stopped waiting on): nothing to answer
             self.close_connection = True  # this socket is done; no traceback for a normal end
 
+    def send_stream(self, code: int, body, ctype: str) -> None:
+        """A file sent in pieces of a megabyte, then deleted when it was made for this answer (a backup)."""
+        import shutil  # the copy
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(os.path.getsize(body.path)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Security-Policy", CSP)
+            for k, v in body.headers.items():
+                self.send_header(k, v)
+            self.end_headers()
+            if self.command != "HEAD":
+                with open(body.path, "rb") as f:
+                    shutil.copyfileobj(f, self.wfile, 1 << 20)
+        except (BrokenPipeError, ConnectionResetError):  # the client stopped reading
+            self.close_connection = True
+        finally:
+            if body.delete:
+                with contextlib.suppress(OSError):
+                    os.unlink(body.path)
+
     def log_message(self, fmt, *args):  # errors only, to the log
         if len(args) > 1 and str(args[1])[:1] in "45":  # only 4xx and 5xx answers are worth a line (a timeout's one-word line is not)
             log.info("%s %s", self.address_string(), fmt % args)  # who asked, and what came back
 
-    def refuse(self, code: int, body: dict) -> None:
+    def refuse(self, code: int, body: dict, drain: int | None = None) -> None:
         """A refusal sent before the request's body was read. The body is read first, up to a megabyte: a socket closed with
         bytes unread is reset, and on Windows the reset can reach the client before the answer does, which then reads as a
         dropped connection instead of the refusal."""
         if self.command == "POST" and not self.body_read:  # a body that may still be on its way
             try:
                 n = int(self.headers.get("Content-Length") or 0)  # its size, as the client says
-                if 0 < n <= self.DRAIN_MAX:  # a small one: read and dropped
+                if 0 < n <= (drain or self.DRAIN_MAX):  # a small one (or one up to the limit given): read and dropped
                     self.connection.settimeout(10)  # a client that sends less than it said does not hold the thread
                     self.rfile.read(n)
             except (ValueError, OSError):  # a bad length, or a client that stopped sending: answered all the same
@@ -244,8 +275,11 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         if not (self.headers.get("Content-Type") or "").startswith("application/json"):  # cross-site JSON needs a CORS preflight
             raise PermissionError("type")  # a form post from elsewhere cannot set this type
         n = int(self.headers.get("Content-Length") or 0)  # the body's size, as the client says
-        if not 0 <= n <= MAX_JSON:  # a negative or oversized body
-            raise PermissionError("length")  # refused before reading
+        if n < 0:  # a length no body has
+            raise ValueError("length")  # answered as bad_request
+        if n > MAX_JSON:  # more words than any request holds: said as such (it was a reset connection and advice to retry)
+            raise BodyTooLarge()
+        self.connection.settimeout(min(10, self.timeout or 10))  # a body that stops coming frees its thread after 10 s (it held one of the 64 for 120 s)
         raw = self.rfile.read(n)  # the request
         self.body_read = True  # nothing left to read for a refusal
         req = json.loads(raw or b"{}")  # as JSON
@@ -262,6 +296,20 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
     def extra_get(self, path: str) -> bool:
         """More GET paths of a subclass (the panel's page and files). True when it answered."""
         return False  # the API alone has none
+
+    def send_error(self, code, message=None, explain=None):  # noqa: D401  (http.server's own: a bad request line, a header too long)
+        """Every error as JSON with its code, as every other answer here (http.server sent its own HTML page)."""
+        try:
+            self.close_connection = True  # a request this broken leaves the stream unreadable
+            self.send(code, {"error": {400: "bad_request", 404: "not_found", 405: "method", 408: "timeout", 414: "too_long", 431: "too_long", 501: "method"}.get(code, "bad_request")})
+        except Exception:  # noqa: BLE001  the socket is gone: nothing to answer
+            pass
+
+    def refuse_method(self):
+        """PUT, DELETE, PATCH, OPTIONS and the like: none is a route here."""
+        self.send(405, {"error": "method"})
+
+    do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_TRACE = do_CONNECT = refuse_method  # noqa: N815
 
     def do_HEAD(self):  # noqa: N802  (http.server's names)
         self.do_GET()  # the same answer without the body
@@ -292,6 +340,13 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
     # ------------------------------------------------------------------ POST
 
     def do_POST(self):  # noqa: N802
+        try:
+            return self._post()
+        finally:  # any write (an upload, a photo, a restore too): the next state is made anew
+            with contextlib.suppress(Exception):
+                self.router.api.state_dirty()
+
+    def _post(self):
         self.body_read = False  # nothing of this request's body read yet
         if not self.host_ok():  # DNS rebinding is refused first
             return  # the 403 is already sent
@@ -325,7 +380,9 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
                 log.exception("POST %s", path)  # kept in the log
                 return self.send(500, {"error": "unexpected"})  # the page shows a general error
             return self.refuse(403, {"error": str(exc)})  # names the check that refused
-        except ValueError:  # not JSON, not an object, or a bad length header
+        except BodyTooLarge:  # over MAX_JSON: read and dropped up to a limit, so the answer arrives before the socket closes
+            return self.refuse(413, {"error": "body_too_large"}, drain=MAX_JSON * 4)
+        except (ValueError, RecursionError):  # not JSON, not an object, a bad length header, or JSON nested a hundred thousand deep
             return self.refuse(400, {"error": "bad_request"})  # nothing was done
         except Exception:  # an upload that failed on its own (a full disk): answered, not a dropped connection
             log.exception("POST %s", path)  # the traceback goes to the log, not the page
@@ -350,10 +407,10 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         api = self.router.api  # the panel's API: it starts the kit for this job
         try:
             jid = api.need_job({"job": urllib.parse.unquote(job)})
-        except ValueError:  # no such application, one in the Trash, or a name no job can have (any other error is a bug: answered as one)
+        except (ValueError, OSError):  # no such application, one in the Trash, or a name no job can have (a name too long for the disk too)
             if method == "GET" and self.headers.get("Sec-Fetch-Mode") == "navigate" and self.headers.get("Sec-Fetch-Dest") == "document":
-                self.send_response(302)  # a person opening an address of an application that is gone: the panel, not a bare answer
-                self.send_header("Location", "/")
+                self.send_response(302)  # a person opening an address of an application that is gone: the panel, which says it is gone
+                self.send_header("Location", f"/?job={urllib.parse.quote(urllib.parse.unquote(job)[:80], safe='')}&show=scripts")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
@@ -375,6 +432,8 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             return
         base = api.tasks.kit_url(jid)  # this job's own kit server
         if not base:  # no kit yet, or it would not start
+            if self.navigating():  # a person's own page: the panel's words, not a bare answer
+                return self.missing_page(jid)
             return self.refuse(404, {"error": "no_kit"})
         body = None
         if method == "POST":  # the practice's writes: JSON or a recording
@@ -401,6 +460,8 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             code, data, rh = e.code, e.read(), e.headers
         except OSError:  # the kit's server is gone
             return self.send(502, {"error": "kit_unreachable"})
+        if code == 404 and method == "GET" and self.navigating():  # a page of the kit that is not there (a typo, a talk's PDF not made yet)
+            return self.missing_page(jid)
         self.send_response(code)
         for h in ("Content-Type", "Content-Security-Policy", "Content-Disposition", "Cache-Control"):
             if rh.get(h):
@@ -424,6 +485,7 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         n = self.file_length(cap)  # every check, before a byte is read
         if n is None:  # refused, and answered
             return None
+        self.connection.settimeout(min(10, self.timeout or 10))  # a file that stops coming frees its thread after 10 s without a byte
         data = self.rfile.read(n)  # the file
         self.body_read = True  # nothing left to read for a refusal
         return data
@@ -478,10 +540,36 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         if data is None:  # refused, and answered
             return  # nothing more
         name = urllib.parse.unquote(self.headers["X-File-Name"])[:200]  # the file's own name
-        recs = self.router.api.ws.add_materials(name, data)  # kept in sources/; a zip gives each file in it
+        try:
+            recs = self.router.api.ws.add_materials(name, data)  # kept in sources/; a zip gives each file in it
+        except ValueError as exc:  # a program, or a file that is not the kind its name says
+            return self.send(400, {"error": str(exc)})  # the page says which
         if not recs:  # a zip with nothing a reader knows
             return self.send(400, {"error": "empty"})  # the page says so
         return self.send(200, {"ok": True, "material": recs[0], "materials": recs})  # the page then asks to read them
+
+    def navigating(self) -> bool:
+        """A person's own page load (the browser's address bar, a link), not a page's request."""
+        return self.headers.get("Sec-Fetch-Mode") == "navigate" and self.headers.get("Sec-Fetch-Dest") == "document"
+
+    def missing_page(self, jid: str) -> None:
+        """A kit page that is not there, said as the panel says it, with the way back to the application's scripts."""
+        import html as H  # the id is escaped
+        back = f"/?job={urllib.parse.quote(jid, safe='')}&show=scripts"
+        body = ("<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+                "<title>Offerowl</title><style>:root{color-scheme:light dark;--bg:#f6f6f4;--ink:#18181b;--ink2:#5c5c62;--line:rgba(0,0,0,.14)}"
+                "@media (prefers-color-scheme:dark){:root{--bg:#141416;--ink:#f2f2f3;--ink2:#a6a6ad;--line:rgba(255,255,255,.16)}}"
+                "body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,sans-serif}"
+                "main{max-width:420px;padding:24px}h1{margin:0 0 6px;font-size:18px}p{margin:0 0 16px;color:var(--ink2)}"
+                "a{display:inline-block;padding:7px 14px;border:1px solid var(--line);border-radius:2px;color:var(--ink);text-decoration:none}</style></head>"
+                "<body><main><h1>찾는 면접 자료가 없습니다</h1><p>The page of this interview kit is not there. It may not be made yet.</p>"
+                f"<a href=\"{H.escape(back)}\">면접 탭으로 · Back to the scripts</a></main></body></html>").encode("utf-8")
+        self.send_response(404)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
 
     def photo(self) -> None:
         """The resume's photo (JPEG or PNG), in the workspace's profile folder."""
@@ -489,10 +577,10 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         if data is None:  # refused, and answered
             return  # nothing more
         try:
-            self.router.api.set_photo(data)  # checked and kept
+            kept = self.router.api.set_photo(data)  # checked and kept; the one before went to the Trash
         except ValueError as exc:  # not a JPEG or a PNG
             return self.send(400, {"error": str(exc)})  # the page says so
-        return self.send(200, {"ok": True})  # the page draws it
+        return self.send(200, {"ok": True, "replaced": kept})  # the page draws it, with an Undo that puts the old one back
 
     def scenes(self) -> None:
         """A file of interview scenes (the kit's markdown) into a job's interview folder; the job is in the query."""
@@ -540,7 +628,7 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             return  # nothing more
         name = urllib.parse.unquote(self.headers["X-File-Name"])  # the file's own name, whole: its extension is its kind (materials.add shortens it)
         try:
-            rec = materials.add(self.router.api.ws, str(self.query().get("job") or ""), name, data)  # the job named in the query
+            rec = materials.add(self.router.api.ws, self.router.api.ws.resolve_job(str(self.query().get("job") or "")), name, data)  # the job named in the query (an id from before a rename finds it, as on every other route)
         except ValueError as exc:  # a kind not kept, no such job
             return self.send(400, {"error": str(exc)})  # the page says which
         return self.send(200, {"ok": True, "material": rec})  # the page draws it in the list

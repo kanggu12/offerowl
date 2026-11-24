@@ -157,7 +157,7 @@ class Exports:
         extras = self.card.settings_fn().get("export_extras") is True  # Word files too, only when asked
         dest = desktop_dir()  # the Desktop
         dest.mkdir(parents=True, exist_ok=True)  # a fresh Desktop folder in a test
-        written = []  # names
+        written, reused = [], []  # names copied now; names already holding those bytes
         try:
             for f in sorted(hashes):  # each frozen file, by its name: resume.pdf, deck.pdf, cover.pdf and their Word or slide files
                 key = Path(f).stem  # resume, deck or cover
@@ -166,9 +166,15 @@ class Exports:
                 if sha256(folder / f) != hashes[f]:  # changed since it was frozen
                     raise ValueError("changed")
                 base = " ".join(re.sub(r'[\\/:*?"<>|]+', " ", " ".join(x for x in (who, where, mark, words[key]) if x)).split())[:120]  # a safe name
-                name, n = base + Path(f).suffix, 2  # first try
+                name, n, same = base + Path(f).suffix, 2, None  # first try
                 while (dest / name).exists():  # never overwrite
+                    if sha256(dest / name) == hashes[f]:  # those very bytes are there already: named again, never copied again (exports piled up "(741)" copies)
+                        same = name
+                        break
                     name, n = f"{base} ({n}){Path(f).suffix}", n + 1
+                if same:
+                    reused.append(same)  # said as written, never removed when a later file fails
+                    continue
                 shutil.copyfile(folder / f, dest / name)  # a plain copy: the frozen one stays
                 written.append(name)
                 if sha256(dest / name) != hashes[f]:  # the copy is the bytes that went out
@@ -177,7 +183,7 @@ class Exports:
             for name in written:
                 (dest / name).unlink(missing_ok=True)
             raise
-        return written
+        return sorted(written + reused)
 
     @staticmethod
     def reads_back(copy: Path, src: Path) -> bool:

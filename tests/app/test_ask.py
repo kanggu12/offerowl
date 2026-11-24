@@ -94,14 +94,11 @@ class TestCounted(unittest.TestCase):
 
 class TestRoute(PanelCase):
     def test_no_tool_agent_says_so(self):
+        # no agent that can act: refused before anything is kept, so the page keeps the words and nothing waits in the history
         self.post("/api/v1/settings", {"backend": "none"})
-        self.post("/api/v1/ask", {"text": "감마클라우드 통화 끝났어, 적어 줘"})
-        end = time.time() + 20
-        while time.time() < end and self.get("/api/v1/ask")["running"]:
-            time.sleep(0.2)
-        last = self.get("/api/v1/ask")["history"][-1]
-        self.assertEqual("needs_tool_agent", last["answer"])   # said, not pretended
-        self.assertEqual("감마클라우드 통화 끝났어, 적어 줘", last["text"])
+        before = len(self.get("/api/v1/ask")["history"])
+        self.post("/api/v1/ask", {"text": "감마클라우드 통화 끝났어, 적어 줘"}, expect=400)
+        self.assertEqual(before, len(self.get("/api/v1/ask")["history"]))   # said, not pretended, and not kept
 
     def test_empty_is_refused(self):
         self.post("/api/v1/ask", {"text": "   "}, expect=400)

@@ -350,7 +350,7 @@ function readyTile(d) {
       const c = r.coverage, sum = c ? c.strong + (c.draft || 0) + c.weak + c.none : 0;   // the kit's likely questions, the drafts' among them (left out, a kit of drafts read as 0% in red)
       return h("li", { class: "rd-item", "data-stage": r.stage },
         mono(r.company, "sm", r.stage),
-        h("button", { class: "rd-name", type: "button", onclick: () => goJob(r, "interview"), title: t("Open its interview tab") }, h("b", { text: jobNameOf(r.job, r.company) }), h("small", { text: t(STAGE[r.stage]) })),
+        h("button", { class: "rd-name", type: "button", onclick: () => goJob(r, "interview"), title: jobNameOf(r.job, r.company) + " · " + t("Open its interview tab") }, h("b", { text: jobNameOf(r.job, r.company) }), h("small", { text: t(STAGE[r.stage]) })),
         h("span", { class: "rd-fit", "data-tip": r.fit === null ? null : t("Fit {n} / 100", { n: r.fit }) }, r.fit === null ? h("small", { text: t("No posting") }) : [h("b", { text: String(r.fit) }), h("i", { class: "rd-fitbar", style: `--w:${r.fit}%;--c:${MET_SOLO[metTone(r.fit)]}`, "aria-hidden": "true" })]),
         h("span", { class: "rd-meta" },
           c ? h("span", { class: "rd-cov", tabindex: "0", "data-tip": c.draft ? t("Interview map: {s} met, {d} by the agent's drafts, {w} in part, {n} not met, {k} scripts", { s: c.strong, d: c.draft, w: c.weak, n: c.none, k: r.scripts })
@@ -390,11 +390,11 @@ function careerTile(d, host) {
     if (l.kind === "role") g.append(sv("text", { class: "ct", x: x1 + 6, y: y0 + 12 }, t("{n} facts", { n: l.facts })));
     svg.append(g);
   });
-  const kinds = Object.entries(ev.kinds || {}).filter(([k]) => k !== "skill" && k !== "other");   // what the facts are, the skill lists aside
-  const top = kinds.slice(0, 3), restN = kinds.slice(3).reduce((s, [, n]) => s + n, 0) + ((ev.kinds || {}).other || 0) + ((ev.kinds || {}).skill || 0);   // three kinds, then the rest together (the skill lists too: the bar adds up to the facts the head counts)
+  const all = Object.entries(ev.kinds || {}), total = all.reduce((s, [, n]) => s + n, 0);   // what the facts are
+  const top = all.filter(([k]) => KIND[k] && KIND[k] !== "Other").sort((a, b) => b[1] - a[1]).slice(0, 5), restN = total - top.reduce((s, [, n]) => s + n, 0);   // the five biggest named kinds, then the rest together: the split Profile and Make draw (one "the rest" everywhere) to the facts the head counts)
   const KC = ["var(--blue-bar)", "var(--orange-bar)", "var(--ink-2)"];               // fixed order: the most common first (blue and orange stay apart; blue and violet did not)
   return tile("career", "layers", "Career and evidence", t("{n} facts, {m} of them with no company", { n: (d.kpi || {}).facts || 0, m: ev.unattached || 0 }),
-    segBar([...top.map(([k, n], i) => ({ n, words: t(KIND[k] || k), color: KIND_COLOR[k] || KC[i] })), ...(restN ? [{ n: restN, words: t("Other"), color: "var(--ink-3)" }] : [])],
+    segBar([...top.map(([k, n], i) => ({ n, words: t(KIND[k] || k), color: KIND_COLOR[k] || KC[i % KC.length] })), ...(restN ? [{ n: restN, words: t("The rest"), color: "var(--ink-3)" }] : [])],
       { label: t("Facts by kind"), id: "kinds", compact: true }),
     lanes.length ? svg : h("p", { class: "ins-none", text: t("No role with a period yet.") }),
     legend([{ words: t("Employment"), color: "var(--ink-2)" }, { words: t("Education"), color: "var(--ink-3)", shape: "dash" }]));   // a school's lane is a dashed bar

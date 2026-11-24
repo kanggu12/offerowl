@@ -87,7 +87,7 @@ def listing(api) -> dict:
     ws, t = api.ws, api.tasks                                                       # the files and the builder
     rows: list[dict] = []                                                           # in the order the view reads them
 
-    for m in ws.materials():                                                        # brought in for the profile
+    for m in api.materials_now():                                                   # brought in for the profile, each with the facts it holds now (the count kept when it was read falls behind)
         rows.append({"group": "source", "id": "source:" + m["id"], "name": m.get("name") or m.get("file"), "kind": ext(m.get("name") or ""),
                      "size": m.get("size") or 0, "date": m.get("added") or "", "owner": None,
                      "note": {"facts": m.get("facts") or 0, "state": m.get("state") or "", "error": m.get("error") or ""},
@@ -224,6 +224,8 @@ def export(api, row_id: str) -> str:
     dest = dest_dir / name
     n = 2
     while dest.exists():                                                            # never over a file already there
+        if dest.stat().st_size == f.stat().st_size and dest.read_bytes() == f.read_bytes():   # those very bytes are there already: named, never copied again
+            return dest.name
         dest = dest_dir / f"{Path(name).stem} ({n}){Path(name).suffix}"
         n += 1
     shutil.copyfile(f, dest)

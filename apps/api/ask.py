@@ -69,6 +69,11 @@ def start(api, text: str) -> bool:
         raise ValueError("empty")
     if not getattr(api, "port", None):  # no server of its own (`offerowl api post` in a process that ends at once): the
         raise ValueError("no_panel")  # agent's tools would reach another panel's port, or nothing
+    backend = api.tasks.backend()  # 'claude-code', 'codex', 'openai-compat' or 'none'
+    if backend == "none":  # no agent: refused before anything is kept, so the page keeps the words
+        raise ValueError("agent_off")
+    if backend not in ("claude-code", "codex"):  # a local model cannot act through Offerowl's tools
+        raise ValueError("needs_tool_agent")
     return api.tasks.start("ask", run, api, text)
 
 

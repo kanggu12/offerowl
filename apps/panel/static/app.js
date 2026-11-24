@@ -72,7 +72,7 @@ function agentChip() {                                                          
   return h("div", { class: "barpop" },
     h("button", { class: "barchip", "aria-expanded": UI.agentPop ? "true" : "false", "aria-haspopup": "dialog", title: `${name}: ${t(lamp[1])}`, "aria-label": `${name}: ${t(lamp[1])}`,   // its name and state, said on the hover too: a narrow bar shows its lamp alone
       onclick: () => { UI.agentPop = !UI.agentPop; UI.menu = false; render(); if (UI.agentPop) focusSheet(".barpop .pop"); } }, h("span", { class: "barchip-i", "aria-hidden": "true" }, icon("agent")), h("span", { class: "lit " + lamp[0], "aria-hidden": "true" }), h("span", { class: "barchip-w", text: name })),
-    UI.agentPop ? h("div", { class: "pop", role: "dialog", "aria-modal": "true", "aria-label": t("AI agent") }, agentPanel()) : null);
+    UI.agentPop ? h("div", { class: "pop", role: "dialog", "aria-modal": "true", "aria-label": t("AI agent") }, agentPanel(true)) : null);
 }
 function runChip() {                                                                // the run's lamp in the bar, away from the make view
   const r = task("autopilot");                                                      // the run
@@ -127,7 +127,7 @@ function drawMenu() {                                                           
 }
 async function restoreBackup(file) {                                               // a backup in the workspace's place, once the person agrees
   if (!file) return;                                                                // nothing picked
-  if (file.size > 500e6) { toast(t("This file is too large to be a backup."), null, "bad"); return; }   // over the server's limit (web.py MAX_BACKUP): said before it is sent
+  if (file.size > 4e9) { toast(t("This file is too large to be a backup."), null, "bad"); return; }   // over the server's limit (web.py MAX_BACKUP): said before it is sent
   if (!(await askFirst({ title: t("Restore this backup?"), ok: t("Restore"),         // nothing is sent without a yes
     text: t("Your files are replaced by the backup's. The ones you have now are not deleted: they stay in a folder beside your workspace, listed in the Library's trash.") }))) return;
   let r;                                                                            // the answer
@@ -160,7 +160,7 @@ function facts(pairs, one) {                                                    
     h("div", { class: "fact", title: `${k}: ${typeof v === "string" ? v : ""}` }, h("dt", { text: k }), h("dd", { class: cls || null }, v))));
 }
 function kilo(n) { return n >= 10000 ? `${(n / 1000).toFixed(n >= 100000 ? 0 : 1)}k` : String(n || 0); }   // 26110 as 26.1k
-function agentPanel() {                                                             // the agent: who it is, whether it answers, what it did today
+function agentPanel(sheet = false) {                                                // the agent: who it is, whether it answers, what it did today (sheet: opened from the bar, with its name and a close key)
   const a = S.agent, c = S.agent_calls || {}, lamp = agentLamp();                   // the card, the day's calls, its lamp
   const name = a.backend === "none" ? t("AI agent") : t(AGENT_NAME[a.backend] || a.backend);  // its name, in the page's language (a local model is named, the two CLIs are names)
   const on = a.backend !== "none" && a.state !== "off";                             // the switch
@@ -173,24 +173,29 @@ function agentPanel() {                                                         
       text: a.state === "missing" ? t("Set the local server's address in the settings menu.") : t("Nothing answers at the local server's address. Check it in the settings menu.") })
     : a.state === "missing" ? h("p", { class: "usage-none", style: "margin-top:8px" }, t("Reading your files needs an AI agent such as Claude Code or Codex."), " ",
     a.install ? h("a", { href: a.install, target: "_blank", rel: "noopener", text: t("How to get {name}", { name }) }) : null)   // the chosen agent's own page, as the state names it
-    : a.state === "signed_out" && !local ? h("p", { class: "usage-none", style: "margin-top:8px",   // signed out: what signing in is for, and where the agent is chosen
-      text: t("Offerowl writes with the agent you are signed in to on this PC: sign in once, and it reads your files and writes from them. The settings menu chooses which agent.") })
-    : !on && a.state !== "signed_out" ? h("p", { class: "usage-none", style: "margin-top:8px", text: t("While it is off, only an Offerowl profile file is read. Turn it on to read your other files and write.") }) : null;   // what off means, in one line
-  const sec = (v) => (v == null ? "–" : `${v} s`);                                  // an en dash where there is no figure yet
+    : null;   // signed out or off: the state and its key say it (no explanation in the product: the docs hold it)
+  const sec = (v) => (v == null ? "–" : t("{n} s", { n: v }));                      // seconds in the page's words ("14.2초"); an en dash where there is no figure yet
+  const ERR_WORDS = { timeout: "Timed out", rate_limited: "Too many requests", unavailable: "Not answering", signed_out: "Signed out" };   // the agent's last error, in words
+  const longest = Math.max(0, ...(c.bars || []).map((b) => b.sec || 0));
   const stats = a.state === "ready" ? h("div", { class: "usage" },
     h("div", { class: "usage-top" },
       h("span", { class: "stat" }, h("b", { text: String(c.calls || 0) }), h("span", { class: "k", text: t("Requests today") })),
       h("span", { class: "stat" }, h("b", { text: sec(c.median) }), h("span", { class: "k", text: t("Median response") })),
       h("span", { class: "stat" }, h("b", { text: sec(c.ttft_avg) }), h("span", { class: "k", text: t("Time to first token") })),
       h("span", { class: "stat" }, h("b", { text: c.tps_avg == null ? "–" : String(c.tps_avg) }), h("span", { class: "k", text: t("Tokens per second") }))),
-    (c.bars || []).length ? h("div", { class: "ag-bars", "aria-hidden": "true" }, (() => { const max = Math.max(...c.bars.map((b) => b.sec || 0), 1);   // the day's calls: first token, then writing
-      return c.bars.map((b) => h("i", { style: `height:${Math.max(8, (b.sec / max) * 100)}%`, title: `${b.sec} s` },
-        b.ttft ? h("b", { style: `height:${Math.min(100, (b.ttft / b.sec) * 100)}%` }) : null)); })()) : null,
+    (c.bars || []).length ? h("figure", { class: "ag-chart" },                       // the day's requests: waiting for the first token, then writing
+      h("figcaption", { class: "ag-cap" }, h("span", { text: t("Each request today") }), h("span", { class: "ag-max", text: t("Longest {t}", { t: sec(longest) }) })),
+      h("div", { class: "ag-bars", role: "img", "aria-label": t("{n} requests today, the longest {t}", { n: c.bars.length, t: sec(longest) }) },
+        c.bars.map((b, i) => h("i", { style: `height:${Math.max(6, (b.sec / Math.max(longest, 1)) * 100)}%`,   // a bar's height is its time against the longest
+          title: t("Request {i}: {s}, first token {f}", { i: i + 1, s: sec(b.sec), f: sec(b.ttft || 0) }) },   // its figures on the hover
+          b.ttft ? h("b", { style: `height:${Math.min(100, (b.ttft / b.sec) * 100)}%` }) : null))),
+      h("div", { class: "ag-key", "aria-hidden": "true" }, h("span", {}, h("i", { class: "wait" }), t("Until the first token")), h("span", {}, h("i", { class: "write" }), t("Writing")))) : null,
     h("p", { class: "usage-sub" },
       h("span", {}, t("In {i}, out {o} tokens", { i: kilo(c.tok_in), o: kilo(c.tok_out) })),
       c.cost != null ? h("b", { text: `$${Number(c.cost).toFixed(2)}` }) : h("span", { text: t("Only Offerowl's own requests") })),
-    c.errors ? h("p", { class: "ag-err", text: t("{n} errors, last {code}", { n: c.errors, code: (c.last_error && c.last_error.code) || "" }) }) : null) : null;
+    c.errors ? h("p", { class: "ag-err", text: t("{n} errors, last {code}", { n: c.errors, code: (c.last_error && (ERR_WORDS[c.last_error.code] ? t(ERR_WORDS[c.last_error.code]) : c.last_error.code)) || "" }) }) : null) : null;
   return h("section", { class: "card conn agentcard", "aria-label": t("AI agent") },
+    sheet ? h("div", { class: "menu-head" }, h("h2", { text: t("AI agent") }), h("button", { class: "btn icon ghost", type: "button", "aria-label": t("Close"), title: t("Close"), onclick: () => { UI.agentPop = false; render(); } }, icon("close"))) : null,   // as the settings sheet: its name, and a key that closes it
     h("div", { class: "src", "data-state": lamp[0] },
       h("div", { class: "src-top" }, h("span", { class: "src-name" }, icon("agent"), h("span", { text: name })), pill(lamp[0], t(lamp[1])), key),
       who, help,
@@ -306,6 +311,7 @@ function renderNow() {                                                          
   $("scrim").classList.toggle("open", UI.drawer && UI.view === "documents");        // the shade behind an open drawer
   $("skip").textContent = t("Skip to the document");                                // the first key on the page
   drawPane($("setup"), "setup", drawSetup);                                         // the setup guide over the page, when open (setup.js)
+  keepAddress();                                                                    // /?job=…&show=scripts only while it is what the page shows
   setupFirst();                                                                     // by itself once, for a workspace that holds nothing yet
   notifyDue();                                                                      // due reminders as notifications
 }
@@ -375,7 +381,12 @@ $("photopick").addEventListener("change", async (e) => {                        
   try {
     const r = await postFile("/api/v1/photo", f);
     if (!r.ok) { toast(r.status === 413 ? t("That picture is too large.") : t("Use a JPEG or PNG photo."), null, "bad"); return; }   // refused
-    toast(t("The photo goes on the resume."), null, "done"); refresh();                           // kept, and drawn
+    const j = await r.json().catch(() => ({}));                                    // the old photo's place in the Trash, if there was one
+    if (j.replaced) {                                                               // changed: the one before waits in the Trash, and Undo puts it back
+      UI.trashUndo = { id: j.replaced, step: S.undo_id || null, what: t("Your photo"), done: t("Photo put back.") };
+      toast(t("The photo was changed. The old one is in the Trash."), { words: t("Undo"), run: () => { UI.trashUndo = null; return act("/api/v1/removed/restore", { id: j.replaced }, t("Photo put back.")); } }, "done");
+    } else toast(t("The photo goes on the resume."), null, "done");
+    refresh();                                                                      // kept, and drawn
   } catch (_) { /* the server stopped: the band says so */ }
 });
 $("stylepick").addEventListener("change", async (e) => {                         // a person's own writing rules
@@ -426,10 +437,16 @@ function fromAddress() {                                                        
   addressRead = true;
   const q = new URLSearchParams(location.search), jid = q.get("job");
   if (!jid || q.get("show") !== "scripts") return;                                  // any other address: the view this browser was on
-  history.replaceState(null, "", location.pathname);                                // read once: a reload stays where the person is by then
-  if (!(S.jobs || []).some((j) => j.id === jid)) return;                            // an application that is gone
+  if (!(S.jobs || []).some((j) => j.id === jid)) {                                   // an application that is gone: said, and the address is the panel's own again
+    history.replaceState(null, "", location.pathname);
+    toast(t("That application is not there any more. It may be in the Trash."), null, "info");
+    return;
+  }
   UI.ivWide = true; UI.ivPart = "search"; UI.jobsMode = "list"; UI.jobPhone = true;  // its scripts, the list folded away, and on a phone the application alone (this window only: the choice kept in the browser is the other window's)
-  (S.job === jid ? Promise.resolve() : act("/api/v1/jobs/select", { job: jid })).then(() => go("interview"));
+  (S.job === jid ? Promise.resolve() : act("/api/v1/jobs/select", { job: jid })).then(() => { go("interview"); UI.addressJob = jid; });   // the address stays while the person stays there: a reload lands on the same scripts
+}
+function keepAddress() {                                                            // the scripts' address is dropped once the person leaves them (another view, tab or application)
+  if (UI.addressJob && (UI.view !== "jobs" || UI.jobTab !== "interview" || S.job !== UI.addressJob)) { history.replaceState(null, "", location.pathname); UI.addressJob = null; }
 }
 function redrawAll() {                                                              // every pane again (a new size or look)
   for (const id of ["top", "canvas", "inspector"]) if (!(id === "canvas" && kitFramed())) $(id)._key = null;   // but a canvas that holds a kit's frame: the frame's page lays itself out, and a new look still redraws it by its key
