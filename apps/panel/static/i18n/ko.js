@@ -411,7 +411,7 @@ CATALOGS.ko = {
   "Write every answer again": "답 모두 다시 쓰기", "Write the answers": "답 쓰기", "Copy all": "모두 복사", "Save to the Desktop": "바탕화면에 저장", "Save {name} to the Desktop": "{name} 바탕화면에 저장", "Saved to the Desktop: {name}": "바탕화면에 저장했습니다: {name}",
   "An answer still needs your fix. Its problems are under it.": "고칠 답이 남았습니다. 문제는 답 아래에 있습니다.",
   "Copy": "복사", "That question changed. Open the job again.": "문항이 바뀌었습니다. 공고를 다시 열어 주세요.",
-  "Add scenes you wrote": "써 둔 대본 넣기", "{n} scenes added; {m} files held no scenes.": "대본 {n}개를 넣었습니다. 파일 {m}개에는 대본이 없었습니다.", "{n} scenes added.": "대본 {n}개를 넣었습니다.",
+  "Add scenes you wrote": "써 둔 대본 넣기", "Scripts of another application": "다른 지원의 대본", "Bring its scripts": "그 대본 가져오기", "{n} scenes added; {m} files held no scenes.": "대본 {n}개를 넣었습니다. 파일 {m}개에는 대본이 없었습니다.", "{n} scenes added.": "대본 {n}개를 넣었습니다.",
   "Answer the questions": "문항에 답 쓰기", "{n} answers": "답 {n}개", "An answer needs your fix": "고칠 답이 있음",
   "Not sent: it did not pass its checks": "내보내지 않음: 검사를 통과하지 못함", "Not sent: it changed after its checks": "내보내지 않음: 검사 뒤 바뀜", "Not sent: the copy did not read back": "내보내지 않음: 복사본을 다시 읽지 못함",
   "These documents did not pass their checks, so they stay here. The list above the document says what failed.": "검사를 통과하지 못해 이 서류는 내보내지 않았습니다. 통과하지 못한 검사는 서류 위 목록에 있습니다.",

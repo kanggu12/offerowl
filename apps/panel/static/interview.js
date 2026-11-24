@@ -99,7 +99,7 @@ function deckView(j, d) {                                                       
   const scene = (s) => {                                                            // one script: the question, the dialogue, then the notes beside it
     const tr = s.turns.filter((x) => x.ko);                                         // the translated lines
     const side = [                                                                  // what is read beside the dialogue: the translation as one note, the notes, the other questions
-      tr.length ? h("div", { class: "deck-note tr" }, h("h5", { text: w.translation }), tr.map((x) => h("p", { class: x.who }, h("b", { text: who(x.who) }), " ", speech(x.ko)))) : null,
+      tr.length ? h("div", { class: "deck-note tr" }, h("h5", { text: s.korean ? (w.english || w.translation) : w.translation }), tr.map((x) => h("p", { class: x.who }, h("b", { text: who(x.who) }), " ", speech(x.ko)))) : null,
       s.notes.length ? h("div", { class: "deck-note" }, h("h5", { text: w.notes }), s.notes.map((n) => h("p", {}, speech(n)))) : null,
       s.also.length ? h("div", { class: "deck-note" }, h("h5", { text: w.also }), h("ul", {}, s.also.map((q) => h("li", { text: q })))) : null].filter(Boolean);
     return h("article", { class: "deck-scene paper", id: anchor(s.id), "data-id": s.id, "aria-label": s.ask },

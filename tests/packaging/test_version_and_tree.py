@@ -12,7 +12,7 @@ from pkg_support import CHART, DOCKER_DIR, ROOT, need_yaml, package_version, rep
 # Top-level folders of the repository that a checkout, the app image and the desktop app run: the engine's tree
 SHIPPED = {"apps", "core", "src", "examples", "fonts", "render"}
 # Top-level folders that stay in the repository
-DEVELOPMENT_ONLY = {".github", "deploy", "docs", "tests", "tools"}
+DEVELOPMENT_ONLY = {".github", "deploy", "docs", "scripts", "tests", "tools"}  # scripts: the installers, which a release carries as files of its own
 # Files the image carries beside those folders (the launcher and the typesetting libraries' list), and from docs/ the three
 # pictures the panel serves and the licenses. The desktop app carries the same (apps/desktop/build.py DATA).
 ROOT_FILES = {"offerowl", "package.json", "package-lock.json"}

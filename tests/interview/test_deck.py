@@ -115,6 +115,29 @@ class DeckTest(unittest.TestCase):
         self.assertEqual(own, ids[:len(own)])  # the named file's scripts first, as written
         self.assertEqual(len(ids), len(set(ids)))  # none twice
 
+    def test_a_korean_scene_heads_its_english_note_english(self):
+        """A scene spoken in Korean prints its English under the dialogue under the heading 영어, in the page and in the
+        panel's data; an English scene's note stays 해석."""
+        from helpers import copy_workspace  # a copy to add the scene to
+        from test_check import KOREAN_SCENE  # the same Korean scene the checker test uses
+        from interview.job import Job  # the copied job
+        tmp, job_dir = copy_workspace()
+        self.addCleanup(shutil.rmtree, tmp, True)  # removed afterwards
+        qa = pathlib.Path(job_dir) / "interview" / "qa.md"
+        qa.write_text(qa.read_text(encoding="utf-8") + KOREAN_SCENE, encoding="utf-8")  # K3 at the end
+        job = Job(job_dir)
+        job.kit["deck"] = {"order": "file", "files": ["qa.md"]}  # every script of the file, in its order (K3 is in no question map)
+        text = deck.page(job, lang="ko")  # K2 spoken in English, K3 in Korean
+        pieces = dict((re.search(r'data-id="([^"]+)"', p).group(1), p) for p in re.split(r'(?=<section class="scene")', text)
+                      if p.startswith('<section class="scene"'))
+        self.assertIn("<h3>영어</h3>", pieces["K3"])  # the Korean scene's note is its English
+        self.assertNotIn("<h3>해석</h3>", pieces["K3"])
+        self.assertIn("<h3>해석</h3>", pieces["K2"])  # the English scene's note is its translation
+        data = deck.data(job, lang="ko")  # what the panel draws
+        korean = {s["id"]: s["korean"] for s in data["scenes"] if s["id"] in ("K2", "K3")}
+        self.assertEqual({"K3": True, "K2": False}, korean)  # the panel heads the note by this
+        self.assertEqual("영어", data["words"]["english"])
+
     def test_inside_the_panel_the_pages_stand_on_its_desk(self):
         """Inside the Offerowl panel the deck draws no grey desk and no bar of its own (the panel names it and has the key
         that prints it); on its own, as printed, it keeps both."""

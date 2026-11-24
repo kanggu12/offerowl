@@ -1,6 +1,6 @@
 # Installing Offerowl
 
-Four ways to run the same panel. Paste the block for yours; the panel opens in your browser, and you drop your files on it.
+Four ways to run the same panel. For most people it is one line: the desktop app's installer ([1](#1-the-desktop-app)). The panel opens in your browser, and you drop your files on it.
 
 | Way | For | Needs |
 |:---|:---|:---|
@@ -39,26 +39,26 @@ chart carry no Claude Code or Codex, so they use a model server or none.
 
 ## 1. The desktop app
 
-**Windows** (PowerShell)
+Paste the line for your system: it installs the app for you and opens it.
 
 ```powershell
-iwr https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
-.\offerowl.exe
+# Windows (PowerShell): %LOCALAPPDATA%\Programs\Offerowl\offerowl.exe, with Offerowl in the Start menu
+irm https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-windows-installer.ps1 | iex
 ```
-
-**macOS** (Apple silicon; on Intel, `arm64` becomes `x64`)
 
 ```bash
-curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-macos-arm64.zip
-ditto -x -k offerowl-0.14.6-macos-arm64.zip . && open Offerowl.app
+# macOS (Apple silicon or Intel): Offerowl.app in /Applications (in ~/Applications when that is not writable)
+curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-macos-installer.sh | sh
 ```
-
-**Linux** (x86-64)
 
 ```bash
-curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-linux-x64.tar.gz | tar -xz
-./offerowl
+# Linux (x86-64): ~/.local/bin/offerowl
+curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-linux-installer.sh | sh
 ```
+
+The app itself is one file a release carries for each system (`offerowl-0.14.6-windows-x64.exe`,
+`offerowl-0.14.6-macos-arm64.zip` and `-macos-x64.zip`, `offerowl-0.14.6-linux-x64.tar.gz`): run it from anywhere just as
+well, and check it against the release's `offerowl-0.14.6-sha256sums.txt`.
 
 The panel opens in your browser. The icon by the clock opens it again, opens the data folder, or quits. Sign in to Claude
 Code or Codex before you start it if you want the AI steps. The first start unpacks the app's Node.js (about 125 MB, once).
@@ -106,7 +106,7 @@ data folder). With `--no-browser` it is said in the log only.
 macOS, `~/.local/share/offerowl` on Linux (`$XDG_DATA_HOME/offerowl` when that is set). `OFFEROWL_DATA_DIR` names another
 folder.
 
-**Update.** Quit the app and run the block again. The data folder stays.
+**Update.** Quit the app and paste the line again (a newer release's line installs that release). The data folder stays.
 
 **Uninstall.** Quit the app from its icon and delete the file (on macOS, the app). Deleting the data folder deletes your
 profile and documents for good.

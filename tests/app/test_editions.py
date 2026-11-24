@@ -284,7 +284,7 @@ class CommandTests(Editions):
         self.assertIn("감마: prints your general resume.", out)  # the job named, first
         lines = [x for x in out.splitlines() if x.startswith("  ")]  # one per edition
         self.assertEqual([self.latest, self.delta], [x.split()[0] for x in lines])  # named editions first, by id
-        code, out, _ = self.run_cli("start", "감마", "--from", "플랫폼-직무-기본판")  # a named edition's id without its dash
+        code, out, _ = self.run_cli("start", "감마", "--from", self.latest[1:])  # a named edition's id without its dash (ASCII since 0.15.0)
         self.assertEqual(0, code, out)
         self.assertIn("감마 now starts from 플랫폼 직무 기본판 [ko]", out)
         self.assertIn("플랫폼 직무판의 머리 문장", words(a, self.gamma))  # the same copy as the panel's

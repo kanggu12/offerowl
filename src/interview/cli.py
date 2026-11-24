@@ -85,6 +85,22 @@ def cmd_check(a):  # the check subcommand
     return check.main(job, grow=a.grow, base=a.base, strict=a.strict, style=a.style, files=a.files, ids=a.ids, quiet=a.quiet)
 
 
+def cmd_carry(a):  # the carry subcommand
+    """Another application's interview kit into this one's (src/interview/carry.py); prints what went and what stayed."""
+    from interview import carry as C  # the carry
+    dst = pathlib.Path(a.job).expanduser().resolve()  # the job folder, or its interview folder
+    dst_iv = dst if dst.name == "interview" else dst / "interview"
+    src = pathlib.Path(getattr(a, "from")).expanduser().resolve()
+    src_iv = src if src.name == "interview" else src / "interview"
+    if not src_iv.is_dir():  # nothing to carry: stop with the path, not a stack trace
+        raise SystemExit(f"no interview folder: {src_iv}")
+    report = C.carry(src_iv, dst_iv, korean=a.korean, names=a.drop)
+    for f in report["files"]:  # one line a file
+        print(f"{f['file']}: {f['scenes']} ({f['role']}), left behind {f['left_out']}")
+    print(f"ids moved {len(report['moved'])}, alts {report['alts']}, left behind {len(report['left'])}")
+    return 0
+
+
 def cmd_cards(a):  # the cards subcommand
     """Card defects and window sizes in the real page (Playwright)."""
     from interview import cards  # the browser checks
@@ -177,6 +193,13 @@ def main(argv=None):  # the entry point, also called by the tests
     p.add_argument("--threads", type=int, default=6, help="model threads")  # caps the model's CPU use so the machine stays responsive
     p.add_argument("--backend", help="model backend for practice mode (claude-code, codex, openai-compat, none)")  # none: the fixed list
     p.set_defaults(fn=cmd_serve)  # main runs cmd_serve for this command
+
+    p = sub.add_parser("carry", help="carry another application's kit into this one")  # src/interview/carry.py
+    p.add_argument("--job", required=True, help="this application's job folder (or its interview folder)")
+    p.add_argument("--from", required=True, help="the other application's job folder (or its interview folder)")
+    p.add_argument("--korean", action="store_true", help="a Korean interview: an English scene turned round, its Korean spoken")
+    p.add_argument("--drop", action="append", default=[], help="a name a carried scene may not hold (again for more)")
+    p.set_defaults(fn=cmd_carry)
 
     p = sub.add_parser("check", help="check the scenes")  # the scene checker
     job_args(p)  # the shared job options

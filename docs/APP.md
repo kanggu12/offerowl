@@ -51,7 +51,10 @@ The panel serves each job's interview kit at its own address, `/kit/<job>/` (the
   - `sources/` holds the material and `candidates.json`, `review.json` (kept or dropped), `edits.json` and
     `locks.json` (locked sentences). `sources/removed/<id>.json` holds what a removed file took along (its facts, the
     imported profile it was, the example's details), so the Trash can put it back after later changes too.
-  - `jobs/<job>/` holds `posting.md`, `plan.json` (the posting analysis), `status.json` (the card, its dates and its
+  - `jobs/<job>/`: the job's id is its folder's name and names it in every address (`/?job=<id>`, `/kit/<id>/`), so it is
+    ASCII: the Latin name written beside a Korean company name (`감마시스(gammasys)` is `gammasys`), else the name romanized. A
+    workspace from before 0.15.0 has its Hangul ids renamed once when the panel starts, and an old id keeps working as an
+    alias; `POST /api/v1/jobs/rename` gives a job another one. The folder holds `posting.md`, `plan.json` (the posting analysis), `status.json` (the card, its dates and its
     reminders), `resume/<lang>/` (the last edition: PDFs, DOCX, pages, checks, and `cover/` with the letter's draft),
     `interview/` (the kit: `kit.json`, the resume's text, the scene files), `materials/` (the files brought in for its
     interview, `index.json` with each one's name, kind, size, day and SHA-256 (one deleted for good leaves only its id),

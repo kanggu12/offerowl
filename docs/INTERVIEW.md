@@ -64,12 +64,17 @@ Labelled lines are written `**label** text` or `- **label**: text`:
 
 | Label | Meaning |
 |---|---|
-| `면접관` | the interviewer's English line |
-| `나` | my English line |
-| `해석` | the Korean translation of the line above it |
+| `면접관` | the interviewer's line |
+| `나` | my line |
+| `해석` | the line above it in the other language: Korean under an English line, English under a Korean one |
 | `핵심` | the one line to land |
 | `주의`, `꼬리 대비` | cautions and follow-up notes |
 | `KO`, `국문`, `EN` | an answer in one language |
+
+A scene for an interview held in Korean is spoken in Korean: every 면접관 and 나 line is Korean and the 해석 under each is
+its English. The page, the panel's Interview tab and the deck show such a scene the other way round: the Korean is the
+script, the note under it is headed 영어 (English), and the KO and EN switch shows the Korean script or the English note.
+A kit carried from an English interview into a Korean one turns its scenes round this way ([Carrying a kit](#carrying-a-kit)).
 
 Any other bold label in a bullet (`- **상세**: ...`) is a note. Bullets labelled with one of the kit's `hidden_labels`
 (default `사용자 원문`, `근거`) are notes for the writer and never appear on the page.
@@ -80,6 +85,25 @@ My lines carry speech marks: ` / ` for a breath, ` // ` between sentences inside
 one minute. What the person did comes only from evidence, and how a tool works may come from general knowledge, in the
 present tense.
 
+## Carrying a kit
+
+A new application's interview starts from everything prepared before: the Interview tab's **Bring its scripts** (on the
+question map, and before a kit exists), `POST /api/v1/interview/carry {job, from, korean, names}` or
+`offerowl interview carry --job <folder> --from <folder> [--korean] [--drop <name>]` copies another application's kit
+into this one (`src/interview/carry.py`):
+
+- every file its kit.json names (scenes, deep dives, terms, notes), its other phrasings (`alts.json`) and its names file;
+  the workspace's stories are read by every kit already;
+- a scene that names the earlier company (its kit's and its card's names, the kits it was carried from, and any name
+  given) stays behind: it is about that interview;
+- nothing of this kit is replaced: a file name already here gets `-carried`, an id this kit uses moves to the hundreds of
+  its letter (`K3` becomes `K103`), and a section of bold-labelled bullets gets headed items with ids of their own;
+- `korean` (from the posting when left out: a mostly Korean posting is a Korean interview) turns each English scene round:
+  its 해석, the Korean already checked against the facts, is spoken, and its English goes under it without speech marks.
+
+The carried files join kit.json after this kit's own, with their roles and labels, and `carried` records where they came
+from; the kit's server and its question map read them at once.
+
 ## kit.json
 
 Every key is optional.
@@ -87,6 +111,8 @@ Every key is optional.
 | Key | Default | Meaning |
 |---|---|---|
 | `ui` | `ko` | language of the page and the messages |
+| `speak` | read from the scenes | the language the interview is held in, `ko` or `en`: practice asks, follows up and transcribes in it. Without it, a kit whose scenes are mostly spoken in Korean is a Korean interview |
+| `carried` | none | written by a carry: each kit it came from, with the names its scenes were left behind for |
 | `sources` | every `*.md` in the folder, then the workspace's stories | `[{"file", "label", "prefix", "role"}]` in order. `file` is relative to the interview folder; `@stories` is the workspace's stories file. `label` names the source on the page, `prefix` makes ids for items without one, `role` is `scenes`, `deep` (resume deep dives), `terms` ("what is X" entries) or `reference` (notes, stories) |
 | `sections` | heading text | short tab name per section letter, e.g. `{"A": "Intro"}` |
 | `synonyms` | none | extra synonym groups, added to `src/interview/synonyms.json` |
@@ -187,8 +213,9 @@ Record and Stop, and the feedback and your own script appear only after you answ
   request). Without an agent the question is the scene's own first interviewer line and the follow-ups are its later
   interviewer lines (the fixed list); a question an earlier round asked comes in the words it was written down in. With an
   agent, one call per session (`src/llm.py run()`) phrases the questions as an interviewer would (never one asked before), and
-  one call per answer asks a follow-up about what you actually said, in English whatever language the agent usually
-  answers you in; a follow-up that comes back in another language gives way to the scene's own.
+  one call per answer asks a follow-up about what you actually said, in the interview's language (`speak`: English, or
+  Korean for a kit spoken in Korean) whatever language the agent usually answers you in; a follow-up that comes back in
+  another language gives way to the scene's own.
 - **Answers.** Record answers aloud (the browser's MediaRecorder) or type them. A recording is transcribed on this
   PC when faster-whisper is installed (below); otherwise its time and pauses are still measured and you type what you
   said. You can play the recording back in the tab; it is never saved.
@@ -374,7 +401,9 @@ In the panel, a job that is not there answers 404 `no_job`, one with no kit 404 
 ## Checks
 
 `check` reads every scene (an item with 면접관, 나 or 해석 lines) and reports, per scene:
-- form: the scene starts with 면접관; every 면접관 and 나 line has its 해석 right under it; every 해석 has Korean; the
+- form: the scene starts with 면접관; every 면접관 and 나 line has its 해석 right under it; every 해석 is in the other
+  language (Korean under English, English with no Korean under a scene spoken in Korean, whose particle and wording rules
+  then read its Korean lines); the
   stress and key-phrase marks pair up; ` // ` never starts or ends a line;
 - grounding: numbers and names in the English lines appear in the job's materials and the profile. By default the
   files as they are now are the reference, so a hand-written scene grounds itself;

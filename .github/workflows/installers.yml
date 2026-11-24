@@ -1,0 +1,143 @@
+name: installers
+
+# The installers as people run them, from a published release: the README's line for each system, with nothing set but
+# OFFEROWL_INSTALL_ONLY (a runner has no one to open the panel for). Each checks that the app it put in place is the
+# release's own file. A release made by the release workflow starts no other workflow, so that workflow calls this one once
+# the release is out; by hand, it checks a release from 0.15.0 on.
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: release to install, v0.15.0 or later (default the latest)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  unix:
+    name: ${{ matrix.system }}-installer.sh on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            system: linux
+          - os: macos-latest
+            system: macos
+          - os: macos-15-intel
+            system: macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: The release
+        id: release
+        env:
+          WANT: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        # a release typed without its v is the same tag
+        run: |
+          v=${WANT:-$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)}
+          case "$v" in v*) ;; *) v=v$v ;; esac
+          echo "version=$v" >>"$GITHUB_OUTPUT"
+      - name: Install, as the README says
+        env:
+          V: ${{ steps.release.outputs.version }}
+          SYSTEM: ${{ matrix.system }}
+          OFFEROWL_INSTALL_ONLY: "1"
+        # the files' names have the version without its v, the address with it
+        run: curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/download/$V/offerowl-${V#v}-$SYSTEM-installer.sh" | sh
+      - name: The installed app is the release's own file
+        env:
+          V: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir release && cd release
+          if [ "$RUNNER_OS" = Linux ]; then
+            gh release download "$V" --repo "$GITHUB_REPOSITORY" --pattern "offerowl-${V#v}-linux-x64.tar.gz"
+            tar -xzf "offerowl-${V#v}-linux-x64.tar.gz"
+            cmp offerowl ~/.local/bin/offerowl
+          else
+            arch=x64; [ "$(uname -m)" = arm64 ] && arch=arm64
+            gh release download "$V" --repo "$GITHUB_REPOSITORY" --pattern "offerowl-${V#v}-macos-$arch.zip"
+            ditto -x -k "offerowl-${V#v}-macos-$arch.zip" .
+            app=/Applications/Offerowl.app; [ -d "$app" ] || app="$HOME/Applications/Offerowl.app"
+            cmp Offerowl.app/Contents/MacOS/Offerowl "$app/Contents/MacOS/Offerowl"
+            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "${V#v}"
+          fi
+          echo "the app the installer put in place is the release's own file"
+
+  # In PowerShell 7 and in Windows PowerShell 5.1, which every Windows has. A step's shell cannot come from a matrix, so
+  # each has its own job.
+  windows:
+    name: windows-installer.ps1 in PowerShell 7
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: The release
+        id: release
+        shell: bash
+        env:
+          WANT: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${WANT:-$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)}
+          case "$v" in v*) ;; *) v=v$v ;; esac
+          echo "version=$v" >>"$GITHUB_OUTPUT"
+      - name: Install, as the README says
+        shell: pwsh
+        env:
+          V: ${{ steps.release.outputs.version }}
+          OFFEROWL_INSTALL_ONLY: "1"
+        run: irm "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:V/offerowl-$($env:V.Substring(1))-windows-installer.ps1" | iex
+      - name: The installed app is the release's own file
+        shell: pwsh
+        env:
+          V: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $file = "offerowl-$($env:V.Substring(1))-windows-x64.exe"
+          gh release download $env:V --repo $env:GITHUB_REPOSITORY --pattern $file --dir release
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Offerowl\offerowl.exe'
+          if ((Get-FileHash $exe).Hash -ne (Get-FileHash (Join-Path release $file)).Hash) { 'not the release file'; exit 1 }
+          if (-not (Test-Path (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Offerowl.lnk'))) { 'no Start menu entry'; exit 1 }
+          'the app the installer put in place is the release''s own file, in the Start menu'
+
+  windows-5:
+    name: windows-installer.ps1 in Windows PowerShell 5.1
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: The release
+        id: release
+        shell: bash
+        env:
+          WANT: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${WANT:-$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)}
+          case "$v" in v*) ;; *) v=v$v ;; esac
+          echo "version=$v" >>"$GITHUB_OUTPUT"
+      - name: Install, as the README says
+        shell: powershell
+        env:
+          V: ${{ steps.release.outputs.version }}
+          OFFEROWL_INSTALL_ONLY: "1"
+        run: irm "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:V/offerowl-$($env:V.Substring(1))-windows-installer.ps1" | iex
+      - name: The installed app is the release's own file
+        shell: pwsh
+        env:
+          V: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $file = "offerowl-$($env:V.Substring(1))-windows-x64.exe"
+          gh release download $env:V --repo $env:GITHUB_REPOSITORY --pattern $file --dir release
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Offerowl\offerowl.exe'
+          if ((Get-FileHash $exe).Hash -ne (Get-FileHash (Join-Path release $file)).Hash) { 'not the release file'; exit 1 }
+          if (-not (Test-Path (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Offerowl.lnk'))) { 'no Start menu entry'; exit 1 }
+          'the app the installer put in place is the release''s own file, in the Start menu'

@@ -11,7 +11,7 @@ import unittest  # the test framework
 
 from pkg_support import ROOT, WORKFLOWS, need_yaml, run, tool, yaml
 
-NAMES = ("ci", "desktop", "release", "chart-e2e", "look")
+NAMES = ("ci", "desktop", "release", "chart-e2e", "look", "installers")
 
 
 def load(name: str) -> dict:
@@ -347,3 +347,33 @@ class ActionlintTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InstallersTest(unittest.TestCase):
+    """installers.yml: the README's install lines, run from the published release on every system the app is built for."""
+
+    def setUp(self):
+        need_yaml(self)
+        self.doc = load("installers")
+
+    def test_the_release_calls_it_once_the_release_is_out_and_it_can_be_started_by_hand(self):
+        job = load("release")["jobs"]["installers"]
+        self.assertEqual("./.github/workflows/installers.yml", job["uses"])
+        self.assertEqual("release", job["needs"])
+        self.assertIn("workflow_call", self.doc["on"])
+        self.assertIn("workflow_dispatch", self.doc["on"])
+
+    def test_it_runs_the_readme_lines_on_linux_both_macs_and_both_windows_shells(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for system in ("linux", "macos"):
+            self.assertRegex(readme, rf"curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v[\d.]+/offerowl-[\d.]+-{system}-installer.sh \| sh")
+        self.assertRegex(readme, r"irm https://github.com/kanggu12/offerowl/releases/download/v[\d.]+/offerowl-[\d.]+-windows-installer.ps1 \| iex")
+        oses = [row["os"] for row in self.doc["jobs"]["unix"]["strategy"]["matrix"]["include"]]
+        self.assertEqual(["ubuntu-24.04", "macos-latest", "macos-15-intel"], oses)  # both Macs: the installer picks the arm64 or the x64 zip
+        shells = [s.get("shell") for key in ("windows", "windows-5") for s in steps(self.doc["jobs"][key]) if "irm" in s.get("run", "")]
+        self.assertEqual(["pwsh", "powershell"], shells)
+        for key in ("unix", "windows", "windows-5"):
+            install = [s for s in steps(self.doc["jobs"][key]) if s.get("name") == "Install, as the README says"][0]
+            self.assertEqual("1", install["env"]["OFFEROWL_INSTALL_ONLY"])  # a runner has no one to open the panel for
+            self.assertTrue(any("release's own file" in s.get("name", "") for s in steps(self.doc["jobs"][key])), key)
+

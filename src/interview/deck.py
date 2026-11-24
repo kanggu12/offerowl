@@ -285,7 +285,8 @@ def scene_page(part, rows, item, pairs, notes, s, english, unref):
     if tr:  # an English script
         body = "".join(f'<p class="{"iv" if who == "면접관" else "me"}"><b class="who">{html.escape(s["labels"].get(who, who))}</b>'
                        f'{line_html(unref(ko))}</p>' for who, ko in tr)  # each line with who says it
-        trans = f'<div class="note tr"><h3>{html.escape(s["deck_translation"])}</h3>{body}</div>'  # under the dialogue
+        head = s["deck_english"] if check.korean_spoken([(w, t, 0) for w, t, _ in pairs]) else s["deck_translation"]  # a Korean scene's note is its English
+        trans = f'<div class="note tr"><h3>{html.escape(head)}</h3>{body}</div>'  # under the dialogue
     kept = [ln for ln in notes if ln.strip() and not ln.strip().startswith("#")]  # the notes written under the script
     memo = (f'<div class="note memo"><h3>{html.escape(s["deck_notes"])}</h3>'
             + "".join(f"<p>{note_html(unref(ln))}</p>" for ln in kept) + "</div>") if kept else ""  # what to say if they dig further
@@ -422,6 +423,7 @@ def data(job, kinds=None, ids=None, n=None, lang=None):
         sub = ask_of(rs[0], "ko") if english else ""  # its Korean under it in an English deck
         out.append({"id": item["id"], "part": part, "ask": ask, "sub": sub if sub != ask else "", "title": plain(item.get("tko") or item.get("ten")),
                     "draft": bool(item.get("draft")),  # an agent's draft says so
+                    "korean": check.korean_spoken([(w, t, 0) for w, t, _ in pairs]),  # spoken in Korean: the lines under it are English
                     "turns": [{"who": "interviewer" if who == "면접관" else "me", "en": unref(en), "ko": unref(ko)} for who, en, ko in pairs],  # spoken lines, each with its translation
                     "notes": [re.sub(r"^-\s+", "", unref(ln).strip()) for ln in notes if ln.strip() and not ln.strip().startswith("#")],  # what to say if they dig further
                     "also": [ask_of(r, "en" if english else "ko") for r in rs[1:]]})  # the other questions it answers
@@ -437,7 +439,7 @@ def data(job, kinds=None, ids=None, n=None, lang=None):
     for part, _, _ in pages:  # in order
         parts[part] = parts.get(part, 0) + 1  # counted
     stall = [{"en": en, "use": use} for en, use in zip(STALL, s["deck_stall_uses"])] if pages and english and not want_ids else []  # the lines that buy time
-    words = {k[len("deck_"):]: s[k] for k in ("deck_title", "deck_translation", "deck_notes", "deck_also", "deck_draft", "deck_none", "deck_posting_title",
+    words = {k[len("deck_"):]: s[k] for k in ("deck_title", "deck_translation", "deck_english", "deck_notes", "deck_also", "deck_draft", "deck_none", "deck_posting_title",
                                              "deck_posting_cols", "deck_cov", "deck_parts", "deck_scripts", "deck_questions", "deck_stall_title", "deck_empty")}  # the deck's own words
     return {"company": company, "role": role, "english": english, "lang": s["lang"], "words": words,
             "counts": {"scripts": len(pages), "questions": sum(len(p[1]) for p in pages), "parts": [{"part": p, "n": k} for p, k in parts.items()]},

@@ -38,52 +38,26 @@ alone. Nothing to type, nothing to fill in: you drop the files, and the PDFs lan
 
 ## Quick start
 
-Pick your system, paste, and drop your files on the page that opens.
-
-**Windows** (PowerShell)
+Paste the line for your system: it installs Offerowl and opens it in your browser.
 
 ```powershell
-iwr https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-windows-x64.exe -OutFile offerowl.exe -UseBasicParsing
-.\offerowl.exe
+# Windows (PowerShell)
+irm https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-windows-installer.ps1 | iex
 ```
-
-**macOS** (Apple silicon; on Intel, `arm64` becomes `x64`)
 
 ```bash
-curl -fLO https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-macos-arm64.zip
-ditto -x -k offerowl-0.14.6-macos-arm64.zip . && open Offerowl.app
+# macOS (Apple silicon or Intel)
+curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-macos-installer.sh | sh
 ```
-
-**Linux** (x86-64)
 
 ```bash
-curl -fL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-linux-x64.tar.gz | tar -xz
-./offerowl
+# Linux (x86-64)
+curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-linux-installer.sh | sh
 ```
 
-**Docker**
-
-```bash
-git clone https://github.com/kanggu12/offerowl && cd offerowl
-docker compose -f deploy/docker/compose.yaml up -d --build
-./offerowl open
-```
-
-**From the source** (Python 3.10 or newer; on Windows, `python offerowl panel --open`)
-
-```bash
-git clone --branch v0.14.6 https://github.com/kanggu12/offerowl && cd offerowl
-./offerowl panel --open
-```
-
-To write, Offerowl uses the AI agent you are signed in to: [Claude Code](https://github.com/anthropics/claude-code) or
-[Codex](https://github.com/openai/codex), or a local model (Ollama, vLLM, LM Studio). With no AI at all, an Offerowl
-profile file still becomes PDFs. [docs/INSTALL.md](docs/INSTALL.md) has the Kubernetes chart (one person's, or several
-people's, each with an Offerowl of their own), updating, removing and what to choose if your system warns about the
-unsigned app; [docs/OFFLINE.md](docs/OFFLINE.md) covers networks with no internet.
-
-[What it needs](docs/INSTALL.md#what-you-need): Windows, macOS or Linux, 8 GB of memory, and Edge or Chrome (Chromium on Linux)
-to print the PDFs.
+It writes with the AI agent you are signed in to, [Claude Code](https://github.com/anthropics/claude-code) or
+[Codex](https://github.com/openai/codex), or a local model (Ollama, vLLM, LM Studio); with none, a profile file still
+becomes PDFs. Docker, Kubernetes, the source and [what it needs](docs/INSTALL.md#what-you-need): [Installing](docs/INSTALL.md).
 
 ## What it does
 

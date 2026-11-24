@@ -53,6 +53,11 @@ PHRASE_SYSTEM = ("You are a job interviewer. Rephrase each question the way you 
 FOLLOW_SYSTEM = ("You are a job interviewer in a practice interview held in English. Ask one natural follow-up question, in "
                  "English, about what the candidate actually said, and list facts in the answer that differ from the "
                  "candidate's own notes. Quote exactly. Return only JSON.")
+# The same two calls for an interview held in Korean (a kit spoken in Korean: check.speaks)
+PHRASE_SYSTEM_KO = ("당신은 면접관입니다. 각 질문을 면접에서 소리 내어 묻듯 짧고 자연스러운 한국어 한 문장으로 다시 쓰세요. "
+                    "이름은 그대로 둡니다. 모든 질문을 한국어로 쓰고 JSON만 돌려주세요.")
+FOLLOW_SYSTEM_KO = ("당신은 한국어로 진행하는 모의 면접의 면접관입니다. 지원자가 실제로 한 답을 두고 자연스러운 꼬리 질문 하나를 "
+                    "한국어로 하고, 답에서 지원자 자신의 메모와 다른 사실을 그대로 인용해 적으세요. JSON만 돌려주세요.")
 FOLLOW_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["followup", "departures"],  # for backends that take a schema
                  "properties": {"followup": {"type": "string"},  # the next question
                                 "departures": {"type": "array", "items": {"type": "object", "additionalProperties": False,
@@ -428,6 +433,13 @@ class Practice:  # one per server
         pack = check.style_pack(job)  # the built-in rules and the job's style pack
         self.pack = pack  # fillers come from here
         self.syn = T.synonyms(job.kit.get("synonyms"))  # synonym groups, for the key phrase
+        self._lang = None  # the language the interview is held in, read from the scenes on first use
+
+    def lang(self):
+        """"ko" for a kit spoken in Korean (a Korean interview), else "en": the questions, follow-ups and recordings use it."""
+        if self._lang is None:
+            self._lang = check.speaks(self.job)
+        return self._lang
 
     # ----- what is available -----
 
@@ -507,15 +519,17 @@ class Practice:  # one per server
         prompt = ("Each line is a question id, its kind, the topic from the candidate's documents or the job posting, and the "
                   f"candidate's own version of the question, separated by tabs.{' The company is ' + company + '.' if company else ''} "
                   "Rephrase each question as you would ask it in the interview. Return {\"<id>\": \"<question>\", ...} for every id.\n\n" + lines)
+        if self.lang() == "ko":  # a Korean interview: asked in Korean
+            prompt += "\n\nWrite every question in Korean, as a Korean interviewer would say it."
         try:
-            out = self._ask("interview-practice-ask", prompt, PHRASE_SYSTEM, None)  # one call for the whole session
+            out = self._ask("interview-practice-ask", prompt, PHRASE_SYSTEM_KO if self.lang() == "ko" else PHRASE_SYSTEM, None)  # one call for the whole session
         except Exception as e:  # noqa: BLE001  no model, a timeout or a wrong answer: the fixed list stays
             return str(e)
         for q in qs:  # merge the phrasing back
             if q["kind"] == "asked":  # asked before, in these words: kept as they were
                 continue
             v = out.get(q["qid"]) if isinstance(out, dict) else None  # this question's new wording
-            if isinstance(v, str) and 3 <= len(v.split()) <= 60:  # a real question, not a fragment or an essay
+            if isinstance(v, str) and (6 <= len(v.strip()) <= 300 if self.lang() == "ko" else 3 <= len(v.split()) <= 60):  # a real question, not a fragment or an essay (Korean counted in letters)
                 q["ask"] = v.strip()  # the agent's wording; the scene's line stays in "fixed"
         return ""
 
@@ -584,11 +598,11 @@ class Practice:  # one per server
         prompt = (f"Question asked: {rec['question']}\n\nCandidate's answer: {rec['answer']}\n\n"
                   f"Candidate's own notes for this topic (question / prepared answer):\n{notes}\n\n"
                   + (f"A follow-up the candidate prepared for: {nxt}\n\n" if nxt else "")
-                  + "Return {\"followup\": \"<one question in English>\", \"departures\": [{\"said\": \"<exact words from the answer>\", "
+                  + "Return {\"followup\": \"<one question in " + ("Korean" if self.lang() == "ko" else "English") + ">\", \"departures\": [{\"said\": \"<exact words from the answer>\", "
                   "\"fact\": \"<exact words from the notes>\", \"why\": \"<short reason>\"}]}. List a departure only when the "
                   "answer states a number, date, name or scope (who did it) that the notes state differently.")
         try:
-            out = self._ask("interview-practice-followup", prompt, FOLLOW_SYSTEM, FOLLOW_SCHEMA, ("followup",))  # one call per answer
+            out = self._ask("interview-practice-followup", prompt, FOLLOW_SYSTEM_KO if self.lang() == "ko" else FOLLOW_SYSTEM, FOLLOW_SCHEMA, ("followup",))  # one call per answer
         except Exception as e:  # noqa: BLE001  no model or a bad answer: the scene's follow-up stands in
             return {"followup": nxt, "from": "scene" if nxt else "", "departures": [], "error": str(e)[:200]}
         from interview import audit  # the same quote normaliser as the consistency audit
@@ -620,4 +634,4 @@ class Practice:  # one per server
         if self.stt is not None:  # a test's stand-in
             return self.stt(audio, mime)
         from interview import transcribe  # the optional speech model
-        return transcribe.transcribe(audio, mime)  # runs in a separate process
+        return transcribe.transcribe(audio, mime, lang=self.lang())  # runs in a separate process, in the interview's language

@@ -311,6 +311,8 @@ html[data-motion="off"] .combo-list { animation: none; }
 /* ================================================================ the interview tab, documents, the toast */
 .ivtop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--gap-m); margin-bottom: var(--gap-m); }
 .ivtop .part-keys { margin: 0; }
+.part-keys .carry { display: inline-flex; align-items: center; gap: 8px; }          /* another application's kit: which one, then the key */
+.part-keys .carry select { width: auto; max-width: 18em; }
 .iv-wait { display: grid; place-items: center; min-height: 320px; }                     /* a part of the interview tab waiting for its data */
 .dochead { padding: 14px 18px; }
 .dochead .viewhead h1 { font-size: 24px; }
@@ -1983,6 +1985,18 @@ body::before { background: radial-gradient(1100px 780px at 3% -12%, var(--lamp-w
 .kit-weak b { color: var(--amber); }
 .kit-body { line-height: 1.62; }
 .kit .lang-ko .fld.en, .kit .lang-en .fld.ko, .kit .lang-en .ko-note { display: none; }
+/* A scene spoken in Korean (a Korean interview): its script is Korean and the note under it is its English, so the switch
+   shows them the other way round, and EN reads the English note as the script, as KO reads an English scene's note */
+.kit .lang-ko .fld.en.kos { display: block; }
+.kit .lang-ko .ko-note.eng { display: none; }
+.kit .lang-en .fld.en.kos { display: none; }
+.kit .lang-en .ko-note.eng, .kit .lang-en .ko-note.eng .fld.ko { display: block; }
+.kit .lang-en .kit-body .ko-note.eng { margin: 0; padding: 0; border: 0; background: none; }
+.kit .lang-en .kit-body .ko-note.eng .nh { display: none; }
+.kit .lang-en .kit-body .ko-note.eng .fld.tr { margin: .5em 0 0; } .kit .lang-en .kit-body .ko-note.eng .fld.tr.iv { margin-top: .9em; }
+.kit .lang-en .kit-body .ko-note.eng .fld.tr:first-child { margin-top: 0; }
+.kit .lang-en .kit-body .ko-note.eng .fld.tr p { color: var(--ink); font-weight: 500; line-height: 1.62; }
+.kit .lang-en .kit-body .ko-note.eng .fld.tr.iv p { color: var(--ink-3); font-weight: 400; }
 .kit .lang-en .fld.note { opacity: .6; }                                               /* English only: the Korean cautions are cues for follow-ups, so they are only dimmed */
 .kit-body .fld { margin: .55em 0; }
 .kit-body .fld:first-child { margin-top: 0; }

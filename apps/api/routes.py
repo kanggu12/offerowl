@@ -352,6 +352,10 @@ class Router:
         if path == "/api/v1/jobs/select":  # another job in view
             a.ws.set_prefs(job=a.need_job(req))  # remembered with the workspace
             return None  # the new state is the whole answer
+        if path == "/api/v1/jobs/rename":  # a job's id (its folder and every address) changed: ASCII, unused; the old one stays an alias
+            return {"job": a.rename_job(req)}  # the new id
+        if path == "/api/v1/interview/carry":  # another application's interview kit into this one's (src/interview/carry.py)
+            return a.carry_kit(req)  # what was carried, left behind and renumbered
         if path == "/api/v1/jobs/write":  # the resume's sentences from the evidence (the agent)
             jid = unlocked(a, a.need_job(req))  # which job, or the general edition; a submitted one is not written again
             return {"started": t.write_resume(jid, lang_of(req.get("lang"))), "task": f"write:{jid}"}  # the task's key

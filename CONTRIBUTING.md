@@ -148,7 +148,8 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
      [docs/OFFLINE.md](docs/OFFLINE.md). Run `sh .github/badges.sh` for the release badge (it fetches it from shields.io), then
      `python3 -m unittest discover -s tests/packaging`, and commit.
   3. Push the tag `vx.y.z`. `.github/workflows/release.yml` checks that the tag, `src/version.py` and the notes agree before it
-     builds anything, then publishes the section as the release's notes.
+     builds anything, then publishes the section as the release's notes, with the installers `scripts/installers.sh` writes
+     the release into; once it is out, `installers.yml` runs the README's install line on each system.
 - **Before the tag.** Wait for `ci` on main, which runs every test on each Python. The release runs the desktop builds and
   the chart's cluster test itself and publishes nothing until they pass, so they need not be waited for twice; start them
   by hand first (Actions, `desktop` or `chart-e2e`, **Run workflow**) only when a change to the app's build or to the chart

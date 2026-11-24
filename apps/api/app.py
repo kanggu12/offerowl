@@ -78,6 +78,12 @@ class Api:
         self.start = {k: v for k, v in START.items() if v and (k != "backend" or v in BACKENDS)}  # a change in the menu takes a value out
         ws_dir = workspace or Path(self.settings().get("workspace") or self.data / "workspace")  # the path setting
         self.ws = Workspace(ws_dir)  # the person's files
+        try:  # a workspace from before 0.15.0 names jobs in Hangul, so its addresses did too: renamed once, the old names kept as aliases
+            moved = self.ws.ascii_job_ids()
+            if moved:
+                log.info("job ids made ASCII: %s", moved)
+        except (OSError, ValueError):  # a folder another program holds open (Windows): tried again at the next start
+            log.exception("job ids not made ASCII yet")
         self.facts = Facts(self.ws)  # facts and the profile
         self.card = AgentCard(self.settings)  # the agent card
         self.tasks = Tasks(self.ws, self.facts, self.card)  # long tasks
@@ -973,10 +979,51 @@ class Api:
         jid = str(req.get("job") or "")  # which job
         if jid == GENERAL:  # the edition with no job: a folder with no card on the board
             return jid
+        jid = self.ws.resolve_job(jid)  # an id from before a rename (an old address) finds the job
         st = self.ws.job(jid) if jid else None  # its card (a made-up id is refused by job_dir)
         if not st or st.get("removed"):  # no such job, or one in the Trash
             raise ValueError("job")  # answered as bad_request
         return jid  # it exists
+
+    def _let_kit_go(self, jid: str) -> None:
+        """Stop the kit server a job has, so the next open reads its folder and its kit.json again (a rename, a carried kit)."""
+        with self.tasks.kit_lock:
+            got = self.tasks.kit_srvs.pop(jid, None)
+        if got:
+            self.tasks._stop_kit_later(got[0])
+
+    def rename_job(self, req: dict) -> str:
+        """A job's id changed (POST /api/v1/jobs/rename {job, id}): ASCII, unused; the folder, its kit's output, the job in view
+        and the undo steps follow, and the old id stays an alias. Returns the new id."""
+        jid = self.need_job(req)
+        if jid == GENERAL:  # the general edition's folder has a fixed name
+            raise ValueError("job")
+        self._let_kit_go(jid)  # its kit server named the old folder
+        return self.ws.rename_job(jid, str(req.get("id") or "").strip())
+
+    def carry_kit(self, req: dict) -> dict:
+        """Another application's interview kit into this one's (POST /api/v1/interview/carry {job, from, korean, names}):
+        src/interview/carry.py. korean: true or false, or left out to follow this job's posting (a Korean posting is a Korean
+        interview). Returns the carry's report and the question map's size."""
+        from interview import carry as C  # src/interview/carry.py
+        jid, src = self.need_job(req), self.need_job({"job": req.get("from")})
+        if jid == src or jid == GENERAL:
+            raise ValueError("job")
+        src_iv = self.ws.job_dir(src) / "interview"
+        if not src_iv.is_dir():
+            raise ValueError("no_kit")
+        korean = req.get("korean")
+        if not isinstance(korean, bool):  # this job's posting decides: mostly Hangul is a Korean interview
+            text = self.ws.posting(jid)
+            letters = re.findall(r"[A-Za-z가-힣]", text)
+            korean = bool(letters) and sum(1 for c in letters if "가" <= c <= "힣") / len(letters) > 0.3
+        names = [str(n)[:80] for n in (req.get("names") or []) if isinstance(n, str) and n.strip()][:20]
+        with self.ws.lock:  # the folder and its kit.json change together
+            report = C.carry(src_iv, self.ws.job_dir(jid) / "interview", korean=korean, names=names, job_from=src)
+        self._let_kit_go(jid)  # its server reads the new files
+        report["questions"] = len(self.tasks.ensure_kit(jid, "ko" if korean else "en"))  # the map sees them
+        report["korean"] = korean
+        return report
 
     def board(self, req: dict) -> None:
         """Move a job on the board or change its date, next step or result. Taking it off ({"removed": true}) records the

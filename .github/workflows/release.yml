@@ -1,12 +1,14 @@
 # A version tag (v1.2.3) publishes a release:
 # - the app image to the GitHub Container Registry, for linux/amd64 and linux/arm64;
 # - the Helm chart as an OCI artifact in the same registry, and as a .tgz;
-# - the desktop app for Windows, macOS and Linux (desktop.yml);
+# - the desktop app for Windows, macOS and Linux (desktop.yml), and the installers the README's Quick start runs
+#   (scripts/installers.sh writes this release into each);
 # all attached to the GitHub release, named offerowl-<version>-..., in lower case, with a checksums file
 # (offerowl-<version>-sha256sums.txt) and GitHub's signed record of where each file was built.
 #
 # Before anything is published, the checks of the tagged commit run, the chart is installed on a throwaway cluster
-# (chart-e2e.yml), and the desktop app is built and started with --check on each system (desktop.yml).
+# (chart-e2e.yml), and the desktop app is built and started with --check on each system (desktop.yml). After, the README's
+# install lines run from the release on each system (installers.yml).
 name: release
 
 on:
@@ -155,6 +157,10 @@ jobs:
           path: dist/app
           merge-multiple: true
 
+      # The installers people paste (README's Quick start): scripts/install.sh and install.ps1 with this release written in
+      - name: The installers, each installing this release
+        run: sh scripts/installers.sh "${GITHUB_REF_NAME}" dist/app
+
       # The app is not code-signed yet: a checksum file and GitHub's own record of where each file was built are what a
       # download can be checked against (sha256sum -c offerowl-VERSION-sha256sums.txt; gh attestation verify FILE --repo OWNER/offerowl)
       - name: Checksums of the files the release carries
@@ -182,3 +188,12 @@ jobs:
             dist/offerowl-${{ steps.v.outputs.version }}-helm-chart.tgz
             dist/app/offerowl-*
             dist/offerowl-${{ steps.v.outputs.version }}-sha256sums.txt
+
+  # The README's install lines, run from the release just published on each system (installers.yml)
+  installers:
+    needs: release
+    uses: ./.github/workflows/installers.yml
+    with:
+      version: ${{ github.ref_name }}
+    permissions:
+      contents: read

@@ -144,8 +144,21 @@ function inline(s) {  // highlight, bold, italic, inline code on escaped text, w
 function joinLines(lines) {  // source lines are wrapped for the editor: run them on, except a quoted line, which keeps its own line
   return lines.map((l, k) => (k && /^[*"“]/.test(l) ? "<br>" : k ? " " : "") + inline(l)).join("");
 }
+const HANGUL = /[가-힣]/;  // a Korean letter
+// A scene spoken in Korean: every interviewer and me line holds Korean and no 해석 line does, so the 해석 lines are its English.
+// It reads the same as an English scene with the languages swapped: the Korean lines are the script, the English the note under it.
+function koreanSpoken(L) {
+  const spoken = [], under = [];  // the first line of each spoken field, and of each 해석 field
+  for (const ln of L) {
+    const f = ln.trim().match(FIELD);
+    if (!f) continue;
+    if (f[1] === "면접관" || f[1] === "나") spoken.push(f[3]); else if (f[1] === "해석") under.push(f[3]);
+  }
+  return spoken.length > 0 && under.length > 0 && spoken.every((t) => HANGUL.test(t)) && !under.some((t) => HANGUL.test(t));
+}
 function render(md, lead) {  // a small block parser: fields, tables, lists, code, paragraphs
   const L = md.split("\n"); const out = []; let i = 0; let led = !lead; let who = "";  // who: the speaker of the last English line, for its Korean line; lead: bold the first sentence of the first KO block
+  const kos = koreanSpoken(L);  // a Korean scene: its 해석 note is the English and is labelled so
   const isList = (s) => /^\s*(?:[-*]|\d+\.)\s+/.test(s);  // bullet or numbered line
   while (i < L.length) {
     const ln = L[i];
@@ -160,7 +173,8 @@ function render(md, lead) {  // a small block parser: fields, tables, lists, cod
       const buf = [f[3]]; i++;
       while (i < L.length && L[i].trim() && !FIELD.test(L[i].trim()) && !(isList(L[i]) && !/^\s{2,}/.test(L[i]))) buf.push(L[i++].trim());
       if (f[1] === "면접관" || f[1] === "나") who = f[1];
-      const cls = f[1] === "해석" ? "ko tr " + (who === "면접관" ? "iv" : "me") : FIELD_CLASS[f[1]];  // a Korean line wears its speaker's colour
+      const cls = (f[1] === "해석" ? "ko tr " + (who === "면접관" ? "iv" : "me") : FIELD_CLASS[f[1]])
+        + (kos && (f[1] === "면접관" || f[1] === "나") ? " kos" : "");  // a 해석 line wears its speaker's colour; a Korean scene's script is marked for the language switch
       const lab = f[1] === "해석" ? labelOf(who) : labelOf(f[1] === "국문" || f[1] === "KO" ? "해석" : f[1]) + (f[2] ? ` (${f[2]})` : "");  // the Korean text is the 해석 of the English script
       let html = joinLines(buf);
       if (cls === "ko" && !led) {  // the conclusion comes first; skipped when the script already marks its own phrases
@@ -199,8 +213,8 @@ function render(md, lead) {  // a small block parser: fields, tables, lists, cod
   if (!tr.length) return sorted.join("\n");
   const k0 = sorted.findIndex((h) => h.startsWith('<div class="fld ko tr'));
   const rest = sorted.filter((h) => !h.startsWith('<div class="fld ko tr'));
-  const head = tr[0].replace("<p>", '<p><span class="nh">' + esc(labelOf("해석")) + "</span>");  // the badge rides on the first Korean line, so it can never sit alone at a column foot
-  rest.splice(k0, 0, `<div class="ko-note">${[head, ...tr.slice(1)].join("")}</div>`);
+  const head = tr[0].replace("<p>", '<p><span class="nh">' + esc(labelOf(kos ? "영어" : "해석")) + "</span>");  // the badge rides on the first line, so it can never sit alone at a column foot; a Korean scene's note is its English
+  rest.splice(k0, 0, `<div class="ko-note${kos ? " eng" : ""}">${[head, ...tr.slice(1)].join("")}</div>`);
   return rest.join("\n");
 }
 // Bullets whose bold label is one of the kit's hidden labels (evidence notes for the writer) are left out of the cards.

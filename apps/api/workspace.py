@@ -107,9 +107,35 @@ def stored_name(mid: str, base: str) -> str:
     return head.rstrip(" .") + suffix  # Windows takes no name that ends in a dot or a space
 
 
+# Revised Romanization of Korean, one syllable at a time (no sound change across syllables): a folder name, and so every
+# address that names a job, is ASCII ("감마증권" -> gammajeunggwon). The initial, the vowel and the final of a syllable.
+RR_INITIAL = ["g", "kk", "n", "d", "tt", "r", "m", "b", "pp", "s", "ss", "", "j", "jj", "ch", "k", "t", "p", "h"]
+RR_VOWEL = ["a", "ae", "ya", "yae", "eo", "e", "yeo", "ye", "o", "wa", "wae", "oe", "yo", "u", "wo", "we", "wi", "yu", "eu", "ui", "i"]
+RR_FINAL = ["", "k", "k", "k", "n", "n", "n", "t", "l", "k", "m", "l", "l", "l", "p", "l", "m", "p", "p", "t", "t", "ng", "t", "t", "k",
+            "t", "p", "t"]
+LEGAL_FORM = re.compile(r"주식회사|유한회사|\(주\)|\(유\)|㈜")  # a company's legal form is no part of its name
+LATIN_ALIAS = re.compile(r"[(（]\s*([A-Za-z][A-Za-z0-9 .&+-]*?)\s*[)）]")  # "감마시스(gammasys)": the Latin name given beside the Korean
+JOB_ID = re.compile(r"-?[0-9a-z](?:[0-9a-z-]{0,38}[0-9a-z])?")  # a job's id as made now: ASCII, an edition's starting with a dash
+
+
+def romanize(text: str) -> str:
+    """Hangul syllables in Latin letters (Revised Romanization, syllable by syllable); every other character as it is."""
+    out = []  # the text, syllable by syllable
+    for ch in text or "":
+        k = ord(ch) - 0xAC00  # the syllable's index in the Hangul block
+        out.append(RR_INITIAL[k // 588] + RR_VOWEL[k % 588 // 28] + RR_FINAL[k % 28] if 0 <= k < 11172 else ch)  # 588 = 21 vowels x 28 finals
+    return "".join(out)
+
+
 def slug(text: str) -> str:
-    """A folder name from a company or role: letters, digits and Hangul kept, the rest dashes, at most 32 characters."""
-    s = re.sub(r"[^0-9a-z가-힣]+", "-", (text or "").lower()).strip("-")  # safe characters only
+    """A folder name from a company or role, in ASCII, since it names the job in every address: the Latin name written beside
+    a Korean one wins ("감마시스(gammasys)" is gammasys), a legal form goes, Hangul is romanized, the rest dashes, at most 32
+    characters."""
+    t = LEGAL_FORM.sub(" ", text or "")  # "주식회사 감마시스" names the company the same as "감마시스"
+    alias = LATIN_ALIAS.search(t)  # a Latin name in brackets
+    if alias and re.search(r"[가-힣]", t[:alias.start()]):  # beside a Korean one: the name the company writes in Latin itself
+        t = alias.group(1)
+    s = re.sub(r"[^0-9a-z]+", "-", romanize(t).lower()).strip("-")  # letters and digits only
     return s[:32].strip("-") or "job"  # never empty
 
 
@@ -147,10 +173,82 @@ class Workspace:
         return f.read_text(encoding="utf-8") if f.is_file() else ""
 
     def job_dir(self, job_id: str) -> Path:
-        """A job's folder. The id is checked against the folder-name rule so it can never leave jobs/."""
-        if not re.fullmatch(r"[0-9a-z가-힣-]{1,40}", job_id or "") or job_id in self.gone:  # same characters slug() makes; a job deleted for good has no folder
+        """A job's folder. The id is checked against the folder-name rule so it can never leave jobs/ (Hangul is still read:
+        a workspace from before 0.15.0, or a backup of one, until ascii_job_ids renames its folders)."""
+        if not re.fullmatch(r"[0-9a-z가-힣-]{1,40}", job_id or "") or job_id in self.gone:  # the characters slug() made then and makes now; a job deleted for good has no folder
             raise ValueError("job id")  # a request with a made-up id, or one that came late
         return self.root / "jobs" / job_id  # inside jobs/
+
+    def resolve_job(self, job_id: str) -> str:
+        """The id a job has now: an id a job had before it was renamed (an old address, a bookmark) gives the new one."""
+        if job_id and not (self.root / "jobs" / job_id).is_dir():  # no folder under that name
+            return (self.prefs().get("job_aliases") or {}).get(job_id, job_id)  # renamed, or simply unknown (refused later)
+        return job_id
+
+    def rename_job(self, old: str, new: str) -> str:
+        """A job's folder under a new id (ASCII, unused), and everything that names it: its record, its interview kit's output,
+        the job in view, the undo steps that hold its files, and an alias, so an address with the old id still finds it."""
+        with self.lock:  # one change of the folders at a time
+            src = self.job_dir(old)  # checked
+            if not src.is_dir():
+                raise ValueError("job")
+            if not JOB_ID.fullmatch(new or "") or new == old or new == "-general" or (new.startswith("-") != old.startswith("-")):
+                raise ValueError("id")  # ASCII; an edition stays an edition and a job a job
+            dst = self.root / "jobs" / new
+            if dst.exists() or new in self.gone:  # never over another job, or a name deleted for good this run
+                raise ValueError("id_taken")
+            os.replace(src, dst)  # a rename on the same disk: nothing is copied
+            st = read_json(dst / "status.json", None)  # its record says its id
+            if isinstance(st, dict):
+                st["id"] = new
+                write_json(dst / "status.json", st)
+            out_old, out_new = self.path("out", "interview", old), self.path("out", "interview", new)  # the kit's map, caches and practice
+            if out_old.is_dir() and not out_new.exists():
+                os.replace(out_old, out_new)
+            prefs = self.prefs()
+            aliases = {k: (new if v == old else v) for k, v in (prefs.get("job_aliases") or {}).items()}  # an older name follows it too
+            aliases[old] = new
+            self.set_prefs(job_aliases=aliases, **({"job": new} if prefs.get("job") == old else {}))  # the job in view keeps its place
+            self._rename_in_history(old, new)
+        return new
+
+    def _rename_in_history(self, old: str, new: str) -> None:
+        """The undo steps that hold a renamed job's files hold them under its new folder, so an undo writes where it lives."""
+        was, now = f"jobs/{old}/", f"jobs/{new}/"
+        for f in self._history():  # each step, oldest first
+            try:
+                d = json.loads(f.read_text(encoding="utf-8"))
+            except ValueError:  # a broken step is left to the undo's own handling
+                continue
+            if not any(k.startswith(was) for part in ("files", "made") for k in (d.get(part) or {})):
+                continue  # not this job's
+            for part in ("files", "made"):
+                if isinstance(d.get(part), dict):
+                    d[part] = {(now + k[len(was):] if k.startswith(was) else k): v for k, v in d[part].items()}
+            status = d.get("files", {}).get(now + "status.json")
+            if isinstance(status, str):  # the record as it was then names its id
+                d["files"][now + "status.json"] = status.replace(f'"id": "{old}"', f'"id": "{new}"')
+            write_json(f, d)
+
+    def ascii_job_ids(self) -> dict:
+        """Once, at the start of a workspace from before 0.15.0: every job whose folder name is not ASCII gets an ASCII id
+        (slug of its company, else of its role; an edition's own name romanized), so no address names a job in Hangul. Returns
+        {old: new}."""
+        moved = {}
+        jobs = self.root / "jobs"
+        if not jobs.is_dir():
+            return moved
+        for d in sorted(jobs.iterdir()):  # in name order: the same result on every PC
+            if not d.is_dir() or d.name.isascii() or d.name.startswith("."):
+                continue
+            st = read_json(d / "status.json", {}) or {}
+            edition = d.name.startswith("-")
+            base = ("-" + slug(d.name[1:]))[:40] if edition else slug(st.get("company") or st.get("role") or d.name)
+            new, n = base, 2
+            while (jobs / new).exists() or new in self.gone or new == "-general":  # never over another job
+                new, n = f"{base}-{n}"[:40], n + 1
+            moved[d.name] = self.rename_job(d.name, new)
+        return moved
 
     def sweep(self) -> None:
         """Finish the deletions that could not finish: everything under .gone/ goes, and so do the undo steps a deletion could

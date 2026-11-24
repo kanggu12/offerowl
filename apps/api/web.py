@@ -352,6 +352,13 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             jid = api.need_job({"job": urllib.parse.unquote(job)})
         except ValueError:  # no such application, one in the Trash, or a name no job can have (any other error is a bug: answered as one)
             return self.refuse(404, {"error": "no_job"})  # a body still on its way is read first
+        if method == "GET" and jid != urllib.parse.unquote(job):  # an id from before a rename (a bookmark): the address the job has now
+            self.send_response(301)
+            self.send_header("Location", f"/kit/{urllib.parse.quote(jid, safe='')}/{urllib.parse.quote(sub, safe='/')}"
+                             + (f"?{urllib.parse.quote(parts.query, safe='=&%+')}" if parts.query else ""))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         base = api.tasks.kit_url(jid)  # this job's own kit server
         if not base:  # no kit yet, or it would not start
             return self.refuse(404, {"error": "no_kit"})

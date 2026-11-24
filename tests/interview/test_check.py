@@ -16,7 +16,39 @@ def plant(job_dir, old, new, name="qa.md"):
     p.write_text(t.replace(old, new), encoding="utf-8")  # the copy now carries the defect
 
 
+KOREAN_SCENE = """
+### K3. 배포를 되돌릴 때 / Rolling back a release
+
+**핵심** 되돌리기는 Git에서 한 번에
+
+**면접관** 배포가 잘못되면 어떻게 되돌리시나요?
+**해석** If a release goes wrong, how do you roll it back?
+**나** Git에서 이전 버전으로 되돌리면 / ==배포 도구가 클러스터를 그 상태로 맞춥니다==.
+**해석** I revert to the previous version in Git, and the deployment tool brings the cluster back to that state.
+"""  # a scene for a Korean interview: spoken in Korean, its English under each line
+
+
 class CheckTest(unittest.TestCase):  # the checker on the clean example and on copies with planted defects
+    def test_a_korean_scene_keeps_its_english_under_each_line(self):
+        """A scene spoken in Korean passes with English under each line; Korean under a Korean line is reported, the particle
+        rule reads its Korean lines, and an English scene still needs Korean under it."""
+        tmp, job_dir = helpers.copy_workspace()  # a copy, so the example itself stays clean
+        try:
+            qa = pathlib.Path(job_dir) / "interview" / "qa.md"  # the scene file of the copy
+            qa.write_text(qa.read_text(encoding="utf-8") + KOREAN_SCENE, encoding="utf-8")  # the Korean scene added at its end
+            _, _, bad = check.run(Job(job_dir))  # the default checks
+            self.assertNotIn("K3", {it["id"] for it, _ in bad})  # clean as written
+            plant(job_dir, "**해석** I revert to the previous version in Git, and the deployment tool brings the cluster back to that state.",
+                  "**해석** Git에서 이전 버전으로 되돌립니다.")  # Korean under a Korean line
+            plant(job_dir, "**나** Git에서 이전 버전으로", "**나** Git 에서 이전 버전으로")  # a particle spaced after a Latin word in the Korean line
+            plant(job_dir, "**해석** 저희에게 궁금한 점이 있으신가요?", "**해석** Do you have any questions?")  # K2, an English scene: English under it
+            _, _, bad = check.run(Job(job_dir))  # read again with the plants
+            got = {it["id"]: sorted(c for c, _ in p) for it, p in bad}  # sorted problem codes per scene id
+            self.assertEqual(got["K3"], ["josa", "tr_en"])  # the line under it is not English, and the Korean line's particle is spaced
+            self.assertIn("tr_ko", got["K2"])  # an English scene's line under it must still be Korean
+        finally:
+            shutil.rmtree(tmp)  # remove the copy even when an assertion fails
+
     def test_example_has_no_problems(self):
         """The fictional example passes the default checks."""
         items, scenes, bad = check.run(helpers.example_job())  # default checks on the untouched example

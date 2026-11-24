@@ -352,18 +352,41 @@ def own_tokens(job):
 
 # ---------- the checks ----------
 
+def korean_spoken(dialogue):
+    """True for a scene spoken in Korean: every interviewer and me line holds Korean. Its 해석 lines are then its English,
+    and the scene reads as an English scene does with the two languages swapped (a Korean interview)."""
+    spoken = [t for w, t, _ in dialogue if w in SPOKEN]  # what is said
+    return bool(spoken) and all(re.search(r"[가-힣]", t) for t in spoken)  # an English line never holds Korean in every line
+
+
+def speaks(job) -> str:
+    """The language a kit is spoken in: "ko" when most of its scenes are spoken in Korean (a Korean interview), else "en".
+    kit.json "speak" ("ko" or "en") says it outright."""
+    said = job.kit.get("speak")
+    if said in ("ko", "en"):
+        return said
+    _, scenes = load_scenes(job)  # every scene with its dialogue
+    ko = sum(1 for _, d, _ in scenes if korean_spoken(d))
+    return "ko" if scenes and ko * 2 > len(scenes) else "en"
+
+
 def check_scene(it, dialogue, notes, rules, pool, base_words, grow, grow_skip, orgs=None):  # one call per scene
     """Problems of one scene as (code, slots) pairs. orgs, for a draft about how things work: the person's companies, and
-    only the sentences that state what the person did are grounded."""
+    only the sentences that state what the person did are grounded. A scene spoken in Korean (korean_spoken) has English
+    under each line, and the English-side and Korean-side rules swap sides with it."""
     probs = []  # what is wrong
+    kos = korean_spoken(dialogue)  # a Korean scene: its 해석 lines are English
     if dialogue[0][0] != "면접관":  # a scene opens with the question
         probs.append(("start", {}))  # the first line is not the interviewer's
     for k, (who, txt, n) in enumerate(dialogue):  # line by line, the first form problem is enough
-        # an English line must be followed by its 해석, so a scene cannot end on one
+        # a spoken line must be followed by its 해석, so a scene cannot end on one
         if who in SPOKEN and (k + 1 >= len(dialogue) or dialogue[k + 1][0] != "해석"):
             probs.append(("no_tr", {"n": k}))  # n: the line's index in the scene
             break
-        if who == "해석" and not re.search(r"[가-힣]", txt):  # a translation left without Korean
+        if who == "해석" and kos and (re.search(r"[가-힣]", txt) or not re.search(r"[A-Za-z]", txt)):  # a Korean scene's English
+            probs.append(("tr_en", {"n": k}))  # the line under a Korean line is not English
+            break
+        if who == "해석" and not kos and not re.search(r"[가-힣]", txt):  # a translation left without Korean
             probs.append(("tr_ko", {"n": k}))  # the translation is not in Korean
             break
         if who == "나" and (txt.count("**") % 2 or txt.count("==") % 2):  # an odd count leaves a mark open
@@ -372,10 +395,11 @@ def check_scene(it, dialogue, notes, rules, pool, base_words, grow, grow_skip, o
         if who in SPOKEN and re.search(r"^\s*//|//\s*$", txt):  # // sits between phrases, never at an edge
             probs.append(("slash_end", {"n": k}))  # // at the start or end of a line
             break
-    en = " ".join(t for w, t, _ in dialogue if w in SPOKEN)  # everything said in English
-    ko = " ".join(t for w, t, _ in dialogue if w == "해석")  # the translations
+    said = " ".join(t for w, t, _ in dialogue if w in SPOKEN)  # everything said
+    under = " ".join(t for w, t, _ in dialogue if w == "해석")  # the lines under them
+    en, ko = (under, said) if kos else (said, under)  # the English side and the Korean side
     # what must be grounded: everything said, or for an explanation of how things work only what the person says they did
-    ground = en if orgs is None else " ".join(claim_sentences([t for w, t, _ in dialogue if w == "나"], orgs))
+    ground = said if orgs is None else " ".join(claim_sentences([t for w, t, _ in dialogue if w == "나"], orgs))
     missing = pool.numbers_missing(ground)  # grounding: numbers
     if missing:  # any number not grounded
         probs.append(("numbers", {"list": ", ".join(missing)}))  # every missing number in one message

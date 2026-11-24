@@ -601,8 +601,18 @@ function interviewPart(j) {                                                     
     b && b.ready && part === "search" ? wideKeys : null,                              // the scripts over the whole width, and in a window of their own: both stay in the panel
     b && b.ready && part === "deck" && b.deck && b.deck.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "deck?lang=" + LANG) }, icon("slides"), t("Interview deck to print")) : null,   // the deck's printable pages in the panel's language
     b && b.ready && part === "map" && b.cue && b.cue.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "cue") }, icon("copy"), t("Cue cards to print")) : null,
-    b && b.ready && part === "map" ? addScenes() : null);                            // scripts written before, in the kit's markdown, beside the map they join (practice is a tab of its own: no second key for it)
+    b && b.ready && part === "map" ? addScenes() : null,                             // scripts written before, in the kit's markdown, beside the map they join (practice is a tab of its own: no second key for it)
+    b && b.ready && part === "map" ? carryKeys() : null);                            // or everything another application's kit holds
   const addScenes = () => h("button", { class: "btn", onclick: () => { UI.scenesFor = j.id; $("scenepick").click(); } }, icon("upload"), t("Add scenes you wrote"));   // scripts written before
+  const carryKeys = () => {                                                         // another application's kit brought in whole: its scripts, deep dives and terms (src/interview/carry.py)
+    const others = (S.jobs || []).filter((x) => x.id !== j.id && x.kit && !x.removed);   // the applications that have a kit
+    if (!others.length) return null;
+    const pick = h("select", { class: "input", "data-key": "iv-carry-from", "aria-label": t("Scripts of another application") },
+      others.map((x) => h("option", { value: x.id, text: [x.company, x.role].filter(Boolean).join(" / ") || x.id })));
+    return h("span", { class: "carry" }, pick, h("button", { class: "btn", type: "button", onclick: () =>
+      act("/api/v1/interview/carry", { job: j.id, from: pick.value }).then(() => { if (typeof boardReload === "function") boardReload(j.id); }) },
+      icon("copy"), t("Bring its scripts")));                                        // a Korean posting turns its English scripts round, Korean on top
+  };
   const keys = null;                                                                 // before the kit: no keys over it (the empty state holds its own)
   if (!b || b.error) return h("div", { class: "ivpart" }, keys, h("p", { class: "hint", text: t("Reading the interview kit…") }), materialsPart(j));   // loading, or refused for now (never read as "no kit"); the materials need no kit
   if (!b.ready && UI.ivPart === "talk") return h("div", { class: "ivpart" }, keys, talkPart(j), materialsPart(j));   // a talk needs no question map
@@ -610,6 +620,7 @@ function interviewPart(j) {                                                     
     h("p", { text: t("The question map comes from the posting and your resume, on this PC. Scripts are written by the agent.") }),
     h("div", { class: "part-keys" }, h("button", { class: "btn primary", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }), text: t("Make the question map") }),   // the main key first: it works on this PC alone
       addScenes(),                                                                   // or the scripts written before, which make the map too
+      carryKeys(),                                                                   // or another application's kit, carried whole
       h("button", { class: "btn", onclick: () => { UI.ivPart = "talk"; render(); }, text: t("Prepare a presentation") }))), materialsPart(j));   // a talk the interviewers asked for, without the map
   const tk = task("scripts:" + j.id);                                                // the writing task, when one runs
   const writing = tk.state === "running";                                           // writing now
