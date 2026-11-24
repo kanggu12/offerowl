@@ -6,6 +6,86 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-24
+
+A one-line install, job addresses in plain ASCII, interview kits carried from one application to the next, interviews held
+in Korean from the scripts to practice, and a design pass over every view of the panel.
+
+### Added
+
+- **One-line install.** Each release carries an installer for its own version: `offerowl-X.Y.Z-windows-installer.ps1`
+  (`irm … | iex`), `offerowl-X.Y.Z-macos-installer.sh` and `offerowl-X.Y.Z-linux-installer.sh` (`curl -fsSL … | sh`). Each
+  puts the app in place for this user (Windows: `%LOCALAPPDATA%\Programs\Offerowl` with a Start menu entry; macOS:
+  `/Applications`, else `~/Applications`; Linux: `~/.local/bin/offerowl`, apart from the data folder) and opens it;
+  `OFFEROWL_INSTALL_ONLY=1` installs without opening. The README's Quick start is now one line per system, and Docker, the
+  chart and the source are in [INSTALL.md](docs/INSTALL.md).
+- **Carrying a kit.** A new application's interview starts from everything prepared for another: the Interview tab's
+  **Bring its scripts**, `POST /api/v1/interview/carry` or `offerowl interview carry` copies that kit's scenes, deep dives,
+  terms, notes and other phrasings ([INTERVIEW.md](docs/INTERVIEW.md#carrying-a-kit)). Scenes that name the earlier
+  company stay behind, nothing of the new kit is replaced (a taken id moves to the hundreds of its letter, a list of
+  labelled bullets gets ids of its own), and kit.json records where the files came from. A Korean stage note stays with the
+  spoken Korean when a scene is turned round.
+- **Interviews held in Korean.** A scene spoken in Korean, with the English under each line, reads that way everywhere: the
+  search page and the panel's Interview tab put the Korean script on top and head the note under it 영어 (English), the KO and
+  EN switch shows one or the other, and the deck heads it the same. The checks read such a scene's English and Korean sides
+  the other way round. A carried kit turns English scenes round for a Korean posting. Practice asks, follows up and transcribes
+  in the interview's language (kit.json `speak`, else the language most scenes are spoken in).
+- `POST /api/v1/jobs/rename {job, id}` gives a job another id.
+
+### Changed
+
+- **A job's id is ASCII**, since it names the job in every address (`/?job=`, `/kit/<job>/`): the Latin name written beside a
+  Korean company name (`감마시스(gammasys)` is `gammasys`), else the name romanized, without a legal form such as 주식회사. A
+  workspace from before has its Hangul ids renamed once when the panel starts: the folder, its interview kit's output, the job
+  in view and the undo steps follow, and the old id keeps working as an alias (an old `/kit/` address is redirected).
+- **The panel's look, after the owner's review.** The main key of a view is ink, black by day and white at night (the owl's
+  navy is gone), and every key is flat with a rim you can see; under the pointer keys deepen, the main key rises a pixel and a
+  mark that points leans the way it points (off with the menu's motion switch). The ask button is a pill of frosted glass:
+  under the pointer it rises, a band of light crosses it once and its mark turns. The rainbow rims are gone from the drop
+  zones and the ask box. The desk is neutral with a fine grid of dots under frosted panes; what holds words to read stays
+  opaque, and a bar over words is thick enough that nothing behind it crosses its own words. Sticky notes are flat paper with
+  their folded corner, canary yellow while the interview is on and plain paper otherwise, as tall as what they say. "More"
+  under a list is a key on a hairline that goes where the rest is, and pages turn with one key back, the page with the
+  panel's own list of every page, and one key on. Scripts read one sentence a line, and a Korean answer's conclusion comes
+  first in bold; the phrase to land is lit in the dark too.
+- **A review of every view, done.** Things stand as tall as what they hold: the board's columns, Make's three steps, a board
+  card (its "add a next step" is a key in its foot, never an empty row) and Make's notes (a next step takes two lines at most,
+  and a row's bars meet at its foot). The list of applications puts the open ones first, the newest on top, the ended
+  ones under their line, with one size of initials. The stage rail of an application's progress is one rimmed control. The
+  settings sheet has its name and a close key, its choices filled when picked. The interview kit's section letters share one
+  ink, its section chips wrap on a wide window, and the printable deck and cue cards are ink, never navy, with flat keys.
+  A page of a list opens at its top; a list's dropdown stays open while the page draws again; seven themes sit four and three.
+- **Scripts, read better.** A gloss said aloud, "PoC(Proof of Concept, 개념 검증)", is part of the line, never a grey stage
+  note; a Korean scene's English note reads a sentence a line with its conclusion in bold; a title that is the question leads
+  the search ("자기소개" finds 자기소개 first). Practice asks for an answer in the interview's language, and shows the line a
+  question was phrased from only when the agent phrased it.
+- **Carrying a kit leaves more of the earlier company behind**: a section whose heading names it, and a scene that rests on
+  that company's research (its notes cite company.md), stay; the carried sections' tab names come along. The panel's key
+  waits for an application to be picked.
+- **The kit's own address leads to the panel.** Opening `/kit/<job>/` in a browser (a bookmark, an older link) shows the job's
+  scripts in the panel's Interview tab, inside its menus; its printable pages, practice and API stay where they were.
+
+### Fixed
+
+- A refresh of an interview kit (the panel's question map) wrote over the kit's own names file and the English name written for
+  its company: the names written by hand or carried now stay, with the resume's spellings added under them.
+- `/?job=<id>&show=scripts` on a phone stayed on the list of applications: it opens that application's Interview tab.
+- The particle check read the bracket of a Korean stage note as a word: "(잠깐 쉬고) 이 결과가" is no spaced particle.
+- Renaming a job leaves no old id in its question map or in the autopilot's list of finished runs.
+- Keeping or dropping a fact answered after seconds with a few dozen applications: the lists show each application's last fit at once
+  while a thread makes the new ones (an ended application's when it is opened).
+- A stage's day was rewritten to today when an application moved back and forth: the day it first reached a stage stays.
+- A board card's next-step box, still typed in when the page drew itself again (a poll, a change of look), stopped that
+  drawing half way with an error: its blur asked for a draw inside the draw. A draw asked for during another now follows it.
+- A posting's company paragraph under a heading with a note ("회사 (헤드헌터 소개와 기사)") was counted as unmet preferred
+  lines; such a heading, and "회사", "기업 소개", "회사 정보", now start a section that is not rated.
+- With the agent off, files that need it to be read are no longer sent to a run that stops at once: the panel says so, with
+  the key that turns the agent on. The talk's key waits for the agent the same way, and its example day is never past.
+- A file's count of facts on Make is the count it holds now (one more than the profile's before); a submitted application's
+  documents are named, never its working files; an empty "add a posting" is said instead of refused; a board move by its key
+  says so like a drag; the bar's undo puts back a photo just removed; an address of an application that is gone opens the
+  panel.
+
 ## [0.14.6] - 2026-11-20
 
 The line check finds a highlight that breaks inside a resume card, which it could pass before.
@@ -831,7 +911,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.14.6...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/kanggu12/offerowl/compare/v0.14.6...v0.15.0
 [0.14.6]: https://github.com/kanggu12/offerowl/compare/v0.14.5...v0.14.6
 [0.14.5]: https://github.com/kanggu12/offerowl/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/kanggu12/offerowl/compare/v0.14.3...v0.14.4

@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href=".github/workflows/ci.yml"><img alt="CI: GitHub Actions" src="docs/assets/badges/ci.svg"></a>
-  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.14.6" src="docs/assets/badges/release.svg"></a>
+  <a href="https://github.com/kanggu12/offerowl/releases"><img alt="Release v0.15.0" src="docs/assets/badges/release.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="docs/assets/badges/license.svg"></a>
   <img alt="Runs on Windows, macOS and Linux" src="docs/assets/badges/runs-on.svg">
 </p>
@@ -42,17 +42,17 @@ Paste the line for your system: it installs Offerowl and opens it in your browse
 
 ```powershell
 # Windows (PowerShell)
-irm https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-windows-installer.ps1 | iex
+irm https://github.com/kanggu12/offerowl/releases/download/v0.15.0/offerowl-0.15.0-windows-installer.ps1 | iex
 ```
 
 ```bash
 # macOS (Apple silicon or Intel)
-curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-macos-installer.sh | sh
+curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.15.0/offerowl-0.15.0-macos-installer.sh | sh
 ```
 
 ```bash
 # Linux (x86-64)
-curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.14.6/offerowl-0.14.6-linux-installer.sh | sh
+curl -fsSL https://github.com/kanggu12/offerowl/releases/download/v0.15.0/offerowl-0.15.0-linux-installer.sh | sh
 ```
 
 It writes with the AI agent you are signed in to, [Claude Code](https://github.com/anthropics/claude-code) or
