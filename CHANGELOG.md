@@ -6,6 +6,94 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-24
+
+A second review of every view, by area, and its fixes: nothing the person keeps is replaced or lost without a word and an
+Undo, Korean postings are read in the interview tab, kits carry cleanly, and the panel keeps the interview's address.
+
+### Fixed
+
+- A backup of a workspace over 500 MB could not be restored: the panel took 500 MB at most. A backup is built in a
+  temporary file and sent in pieces (it was built in memory), PDFs and pictures are stored as they are, and a restore takes
+  up to 4 GB.
+- Two windows on one application's questions: the window with the older list removed the other's new question and its
+  answer. The page sends the list it saw, and a list changed meanwhile is refused with words; removing, pasting and
+  answering are each an undo step.
+- Locking a submitted application again (a double click, a second window) made another frozen copy each time.
+- A state file cut short read as empty, and the next write put a list of one over the real one: a file that does not parse
+  is copied aside (`<name>.broken-<size>-<crc>`) and logged before anything writes over it. The finished runs' list is
+  written whole or not at all.
+- A job id over 255 bytes, JSON nested a hundred thousand deep, details that are not an object, and an edition's languages
+  that are not a list answered 500: they are refused with a 400, and the kit's address answers 404.
+- Five tabs polling built five states, and with many applications two tabs took several times one tab's time: polls share one state
+  for a second and wait for the one being made, and any write makes the next one anew.
+- A write over 2 MB reset the connection and the page advised to try again: it is answered 413 with words, and a file over
+  its upload limit is said in the page before it is sent. A body that stops coming frees its thread after 10 s.
+- A program, or a file that is not the kind its name says (a PDF that is no PDF), was kept as a source; a zip member packed
+  beyond any document unpacked to 200 MB.
+- Exporting the same files again wrote another numbered copy on the Desktop each time: the copy already there is named.
+- A job's material uploaded under the id it had before a rename was refused.
+- Other methods and broken request lines got the server's own HTML pages: every error is JSON with its code.
+- A new job id was cut in the middle of a word at 32 letters.
+- "Try an example" replaced a profile of the person's own kept facts with the made-up person's. It is offered only before a
+  fact is kept, and the server refuses it after (`example_over_own`).
+- Changing the photo deleted the one before. It goes to the Trash, and the change's note has an Undo that puts it back.
+- Undoing "files added" brought the facts back and left the files listed: the step owns the files it read, and the
+  Library counts each file's facts as it holds them now.
+- A fact with no words was refused with a posting's message, and an edit could save a blank fact: both are refused, in the
+  page and on the server, with their own words. A title with no spaces made the page 2,600 px wider.
+- With the agent off, a run from pasted paths said it had started and stopped a moment later for another reason: it is
+  refused at once, saying nothing readable is there or that those files need the agent. The command bar's send key waits for
+  an agent that can act, and the server refuses before anything is kept.
+- A board card's next-step box closed after a pause in typing and lost what came next, and Esc saved the words: the box stays
+  through a redraw, and Esc puts the words back.
+- Removing an application with Enter put the keyboard on the next application's remove key: it lands on the note's Undo.
+- Removing an application question took its answer with no undo step and no word: it is one undo step with an Undo on its
+  note, as is a question's limit.
+- A half typed reminder followed to the next application, an ended application offered reminders that never come due, and
+  an empty reminder went to the server.
+- "See what was sent" opened the edition in the panel's language rather than the one sent.
+- An answer's problem read "Latin word not in the evidence" in the Korean panel.
+- A Korean posting written with bare headings ("주요 업무", "자격 요건") gave the question map, the deck and practice no posting
+  line, and a Korean line with a capitalised acronym was taken for a heading.
+- Practice asked an opening scene's talk about the interview's format as a question.
+- Carrying a kit twice doubled it: a kit already carried is refused, the key waits while a carry runs, and one undo step takes a
+  carry back. The earlier company's research file came along; a scene whose note only named that company stayed behind (the
+  note goes, the answer comes); a scene the kit holds under the same title came again; a carried tab name replaced the kit's
+  own. The note says how many scenes came, stayed there and were there already.
+- With motion off, arrows pointed back.
+- The deck in the panel and the cue cards drew a gloss said aloud ("PoC(Proof of Concept, 개념 검증)") as a stage note.
+- Notes citing the writer's own files ("(qa.md D3)") showed in scripts, and a note they alone filled left an empty label.
+- The English panel's contents read "Resume: 이력: …".
+- A question that matched no word of any script, with the similarity model on, showed a best card without the line that
+  says no script is close.
+- A talk of 999 minutes was kept.
+- The kit's address was dropped on landing, so a reload opened the application's first tab. The address of an application
+  that is gone opened another one without a word, and a kit page that is not there was a bare "not found".
+- The open script card carried over to another application.
+
+### Changed
+
+- Icons a size up and small keys a little taller: a key's icon is 17 px, a small key's, a tab's and a choice's 16 px, an
+  icon-only key's 18 px, beside 13 px words (most were 14 to 15 px, some 12); small keys are 30 px tall (44 px on a phone).
+- The AI agent's card: its account on the card's own surface (no box inside the card), its figures in the page's words
+  ("14.2초"), and the day's requests as a chart with its caption, the longest request named, a legend (waiting for the
+  first token, then writing, in two tones of one ink instead of violet) and each bar's figures on its hover; its last error
+  in words with its sign. The command bar's sheet reads as a conversation (the agent's mark beside each answer) over one
+  composer box that holds its key, its head on two lines on a phone. The floating key keeps its pill and words, with its
+  keyboard key (Ctrl K, ⌘K on a Mac) small beside them.
+- The interview's board of answers: every card as tall as its words, and "2 / 5" between two keys says the board goes on
+  sideways. On a phone the tab's parts take one row by their short names and the application's head two lines, so the search
+  starts 120 px higher. The deck's tab row fades where more tabs are from the start.
+- Make: a next step whose day has passed says so; "the rest" of the fact kinds is one split in Make, Profile and Insights
+  (the five largest named kinds, then the rest); a count and its edition share one line; the agent's sheet has its name and a
+  close key; a stopped run's bar takes its lamp's colour and words; a fit of 0 shows.
+- Applications: a card moved to its result asks how it ended; a stage key in Progress says so with an Undo; the company and the role can be written in Progress; the due band's names
+  open their application and a reminder is marked done there; a card's foot stays on one line.
+- The Library shows twenty rows a page and its groups slide on one row on a phone. Undo keys quote names one way and cut
+  long ones. Removal keys show a red rim, quiet keys with words a faint one. Insights' tiles are as tall as what they hold.
+- The setup guide is "시작 안내" in Korean, each step as tall as it is on a phone.
+
 ## [0.15.0] - 2026-11-24
 
 A one-line install, job addresses in plain ASCII, interview kits carried from one application to the next, interviews held
@@ -911,7 +999,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.15.1...HEAD
+[0.15.1]: https://github.com/kanggu12/offerowl/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/kanggu12/offerowl/compare/v0.14.6...v0.15.0
 [0.14.6]: https://github.com/kanggu12/offerowl/compare/v0.14.5...v0.14.6
 [0.14.5]: https://github.com/kanggu12/offerowl/compare/v0.14.4...v0.14.5
