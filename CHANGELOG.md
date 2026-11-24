@@ -6,6 +6,35 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-24
+
+The API's code in seven services that each own their files and their endpoints, behind one gateway: still one process,
+one folder of plain files and no database, with boundaries a test keeps. Every endpoint answers as before.
+
+### Changed
+
+- `apps/api` is seven service packages under `apps/api/services`: profile (facts, evidence, the photo, the person's
+  sources and writing rules), applications (the board, postings, fit, the form's answers, a job's materials), documents
+  (the canvas, drafts, editions, the depth review, builds, the export), interview (the kit's board, the kit servers, the
+  talk), agent (the agent card, the command bar, the autopilot, the stand-in), library (the Library, the Trash, the backup)
+  and insights. Each says in its package what it does, the files it owns and the functions it offers the others, and holds
+  its own table of endpoints and its own part of the long tasks.
+- The gateway (`apps/api/routes.py`) gathers the services' tables and does no work of its own; `apps/api/app.py` builds the
+  shared pieces and the services and keeps only the settings, the job a request names and the state; `apps/api/tasks.py`
+  is the runner the services' task parts make up. The storage (paths, atomic writes, the writer lock, undo) is
+  `apps/api/core`.
+- A service reads another's data only through that service: the Library, the Trash and the backup ask each file's owner,
+  the documents ask for a posting's plan and a kit's presence, the autopilot for an edition's build and a job's questions.
+- `tests/app/test_architecture.py` fails when a service imports another's inner module or the hubs, when the core imports a
+  service, when a service builds a path under another's folder, when a package does not say what it owns and offers, or
+  when two routes match one path. [ARCHITECTURE.md](docs/ARCHITECTURE.md#the-services) has the services, their files and
+  their offers, and what could run as its own process later.
+
+### Fixed
+
+- A deck or a Word file whose preview was stopped mid-way (the PC shut down, the panel was killed) left its copy in the
+  render engine's folder for good: the next preview removes the copies older than any conversion's time limit.
+
 ## [0.15.1] - 2026-11-24
 
 A second review of every view, by area, and its fixes: nothing the person keeps is replaced or lost without a word and an
@@ -999,7 +1028,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/kanggu12/offerowl/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/kanggu12/offerowl/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/kanggu12/offerowl/compare/v0.14.6...v0.15.0
 [0.14.6]: https://github.com/kanggu12/offerowl/compare/v0.14.5...v0.14.6
