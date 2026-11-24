@@ -19,7 +19,7 @@ weigh. This step reads each unit as such a reader would and says what it leaves 
 Every finding offers one way on: a rewrite that cites the unit's evidence (the evidence holds more than the words say; it
 passes the draft's own checks, src/write_resume.py text_issues, or it is not offered), or a question for the person (the
 evidence does not hold it: "What made this hard? What failed first? Why did it work?"). An answer becomes evidence through
-the fact flow (apps/api/depth.py). Findings are notes: an agent's judgment never stops an export by itself.
+the fact flow (apps/api/services/documents/depth.py). Findings are notes: an agent's judgment never stops an export by itself.
 
 Each unit the agent reads gets a verdict on the three core parts: what made the work hard, the decision with the alternative
 it beat, and why the result came about. The agent copies the printed words that state each part; a part counts as stated
@@ -39,7 +39,7 @@ organisations the copy that went out printed and the unit lost. The rest is aske
   python3 src/depth_review.py show <review.json>
 
 The input profile is never changed. The panel, the API, the command line `offerowl depth` and the MCP server run the same
-review (apps/api/depth.py).
+review (apps/api/services/documents/depth.py).
 """
 from __future__ import annotations  # `str | None` hints on older Python versions
 
@@ -196,7 +196,7 @@ def t(key: str, in_lang: str | None = None, **kw) -> str:
 # ---------------------------------------------------------------- sentences, as the canvas cuts them
 
 def sentences(text: str) -> list[str]:
-    """A paragraph cut into sentences exactly as the canvas cuts it (apps/api/evidence.py sentences): after a full stop, a
+    """A paragraph cut into sentences exactly as the canvas cuts it (apps/api/services/profile/evidence.py sentences): after a full stop, a
     question or an exclamation mark followed by a space, never inside a ==highlight==, never inside "3.5". A rewrite names the
     sentence it replaces by its words, and the canvas finds it again by the same cut."""
     text = str(text or "").strip()  # plain text

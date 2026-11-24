@@ -23,9 +23,10 @@ for p in (ROOT, ROOT / "src", ROOT / "tests" / "app", ROOT / "tests" / "render")
     sys.path.insert(0, str(p))
 from test_choices import Base  # noqa: E402  one data folder per test, nothing real called
 from test_pdftools import W, H, write_pdf  # noqa: E402  a small PDF with a text layer
+from apps.api.services import applications, documents, profile  # noqa: E402  the services whose actions the tests call
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
-from apps.api.tasks import OWN_FORM_KEYS  # noqa: E402  the layout choices of an own edition
-from apps.api.workspace import read_json, write_json  # noqa: E402  the files of an edition
+from apps.api.services.documents import OWN_FORM_KEYS  # noqa: E402  the layout choices of an own edition
+from apps.api.core.workspace import read_json, write_json  # noqa: E402  the files of an edition
 import blind as B  # noqa: E402  src/blind.py
 import pdfmeta  # noqa: E402  the title and author a PDF reader shows
 import pdftools  # noqa: E402  is there a PDF reader on this PC
@@ -58,12 +59,12 @@ class Person(Base):
 
     def person(self):
         a = self.make()  # the PC, nothing real called
-        a.add_example("ko")  # the fictional person, read as a profile file
+        profile.add_example(a, "ko")  # the fictional person, read as a profile file
         for _ in range(200):  # its reading runs in a thread of its own
             if a.tasks.state().get("ingest", {}).get("state") != "running":
                 break
             time.sleep(0.05)
-        a.keep_all()  # every fact kept: a resume can be made
+        profile.keep_all(a)  # every fact kept: a resume can be made
         desk = self.tmp / "Desktop"  # where the export writes
         p = mock.patch.dict(os.environ, {"OFFEROWL_DESKTOP": str(desk)})
         p.start()
@@ -102,7 +103,7 @@ class TableTests(Person):
         self.assertEqual(400, r.handle("POST", "/api/v1/blind", None, {})[0])  # a request that names no table changes nothing
         self.assertEqual(200, r.handle("POST", "/api/v1/blind", None, {"table": None})[0])  # taken away
         self.assertFalse(a.ws.path("blind.json").exists())  # the shipped table applies again
-        self.assertEqual({"own": False, "counts": {"mask": 0, "mask_whole": 0, "leak": 0}, "stamp": ""}, a.blind_view())
+        self.assertEqual({"own": False, "counts": {"mask": 0, "mask_whole": 0, "leak": 0}, "stamp": ""}, profile.blind_view(a))
         a.ws.undo()  # undo brings it back
         self.assertEqual(TABLE, read_json(a.ws.path("blind.json"), {}))
 
@@ -217,9 +218,9 @@ class EnvTests(Builds):
 
     def test_two_builds_at_once_keep_their_own_switches(self):
         a = self.person()
-        a.set_blind({"table": TABLE})  # the person's table
+        profile.set_blind(a, {"table": TABLE})  # the person's table
         self.stand_in(a)
-        named = a.add_edition({"name": "Platform roles"})  # a second edition, made at the same time
+        named = documents.add_edition(a, {"name": "Platform roles"})  # a second edition, made at the same time
         before = {k: v for k, v in os.environ.items() if k.startswith("OFFEROWL_BLIND")}  # the server's own
         runs = [threading.Thread(target=a.tasks._build, args=("-general", "ko", "navy", 3, False, False, True)),  # a blind one
                 threading.Thread(target=a.tasks._build, args=(named, "en", "navy", 3, False, False, False))]  # and an ordinary one
@@ -282,7 +283,7 @@ class EnvTests(Builds):
         # posting analysis: its form carries the two lists per language, and its job.json hands them to resume_form.js (2026-11-19)
         a = self.person()
         self.stand_in(a)
-        jid = a.add_job({"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a fictional job
+        jid = applications.add_job(a, {"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a fictional job
         own = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the same person's resume, brought in
         self.assertIn("competencyWeak", OWN_FORM_KEYS)  # layout choices an own edition keeps
         self.assertIn("competencyDrop", OWN_FORM_KEYS)
@@ -295,7 +296,7 @@ class EnvTests(Builds):
     def test_an_own_edition_brought_in_blind_stays_blind(self):
         a = self.person()
         self.stand_in(a)
-        jid = a.add_job({"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a fictional job
+        jid = applications.add_job(a, {"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a fictional job
         own = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the same person's resume, brought in
         self.assertIn("blind", OWN_FORM_KEYS)  # a layout choice an own edition keeps
         Router(a).handle("POST", "/api/v1/jobs/own", None, {"job": jid, "profile": own, "langs": ["ko"], "name": "blind", "form": {"ko": {"blind": True}}})
@@ -316,9 +317,9 @@ class LeftOutTests(Builds):
     def test_own_files_the_profiles_deck_and_the_letter(self):
         a = self.person()
         self.stand_in(a)
-        jid = a.add_job({"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
-        a.own_file(jid, "ko", "resume", "mine.pdf", self.PDF)  # the person's own resume file
-        a.own_file(jid, "ko", "deck", "mine.pdf", self.PDF)  # and their own portfolio
+        jid = applications.add_job(a, {"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
+        documents.keep_own_file(a, jid, "ko", "resume", "mine.pdf", self.PDF)  # the person's own resume file
+        documents.keep_own_file(a, jid, "ko", "deck", "mine.pdf", self.PDF)  # and their own portfolio
         out = a.tasks.build_dir(jid, "ko")
         (out / "cover").mkdir(parents=True)
         write_json(out / "cover" / "cover.json", {"reviewed": True, "paragraphs": [{"sentences": [{"text": "Dear Deltasoft."}]}]})  # a letter there is
@@ -367,14 +368,14 @@ class ExportTests(Person):
         write_pdf(out / "deck.pdf", [[(72, 72, 12, "Payments platform")]])
         pdfmeta.stamp(out / "resume.pdf", title, "Gildong Hong")  # a title and an author of its own
         pdfmeta.stamp(out / "deck.pdf", "Gildong Hong Portfolio (Blind version)", "Gildong Hong")
-        from apps.api.tasks import file_hash  # the hashes the build records
+        from apps.api.core.stamps import file_hash  # the hashes the build records
         write_json(out / "build.json", {"at": "2026-11-19 10:00", "lang": "ko", "issues": [], "notes": [], "blind": True, "blind_table": a.tasks.blind_stamp(),
                                         "hashes": {f: file_hash(out / f) for f in ("resume.pdf", "deck.pdf")}})
         return out
 
     def test_a_covered_name_that_shows_stops_the_export(self):
         a = self.person()
-        a.set_blind({"table": TABLE})
+        profile.set_blind(a, {"table": TABLE})
         desk = pathlib.Path(os.environ["OFFEROWL_DESKTOP"])
         self.edition(a, "Built the checkout at Betacommerce")  # a covered name in the text layer
         with self.assertRaises(ValueError) as e:
@@ -384,11 +385,11 @@ class ExportTests(Person):
         status, body, _ = Router(a).handle("POST", "/api/v1/jobs/export", None, {"job": "-general", "lang": "ko"})
         self.assertEqual((400, "blind_leak:1"), (status, body.get("what")))  # the page gets the code
         self.edition(a, "Built the checkout at a client")  # clean text, a word that must never show in the title
-        a.set_blind({"table": {**TABLE, "leak": ["Gammaworks", "Resume (Blind"]}})  # added after the build: the table as it is now counts
+        profile.set_blind(a, {"table": {**TABLE, "leak": ["Gammaworks", "Resume (Blind"]}})  # added after the build: the table as it is now counts
         with self.assertRaises(ValueError) as e:
             a.tasks.export("-general", "ko")
         self.assertEqual("blind_leak:1", str(e.exception))  # found in the title, not the text
-        a.set_blind({"table": TABLE})
+        profile.set_blind(a, {"table": TABLE})
         self.edition(a, "Write to me", link="mailto:gildong@example.com")  # a covered address left in a link
         with self.assertRaises(ValueError):
             a.tasks.export("-general", "ko")
@@ -400,11 +401,11 @@ class ExportTests(Person):
 
     def test_a_clean_blind_edition_goes_under_blind_names(self):
         a = self.person()
-        a.set_blind({"table": {**TABLE, "mask": TABLE["mask"] + ["Platform roles"]}})  # the named edition's own name is covered too
+        profile.set_blind(a, {"table": {**TABLE, "mask": TABLE["mask"] + ["Platform roles"]}})  # the named edition's own name is covered too
         self.edition(a, "Built the checkout at a client")
         names = a.tasks.export("-general", "ko")
         self.assertEqual(["홍길동_블라인드_이력서_20261119.pdf", "홍길동_블라인드_포트폴리오_20261119.pdf"], names)  # the word for blind, in the edition's language, and the build's day
-        named = a.add_edition({"name": "Platform roles"})  # a named edition whose name the table covers
+        named = documents.add_edition(a, {"name": "Platform roles"})  # a named edition whose name the table covers
         out = a.tasks.build_dir(named, "ko")
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(a.tasks.build_dir("-general", "ko"), out)
@@ -425,7 +426,7 @@ class OwnLengthTests(Builds):
         a = self.person()
         self.stand_in(a)
         limits = []  # the limit each check was given
-        jid = a.add_job({"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a fictional job
+        jid = applications.add_job(a, {"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a fictional job
         own = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the same person's resume, brought in
         Router(a).handle("POST", "/api/v1/jobs/own", None, {"job": jid, "profile": own, "langs": ["ko"], "name": "resume.pdf"})
         check = lambda profile, pdf, deck, max_pages, env=None: (limits.append(max_pages), ([], []))[1]  # noqa: E731  records the limit
@@ -447,13 +448,13 @@ class OwnLetterPagesTests(Builds):
         return f.read_bytes()
 
     def job(self, a):
-        return a.add_job({"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
+        return applications.add_job(a, {"company": "Deltasoft", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
 
     def test_a_build_draws_the_pages_of_an_own_letter(self):
         a = self.person()
         self.stand_in(a)
         jid = self.job(a)
-        a.own_file(jid, "ko", "cover", "mine.pdf", self.letter())  # the person's own letter
+        documents.keep_own_file(a, jid, "ko", "cover", "mine.pdf", self.letter())  # the person's own letter
         a.tasks._build(jid, "ko", "navy", 3, True, False, False)  # an ordinary edition, with the letter
         cover = self.record(a, jid)["cover"]
         self.assertTrue(cover["own"])  # the letter is theirs
@@ -463,7 +464,7 @@ class OwnLetterPagesTests(Builds):
         a = self.person()
         self.stand_in(a)
         jid = self.job(a)
-        a.own_file(jid, "ko", "cover", "mine.pdf", self.letter())
+        documents.keep_own_file(a, jid, "ko", "cover", "mine.pdf", self.letter())
         a.tasks._build(jid, "ko", "navy", 3, True, False, False)
         out = a.tasks.build_dir(jid, "ko")
         rec = self.record(a, jid)
@@ -479,10 +480,10 @@ class OwnLetterPagesTests(Builds):
         a = self.person()
         self.stand_in(a)
         jid = self.job(a)
-        a.own_file(jid, "ko", "cover", "draft.pdf", self.letter("Draft"))  # the letter the edition was made with
+        documents.keep_own_file(a, jid, "ko", "cover", "draft.pdf", self.letter("Draft"))  # the letter the edition was made with
         a.tasks._build(jid, "ko", "navy", 3, True, False, False)
         sent = self.letter("Sent")  # what went out differs from the draft
-        a.sent_file(jid, "ko", "cover", "sent.pdf", sent)  # brought in as submitted: the job is locked
+        documents.keep_sent_file(a, jid, "ko", "cover", "sent.pdf", sent)  # brought in as submitted: the job is locked
         out = a.tasks.build_dir(jid, "ko")
         self.assertEqual(1, a.tasks.letter_pages(jid, "ko"))  # drawn from the sent copy
         self.assertEqual(sent, (out / "cover.pdf").read_bytes())  # the edition's letter is the copy that went out

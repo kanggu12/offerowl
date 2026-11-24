@@ -27,12 +27,12 @@ COMPONENTS = {
     "interview": "src/interview/cli.py",
     "panel": "apps/panel/server.py",
     "api": "apps/api/__main__.py",  # the HTTP API alone, or one call from the shell (docs/ARCHITECTURE.md)
-    "edition": "apps/api/editions.py",  # an application's own edition started from another edition's words, as the panel's key does (docs/DOCUMENTS.md)
+    "edition": "apps/api/services/documents/editions.py",  # an application's own edition started from another edition's words, as the panel's key does (docs/DOCUMENTS.md)
     "mcp": "apps/mcp/__main__.py",  # tools for AI agents over MCP, driving the running panel (docs/MCP.md)
     "doctor": "src/doctor.py",  # checks what Offerowl needs on this PC (docs/INSTALL.md)
     "baseline": "src/baseline.py",  # the pages an edition changed since the copy that last went out, and keeping a build as that copy (docs/DOCUMENTS.md)
     "shrink": "src/pdf_shrink.py",  # a PDF made smaller with no visible change, for an upload limit (docs/USAGE.md)
-    "depth": "apps/api/depth.py",  # what each project item and deck page leaves out, and the person's answers to it (docs/WRITING.md)
+    "depth": "apps/api/services/documents/depth.py",  # what each project item and deck page leaves out, and the person's answers to it (docs/WRITING.md)
 }
 DATA_COMMANDS = ("import", "export")  # JSON Resume in and out, served by src/write_jsonresume.py
 ORDER = ["init", "ingest", "draft", "depth", "build", "baseline", "shrink", "cover", "interview", "panel", "open", "edition", "api", "mcp", "import", "export", "selftest", "llm", "doctor"]  # the order of a first application

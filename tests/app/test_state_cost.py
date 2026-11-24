@@ -21,8 +21,10 @@ from unittest import mock  # counting the calls a cache saves
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
 sys.path.insert(0, str(ROOT / "tests" / "app"))  # the shared test case
-from apps.api import photo as P  # noqa: E402  the small copy
-from apps.api import tasks as T  # noqa: E402  the hashes and their memory
+from apps.api.services.profile import photo as P  # noqa: E402  the small copy
+from apps.api import tasks as T  # noqa: E402  the runner, whose deck stamp is counted
+from apps.api.core import stamps as H  # noqa: E402  the hashes and their memory
+from apps.api.core.workspace import write_json  # noqa: E402  a file written as the workspace writes it
 from test_panel import PanelCase  # noqa: E402  one server and workspace per class, on the fictional example
 
 try:  # the small copy needs Pillow (an optional extra); its tests are skipped without it
@@ -96,7 +98,7 @@ class TestHashMemory(unittest.TestCase):
 
     def setUp(self):
         self.dir = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-hash-"))  # a scratch folder
-        T._hash_cache.clear()  # no memory from another test
+        H._hash_cache.clear()  # no memory from another test
 
     def tearDown(self):
         import shutil  # only here
@@ -104,23 +106,23 @@ class TestHashMemory(unittest.TestCase):
 
     def test_an_unchanged_file_is_read_once_and_a_changed_one_again(self):
         f = self.dir / "a.json"  # a JSON file, written as the workspace writes (a rename)
-        T.write_json(f, {"a": 1})
+        write_json(f, {"a": 1})
         old(f)  # past the racy window
-        first = T.file_hash(f), T.content_hash(f)  # read and remembered
+        first = H.file_hash(f), H.content_hash(f)  # read and remembered
         with mock.patch.object(pathlib.Path, "read_bytes", side_effect=AssertionError("read again")), \
              mock.patch.object(pathlib.Path, "read_text", side_effect=AssertionError("read again")):
-            self.assertEqual(first, (T.file_hash(f), T.content_hash(f)))  # from memory: the file is not opened
-        T.write_json(f, {"a": 2})  # the same size, a new version
+            self.assertEqual(first, (H.file_hash(f), H.content_hash(f)))  # from memory: the file is not opened
+        write_json(f, {"a": 2})  # the same size, a new version
         old(f)  # even with an old time: the rename gave it a new inode
-        self.assertNotEqual(first, (T.file_hash(f), T.content_hash(f)))  # worked out again
+        self.assertNotEqual(first, (H.file_hash(f), H.content_hash(f)))  # worked out again
 
     def test_a_file_written_just_now_is_never_remembered(self):
         f = self.dir / "b.bin"
         f.write_bytes(b"one")  # now: its stamp cannot be trusted yet
-        self.assertEqual(T._file_hash(f), T.file_hash(f))
-        self.assertEqual({}, T._hash_cache)  # nothing kept
-        self.assertEqual("", T.file_hash(self.dir / "missing"))  # a missing file is still ""
-        self.assertEqual("", T.content_hash(self.dir / "missing"))
+        self.assertEqual(H._file_hash(f), H.file_hash(f))
+        self.assertEqual({}, H._hash_cache)  # nothing kept
+        self.assertEqual("", H.file_hash(self.dir / "missing"))  # a missing file is still ""
+        self.assertEqual("", H.content_hash(self.dir / "missing"))
 
 
 class TestPollWork(PanelCase):

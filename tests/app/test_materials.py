@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A job's own materials (apps/api/materials.py) through the panel's server, on fictional files only: brought in as the
+"""A job's own materials (apps/api/services/applications/materials.py) through the panel's server, on fictional files only: brought in as the
 page sends them, listed with the job, handed back byte for byte, previewed by kind, copied to the Desktop, removed with an
 undo, refused when their kind is not kept, kept under safe names, and left out of a backup's page pictures. A deck and a
 Word file are printed by LibreOffice in the render container when its image is built here; the command that starts it is
@@ -27,7 +27,7 @@ from unittest import mock  # a small cap, and the converter's command without Do
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
-from apps.api import materials as M  # noqa: E402  the module under test
+from apps.api.services.applications import materials as M  # noqa: E402  the module under test
 from apps.panel import server  # noqa: E402  the panel (the page and the API)
 
 POSTING = ROOT / "tests" / "app" / "fixtures" / "posting_ko.md"  # a fictional posting of a fictional company

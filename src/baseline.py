@@ -30,7 +30,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent  # the repository root, on
 sys.path.insert(0, str(ROOT / "src"))  # llm.py and pdftools.py beside this file, however it was started
 import llm  # noqa: E402  the message helper and the language setting
 
-PREFIXES = {"r": "resume", "d": "deck", "c": "cover"}  # the previews' name prefixes (apps/api/tasks.py _previews) and the document each is
+PREFIXES = {"r": "resume", "d": "deck", "c": "cover"}  # the previews' name prefixes (apps/api/services/documents/task_build.py _previews) and the document each is
 SHRINK = 1.5  # the kept pictures are two thirds of the previews: 73 dpi for a page drawn at 110, 53 for a slide drawn at 80
 LEVELS = 6  # values each colour channel keeps: six levels make a fixed palette of 216 colours, the same for every picture
 STEP = 255 / (LEVELS - 1)  # the distance between two levels (51)

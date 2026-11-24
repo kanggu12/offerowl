@@ -317,7 +317,7 @@ class TestRemoved(PanelCase):
         self.assertEqual("delete_failed", r["what"])  # said in the panel's words, never as a bug
         self.assertIsNotNone(self.row("source:" + m["id"]))  # still in the Trash, whole
         self.assertTrue(any(f.name.startswith(m["id"] + "_") for f in self.api.ws.path("sources").iterdir()))  # its file still there
-        with mock.patch("apps.api.removed.retried", side_effect=refuse):  # the application's folder cannot move
+        with mock.patch("apps.api.services.library.removed.retried", side_effect=refuse):  # the application's folder cannot move
             r = self.post("/api/v1/removed/delete", {"id": "job:" + jid}, expect=400)
         self.assertEqual("delete_failed", r["what"])
         self.assertTrue((self.api.ws.root / "jobs" / jid / "status.json").is_file())  # still there
@@ -328,7 +328,7 @@ class TestRemoved(PanelCase):
         self.post("/api/v1/removed/restore", {"id": "source:" + m["id"]})
 
     def test_what_an_older_offerowl_removed_is_listed_and_comes_back(self):
-        from apps.api.facts import FACT_FILES  # the files a fact change touches
+        from apps.api.services.profile import FACT_FILES  # the files a fact change touches
         ws, facts = self.api.ws, self.api.facts  # the running panel's own
         rec = ws.add_material("old-notes.txt", b"fictional notes")  # a file an agent read, as an earlier version kept it
         cand = {"kind": "skill", "org": "", "period": "", "title": "Old fact", "statement": "Read by an agent", "quote": "Read by an agent",
@@ -400,7 +400,7 @@ class TestRemoved(PanelCase):
     def test_a_step_the_scrub_could_not_fix_goes_at_the_next_sweep(self):
         import tempfile  # a workspace of its own
         from unittest import mock  # the system refusing one step
-        from apps.api.workspace import Workspace, write_json  # the layout and its writes
+        from apps.api.core.workspace import Workspace, write_json  # the layout and its writes
         ws = Workspace(pathlib.Path(tempfile.mkdtemp(dir=self.tmp)) / "workspace")  # fresh
         for n in range(2):  # two changes, each an undo step holding a word
             with ws.change({"code": "undo_typed", "title": f"WORD{n}"}, ["sources/edits.json"]):
@@ -416,7 +416,7 @@ class TestRemoved(PanelCase):
                 raise PermissionError(13, "held")
             return real_write(path, data)
         edit = lambda step: (step["files"].update({"sources/edits.json": None}), True)[1]  # noqa: E731  every step changed
-        with mock.patch("pathlib.Path.unlink", unlink), mock.patch("apps.api.workspace.write_json", write):
+        with mock.patch("pathlib.Path.unlink", unlink), mock.patch("apps.api.core.workspace.write_json", write):
             with self.assertRaises(ValueError) as caught:  # said: something could not be deleted
                 ws.scrub(edit)
         self.assertEqual("delete_failed", str(caught.exception))
@@ -439,7 +439,7 @@ class TestRemoved(PanelCase):
 
     def test_writes_stopped_half_way_are_swept_at_the_start(self):
         import os  # file times
-        from apps.api.workspace import Workspace  # a second look at the same folder, as the next start opens it
+        from apps.api.core.workspace import Workspace  # a second look at the same folder, as the next start opens it
         ws = self.api.ws
         old = ws.path("sources", "candidates.json.4242.4242.tmp")  # a write the PC's power cut stopped
         old.write_text("{", encoding="utf-8")
@@ -456,7 +456,7 @@ class TestRemoved(PanelCase):
         mine.unlink()
 
     def test_the_command_bar_history_can_be_emptied(self):
-        from apps.api import ask  # its file
+        from apps.api.services.agent import ask  # its file
         ask.keep(self.api, {"at": "2026-01-01 10:00", "text": "a fictional ask", "answer": "done", "ok": True})
         self.assertEqual(1, len(self.get("/api/v1/ask")["history"]))
         out = self.post("/api/v1/ask/clear", {})

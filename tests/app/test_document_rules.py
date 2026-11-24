@@ -18,6 +18,7 @@ for p in (ROOT, ROOT / "src", ROOT / "tests" / "app", ROOT / "tests" / "render")
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 from test_blind import Person  # noqa: E402  a fictional person in a workspace of the test's own
+from apps.api.services import applications  # noqa: E402  the services whose actions the tests call
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
 import check_claims as CC  # noqa: E402  src/check_claims.py
 import check_documents as CD  # noqa: E402  src/check_documents.py
@@ -327,7 +328,7 @@ class WiredTests(Person):
             led = pathlib.Path(argv[argv.index("--ledger") + 1])
             seen.append((argv[argv.index("--edition") + 1], led, json.loads(led.read_bytes())))
             return mock.Mock(returncode=0, stdout="", stderr="")
-        jid = a.add_job({"company": "감마클라우드", "posting": "Backend engineer. " * 20}, select=False)  # a fictional application
+        jid = applications.add_job(a, {"company": "감마클라우드", "posting": "Backend engineer. " * 20}, select=False)  # a fictional application
         for job in ("-general", jid):
             out_dir = t.build_dir(job, "ko")
             out_dir.mkdir(parents=True, exist_ok=True)

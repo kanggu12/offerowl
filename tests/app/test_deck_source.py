@@ -15,6 +15,7 @@ for p in (ROOT, ROOT / "src", ROOT / "tests" / "app", ROOT / "tests" / "render")
         sys.path.insert(0, str(p))
 from test_blind import TABLE, Builds  # noqa: E402  a person, and builds with the typesetting stood in for
 import resume  # noqa: E402  src/resume.py: the deck's writer
+from apps.api.services import documents, profile  # noqa: E402  the services whose actions the tests call
 
 # A deck source as small as one can be: build.js writes the page Offerowl names, one slide that says which language and
 # whether the blind switch was on, and the measurement element the checks read
@@ -59,18 +60,18 @@ class DeckSourceTests(Builds):
         self.assertFalse((ROOT / src).exists())  # and gone again: the person's slides do not stay in the engine's folder
         rec = self.record(a, "-general")  # what the edition says it was made from
         self.assertEqual(a.tasks.deck_stamp(), rec["deck_src"])  # the source, by its stamp
-        self.assertFalse(a.stale("-general", rec))  # current
+        self.assertFalse(documents.stale(a, "-general", rec))  # current
         pyc = a.ws.path("deck") / "tools" / "__pycache__" / "check.cpython-310.pyc"  # a run of the deck's own checks leaves bytecode
         pyc.parent.mkdir(parents=True, exist_ok=True)
         pyc.write_bytes(b"\x00bytecode")
-        self.assertFalse(a.stale("-general", rec))  # no change to the slides: still current
+        self.assertFalse(documents.stale(a, "-general", rec))  # no change to the slides: still current
         (a.ws.path("deck") / "slides.txt").write_text("a slide changed", encoding="utf-8")  # the person edits their slides
-        self.assertTrue(a.stale("-general", rec))  # the deck it wrote is stale now
-        self.assertFalse(a.stale("-general", {k: v for k, v in rec.items() if k != "deck_src"}))  # one made before there was a source stays as it was
+        self.assertTrue(documents.stale(a, "-general", rec))  # the deck it wrote is stale now
+        self.assertFalse(documents.stale(a, "-general", {k: v for k, v in rec.items() if k != "deck_src"}))  # one made before there was a source stays as it was
 
     def test_a_blind_edition_keeps_a_deck_from_the_source(self):
         a = self.person()
-        a.set_blind({"table": TABLE})  # the person's table
+        profile.set_blind(a, {"table": TABLE})  # the person's table
         self.stand_in(a)
         prof = a.ws.path("profile", "profile.json")  # the profile names a portfolio PDF: a blind edition would leave it out
         data = json.loads(prof.read_text(encoding="utf-8"))

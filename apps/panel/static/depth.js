@@ -1,4 +1,4 @@
-// Offerowl's panel, the depth review (0.11.0, apps/api/depth.py): what each project item and deck page of the edition in view
+// Offerowl's panel, the depth review (0.11.0, apps/api/services/documents/depth.py): what each project item and deck page of the edition in view
 // leaves out. Documents' head holds its key, "Review each project's depth", which says what it does; its sheet opens at the
 // window's right edge under the top bar (a phone: from the foot), as the command bar's does. Each finding is said in the
 // page's language by its code, with the agent's own words under it in the edition's language, and offers its way on: the

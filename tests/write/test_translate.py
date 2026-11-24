@@ -25,7 +25,7 @@ LEDGER = {  # a fictional profile in the ledger form, with a draft's parts in bo
 
 
 def word_for_word(task, prompt, required, schema, result, log):
-    """A stand-in for the model: each Korean word becomes 'word', the way apps/api/standin.py answers."""
+    """A stand-in for the model: each Korean word becomes 'word', the way apps/api/services/agent/standin.py answers."""
     fields = D.json.loads(re.search(r"Fields \(JSON object id -> Korean\):\n(\{.*?\})\n", prompt, re.S).group(1))  # the fields asked for
     return {"t": {k: re.sub(r"[가-힣]+", "word", v) for k, v in fields.items()}}  # every id answered
 

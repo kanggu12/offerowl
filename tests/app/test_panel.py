@@ -2,7 +2,7 @@
 evidence, an edit the evidence does not cover (marked, export refused, undone), locks and the history; a job with its
 fit, tailoring all three documents and the interview board; the tracker with reminders; the agent's steps through the
 stand-in (reading notes, the posting analysis, regenerating a sentence); the safety rules; the schemas; the
-in-process client; and the Korean table. No model is called: the agent is off, or the stand-in of apps/api/standin.py.
+in-process client; and the Korean table. No model is called: the agent is off, or the stand-in of apps/api/services/agent/standin.py.
 
     python3 -m unittest tests/app/test_panel.py -v
 """
@@ -28,7 +28,7 @@ from unittest import mock  # an environment for one check
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ and core/ are found from here
 from apps.panel import server  # noqa: E402  the panel (the page and the API)
-from apps.api.standin import facts as standin_facts  # noqa: E402  the stand-in's rules
+from apps.api.services.agent.standin import facts as standin_facts  # noqa: E402  the stand-in's rules
 from core.schema import validate  # noqa: E402  the data model
 
 if not os.environ.get("OFFEROWL_LLM_LOG"):  # the stand-in agent's calls go to a log of this run, not the engine's own output/_llm (pytest: tests/conftest.py)
@@ -236,7 +236,7 @@ class TestJobs(PanelCase):
         self.assertIn("백엔드 개발 경력 3년 이상", f["gaps"])  # the line no evidence covers is a gap
         strong = [x for x in f["lines"] if x["rating"] == "strong"]  # covered lines
         self.assertTrue(strong and all(x["evidence"] for x in strong))  # each with its evidence
-        from apps.api import fit as F  # the fit itself, worked out with and without the profile's shared units
+        from apps.api.services.applications import fit as F  # the fit itself, worked out with and without the profile's shared units
         api = type(self).srv.RequestHandlerClass.panel  # the panel's API
         prof, posting = api.facts.profile(), POSTING.read_text(encoding="utf-8")
         alone = F.compute(prof, posting, evmap=api.facts.evidence(), cands=api.facts.candidates())  # units made for this call
@@ -930,7 +930,7 @@ class TestDaysOfABatch(PanelCase):
 
     def test_a_day_after_a_later_steps_never_counts(self):
         sys.path.insert(0, str(ROOT))
-        from apps.api import tracker  # the rule itself
+        from apps.api.services.applications import tracker  # the rule itself
         job = {"stage": "result", "dates": {"preparing": "2026-11-07", "submitted": "2026-11-07", "result": "2026-10-28"}}
         self.assertEqual({"result": "2026-10-28"}, tracker.stage_days(job))  # prepared and sent after the answer: neither counts
         job = {"stage": "interview", "dates": {"preparing": "2026-10-01", "submitted": "2026-10-05", "interview": "2026-10-20"}}
@@ -961,7 +961,7 @@ class TestDaysOfABatch(PanelCase):
 
 
 class TestStandinAsAProgram(unittest.TestCase):
-    """The stand-in started as a program, as the closed-network test starts it in the app image (`python3 apps/api/standin.py
+    """The stand-in started as a program, as the closed-network test starts it in the app image (`python3 apps/api/services/agent/standin.py
     serve <port>`): from another folder, with no PYTHONPATH, it still binds through src/ownport.py and answers. An earlier
     build died there at once (no module named ownport), so the agent read signed out and nothing was written."""
 
@@ -970,7 +970,7 @@ class TestStandinAsAProgram(unittest.TestCase):
         import urllib.request  # one request to it
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-standin-"))  # a working folder far from the repository
         self.addCleanup(shutil.rmtree, tmp, True)
-        child = subprocess.Popen([sys.executable, "-I", str(ROOT / "apps" / "api" / "standin.py"), "serve", "0"], cwd=tmp,  # -I: no PYTHONPATH, no script folder
+        child = subprocess.Popen([sys.executable, "-I", str(ROOT / "apps" / "api" / "services" / "agent" / "standin.py"), "serve", "0"], cwd=tmp,  # -I: no PYTHONPATH, no script folder
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
         self.addCleanup(child.stderr.close)  # cleanups run last first: its pipes close after it is stopped and reaped
         self.addCleanup(child.stdout.close)
@@ -1091,14 +1091,16 @@ class TestBackup(PanelCase):
         os.utime(stale, (time.time() - 7200, time.time() - 7200))
         fresh.write_bytes(b"new")
         self.addCleanup(fresh.unlink, True)
+        from apps.api.services.library import backup  # the restore the upload's route calls
         seen = []
         api = type(self).srv.RequestHandlerClass.router.api
 
-        def restore(arg):  # what the server hands the restore
+        def restore(given, arg):  # what the server hands the restore
+            self.assertIs(api, given)  # the panel's own API
             seen.append((arg, isinstance(arg, pathlib.Path) and arg.is_file() and arg.read_bytes() == b"PK-not-a-real-zip"))
             raise ValueError("not_a_backup")
 
-        with mock.patch.object(api, "restore", side_effect=restore):
+        with mock.patch.object(backup, "restore_workspace", side_effect=restore):
             code, out = self.send_file(b"PK-not-a-real-zip")
         self.assertEqual((400, "not_a_backup"), (code, out.get("error")))
         self.assertEqual(1, len(seen))
@@ -1169,7 +1171,7 @@ class TestBackup(PanelCase):
         (ws / "jobs" / "live").rmdir()  # and this
 
     def test_undo_and_materials_stay_inside_the_workspace(self):
-        from apps.api.workspace import Workspace  # the class itself
+        from apps.api.core.workspace import Workspace  # the class itself
         root = self.tmp / "planted" / "workspace"  # a workspace with a sibling that shares its name's start
         ws = Workspace(root)  # made
         other = root.with_name("workspace-other")  # the sibling
@@ -1190,13 +1192,13 @@ class TestUndoKeepsLaterFiles(unittest.TestCase):
     step's own records back as they were."""
 
     def setUp(self):
-        from apps.api.workspace import Workspace  # the class itself
+        from apps.api.core.workspace import Workspace  # the class itself
         self.root = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-undo-"))  # a workspace of its own
         self.addCleanup(shutil.rmtree, self.root, True)  # gone afterwards
         self.ws = Workspace(self.root)  # made
 
     def test_a_file_added_after_a_step_stays_listed(self):
-        from apps.api.facts import FACT_FILES  # the files a fact step snapshots, the list of files among them
+        from apps.api.services.profile import FACT_FILES  # the files a fact step snapshots, the list of files among them
         with self.ws.change({"code": "undo_keep"}, FACT_FILES):  # a fact kept
             (self.root / "sources" / "review.json").write_text('{"kept": ["c1"]}', encoding="utf-8")  # its own change
         self.ws.add_material("old_resume.txt", b"a fictional resume")  # a file added after it, outside any step
@@ -1205,7 +1207,7 @@ class TestUndoKeepsLaterFiles(unittest.TestCase):
         self.assertEqual("m2", self.ws.add_material("notes.txt", b"more")["id"])  # and its id is not handed out again
 
     def test_the_step_s_own_records_go_back(self):
-        from apps.api.facts import FACT_FILES  # as above
+        from apps.api.services.profile import FACT_FILES  # as above
         first = self.ws.add_material("a.txt", b"one")  # listed before the step
         with self.ws.change({"code": "undo_add_material"}, FACT_FILES):  # a step that changes a record and lists a new one
             self.ws.update_material(first["id"], state="done", facts=3)  # read

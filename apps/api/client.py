@@ -32,7 +32,7 @@ class Client:
         code, body, _ = self.router.handle("GET", path, {k: str(v) for k, v in query.items()})  # the table answers
         if code >= 400:  # refused
             raise RuntimeError(json.dumps(body, ensure_ascii=False))  # the code and what
-        from .routes import FileStream  # a file the server sends in pieces (a backup): here, its bytes
+        from .core.routing import FileStream  # a file the server sends in pieces (a backup): here, its bytes
         if isinstance(body, FileStream):
             try:
                 return Path(body.path).read_bytes()

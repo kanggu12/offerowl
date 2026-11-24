@@ -23,10 +23,10 @@ import urllib.request  # the API itself
 from pathlib import Path  # the version file
 
 PROTOCOLS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")  # the MCP revisions this server speaks, newest first
-STAGES = ("preparing", "submitted", "interview", "result")  # the board's columns (apps/api/workspace.py)
-ROUND_KINDS = ("call", "first", "second", "third", "final", "coding", "assignment", "culture", "other")  # an interview round's kind (apps/api/tracker.py)
+STAGES = ("preparing", "submitted", "interview", "result")  # the board's columns (apps/api/core/workspace.py)
+ROUND_KINDS = ("call", "first", "second", "third", "final", "coding", "assignment", "culture", "other")  # an interview round's kind (apps/api/services/applications/tracker.py)
 LANGS = ("ko", "en")  # the document languages
-THEMES = ("navy", "teal", "mono", "wine", "forest", "slate", "crimson")  # the colour packs: src/themes.json's seven, as apps/api/tasks.py takes them
+THEMES = ("navy", "teal", "mono", "wine", "forest", "slate", "crimson")  # the colour packs: src/themes.json's seven, as apps/api/services/documents/task_build.py takes them
 FILES = ("resume.txt", "resume.pdf", "deck.pdf", "cover.pdf")  # an edition's files the API serves by name
 LOCAL = ("127.0.0.1", "localhost")  # the panel answers on this PC only
 WAIT_MAX = 600  # seconds a single task call may wait: a client's own timeout is usually near this

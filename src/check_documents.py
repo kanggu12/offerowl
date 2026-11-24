@@ -144,7 +144,7 @@ def report_item(b: str) -> dict:
 
 
 def deck_tool_item(tool: str, what: str, failed: bool = False) -> dict:
-    """A deck source's own check as a build reports it (apps/api/tasks.py): a line it found, or that it could not run, worded
+    """A deck source's own check as a build reports it (apps/api/services/documents/task_build.py): a line it found, or that it could not run, worded
     in the person's language with its code and values kept, as every other finding is."""
     return report_item(issue("deck_tool_failed" if failed else "deck_tool", tool=tool, what=what))
 

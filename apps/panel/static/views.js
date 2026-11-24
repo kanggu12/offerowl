@@ -346,7 +346,7 @@ function resultOn(j, k) {                                                       
   const own = ownResult(j);
   return !!own && resultKind(own) === k;                                            // words that read as one of the keys press it
 }
-function resultKind(words) {                                                       // how an application ended, read from the person's words as the Insights read them (apps/api/insights.py)
+function resultKind(words) {                                                       // how an application ended, read from the person's words as the Insights read them (apps/api/services/insights/insights.py)
   const w = String(words || "");
   if (/탈락|불합격|미합격|불합|합격\s*(?:하지\s*)?(?:못|안\s*됨|아님)|오퍼\s*(?:없|무산|취소)|reject|declin|not selected|no offer|not (?:moving|proceed)|hired (?:someone|another)/i.test(w)) return "rejected";
   if (/철회|포기|withdr/i.test(w)) return "withdrawn";                              // the person stepped back (Insights counts it with the closed ones)
@@ -389,8 +389,8 @@ async function addJob(form) {                                                   
   const r = await act("/api/v1/jobs", link ? { url: v } : { posting: v }, t("Added. Its fit is open."));
   if (r && r.job) { UI.adding = false; forget("j-"); openApplication(r.job, "fit"); }   // the new job opens on its fit (the server put it in view)
 }
-// ---------------------------------------------------------------- the application's own questions (apps/api/answers.py)
-const qCount = (text, unit) => (unit === "words" ? String(text || "").trim().split(/\s+/).filter(Boolean).length : [...String(text || "").trim()].length);   // as the form counts, and as the server does (apps/api/answers.py count): characters, not UTF-16 halves
+// ---------------------------------------------------------------- the application's own questions (apps/api/services/applications/answers.py)
+const qCount = (text, unit) => (unit === "words" ? String(text || "").trim().split(/\s+/).filter(Boolean).length : [...String(text || "").trim()].length);   // as the form counts, and as the server does (apps/api/services/applications/answers.py count): characters, not UTF-16 halves
 const qUnit = (q) => (q.unit === "words" ? t("words") : t("characters"));       // the limit's unit
 function factWords(rest) {                                                          // what the fact check found, in the panel's language (src/factcheck.py words it in the server's)
   const FC = [[/^number not in the evidence: (.*)$/s, "A number not in your facts: {x}"], [/^counted word not in the evidence: (.*)$/s, "A counted word not in your facts: {x}"],
@@ -693,7 +693,7 @@ function interviewPart(j) {                                                     
     materialsPart(j));                                                              // the person's own files, under what the kit made
 }
 
-// ---------------------------------------------------------------- an application's own materials (apps/api/materials.py): decks, notes, briefs, answers and code, kept as they came
+// ---------------------------------------------------------------- an application's own materials (apps/api/services/applications/materials.py): decks, notes, briefs, answers and code, kept as they came
 
 const MAT_KINDS = /\.(pdf|pptx|docx|md|html|txt|py|png|jpe?g)$/i;                 // what a job keeps: the server's own list (a .jpeg is kept as .jpg)
 const MAT_MAX = 50 * 1000 * 1000;                                                   // bytes of one file, as the server caps it

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What the export writes besides the checked PDFs (apps/api/delivery.py): the resume's and the cover letter's Word files made
+"""What the export writes besides the checked PDFs (apps/api/services/documents/delivery.py): the resume's and the cover letter's Word files made
 ready for Word, the deck as a PowerPoint file beside its PDF, each kept home with its reason when Word or PowerPoint lays
 it out otherwise; a submitted edition's frozen files as they were; and the general edition's portfolio kept on the
 Desktop, which replaces only the copy it wrote itself. The fictional example person, small files made here, Word and
@@ -23,10 +23,11 @@ from test_blind import Person  # noqa: E402  the fictional person with a Desktop
 from test_office import DECK, WORDS, deck_pdf, make_docx, png  # noqa: E402  a fictional resume DOCX and deck PDF
 from test_pdf_shrink import fat_deck, pikepdf  # noqa: E402  a deck of the size a browser prints, and pikepdf where it is installed
 from test_pdftools import write_pdf  # noqa: E402  a small PDF with a text layer
-from apps.api import delivery  # noqa: E402  the module under test
+from apps.api.services import documents, profile  # noqa: E402  the services whose actions the tests call
+from apps.api.services.documents import delivery  # noqa: E402  the module under test
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
-from apps.api.tasks import file_hash  # noqa: E402  what a build records
-from apps.api.workspace import read_json, sha256  # noqa: E402  the record and the hashes
+from apps.api.core.stamps import file_hash  # noqa: E402  what a build records
+from apps.api.core.workspace import read_json, sha256  # noqa: E402  the record and the hashes
 import deck_pptx  # noqa: E402  the PowerPoint copy's DPI
 import office_check  # noqa: E402  Word and PowerPoint, stood in for
 import pdf_shrink  # noqa: E402  the portfolio made smaller for a size
@@ -150,7 +151,7 @@ class WordFiles(Edition):
 
     def test_a_submitted_editions_frozen_files_go_byte_for_byte(self):
         self.a.set_settings({"export_extras": True})
-        named = self.a.add_edition({"name": "Platform roles"})  # an edition that can be submitted and locked
+        named = documents.add_edition(self.a, {"name": "Platform roles"})  # an edition that can be submitted and locked
         self.made(named)
         rec = self.a.tasks.lock(named, "ko")  # what was sent, frozen
         frozen = self.a.ws.job_dir(named) / "submitted" / pathlib.Path(rec["folder"]).name / "resume.docx"
@@ -250,7 +251,7 @@ class DeskPortfolio(Edition):
 
     def test_a_new_name_replaces_its_old_copy_and_nothing_else(self):
         self.a.set_settings({"desk_portfolio": True})
-        self.a.details({"fields": {"name": "한서연"}})  # the person's name, typed anew: the file's name changes
+        profile.details(self.a, {"fields": {"name": "한서연"}})  # the person's name, typed anew: the file's name changes
         name = self.keep()
         self.assertNotEqual("홍길동_포트폴리오_20261119.pdf", name)
         self.assertEqual([name], self.on_desk())  # the old copy, its own and unchanged, is gone with it

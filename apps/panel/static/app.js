@@ -61,7 +61,7 @@ function fitBar(bar) {                                                          
 const VIEW_ICON = { make: "layers", profile: "person", jobs: "case", documents: "file", insights: "chart", library: "folder" };   // each view's mark on the bar
 function agentLamp() {                                                              // [lamp, words] of the agent's state
   // A local model is a server at an address: the state says "missing" while no address is set and "signed_out" while nothing
-  // answers there (apps/api/agent.py, local_status), and neither is a thing to install or sign in to
+  // answers there (apps/api/services/agent/agent.py, local_status), and neither is a thing to install or sign in to
   if (S.agent.backend === "openai-compat" && S.agent.state === "missing") return ["off", "No address"];
   if (S.agent.backend === "openai-compat" && S.agent.state === "signed_out") return ["warn", "Not answering"];
   return { ready: ["ok", "Ready"], signed_out: ["warn", "Not signed in"], missing: ["off", "Not installed"], off: ["off", "Off"], checking: ["busy", "Checking"] }[S.agent.state] || ["off", "Off"];

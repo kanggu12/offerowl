@@ -1,11 +1,11 @@
 // Offerowl's panel, part 5: making. The person drops files or folders anywhere on the page, or pastes their paths, and
-// may give a posting (a link or its text). The run (apps/api/autopilot.py) reads them, keeps the facts whose quotes are
+// may give a posting (a link or its text). The run (apps/api/services/agent/autopilot.py) reads them, keeps the facts whose quotes are
 // found, writes, translates, typesets and puts the PDFs on the Desktop, with nothing to click in between. A posting
 // given later is tailored from the facts already kept. The view is the work itself, in three columns read from left to
 // right: your files go in, the progress of the run, your documents come out.
 "use strict";                                                                       // catches undeclared names and silent writes early
 
-const READABLE = /\.(pdf|docx|pptx|txt|md|json|csv|ya?ml|png|jpe?g|tiff?|bmp|webp|zip)$/i;   // what the readers take: the server's own list (apps/api/autopilot.py READABLE), a zip too: the server opens it into its files
+const READABLE = /\.(pdf|docx|pptx|txt|md|json|csv|ya?ml|png|jpe?g|tiff?|bmp|webp|zip)$/i;   // what the readers take: the server's own list (apps/api/services/agent/autopilot.py READABLE), a zip too: the server opens it into its files
 const SKIP_DIRS = new Set(["node_modules", "__pycache__", "venv", "site-packages", "dist", "build", "target", "out", "tmp", "temp", "cache", "caches",  // folders that hold no career
   "appdata", "application data", "local settings", "library", "programdata", "program files", "program files (x86)", "windows", "$recycle.bin", "system volume information"]);  // and a system's own, as the server skips them
 const MAX_FILES = 80;                                                               // files one run reads, as the server caps it

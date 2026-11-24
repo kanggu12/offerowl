@@ -174,7 +174,7 @@ class LoaderTests(unittest.TestCase):
                     os.environ[k] = v
 
     def test_the_panel_and_the_agents_offer_it(self):
-        from apps.api.tasks import THEMES  # what a build and the panel take
+        from apps.api.services.documents import THEMES  # what a build and the panel take
         self.assertIn("crimson", THEMES)
         server = (ROOT / "apps" / "mcp" / "server.py").read_text(encoding="utf-8")  # the agent's tools name the same packs
         self.assertIn('"crimson"', server)

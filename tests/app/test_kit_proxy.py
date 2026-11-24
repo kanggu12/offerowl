@@ -1,4 +1,4 @@
-"""The interview kit at the panel's own address (apps/api/web.py kit_proxy, apps/api/tasks.py kit_url): each job's kit
+"""The interview kit at the panel's own address (apps/api/web.py kit_proxy, apps/api/services/interview/task_kit.py kit_url): each job's kit
 comes from a server of its own, so two jobs opened in turn each get their own page; the start route answers for the job
 asked; an unknown job and a malformed body are refused before anything reaches a kit; the kit's pages carry the panel's
 frame and connection policy. No model is called.

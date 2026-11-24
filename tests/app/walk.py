@@ -20,7 +20,7 @@ English, as the guide is written, at 1600 x 1000, from the states named in GUIDE
 one, on a phone) come from docs/assets/scene.py, which runs one good run: this walk fails one on purpose to show the fix.
 
 The panel runs on a free port with a workspace of its own in a temporary folder, a fake home whose `claude` is the
-stand-in (apps/api/standin.py) with a fictional account, the agent off (backend none) until the walk turns it on, and
+stand-in (apps/api/services/agent/standin.py) with a fictional account, the agent off (backend none) until the walk turns it on, and
 no network. --render also makes the typeset PDFs (the heavy part: it renders in the container).
 The last lines are the first-run time and the verdict:
   "first run: N s from the page to the example's resume (backend none)"
@@ -96,7 +96,7 @@ def fake_home(tmp: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     bin_.mkdir()  # the fake CLI goes here
     script = bin_ / "claude"  # the stand-in CLI
     # a shell script that hands every call to standin.py
-    script.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{ROOT / "apps" / "api" / "standin.py"}" claude "$@"\n', encoding="utf-8")
+    script.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{ROOT / "apps" / "api" / "services" / "agent" / "standin.py"}" claude "$@"\n', encoding="utf-8")
     script.chmod(0o755)  # PATH lookups need it executable
     return home, bin_  # for the panel's environment
 
@@ -571,7 +571,7 @@ def main() -> int:  # 0 only when nothing was found
             w.api("/api/v1/undo", {}); w.api("/api/v1/undo", {}); w.api("/api/v1/undo", {})  # the leave, the answer and the rewrite taken back, for the rest of the walk
 
             # ---- the sheet's other states: an agent that stops part way, an answer that leaves parts out, a review that cannot run
-            flag = home / ".offerowl-standin-depth"  # the stand-in reads it (apps/api/standin.py depth_mode); the walk's own home
+            flag = home / ".offerowl-standin-depth"  # the stand-in reads it (apps/api/services/agent/standin.py depth_mode); the walk's own home
             done = "task('depth:' + edition().id).state === 'done'"  # the review ran to its end, whatever it found
             flag.write_text("stop", encoding="utf-8")  # the agent stops
             page.click("[data-key=depth-open]"); w.settle()  # the sheet, with the last review
@@ -636,7 +636,7 @@ def main() -> int:  # 0 only when nothing was found
             w.shoot("agent_panel")  # who, the model, what it takes on, the day's calls
             page.keyboard.press("Escape"); w.settle()  # closed
             # ---- the command bar: "Ask the AI" at the window's bottom right opens its sheet, with two asks of a fictional day and their answers, written
-            # the way apps/api/ask.py keeps them (a list, a table, the tools that ran)
+            # the way apps/api/services/agent/ask.py keeps them (a list, a table, the tools that ran)
             asked = [{"at": "2026-11-09 18:40", "text": "감마클라우드 1차 면접 끝났어. 결과는 다음 주에 알려 준대. 기록해 줘", "backend": "claude-code",
                       "answer": "감마클라우드 지원을 **1차 면접**으로 옮기고 오늘 회차를 남겼습니다.\n\n- 다음 단계: 결과 기다리기\n- 알림: 2026-11-16 결과 확인",
                       "tools": ["list_jobs", "move_job", "log_round", "reminder"], "ok": True, "seconds": 24.6},

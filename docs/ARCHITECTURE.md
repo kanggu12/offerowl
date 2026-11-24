@@ -4,8 +4,9 @@ This page says how Offerowl is built and why. To use it, read the [user guide](R
 [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 On this page: [The pieces](#the-pieces), [The way of a sentence](#the-way-of-a-sentence), [The modules](#the-modules),
-[The ways to run](#the-ways-to-run), [Your workspace](#your-workspace), [The HTTP API](#the-http-api), [The
-renderer](#the-renderer), [Design decisions](#design-decisions), [What it leaves out](#what-it-leaves-out).
+[The services](#the-services), [The ways to run](#the-ways-to-run), [Your workspace](#your-workspace), [The HTTP
+API](#the-http-api), [The renderer](#the-renderer), [Design decisions](#design-decisions), [What it leaves
+out](#what-it-leaves-out).
 
 ## The pieces
 
@@ -46,12 +47,12 @@ git's two settings (`.gitignore`, `.gitattributes`).
   <img alt="How one sentence is made. A fact you confirmed carries the source&#x27;s own words. The AI backend drafts the sentence from that evidence and cites its ids. The fact check holds every number, name, tool and claim against the evidence: a sentence that fails is stopped, rewritten once from the same evidence, and dropped if it still fails. The style pack checks the wording. The page is typeset, the layout is checked, and then it can be exported" src="assets/diagram-sentence-light.svg">
 </picture>
 
-1. **Evidence.** `src/ingest.py` turns files into text (PDF, DOCX, PPTX, images through Windows' own OCR or Tesseract; `apps/api/workspace.py` opens zip files and LinkedIn's data export into them) and asks the backend for fact
+1. **Evidence.** `src/ingest.py` turns files into text (PDF, DOCX, PPTX, images through Windows' own OCR or Tesseract; `apps/api/core/workspace.py` opens zip files and LinkedIn's data export into them) and asks the backend for fact
    candidates, each with a quote. A candidate whose quote is not in the source is dropped. A person keeps, edits or drops
    the rest, and only kept facts reach the profile.
 2. **Draft.** `src/write_resume.py`, `src/cover.py`, `src/interview/draft.py` and `src/figure_draft.py` ask for typed JSON
    whose sentences cite evidence ids. A model never sees more than a step needs, and every call goes through `src/llm.py`.
-   The panel keeps a resume draft with its job (`apps/api/drafts.py`): the draft owns the sentences it wrote, and names, dates and skills
+   The panel keeps a resume draft with its job (`apps/api/services/documents/drafts.py`): the draft owns the sentences it wrote, and names, dates and skills
    stay with the facts. With no agent the resume is the kept facts' own sentences.
 3. **Fact check.** `src/factcheck.py` compares each sentence with the evidence it cites: numbers and counted words, names,
    tools, and how strongly it states the person's part. A sentence that fails gets one repair call from the same evidence,
@@ -81,13 +82,68 @@ Where to start reading:
 | How one call reaches a model | `src/llm.py`, then a prompt in `src/prompts/` |
 | How the resume is made | `src/profile_loader.js` (the loader), `src/resume_form.js`, `src/layout.js`, `src/save.js` |
 | How the deck is made | `src/deck_slides.js`, `src/deck_structure.js`, `src/deck_figures.js`, `src/portfolio/draw.js` |
-| What the panel can do | `apps/api/routes.py`: every endpoint in one table |
+| What the panel can do | `apps/api/routes.py`, the gateway, and each service's own table in `apps/api/services/<service>/routes.py` ([The services](#the-services)) |
 | How the kit is made | `src/interview/cli.py`, then `plan.py`, `draft.py`, `audit.py` and `server.py` |
 | How the talk is made | `src/interview/talk.py` (the brief, the plan and the run), then `talk_write.py` (the agent's words) and `talk_page.py` (the script) beside it, and `src/talk_slides.js` (the deck) |
 | Which fields a document reads | [Resume and deck parts](DOCUMENTS.md#resume-and-deck-parts) and [The profile format](DOCUMENTS.md#the-profile-format) |
 
 The Python and JavaScript modules import each other by their place in the folder, so the same code runs from a checkout, in
 the container and inside the one-file app.
+
+## The services
+
+The API is one process with one folder of files and one writer lock, and no database: Offerowl keeps one person's
+documents. Inside that process the work is split the way separate services would split it. Each service is a package
+under `apps/api/services/` that owns its files and its endpoints, and `apps/api/core` is the storage they all stand on.
+
+| Service | What it does | The files it owns | What it offers the others | What it calls |
+|:---|:---|:---|:---|:---|
+| `profile` | The facts read from the person's files and the profile built from the kept ones, with the evidence of each sentence; the details, the photo, the style packs and the blind edition's mask table | `profile/`, `sources/`, `style/`, `blind.json` | The facts and the profile (`Facts`, `OwnFacts`, `problems`); the canvas's model and the sentence rules (`Resume`, `sentences`, `field_for`, `replaced`); the sources and the photo for the Library and the Trash; the reading of files, the English profile and the profile's files a build reads (`FactTasks`) | documents (the sentences a draft wrote, a drafted English resume) |
+| `applications` | The jobs on the board (a card's stage, dates, rounds and reminders), the posting and its analysis, the fit, the form's questions and answers, and a job's own materials | `jobs/<job>/status.json` (the card's stage and dates), `posting.md`, `plan.json`, `questions.json`, `materials/` | The jobs as the state draws them (`jobs_view`, `fit_of`); a job added (`add_job`); the board's rule when documents go out (`mark_sent`); a job's posting and plan (`posting_file`, `plan_of`); its materials for the Library, the Trash and a backup; the analysis and the answers (`Analyses`, `AnswerTasks`) | profile (plain text, the facts an answer rests on, the writing rules), documents (a job's editions, the Desktop, a material's page pictures), interview (when its kit's map was made, its server let go) |
+| `documents` | The resume, the deck and the cover letter of every edition: the canvas, the drafts, the builds and their checks, own and named editions, the depth review, the export and the lock | In a job's folder `draft.json`, `resume/<lang>/`, `own/`, `submitted/`, `depth.<lang>.json` and `live/`, and a named edition's card; `deck/` and `out/desk_portfolio.json` | The editions as the state draws them and whether each is stale; an edition's printed files and its build's record (`printed_file`, `build_record`); the copies that went out (`sent_file`); the Desktop and the names files take there; the choices (`THEMES`, `FORMS`, `DECK_STYLES`); the builds, drafts, own editions, export and comparisons (`Builds`, `Drafting`, `OwnEdition`, `Exports`, `Comparisons`) | profile (the facts, the canvas's model, the photo and the mask table a build reads), applications (a job's posting, its plan and analysis, its card moved on a lock), interview (whether a job has a kit, the kit's step of a tailoring) |
+| `interview` | Each application's interview kit (its question map, the drafted scripts, the kit's own pages at `/kit/<job>/`) and the presentation interview's talk | `jobs/<job>/interview/`, `out/interview/<job>/` | Whether a job has a kit, when its map was made and how far it answers its questions; scenes brought in; the kit's files for the Library and the Trash; the kits, their servers, the scripts and the talk (`Kits`) | documents (the resume's text, the deck's pages, the draft in force, the Desktop), profile (the profile's language, the English profile) |
+| `agent` | The agent card and the day's calls, the command bar, the one run from files to finished documents (the autopilot), and the stand-in agent of the tests | `ask/`, `out/runs.json`, the agent card (in memory) | The card (`AgentCard`); the MCP server an agent is handed (`mcp_server`); the finished runs; the backend a model task talks to (`AgentTasks`) | profile, applications, documents and interview: the run's steps are theirs (the files read and the facts kept, a job added, an edition written, built and exported, the kit's first scripts) |
+| `library` | The Library (every file brought in or made), the Trash (put back, delete for good) and the backup | None: it lists, puts back, deletes and backs up through the owners | The Trash's counts, for the state | profile, applications, documents, interview, agent |
+| `insights` | The Insights view's numbers | None: it only reads | Its endpoint only | applications, interview, the profile's facts |
+
+How they keep apart:
+
+- A service calls another only through that service's package: the names its `__init__.py` exports and its docstring
+  lists. It never imports another service's module, and it never reads or writes another service's files: it asks the
+  owner. The Library asks the documents for an edition's printed files and the interview for a kit's notes, and the
+  documents ask the board to move a card when an edition is locked.
+- The core is below them all and imports none of them: `core/workspace.py` (paths, JSON written whole through a rename,
+  the writer lock, the undo steps, the job and source records with the Trash's marks on them), `core/stamps.py` and
+  `core/routing.py` (what every route table shares). One undo step can still cover what several services changed, because
+  they all write through it.
+- The long tasks are the services' own parts (a `task_*.py` with one class each). `apps/api/tasks.py` is the runner (a
+  thread for each task, its record for the page, one model task at a time) and is composed of them, so one service's task
+  calls another's on the same runner: the tailoring of the documents runs the interview kit's step, and every model task
+  asks the agent's part which backend to talk to (`backend()`).
+- `apps/api/app.py` is the composition root. It builds the workspace, the facts, the agent card, the fits and the runner
+  once for the panel's life, keeps the settings and the job a request names, and composes the state the panel polls from
+  each service's part. It does no work of a service.
+- `tests/app/test_architecture.py` reads the code and fails when a service imports another service's module or one of
+  the hubs, when the core imports a service, when a service builds a path into files it does not own, when a package
+  leaves out what it owns or offers, or when two routes of all the tables match one path.
+
+**The gateway.** `apps/api/routes.py` keeps no endpoint of a service. It gathers every service's table (`GET_ROUTES`,
+`POST_ROUTES` and `UPLOAD_ROUTES` from each `routes.py`) after its own few (the health check, the state, the settings,
+undo and the history, the schemas), finds the one route a path matches, and frames the answer: `{"ok": true, ...}` with
+the state, or the refusal ([Answers](#answers)). No two routes match one path, so the order the tables are gathered in
+decides nothing. `web.py` puts the gateway behind HTTP with the [safety](#safety) rules, and `client.py` calls it in this
+process.
+
+**What could run as its own process.** One process is what a one-person tool needs: no database, no network between its
+parts, one writer lock that makes every change one undo step. Some parts already stand apart. Each job's interview kit is
+a server of its own (`src/interview/server.py` on a port of its own, which the panel reaches only over HTTP through
+`/kit/<job>/`; the panel runs it on a thread, and `offerowl interview serve` runs it alone). The renderer is LibreOffice
+and Chromium, started for each document in the render container or as the PC's own browser ([The
+renderer](#the-renderer)). The agent the command bar starts is a process too, and its tools (`apps/mcp`) reach the panel
+only through the HTTP API. Of the services, Insights only reads, through the others' functions, so it could take its
+table behind HTTP first and keep the same paths. A service that writes would need the storage to move first: today the
+one writer lock and the undo steps, which cover every service's files, are what keep a change that crosses services
+whole.
 
 ## The ways to run
 
@@ -141,18 +197,20 @@ The command line can call the same table in its own process. The code is in `app
 
 | File | What it holds |
 |---|---|
-| `routes.py` | Every endpoint in one table, with no HTTP in it: `Router.handle(method, path, query, body)` |
+| `routes.py` | The gateway: every service's table gathered, with no HTTP in it: `Router.handle(method, path, query, body)` ([The services](#the-services)) |
 | `web.py` | The table behind HTTP, with the safety rules below |
 | `client.py` | The same table in this process (`Client().get(...)`, `.post(...)`, `.wait(task)`) |
-| `app.py` | The API object: settings, workspace, facts, the agent card, the tasks, and every action |
-| `documents.py`, `evidence.py` | The canvas's documents, and the resume model with the evidence of each sentence |
-| `fit.py`, `tracker.py`, `studio.py`, `postings.py` | The fit to a posting, the tracker, the interview board, and a posting from a link |
-| `materials.py` | A job's own materials: kept byte for byte, listed, previewed by kind (LibreOffice prints a deck or a Word file where the typesetting runs), copied to the Desktop and removed with an undo |
-| `delivery.py` | Where the export's files go (the Desktop the person sees, under WSL the Windows one, and the file manager that shows them), and what the export writes besides the PDFs: the Word files made ready for Word (`src/docx_word.py`) and the deck as a PowerPoint file (`src/deck_pptx.py`), each opened in this PC's Word or PowerPoint where it can be (`src/office_check.py`); and the portfolio kept on the Desktop |
-| `workspace.py`, `facts.py`, `tasks.py`, `agent.py`, `standin.py` | Files and undo, facts and the profile, long tasks, the agent card, and the stand-in agent for tests |
-| `task_own.py`, `task_kit.py`, `task_export.py`, `task_answers.py`, `task_compare.py` | Parts of the long tasks, by area (`Tasks` inherits them): an application's own edition, the interview kits, the export and the lock, the form answers, and what an edition is held against (its other language, its deck, a blind edition's twin, the pages that last went out) |
-| `editions.py` | An application's own edition started from another edition's words: the editions to start from, the copy as one undo step, and the command `offerowl edition`, which calls the same two routes |
-| `stamps.py` | A file's version without reading it, and the short hashes the panel's every poll asks for, worked out once while a file is unchanged |
+| `app.py` | The composition root: the settings, the workspace, the facts, the agent card, the fits and the task runner of one panel, and the state composed from every service's part. No action of its own |
+| `tasks.py` | The task runner: a thread for each long task, its record for the page, one model task at a time. It is composed of the services' task parts |
+| `core/workspace.py`, `core/stamps.py`, `core/routing.py` | Files and undo, and the job and source records; a file's version without reading it, and the short hashes the panel's every poll asks for, worked out once while a file is unchanged; what every route table shares (the answers' shapes, a route's matcher, an upload's route) |
+| `services/<service>/__init__.py`, `routes.py` | What a service does, the files it owns and what it offers the others; its own endpoints |
+| `services/documents/documents.py`, `services/profile/evidence.py` | The canvas's documents, and the resume model with the evidence of each sentence |
+| `services/applications/fit.py`, `tracker.py`, `postings.py`, `jobs.py`; `services/interview/studio.py` | The fit to a posting, the tracker, a posting from a link, and the jobs as the panel's keys change them; the interview board |
+| `services/applications/materials.py` | A job's own materials: kept byte for byte, listed, previewed by kind (LibreOffice prints a deck or a Word file where the typesetting runs), copied to the Desktop and removed with an undo |
+| `services/documents/delivery.py` | Where the export's files go (the Desktop the person sees, under WSL the Windows one, and the file manager that shows them), and what the export writes besides the PDFs: the Word files made ready for Word (`src/docx_word.py`) and the deck as a PowerPoint file (`src/deck_pptx.py`), each opened in this PC's Word or PowerPoint where it can be (`src/office_check.py`); and the portfolio kept on the Desktop |
+| `services/profile/facts.py`, `services/agent/agent.py`, `services/agent/standin.py` | Facts and the profile, the agent card, and the stand-in agent for tests |
+| `services/*/task_*.py` | Parts of the long tasks, by service (`Tasks` is composed of them): the reading of files and the English profile (`task_facts.py`); the posting analysis and the form answers (`task_analyze.py`, `task_answers.py`); the builds, the drafts, an application's own edition, the export and the lock, and what an edition is held against: its other language, its deck, a blind edition's twin, the pages that last went out (`task_build.py`, `task_write.py`, `task_own.py`, `task_export.py`, `task_compare.py`); the interview kits (`task_kit.py`); the backend a model task talks to (`task_agent.py`) |
+| `services/documents/editions.py` | An application's own edition started from another edition's words: the editions to start from, the copy as one undo step, and the command `offerowl edition`, which calls the same two routes |
 
 The data model is JSON Schema in `core/schema/`: the profile, the job (its card, its plan and its fit) and each
 document (the resume as the canvas draws it, the cover letter, the interview board and a typeset edition).
@@ -272,7 +330,7 @@ What keeps the panel whole when much is asked at once, when it is stopped, and w
 | `/api/v1/documents/resume?lang=ko&theme=navy&job=<job>` | The resume as the canvas draws it (`documents/resume.schema.json`): blocks in print order, and per sentence its text, state (`ok`, `typed`, `edited`, `unsupported`), lock, issues and evidence (quote, where, file). With a job, its plan orders the skills and projects |
 | `/api/v1/documents/cover?job=<job>&lang=ko` | The cover letter's paragraphs with each sentence's evidence, or `{"state": "none"}` before it is drafted |
 | `/api/v1/jobs` | Every job |
-| `/api/v1/editions?job=<job>` | `{editions, target}`: the editions with words of their own that a job's own edition can start from (`apps/api/editions.py`), the named editions first and each group with the newest words first: `{job, name, kind, langs, at, from, locked}`, `kind` `edition` or `job`, `at` the day its words came or were started, `from` the edition they were started from. With `job`, that one is left out and described in `target`: `{job, name, kind, langs, own, locked}`, `own` its own things as the state's `own_info` says them (null: it prints the general resume) |
+| `/api/v1/editions?job=<job>` | `{editions, target}`: the editions with words of their own that a job's own edition can start from (`apps/api/services/documents/editions.py`), the named editions first and each group with the newest words first: `{job, name, kind, langs, at, from, locked}`, `kind` `edition` or `job`, `at` the day its words came or were started, `from` the edition they were started from. With `job`, that one is left out and described in `target`: `{job, name, kind, langs, own, locked}`, `own` its own things as the state's `own_info` says them (null: it prints the general resume) |
 | `/api/v1/jobs/<job>` | One job with its posting |
 | `/api/v1/jobs/<job>/fit` | The fit (`job.schema.json#/$defs/fit`): a score from 0 to 100, each posting line rated strong, weak or none with the evidence that covers it, and the gaps. Worked out by words, with no model |
 | `/api/v1/jobs/<job>/interview?lang=ko` | The interview board (`documents/interview.schema.json`): the question map by category, the script cards with the dialogue first and its translation as one note below, and the links to the kit's search view, practice mode, cue cards and interview deck |
@@ -281,7 +339,7 @@ What keeps the panel whole when much is asked at once, when it is stopped, and w
 | `/api/v1/jobs/<job>/talk/script` | The talk's speaker script as data, for the Presentation part (`src/interview/talk_page.py` script_data): `{title, sub, notes, parts, slides, qa, words, at}`, each slide with its time, the running total, whether it has a picture, where to point, its lines, the line when late, the questions to expect and whether its words are a draft. 404 `no_talk` before a talk is made |
 | `/api/v1/jobs/<job>/talk/slides/<n>.png` | The picture of the talk's n-th slide (1 for the first), by its place only; 404 when there is none |
 | `/api/v1/jobs/<job>/talk` | The presentation interview: the brief as kept (`jobs/<job>/interview/talk.json`), whether the talk is made, and when it is, its slides, its scripted seconds against the brief's minutes, and the checks' counts (layout defects, slides whose words do not fit their time, texts the checks dropped) |
-| `/api/v1/jobs/<job>/depth?lang=ko` | The edition's last depth review (`apps/api/depth.py`, [The depth review](WRITING.md#the-depth-review)), or `{none: true}` before the first: `{rid, at, lang, agent, backend, calls, notes, counts, now, went_out, deck_at, stale, projects, units}` (`notes` says why units went unread: `limit`, `stopped`, `unanswered:N`; `projects` lists the items an unpaired page's answer may name), the units thin first, each (`item:<project>` or `slide:<page>`) with its title, place, words, `changed` (its words moved on since the review), `verdict` (`thin`, `adequate`, `strong`, or null when the agent did not rate it), `stated` (the words of each core part), `missing`, `gate` and `findings`: `{id, code, missing, way, rewrite: {replaces, text, ev, names} or question, state, by, quote, lost, verdict, gate}`. `counts` holds the verdicts (`thin`, `adequate`, `strong`, `unrated`, `gates`); `now` is `{open, gates}`, counted as findings are used, answered or left. What the person did lives apart in `jobs/<job>/depth.<lang>.acts.json` and is laid over the review here |
+| `/api/v1/jobs/<job>/depth?lang=ko` | The edition's last depth review (`apps/api/services/documents/depth.py`, [The depth review](WRITING.md#the-depth-review)), or `{none: true}` before the first: `{rid, at, lang, agent, backend, calls, notes, counts, now, went_out, deck_at, stale, projects, units}` (`notes` says why units went unread: `limit`, `stopped`, `unanswered:N`; `projects` lists the items an unpaired page's answer may name), the units thin first, each (`item:<project>` or `slide:<page>`) with its title, place, words, `changed` (its words moved on since the review), `verdict` (`thin`, `adequate`, `strong`, or null when the agent did not rate it), `stated` (the words of each core part), `missing`, `gate` and `findings`: `{id, code, missing, way, rewrite: {replaces, text, ev, names} or question, state, by, quote, lost, verdict, gate}`. `counts` holds the verdicts (`thin`, `adequate`, `strong`, `unrated`, `gates`); `now` is `{open, gates}`, counted as findings are used, answered or left. What the person did lives apart in `jobs/<job>/depth.<lang>.acts.json` and is laid over the review here |
 | `/api/v1/workspace/backup` | The whole workspace as one zip file to save |
 | `/api/v1/jobs/<job>/deck/<lang>?theme=` | The deck as it will print, for the canvas's frame: `{html, slides}`, or `{missing}` when it cannot be drawn yet. The page holds its pictures and runs no script. Nothing stays in the engine's folder |
 | `/api/v1/jobs/<job>/figures/<lang>/<name>.png?theme=` | A picture the printed resume carries, drawn for the canvas from the edition's profile: `timeline`, `stack` (the hierarchy figure) or `logo_<id>`; the canvas's resume model names each address. 404 when this resume has none |
@@ -299,7 +357,7 @@ What keeps the panel whole when much is asked at once, when it is stopped, and w
 | `/api/v1/reminders.ics` | Every open reminder as an iCalendar file |
 | `/api/v1/history` | `{steps: [{n, t, label, id}]}`: the undo steps, newest first; `id` names a step for `history/undo` |
 | `/api/v1/style` | `{style, own, pack}`: the writing rules in use (`default` is Offerowl's own), whether they are the person's, and the pack as written, its `claims` included |
-| `/api/v1/removed` | The Trash (apps/api/removed.py): `{rows, asides}`. `rows` is everything removed, newest first: `{id, kind, name, at, size, note, owner, restore, delete}`, with `kind` `source`, `photo`, `job`, `edition` or `material`, `at` the day it went (empty for one removed by an older Offerowl), and the routes that put it back and delete it for good. `asides` are the folders a restore kept beside the workspace, to delete only |
+| `/api/v1/removed` | The Trash (apps/api/services/library/removed.py): `{rows, asides}`. `rows` is everything removed, newest first: `{id, kind, name, at, size, note, owner, restore, delete}`, with `kind` `source`, `photo`, `job`, `edition` or `material`, `at` the day it went (empty for one removed by an older Offerowl), and the routes that put it back and delete it for good. `asides` are the folders a restore kept beside the workspace, to delete only |
 | `/api/v1/ask` | `{history, running}`: the command bar's asks and answers, oldest first, and whether one runs now |
 | `/api/v1/schema/<name>` | A schema: `profile`, `job`, `plan`, `fit`, `resume`, `cover`, `interview`, `edition` |
 
@@ -328,7 +386,7 @@ sizes, times, tokens and error codes, never text. `calls`, `median` (seconds, p5
 
 | Path | Body | What it does |
 |---|---|---|
-| `/api/v1/autopilot` | `{ids, paths, posting, url, theme, max_pages}` or `{again: job}` | `max_pages` is 1 to 7. One run from files to finished documents (task `autopilot`, apps/api/autopilot.py): the uploaded `ids` and the files under `paths`, read, kept, written, translated, the deck's figures drawn, typeset, and copied to the Desktop; with a posting, its job, the cover letter and ten interview scripts. A posting alone tailors the facts already kept. `again` makes one edition's PDFs once more; `job` makes the documents of a job already added. While a run goes, a new one waits for it (`queued: true`), and several that wait are merged (their files together, the newer posting). Answers the files found, those skipped and an estimate of calls and minutes. The finished run's `result` names the editions it made (`langs`), the files on the Desktop and `stopped` |
+| `/api/v1/autopilot` | `{ids, paths, posting, url, theme, max_pages}` or `{again: job}` | `max_pages` is 1 to 7. One run from files to finished documents (task `autopilot`, apps/api/services/agent/autopilot.py): the uploaded `ids` and the files under `paths`, read, kept, written, translated, the deck's figures drawn, typeset, and copied to the Desktop; with a posting, its job, the cover letter and ten interview scripts. A posting alone tailors the facts already kept. `again` makes one edition's PDFs once more; `job` makes the documents of a job already added. While a run goes, a new one waits for it (`queued: true`), and several that wait are merged (their files together, the newer posting). Answers the files found, those skipped and an estimate of calls and minutes. The finished run's `result` names the editions it made (`langs`), the files on the Desktop and `stopped` |
 | `/api/v1/style` | `{name, pack}` | A person's own style pack, checked, kept in the workspace's `style/` folder and chosen. Answers `{style}` |
 | `/api/v1/style/rule` | `{list, row, lang}` | One correction kept as a row of the claims of the pack in use: `list` is `retired`, `shared` or `proposal`, `row` is `[pattern, text, why]` and optionally the ledger words, `lang` is `ko`, `en` or `both`. While Offerowl's own pack is in use the row goes into the person's pack `rules`, made from it and chosen. The whole pack is checked as a new one is (refused with `style`, or `rule` for a row of another shape); one undo step. Answers `{style, list, lang, rows}` |
 | `/api/v1/blind` | `{table}` or `{table: null}` | Replaces the blind edition's table with your own, kept as the workspace's `blind.json`, or takes it away (the shipped table applies again); one undo step. A table must be an object of at most 200,000 characters whose `mask`, `mask_whole` and `leak` hold at most 500 patterns of at most 300 characters, each compiling alike in Python and JavaScript and none matching empty text, with colours of six hex digits and short words for the band, the label and the contacts to unlink. Refused with `blind_table`, or `blind_pattern:<list>:<n>` for the first pattern that cannot be used. Answers `{blind}`, the summary |
@@ -379,10 +437,10 @@ sizes, times, tokens and error codes, never text. `calls`, `median` (seconds, p5
 | `/api/v1/jobs/remove` | `{job}` | Takes the job off the board, or a named edition off the editions, with the day (undoable; the Trash lists it) |
 | `/api/v1/removed/restore` | `{id}` | Puts one thing from the Trash back where it was, in one undo step (the photo has none): a file of the profile with its facts as they were decided, or unread (`read_again: true`) when they cannot come back whole. The photo put back sends a photo added since to the Trash in its place. Refused with `removed` when it is not in the Trash |
 | `/api/v1/removed/delete` | `{id}` or `{all: true}` | Deletes for good one thing in the Trash, or every row (an aside only by its own id): its files and records, the facts read from it, and its copies in the undo steps, which are rewritten so none can bring it back. Documents and drafts already made from a file's facts and the details it filled in, Desktop copies, backups and the command bar's history stay. Refused with `busy` while a task runs (for a file of the profile or a job), `removed` for anything not in the Trash, `delete_failed` when a file stayed (held open). Answers `{deleted, steps}` |
-| `/api/v1/ask` | `{text}` | The command bar: the person's words to the agent, which acts through Offerowl's own tools (task `ask`, apps/api/ask.py). Refused with `no_panel` from a process with no server of its own |
+| `/api/v1/ask` | `{text}` | The command bar: the person's words to the agent, which acts through Offerowl's own tools (task `ask`, apps/api/services/agent/ask.py). Refused with `no_panel` from a process with no server of its own |
 | `/api/v1/ask/clear` | `{}` | Empties the command bar's history. Refused with `busy` while an ask runs. Answers `{cleared}` |
 | `/api/v1/jobs/own` | `{job, profile, langs, name, form}` | A resume the person already wrote for this job (or a named edition), brought in whole as its own edition: `profile` in the profile format, `langs` its languages, `form` its layout choices per language (`blind: true` among them makes it a blind edition until the switch says otherwise). A second one replaces the first; the files brought in for the job (`own-file`) stay. One undo step. Returns `{facts}` |
-| `/api/v1/jobs/own/copy` | `{job, from, replace}` | This job's (or named edition's) own edition started from another edition's words (`apps/api/editions.py`): the source's facts, the edits and locks made in them, its layout choices and its languages, copied as they are now, the profile and its evidence built again with the person's details as they are now, and `from` recorded in its `own.json`. One undo step, which brings back what it replaced too. Refused with `job` (no such job, or the general edition), `from` (no such edition to start from, or one in the Trash), `locked`, `same_edition`, `no_edition` (the source has no words of its own: it prints the profile, or files brought in) and `own_exists` (the job has words of its own and `replace` is not `true`). The files brought in for the job are never copied or touched. Returns `{job, from, langs, replaced, files}`, `files` the job's own files that still stand for their documents (`resume_ko`, `cover_en`) |
+| `/api/v1/jobs/own/copy` | `{job, from, replace}` | This job's (or named edition's) own edition started from another edition's words (`apps/api/services/documents/editions.py`): the source's facts, the edits and locks made in them, its layout choices and its languages, copied as they are now, the profile and its evidence built again with the person's details as they are now, and `from` recorded in its `own.json`. One undo step, which brings back what it replaced too. Refused with `job` (no such job, or the general edition), `from` (no such edition to start from, or one in the Trash), `locked`, `same_edition`, `no_edition` (the source has no words of its own: it prints the profile, or files brought in) and `own_exists` (the job has words of its own and `replace` is not `true`). The files brought in for the job are never copied or touched. Returns `{job, from, langs, replaced, files}`, `files` the job's own files that still stand for their documents (`resume_ko`, `cover_en`) |
 | `/api/v1/editions` | `{name}` | A named general edition: no posting, never on the board, listed in the state's `editions`. Returns `{job}`, its id, which the other job routes take |
 | `/api/v1/jobs/own-file?job=&lang=&kind=` | the file as the raw body, sent like a material | A document the person made for this edition: `kind` is `resume` or `cover` (PDF or Word) or `deck` (PDF). Making the PDFs uses it in place of the typeset one |
 | `/api/v1/jobs/sent-file?job=&lang=&kind=` | the file as the raw body, sent like a material | A file that went out with this application (PDF, Word or slides), kept byte for byte as its submitted copy; the job counts as submitted |

@@ -53,7 +53,7 @@ def main(argv: list | None = None) -> int:
             print(f"offerowl api: {port_words(a.port, exc)}. Serve it on another port: offerowl api serve --port <number>.", file=sys.stderr, flush=True)
             return 2  # the start failed
         ApiHandler.bind(c.router, srv.server_address[1])  # the table and the port
-        c.api.port = srv.server_address[1]  # the command bar's agent reaches this API through it, never another one's port (apps/api/ask.py)
+        c.api.port = srv.server_address[1]  # the command bar's agent reaches this API through it, never another one's port (apps/api/services/agent/ask.py)
         print(f"http://127.0.0.1:{srv.server_address[1]}/api/v1/health", flush=True)  # where it answers
         try:
             srv.serve_forever()  # until Ctrl+C

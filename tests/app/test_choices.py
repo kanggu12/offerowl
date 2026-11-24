@@ -16,10 +16,11 @@ from unittest import mock  # stand-ins for the CLIs and the steps of the letter
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
 sys.path.insert(0, str(ROOT / "src"))  # so is cover.py
-from apps.api import agent as agentmod  # noqa: E402  the sign-in states
+from apps.api.services import applications, documents, profile  # noqa: E402  the services whose actions the tests call
+from apps.api.services.agent import agent as agentmod  # noqa: E402  the sign-in states
 from apps.api import app as appmod  # noqa: E402  the settings
-from apps.api import postings  # noqa: E402  the link fetch
-from apps.api.workspace import read_json, write_json  # noqa: E402  the files of a job
+from apps.api.services.applications import postings  # noqa: E402  the link fetch
+from apps.api.core.workspace import read_json, write_json  # noqa: E402  the files of a job
 import cover as covermod  # noqa: E402  the letter's steps
 
 LOCAL = {"backend": "openai-compat", "llm_url": "http://127.0.0.1:9", "llm_model": "small"}  # a local model named when starting
@@ -104,7 +105,7 @@ class MoveTests(unittest.TestCase):
     write waits for the reader instead of failing its task (a reading of the example stopped with "Access is denied")."""
 
     def test_on_windows_a_move_refused_for_a_moment_is_tried_again(self):
-        from apps.api import workspace as W  # where every state file is written
+        from apps.api.core import workspace as W  # where every state file is written
         with tempfile.TemporaryDirectory() as d:
             target, real, tries = pathlib.Path(d) / "state.json", os.replace, []
 
@@ -119,7 +120,7 @@ class MoveTests(unittest.TestCase):
             self.assertEqual(3, len(tries))  # after two refusals
 
     def test_elsewhere_a_refusal_stands_at_once(self):
-        from apps.api import workspace as W
+        from apps.api.core import workspace as W
         with tempfile.TemporaryDirectory() as d:
             tries = []
 
@@ -141,23 +142,23 @@ class StateOrderTests(Base):
         import draft  # src/draft.py: the agent's analysis
         a = self.make()
         os.environ["OFFEROWL_PANEL_AGENT"] = "standin"  # the agent answers: the stand-in
-        a.add_example("ko")  # the fictional person
+        profile.add_example(a, "ko")  # the fictional person
         for _ in range(400):  # read
             if (a.tasks.state().get("ingest") or {}).get("state") not in (None, "running"):
                 break
             time.sleep(0.05)
-        a.keep_all()  # its facts kept
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
+        profile.keep_all(a)  # its facts kept
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
         key = f"analyze:{jid}"  # the analysis' task
         self.assertTrue(a.tasks.analyze(jid, agent=False))  # first by words, as adding a job does
         for _ in range(400):
             if a.tasks.state()[key]["state"] == "done":
                 break
             time.sleep(0.05)
-        read, real_jobs, real_jd = threading.Event(), a.jobs_view, draft.task_jd
+        read, real_jobs, real_jd = threading.Event(), applications.jobs_view, draft.task_jd
 
-        def jobs_then_the_end():  # the plans as they are, and then the agent's analysis ends before the rest is read
-            out = real_jobs()
+        def jobs_then_the_end(api):  # the plans as they are, and then the agent's analysis ends before the rest is read
+            out = real_jobs(api)
             read.set()  # the analysis may answer now
             for _ in range(500):  # and it ends
                 if a.tasks.state()[key]["state"] == "done":
@@ -168,7 +169,7 @@ class StateOrderTests(Base):
         def jd_after_the_read(prof, posting):  # the agent answers once the plans were read
             read.wait(10)
             return real_jd(prof, posting)
-        with mock.patch.object(a, "jobs_view", jobs_then_the_end), mock.patch.object(draft, "task_jd", jd_after_the_read):
+        with mock.patch.object(applications, "jobs_view", jobs_then_the_end), mock.patch.object(draft, "task_jd", jd_after_the_read):  # the jobs as the state reads them
             self.assertTrue(a.tasks.analyze(jid))  # the agent's turn
             st = a.state()  # read while it ends
         seen = (st["tasks"][key]["state"], next(j for j in st["jobs"] if j["id"] == jid)["plan"]["by"])
@@ -524,8 +525,8 @@ class KitDeckTests(Base):
 
     def test_the_map_has_the_deck_pages(self):
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
+        profile.add_example(a, "ko")  # the fictional person
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
         none = a.tasks.ensure_kit(jid, "ko")  # no PDFs yet
         self.assertEqual([], [r for r in none if r["kind"] == "portfolio"])  # no pages to ask about
         deck = a.tasks.build_dir(jid, "ko") / "deck.pdf"  # the edition's deck
@@ -544,11 +545,11 @@ class DraftedScenesTests(Base):
     """A question a draft answers says so on the board, and the drafts are counted as scenes, not files."""
 
     def test_the_board_marks_what_a_draft_answers(self):
-        from apps.api import studio  # the board
+        from apps.api.services.interview import studio  # the board
         from interview.job import Job  # the kit's folders
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
+        profile.add_example(a, "ko")  # the fictional person
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
         rows = a.tasks.ensure_kit(jid, "ko")  # the map, no model
         before = studio.board(a.tasks, jid)["counts"]  # before any draft
         open_q = [r["id"] for r in rows if r.get("coverage") == "none"][:2]  # two questions no scene answers
@@ -563,10 +564,10 @@ class DraftedScenesTests(Base):
         self.assertEqual(before["uncovered"] - 2, b["counts"]["uncovered"])  # and no longer counted as without a script
 
     def test_a_job_without_a_kit_never_asks_the_kits_port(self):
-        from apps.api import studio  # the board
+        from apps.api.services.interview import studio  # the board
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job, no kit made
+        profile.add_example(a, "ko")  # the fictional person
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job, no kit made
         with mock.patch.object(studio, "health") as health, mock.patch.object(a.tasks, "kit_url") as start:  # the looks at a kit's server
             b = studio.board(a.tasks, jid)  # the board of a job with no kit
         self.assertFalse(b["ready"])  # the page offers to make one
@@ -580,26 +581,26 @@ class OwnEditionTests(Base):
 
     def test_a_job_prints_the_resume_brought_in_for_it(self):
         import json  # the edition, as a file would give it
-        from apps.api import documents  # the canvas's model
+        from apps.api.services.documents import documents as canvas  # the canvas's model
         from apps.api.routes import Router  # the table the page and the tools call
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person, as the profile
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
+        profile.add_example(a, "ko")  # the fictional person, as the profile
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
         own = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the same person's resume
         own["summary"]["headline"] = "감마의 배포 플랫폼에 맞춘 머리 문장"  # written for this job
         own["roles"][0]["projects"][0]["summary"] = "감마 지원판에만 있는 문장이다."  # and an item rewritten for it
         status, body, _ = Router(a).handle("POST", "/api/v1/jobs/own", None, {"job": jid, "profile": own, "langs": ["ko"], "name": "감마판"})
         self.assertEqual(200, status, body)  # brought in
         words = lambda m: " ".join(s["text"] for s in m["sentences"].values())  # every sentence of a model
-        mine, general = documents.resume(a.tasks, "ko", "navy", jid), documents.resume(a.tasks, "ko", "navy", None)
+        mine, general = canvas.resume(a.tasks, "ko", "navy", jid), canvas.resume(a.tasks, "ko", "navy", None)
         self.assertIn("감마의 배포 플랫폼에 맞춘 머리 문장", words(mine))  # the job's own headline
         self.assertIn("감마 지원판에만 있는 문장이다", words(mine))  # and its own item
         self.assertNotIn("감마 지원판에만 있는 문장이다", words(general))  # the general edition is the profile's
         self.assertNotIn("감마의 배포 플랫폼에 맞춘 머리 문장", words(general))
         self.assertIn("결제 백엔드와 사내 배포 플랫폼을 설계하고 운영", words(general))  # the profile's own headline: the general edition is not empty
         self.assertEqual(0, mine["counts"].get("unsupported", 0))  # the person's own words are their own evidence: nothing blocks the export
-        self.assertEqual(["ko"], next(j for j in a.jobs_view() if j["id"] == jid)["own"])  # the page knows
-        self.assertEqual(["needs_translation"], documents.resume(a.tasks, "en", "navy", jid)["missing"])  # no English brought in
+        self.assertEqual(["ko"], next(j for j in applications.jobs_view(a) if j["id"] == jid)["own"])  # the page knows
+        self.assertEqual(["needs_translation"], canvas.resume(a.tasks, "en", "navy", jid)["missing"])  # no English brought in
         self.assertEqual(a.facts.details().get("email"), a.tasks.facts_for(jid).details().get("email"))  # the person is the same
         self.assertEqual(a.facts.details()["_src"]["email"], a.tasks.facts_for(jid).details()["_src"]["email"])  # and where it came from
 
@@ -609,8 +610,8 @@ class OwnEditionTests(Base):
         import json  # the edition, as a file would give it
         from apps.api.routes import Router  # the table the page and the tools call
         a = self.make()
-        a.add_example("ko")  # the profile: the fictional person
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
+        profile.add_example(a, "ko")  # the profile: the fictional person
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
         own = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the same person's resume for the job
         status, body, _ = Router(a).handle("POST", "/api/v1/jobs/own", None, {"job": jid, "profile": own, "langs": ["ko"], "name": "감마판"})
         self.assertEqual(200, status, body)
@@ -636,8 +637,8 @@ class OwnFormTests(Base):
         import json  # the edition, as a file would give it
         from apps.api.routes import Router  # the table the page and the tools call
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person, as the profile
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
+        profile.add_example(a, "ko")  # the fictional person, as the profile
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
         (a.ws.job_dir(jid) / "plan.json").write_text(json.dumps({"projectOrder": ["x-1"], "skillsFocus": ["Languages"]}), encoding="utf-8")  # a posting analysis
         own = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the same person's resume
         form = {"ko": {"plain": True, "footerLabel": "경력기술서", "competencyFigure": False, "photo": False, "titleView": "full", "script": "x"}}
@@ -651,15 +652,15 @@ class OwnFormTests(Base):
         self.assertNotIn("projectOrder", cfg)  # the posting's order is not the person's
         self.assertNotIn("script", a.tasks.own_form(jid, "ko"))  # only what the form reads
         self.assertIs(False, a.tasks.own_form(jid, "ko")["photo"])  # made without a photo
-        other = a.add_job({"company": "델타", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job drafted from the profile
+        other = applications.add_job(a, {"company": "델타", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job drafted from the profile
         (a.ws.job_dir(other) / "plan.json").write_text(json.dumps({"projectOrder": ["x-1"]}), encoding="utf-8")
         self.assertEqual(["x-1"], a.tasks.edition_cfg(other, "ko", "navy")["projectOrder"])  # it takes the posting's order
         self.assertEqual("own_lang", a.tasks.own_src(jid, "en"))  # no English brought in
         stamp = a.tasks.own_stamp(jid)  # what the own edition is now
         self.assertTrue(stamp)  # it has one
-        self.assertFalse(a.stale(jid, {"profile": "an older profile", "own": stamp}))  # the profile changing does not make it stale
-        self.assertTrue(a.stale(jid, {"profile": a.profile_hash(), "own": "an older own edition"}))  # its own edition changing does
-        self.assertFalse(a.stale(jid, {"profile": "an older profile"}))  # a build from before the stamp counts as current
+        self.assertFalse(documents.stale(a, jid, {"profile": "an older profile", "own": stamp}))  # the profile changing does not make it stale
+        self.assertTrue(documents.stale(a, jid, {"profile": a.facts.profile_hash(), "own": "an older own edition"}))  # its own edition changing does
+        self.assertFalse(documents.stale(a, jid, {"profile": "an older profile"}))  # a build from before the stamp counts as current
         self.assertEqual("", a.tasks.own_stamp(other))  # a job drafted from the profile has none
 
 
@@ -689,13 +690,13 @@ class NamedEditionTests(Base):
         import json  # the edition, as a file would give it
         from apps.api.routes import Router  # the table the page and the tools call
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person
+        profile.add_example(a, "ko")  # the fictional person
         r = Router(a)  # the routes
         status, body, _ = r.handle("POST", "/api/v1/editions", None, {"name": "헤드헌터용 플랫폼 엔지니어"})
         self.assertEqual(200, status, body)  # made
         eid = body["job"]  # its id
         self.assertTrue(eid.startswith("-"))  # apart from any company's folder
-        self.assertEqual([], a.jobs_view())  # not on the board
+        self.assertEqual([], applications.jobs_view(a))  # not on the board
         st = a.state()  # what the page draws
         self.assertEqual(["헤드헌터용 플랫폼 엔지니어"], [e["name"] for e in st["editions"]])  # in its own list
         self.assertEqual(200, r.handle("POST", "/api/v1/jobs/select", None, {"job": eid})[0])  # picked in Documents
@@ -718,9 +719,9 @@ class OwnFileTests(Base):
         """The Word file's staged copy and the PDF LibreOffice wrote go once the edition has its own (stood in for here)."""
         import resume  # src/resume.py: the conversion
         a = self.make()
-        a.add_example("ko")
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
-        a.own_file(jid, "ko", "resume", "새판.docx", b"PK\x03\x04 a fictional zip")  # the person's Word file
+        profile.add_example(a, "ko")
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})
+        documents.keep_own_file(a, jid, "ko", "resume", "새판.docx", b"PK\x03\x04 a fictional zip")  # the person's Word file
         out_dir = a.tasks.build_dir(jid, "ko")
         out_dir.mkdir(parents=True, exist_ok=True)
         left = []  # what the conversion put in the engine's folder
@@ -739,21 +740,21 @@ class OwnFileTests(Base):
     def test_own_files_and_sent_copies(self):
         import hashlib  # byte for byte
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
-        got = a.own_file(jid, "ko", "resume", "감마_이력서.pdf", self.PDF)  # the person's own resume
+        profile.add_example(a, "ko")  # the fictional person
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
+        got = documents.keep_own_file(a, jid, "ko", "resume", "감마_이력서.pdf", self.PDF)  # the person's own resume
         self.assertEqual("resume_ko.pdf", got["file"])  # one per kind and language
         self.assertEqual(a.tasks.own_file(jid, "resume", "ko").read_bytes(), self.PDF)  # kept as it came
-        a.own_file(jid, "ko", "resume", "새판.docx", b"PK\x03\x04 a fictional zip")  # a Word file replaces it
+        documents.keep_own_file(a, jid, "ko", "resume", "새판.docx", b"PK\x03\x04 a fictional zip")  # a Word file replaces it
         self.assertEqual(".docx", a.tasks.own_file(jid, "resume", "ko").suffix)  # one per kind and language
         with self.assertRaises(ValueError):  # a portfolio is a PDF
-            a.own_file(jid, "ko", "deck", "deck.docx", b"PK\x03\x04")
+            documents.keep_own_file(a, jid, "ko", "deck", "deck.docx", b"PK\x03\x04")
         with self.assertRaises(ValueError):  # bytes that are not what the name says
-            a.own_file(jid, "ko", "cover", "letter.pdf", b"not a pdf")
+            documents.keep_own_file(a, jid, "ko", "cover", "letter.pdf", b"not a pdf")
         with self.assertRaises(ValueError):  # three kinds only
-            a.own_file(jid, "ko", "photo", "x.pdf", self.PDF)
-        sent = a.sent_file(jid, "ko", "resume", "감마_낸판.pdf", self.PDF)  # what went out
-        a.sent_file(jid, "ko", "deck", "감마_포트폴리오.pdf", self.PDF + b" ")  # with its portfolio
+            documents.keep_own_file(a, jid, "ko", "photo", "x.pdf", self.PDF)
+        sent = documents.keep_sent_file(a, jid, "ko", "resume", "감마_낸판.pdf", self.PDF)  # what went out
+        documents.keep_sent_file(a, jid, "ko", "deck", "감마_포트폴리오.pdf", self.PDF + b" ")  # with its portfolio
         st = a.ws.job(jid)  # the card
         self.assertEqual("submitted", st["stage"])  # sent: it moved on
         self.assertTrue(st["locked"]["brought"])  # kept as brought in
@@ -779,7 +780,7 @@ class AgentCallsTests(unittest.TestCase):
     def test_only_the_cards_agent_counts(self):
         import json  # the log's lines
         import llm  # src/llm.py: the log's place
-        from apps.api.agent import calls_summary  # the card's figures
+        from apps.api.services.agent import calls_summary  # the card's figures
         old = llm.LOG  # put back at the end
         tmp = pathlib.Path(tempfile.mkdtemp())  # a log of its own
         try:
@@ -800,12 +801,12 @@ class SameProfileTests(Base):
 
     def test_the_same_content_is_the_same_profile(self):
         import json  # the files
-        from apps.api.tasks import content_hash  # the content's hash
+        from apps.api.core.stamps import content_hash  # the content's hash
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person
+        profile.add_example(a, "ko")  # the fictional person
         src = a.ws.path("profile", "profile.json")  # the profile
         if not src.is_file():  # written when the facts are kept
-            a.keep_all()
+            profile.keep_all(a)
         self.settle()  # the example's own writes are over before the test writes the file (a late one made the content differ)
         data = json.loads(src.read_text(encoding="utf-8"))  # its content
         a.tasks.profile_lang = lambda: "ko"  # a Korean profile, whatever the example's share of Hangul
@@ -814,11 +815,11 @@ class SameProfileTests(Base):
         recorded = content_hash(src)  # what an edition records
         src.write_text(json.dumps(data, ensure_ascii=False, indent=4, sort_keys=True), encoding="utf-8")  # the same content, spaced otherwise
         self.assertEqual(en, a.tasks.english_profile())  # still its translation
-        self.assertTrue(a.same_profile(recorded))  # and the edition is current
+        self.assertTrue(a.facts.same_profile(recorded))  # and the edition is current
         data["summary"]["headline"] = "다른 머리 문장"  # a real change
         src.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         self.assertIsNone(a.tasks.english_profile())  # asks to translate again
-        self.assertFalse(a.same_profile(recorded))  # and the edition is stale
+        self.assertFalse(a.facts.same_profile(recorded))  # and the edition is stale
 
 
 class PlanFitTests(unittest.TestCase):
@@ -848,7 +849,7 @@ class EnglishAnswerTests(unittest.TestCase):
     """An English answer is not held word by word against Korean facts: only its numbers and organisations are."""
 
     def test_plain_english_words_pass_and_numbers_still_count(self):
-        from apps.api import answers as A  # the checks
+        from apps.api.services.applications import answers as A  # the checks
         q = {"text": "Why do you want to join us?", "limit": 200, "unit": "words"}  # an English question
         facts = {"f1": "감마 · 플랫폼 개발: 결제 백엔드를 설계하고 운영했다"}  # a Korean fact
         ok = A.problems(q, "I designed and ran a payment backend, and I would like to build the same care into your platform.", [], facts, {})
@@ -857,7 +858,7 @@ class EnglishAnswerTests(unittest.TestCase):
         self.assertTrue([x for x in bad if x.startswith("unsupported")])  # a number the facts do not hold still stops it
 
     def test_the_postings_names_are_the_companys(self):
-        from apps.api import answers as A  # the checks
+        from apps.api.services.applications import answers as A  # the checks
         q = {"text": "왜 지원했나요?", "limit": 300, "unit": "chars"}  # a Korean question
         facts = {"f1": "감마 · 플랫폼 개발: 결제 백엔드를 설계하고 운영했다"}  # a Korean fact
         answer = "결제 백엔드를 운영한 경험으로 델타의 Nimbus 플랫폼을 함께 만들고 싶습니다."  # the company's product, named
@@ -868,7 +869,7 @@ class EnglishAnswerTests(unittest.TestCase):
         self.assertTrue([x for x in A.problems(q, said, [], facts, {}, posting) if x.startswith("unsupported")])  # numbers are the person's facts only
 
     def test_markdown_marks_are_said(self):
-        from apps.api import answers as A  # the checks
+        from apps.api.services.applications import answers as A  # the checks
         q = {"text": "Tell us about a project.", "limit": 60, "unit": "words"}
         facts = {"f1": "감마 · 플랫폼 개발: 결제 백엔드를 설계하고 운영했다"}
         self.assertIn("markup", A.problems(q, "**Payment backend**\n\nI designed and ran a payment backend for the team.", [], facts, {}))   # bold marks a form shows as they are
@@ -883,8 +884,8 @@ class GeneralInViewTests(Base):
     def test_the_general_edition_stays_in_view(self):
         from apps.api.routes import Router  # the table the page calls
         a = self.make()  # the PC
-        a.add_example("ko")  # the fictional person
-        jid = a.add_job({"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
+        profile.add_example(a, "ko")  # the fictional person
+        jid = applications.add_job(a, {"company": "감마", "posting": (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")})  # a job
         self.assertEqual(jid, a.state()["job"])  # a new job comes into view
         status, _, _ = Router(a).handle("POST", "/api/v1/jobs/select", None, {"job": appmod.GENERAL})  # the general edition picked, as the bar's choice sends it
         self.assertEqual(200, status)  # taken
@@ -1063,7 +1064,7 @@ class DesktopDataFolderTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("offerowl_desktop_app_mac", ROOT / "apps" / "desktop" / "app.py")  # the app's module, not started
         app = importlib.util.module_from_spec(spec)  # its namespace
         spec.loader.exec_module(app)  # loaded
-        from apps.api import delivery as tasksmod  # the Desktop and the file manager of the server (apps/api/delivery.py)
+        from apps.api.services.documents import delivery as tasksmod  # the Desktop and the file manager of the server (apps/api/services/documents/delivery.py)
         env = {k: v for k, v in os.environ.items() if k not in ("OFFEROWL_DATA_DIR", "OFFEROWL_DESKTOP")}  # the usual places, not a test's
         mac = pathlib.Path.home() / "Library" / "Application Support" / "Offerowl"  # where Mac apps keep their data
         with mock.patch.object(sys, "platform", "darwin"), mock.patch.dict(os.environ, env, clear=True), \

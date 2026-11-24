@@ -61,7 +61,7 @@ PRACTICE_POST = ("/api/practice/start", "/api/practice/answer", "/api/practice/f
 def view_data(job, items, alts, lang=None, model=False):
     """What a view of the kit reads: every item with its script, the phrasings, the kit's settings the view uses, the
     synonym groups and the view's words in a language (the run's own when none is named). The search page gets it
-    inlined; the panel's own view asks the panel for it (apps/api/task_kit.py kit_view)."""
+    inlined; the panel's own view asks the panel for it (apps/api/services/interview/task_kit.py kit_view)."""
     kit = job.kit  # the job's settings
     return {"items": [{k: it[k] for k in PAGE_FIELDS} for it in items],  # trimmed items
             "alts": alts,  # phrasings feed the keyword index too

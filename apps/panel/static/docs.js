@@ -732,7 +732,7 @@ function polishBand(b) {                                                        
     h("ul", { class: "checklist" }, items.slice(0, 5).map((x) => h("li", { text: checkWords(x) }))),
     items.length > 5 ? moreRow(t("{n} more", { n: items.length - 5 })) : null);
 }
-// The pages an edition changed since the copy that last went out (its baseline: apps/api/task_compare.py), above the pages:
+// The pages an edition changed since the copy that last went out (its baseline: apps/api/services/documents/task_compare.py), above the pages:
 // which pages of which document, the picture of the changed bands on a click, and the key that keeps these pages as the baseline
 const CHANGED_ONE = { resume: "Resume: page {pages}", deck: "Portfolio deck: slide {pages}", cover: "Cover letter: page {pages}" };   // one page changed
 const CHANGED_PAGES = { resume: "Resume: pages {pages}", deck: "Portfolio deck: slides {pages}", cover: "Cover letter: pages {pages}" };   // several, as many pages as before
@@ -914,7 +914,7 @@ function blindBand(b) {                                                         
 // ---------------------------------------------------------------- an edition started from another one's words (0.10.0)
 // A new application starts from the sentences the person last wrote (a named edition they keep for it) or from an earlier
 // application's: its own edition takes that edition's words as they are now, to be rewritten for its posting on the page.
-// The same list and copy as `offerowl edition` (apps/api/editions.py): GET /api/v1/editions, POST /api/v1/jobs/own/copy.
+// The same list and copy as `offerowl edition` (apps/api/services/documents/editions.py): GET /api/v1/editions, POST /api/v1/jobs/own/copy.
 function startKey() {                                                               // the key, for a job or a named edition that is not submitted, when there is an edition to start from
   const ed = job() || named();                                                      // the general edition is the profile itself: nothing to start
   if (!ed || ed.locked) return null;                                                // a submitted application keeps what went out

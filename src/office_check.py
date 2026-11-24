@@ -4,7 +4,7 @@
 Word lays out a DOCX by itself, and the same file can take more pages in Word than in the PDF that LibreOffice or the
 browser printed from it: a resume whose PDF had six pages took seven in Word. So before a Word copy goes to the Desktop
 the export asks Word how many pages it has, and before a PowerPoint copy goes, PowerPoint how many slides; a count that
-differs from the PDF's keeps that one file home (apps/api/tasks.py, Tasks.export).
+differs from the PDF's keeps that one file home (apps/api/services/documents/task_export.py, Tasks.export).
 
 Office is reached on Windows, and from WSL through Windows' own PowerShell. On macOS, Linux and in a container
 available() is False and nothing is asked; OFFEROWL_OFFICE=0 never asks either.

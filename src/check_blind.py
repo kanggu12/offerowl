@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""A blind edition's own checks, beside the export's check that nothing covered shows (apps/api/task_export.py):
+"""A blind edition's own checks, beside the export's check that nothing covered shows (apps/api/services/documents/task_export.py):
 
   layout  the bars move nothing. A blind edition is typeset as its ordinary twin is, so every word the bars leave stands
           where it stands in the twin, on as many pages. A bar of the wrong width, or one that broke over two lines, moves

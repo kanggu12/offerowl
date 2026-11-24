@@ -16,7 +16,7 @@ from datetime import date  # "until now"
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
 sys.path.insert(0, str(ROOT / "tests" / "app"))  # the shared test case
-from apps.api import insights as I  # noqa: E402  the numbers
+from apps.api.services.insights import insights as I  # noqa: E402  the numbers
 from test_panel import POSTING, PanelCase, q  # noqa: E402  one server and workspace per class, on the fictional example
 
 

@@ -121,6 +121,9 @@ defects, not bad design.
 - **The checks keep their word.** Do not loosen a fact check, a layout check or a test to make a result pass. If a check is wrong, say why and
   change it in its own commit.
 - **Comments say why.** Most lines of code have a short comment saying why the line is there. Read a file nearby and match it.
+- **A service keeps to its own.** In `apps/api/services/`, a new endpoint or file goes to the service that owns its data, and a
+  service calls another only through that one's package, never its modules or its files
+  ([The services](docs/ARCHITECTURE.md#the-services)). `tests/app/test_architecture.py` fails otherwise.
 - **Both languages.** Words people see exist in English and Korean ([add a language](#add-a-language) shows where). `tests/cli/test_messages.py`
   fails on a missing one.
 - **No path, key or command on the panel.** A person who never opens a terminal must be able to use it. The audit counts these as defects.
@@ -179,7 +182,7 @@ the form of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
    department line under each company band, which otherwise take the dark accent `acc`: name them when that accent is black
    (`fhighlights` and `fsub` in `src/layout.js`), with `subHead` (the small headings and the header's field names: `tcap`,
    `fquote`, `fheader`) and `stageRail` (the about-me stage rail and the quote bar: `fband`, `fquote`).
-2. Offer it on the panel and to agents: `inspTheme` in `apps/panel/static/side.js` (its name in `i18n/ko.js` too), `THEMES` in `apps/api/tasks.py` and in `apps/mcp/server.py`, and the `theme` lists in `core/schema/documents/edition.schema.json` and `resume.schema.json`.
+2. Offer it on the panel and to agents: `inspTheme` in `apps/panel/static/side.js` (its name in `i18n/ko.js` too), `THEMES` in `apps/api/services/documents/task_build.py` and in `apps/mcp/server.py`, and the `theme` lists in `core/schema/documents/edition.schema.json` and `resume.schema.json`.
 3. Build it: `OFFEROWL_THEME=<name> ./offerowl build examples/sample_full_en.json examples/job_full_en.json`, and look at both documents.
    Add it to the colour sets `tests/deck/run.py` builds, which hold the deck to every measure in it.
 
@@ -189,7 +192,7 @@ The resume stays in one accent colour with dark grey text, so it prints well.
 
 A form is a list of parts in print order: `FORMS` in `src/resume_form.js`. A new form reuses the parts there, and any new part draws with `src/layout.js`.
 
-1. Add it to `FORMS`, and name it in `FORMS` of `apps/api/tasks.py`, in `FORM_PARTS` of `apps/api/documents.py`, in `inspTheme` of `apps/panel/static/side.js` and in the `form` list of `core/schema/documents/edition.schema.json`.
+1. Add it to `FORMS`, and name it in `FORMS` of `apps/api/services/documents/task_build.py`, in `FORM_PARTS` of `apps/api/services/documents/documents.py`, in `inspTheme` of `apps/panel/static/side.js` and in the `form` list of `core/schema/documents/edition.schema.json`.
 2. Add it to the loop in `tests/parts/run.py`, which builds it in both languages with the document check. Every project the resume prints must appear.
 3. Build it and look at it: set `"form"` in a job file, then `./offerowl build examples/sample_full_en.json <job file>`.
 
@@ -221,7 +224,7 @@ Everything goes through `src/llm.py`:
    sign-in raises `LLMUnavailable`, which is not asked again.
 2. Add the words for `--list` in both languages to the tables at the top.
 3. Add a stand-in test to `tests/cli/test_settings.py` that records the arguments and answers with fixed JSON.
-4. If the panel should find it by itself, add it to `apps/api/agent.py`.
+4. If the panel should find it by itself, add it to `apps/api/services/agent/agent.py`.
 
 Drafting code does not change: prompts and schemas are the same for every backend.
 
@@ -229,7 +232,7 @@ Drafting code does not change: prompts and schemas are the same for every backen
 
 1. **The panel.** Copy `apps/panel/static/i18n/ko.js` to `<lang>.js`. It is a table from the English words to yours. Add the language to `SUPPORTED` in
    `apps/panel/static/i18n.js` and load the file in `index.html`.
-   Add it to the language buttons in `apps/panel/static/app.js`, to `set_settings` in `apps/api/app.py`, and to `LANGS` in `apps/api/tasks.py`.
+   Add it to the language buttons in `apps/panel/static/app.js`, to `set_settings` in `apps/api/app.py`, and to `LANGS` in `apps/api/services/documents/task_build.py`.
 2. **Messages.** Every `MSG` table (`git grep -l "MSG = "` lists them), and `LANGS` in `src/llm.py`.
 3. **Documents.** Section names and date forms are in `src/resume_form.js` and `src/profile_loader.js`. Fonts for the script go in `fonts/`.
 4. **Interview kit.** `src/interview/i18n.py`.

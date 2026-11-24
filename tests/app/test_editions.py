@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""An application's own edition started from another edition's words (apps/api/editions.py): the list of editions to start
+"""An application's own edition started from another edition's words (apps/api/services/documents/editions.py): the list of editions to start
 from, the copy as one undo step that a build prints at once, each refusal, and the command-line twin `offerowl edition`.
 Also the two undo rules the rewriting depends on: an edit of an own edition's words is a step of the workspace's one history
 (the panel's undo took back the change before it), and bringing an edition in is one step that keeps the files brought in.
@@ -23,10 +23,11 @@ sys.path.insert(0, str(ROOT))  # apps/ is found from here
 sys.path.insert(0, str(ROOT / "src"))  # and the engine's modules
 from test_blind import Builds  # noqa: E402  the fictional person, with the typesetting stood in for
 from test_choices import Base  # noqa: E402  one data folder per test, nothing real called
-from apps.api import documents  # noqa: E402  the canvas's model
-from apps.api import editions  # noqa: E402  the module under test
+from apps.api.services import applications, documents, profile  # noqa: E402  the services whose actions the tests call
+from apps.api.services.documents import documents as canvas  # noqa: E402  the canvas's model
+from apps.api.services.documents import editions  # noqa: E402  the module under test
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
-from apps.api.workspace import read_json, today  # noqa: E402  the files of an edition, the day
+from apps.api.core.workspace import read_json, today  # noqa: E402  the files of an edition, the day
 
 POSTING = (ROOT / "examples" / "cover" / "posting_ko.md").read_text(encoding="utf-8")  # a fictional posting
 SAMPLE = json.loads((ROOT / "examples" / "sample_ko.json").read_text(encoding="utf-8"))  # the fictional person's resume
@@ -42,7 +43,7 @@ def edition(headline: str) -> dict:
 
 def words(a, job) -> str:
     """Every sentence of a resume's canvas model, as one text."""
-    return " ".join(s["text"] for s in documents.resume(a.tasks, "ko", "navy", job)["sentences"].values())
+    return " ".join(s["text"] for s in canvas.resume(a.tasks, "ko", "navy", job)["sentences"].values())
 
 
 class Editions(Base):
@@ -51,7 +52,7 @@ class Editions(Base):
 
     def world(self):
         a = self.make()  # the PC, nothing real called
-        a.add_example("ko")  # the fictional person, read as a profile file
+        profile.add_example(a, "ko")  # the fictional person, read as a profile file
         for _ in range(200):  # its reading runs in a thread of its own
             if a.tasks.state().get("ingest", {}).get("state") != "running":
                 break
@@ -61,10 +62,10 @@ class Editions(Base):
         status, body, _ = r.handle("POST", "/api/v1/jobs/own", None, {"job": self.latest, "profile": edition("플랫폼 직무판의 머리 문장"), "langs": ["ko"],
                                                                   "name": "latest", "form": {"ko": {"photo": False, "footerLabel": "경력기술서"}}})
         self.assertEqual(200, status, body)  # its words
-        self.delta = a.add_job({"company": "델타", "posting": POSTING}, select=False)  # an earlier application, with words of its own
+        self.delta = applications.add_job(a, {"company": "델타", "posting": POSTING}, select=False)  # an earlier application, with words of its own
         status, body, _ = r.handle("POST", "/api/v1/jobs/own", None, {"job": self.delta, "profile": edition("델타에 맞춘 머리 문장"), "langs": ["ko"], "name": "delta"})
         self.assertEqual(200, status, body)
-        self.gamma = a.add_job({"company": "감마", "posting": POSTING}, select=False)  # the new application: the general resume for now
+        self.gamma = applications.add_job(a, {"company": "감마", "posting": POSTING}, select=False)  # the new application: the general resume for now
         return a, r
 
     def copy(self, r, job, src, **more):
@@ -77,12 +78,12 @@ class CopyTests(Editions):
 
     def test_a_job_starts_from_a_named_editions_words(self):
         a, r = self.world()
-        model = documents.resume(a.tasks, "ko", "navy", self.latest)  # the named edition's sentences
+        model = canvas.resume(a.tasks, "ko", "navy", self.latest)  # the named edition's sentences
         sid = next(k for k in model["sentences"] if k.startswith("roles.0.projects.0.summary"))  # one to rewrite
         held = next(k for k in model["sentences"] if k.startswith("roles.1.projects.0.summary"))  # one to lock
-        documents.edit_sentence(a.tasks, sid, "주문 상태 변경을 이벤트로 내보냈다.", "ko", self.latest)  # rewritten in the named edition
-        documents.lock_sentence(a.tasks, held, True, "ko", self.latest)  # and one kept as it is
-        a.details({"fields": {"email": "gildong.new@example.com"}})  # the person's email changed after that edition came in
+        canvas.edit_sentence(a.tasks, sid, "주문 상태 변경을 이벤트로 내보냈다.", "ko", self.latest)  # rewritten in the named edition
+        canvas.lock_sentence(a.tasks, held, True, "ko", self.latest)  # and one kept as it is
+        profile.details(a, {"fields": {"email": "gildong.new@example.com"}})  # the person's email changed after that edition came in
         self.assertNotIn("gildong.new@example.com", json.dumps(a.tasks.facts_for(self.latest).profile(), ensure_ascii=False))  # its built profile is older
         status, body, _ = self.copy(r, self.gamma, self.latest)
         self.assertEqual(200, status, body)  # started
@@ -90,7 +91,7 @@ class CopyTests(Editions):
                          {k: body[k] for k in ("job", "from", "langs", "replaced", "files")})  # what the answer says
         self.assertTrue(body.get("step"))  # one undo step, named
         self.assertIn("플랫폼 직무판의 머리 문장", words(a, self.gamma))  # the named edition's own headline
-        mine = documents.resume(a.tasks, "ko", "navy", self.gamma)["sentences"]  # the job's sentences now
+        mine = canvas.resume(a.tasks, "ko", "navy", self.gamma)["sentences"]  # the job's sentences now
         self.assertEqual("주문 상태 변경을 이벤트로 내보냈다.", mine[sid]["text"])  # with the rewriting made there
         self.assertTrue(mine[held].get("locked"))  # and the lock
         self.assertEqual({"photo": False, "footerLabel": "경력기술서"}, a.tasks.own_form(self.gamma, "ko"))  # its layout choices
@@ -153,7 +154,7 @@ class CopyTests(Editions):
 
     def test_the_files_brought_in_for_the_job_stay(self):
         a, r = self.world()
-        a.own_file(self.gamma, "ko", "resume", "감마_이력서.pdf", PDF)  # a resume the person made as a file for it
+        documents.keep_own_file(a, self.gamma, "ko", "resume", "감마_이력서.pdf", PDF)  # a resume the person made as a file for it
         status, body, _ = self.copy(r, self.gamma, self.latest)
         self.assertEqual(200, status, body)
         self.assertEqual(["resume_ko"], body["files"])  # named: it still stands for the typeset resume
@@ -164,13 +165,13 @@ class CopyTests(Editions):
 
     def test_each_refusal(self):
         a, r = self.world()
-        plain = a.add_job({"company": "엡실론", "posting": POSTING}, select=False)  # an application with no words of its own
-        files_only = a.add_job({"company": "제타", "posting": POSTING}, select=False)  # one with a file brought in, and no words
-        a.own_file(files_only, "ko", "resume", "제타.pdf", PDF)
-        trashed = a.add_job({"company": "에타", "posting": POSTING}, select=False)  # one with words, in the Trash
+        plain = applications.add_job(a, {"company": "엡실론", "posting": POSTING}, select=False)  # an application with no words of its own
+        files_only = applications.add_job(a, {"company": "제타", "posting": POSTING}, select=False)  # one with a file brought in, and no words
+        documents.keep_own_file(a, files_only, "ko", "resume", "제타.pdf", PDF)
+        trashed = applications.add_job(a, {"company": "에타", "posting": POSTING}, select=False)  # one with words, in the Trash
         r.handle("POST", "/api/v1/jobs/own", None, {"job": trashed, "profile": edition("에타의 머리 문장"), "langs": ["ko"], "name": "eta"})
-        a.board({"job": trashed, "removed": True})
-        locked = a.add_job({"company": "세타", "posting": POSTING}, select=False)  # one that was submitted
+        applications.board(a, {"job": trashed, "removed": True})
+        locked = applications.add_job(a, {"company": "세타", "posting": POSTING}, select=False)  # one that was submitted
         st = a.ws.job(locked)
         st["locked"] = {"at": today(), "folder": "20261110-120000", "files": {}, "lang": "ko"}  # as the lock records it
         a.ws.save_job(st)
@@ -192,7 +193,7 @@ class CopyTests(Editions):
 
     def test_the_list_puts_named_editions_first_and_leaves_the_job_out(self):
         a, r = self.world()
-        a.own_file(a.add_job({"company": "제타", "posting": POSTING}, select=False), "ko", "resume", "제타.pdf", PDF)  # a file and no words: not listed
+        documents.keep_own_file(a, applications.add_job(a, {"company": "제타", "posting": POSTING}, select=False), "ko", "resume", "제타.pdf", PDF)  # a file and no words: not listed
         status, body, _ = r.handle("GET", "/api/v1/editions", {"job": self.delta})
         self.assertEqual(200, status, body)
         self.assertEqual([self.latest], [e["job"] for e in body["editions"]])  # the named edition; the job asked about left out
@@ -215,7 +216,7 @@ class BuildTests(Builds):
         src = r.handle("POST", "/api/v1/editions", None, {"name": "플랫폼 직무 기본판"})[1]["job"]
         r.handle("POST", "/api/v1/jobs/own", None, {"job": src, "profile": edition("플랫폼 직무판의 머리 문장"), "langs": ["ko"], "name": "latest",
                                                    "form": {"ko": {"footerLabel": "경력기술서"}}})  # with a layout choice of its own
-        jid = a.add_job({"company": "Deltasoft", "posting": POSTING}, select=False)  # a fictional application
+        jid = applications.add_job(a, {"company": "Deltasoft", "posting": POSTING}, select=False)  # a fictional application
         a.tasks._build(jid, "ko", "navy", 3, False, False)  # made before: the general resume
         self.assertNotIn("플랫폼 직무판의 머리 문장", json.dumps(read_json(a.tasks.build_dir(jid, "ko") / "profile.json", {}), ensure_ascii=False))
         status, body, _ = r.handle("POST", "/api/v1/jobs/own/copy", None, {"job": jid, "from": src})
@@ -235,8 +236,8 @@ class OwnUndoTests(Editions):
 
     def test_an_edit_of_an_own_editions_words_is_the_step_undo_takes_back(self):
         a, r = self.world()
-        sid = next(k for k in documents.resume(a.tasks, "ko", "navy", self.delta)["sentences"] if k.startswith("roles.0.projects.0.summary"))
-        was = documents.resume(a.tasks, "ko", "navy", self.delta)["sentences"][sid]["text"]  # its words as brought in
+        sid = next(k for k in canvas.resume(a.tasks, "ko", "navy", self.delta)["sentences"] if k.startswith("roles.0.projects.0.summary"))
+        was = canvas.resume(a.tasks, "ko", "navy", self.delta)["sentences"][sid]["text"]  # its words as brought in
         status, body, _ = r.handle("POST", "/api/v1/sentences/edit", None, {"sid": sid, "text": "주문 상태 변경을 이벤트로 내보냈다.", "lang": "ko", "job": self.delta})
         self.assertEqual(200, status, body)
         self.assertTrue(body.get("step"))  # the answer names its step: a note's Undo takes back this one
@@ -244,16 +245,16 @@ class OwnUndoTests(Editions):
         self.assertEqual([], list((a.ws.job_dir(self.delta) / "own" / ".history").glob("*.json")))  # none in the edition's own folder
         status, undone, _ = r.handle("POST", "/api/v1/undo", None, {"only": body["step"]})
         self.assertEqual("undo_sentence", undone["undone"]["code"])  # that edit, not the change before it
-        self.assertEqual(was, documents.resume(a.tasks, "ko", "navy", self.delta)["sentences"][sid]["text"])  # its words back
+        self.assertEqual(was, canvas.resume(a.tasks, "ko", "navy", self.delta)["sentences"][sid]["text"])  # its words back
         self.assertIn(self.gamma, [j["id"] for j in a.state()["jobs"]])  # the job added before is still there
         status, body, _ = r.handle("POST", "/api/v1/sentences/lock", None, {"sid": sid, "locked": True, "lang": "ko", "job": self.delta})
         self.assertEqual("undo_lock_sentence", a.ws.newest()[1]["code"])  # a lock is a step of the same history
         r.handle("POST", "/api/v1/undo", None, {"only": body["step"]})
-        self.assertFalse(documents.resume(a.tasks, "ko", "navy", self.delta)["sentences"][sid].get("locked"))  # unlocked again
+        self.assertFalse(canvas.resume(a.tasks, "ko", "navy", self.delta)["sentences"][sid].get("locked"))  # unlocked again
 
     def test_bringing_an_edition_in_is_one_step_and_keeps_the_files(self):
         a, r = self.world()
-        a.own_file(self.gamma, "ko", "cover", "감마_자기소개서.pdf", PDF)  # a letter the person made for it
+        documents.keep_own_file(a, self.gamma, "ko", "cover", "감마_자기소개서.pdf", PDF)  # a letter the person made for it
         status, first, _ = r.handle("POST", "/api/v1/jobs/own", None, {"job": self.gamma, "profile": edition("감마 첫 판"), "langs": ["ko"], "name": "first"})
         self.assertEqual(200, status, first)
         self.assertEqual("undo_own_edition", a.ws.newest()[1]["code"])  # one step

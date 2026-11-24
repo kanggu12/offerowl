@@ -48,12 +48,12 @@ def loaded(profile: pathlib.Path, lang: str = "ko") -> dict:
 
 @unittest.skipIf(not shutil.which("node"), "Node.js is not installed")
 class ModelPrintsWhatThePdfPrints(unittest.TestCase):
-    """The canvas's model (apps/api/evidence.py) gives each part the words, dates and lines the PDF prints them with. It is
+    """The canvas's model (apps/api/services/profile/evidence.py) gives each part the words, dates and lines the PDF prints them with. It is
     built in Python from the profile, so each field that the loader reads its own way is checked against the loader."""
 
     @classmethod
     def setUpClass(cls):
-        from apps.api import evidence as E  # the canvas's model
+        from apps.api.services.profile import evidence as E  # the canvas's model
         prof = json.loads(FULL.read_text(encoding="utf-8"))  # the fictional person as written
         cls.m = E.Resume(prof, "ko", "navy", evmap={}, cands=[], base=None, edits={}, locks={}, details={}).build()  # the model the canvas draws
         cls.p = loaded(FULL)  # what the PDF is printed from

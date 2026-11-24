@@ -17,7 +17,7 @@ from unittest import mock  # the CLI's run
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
 sys.path.insert(0, str(ROOT / "src"))  # so is llm.py
-from apps.api import agent as agentmod  # noqa: E402  the card
+from apps.api.services.agent import agent as agentmod  # noqa: E402  the card
 import llm  # noqa: E402  the call log
 
 
@@ -25,7 +25,7 @@ class NoLoginTests(unittest.TestCase):
     """The card reads what the CLIs say about themselves, and nothing of their logins."""
 
     def test_the_card_never_reads_a_login_file_or_a_token(self):
-        src = (ROOT / "apps" / "api" / "agent.py").read_text(encoding="utf-8")  # the card's code
+        src = (ROOT / "apps" / "api" / "services" / "agent" / "agent.py").read_text(encoding="utf-8")  # the card's code
         for word in (".credentials.json", "accessToken", "oauth/usage", "claudeAiOauth", "auth.json"):  # what reading a login would take
             self.assertNotIn(word, src, word)
         self.assertFalse(hasattr(agentmod, "read_plan_usage"))  # no reader of the plan's meters

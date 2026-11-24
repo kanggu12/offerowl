@@ -1,4 +1,4 @@
-"""One run from files or folders to finished documents (apps/api/autopilot.py), with the stand-in as the agent and the
+"""One run from files or folders to finished documents (apps/api/services/agent/autopilot.py), with the stand-in as the agent and the
 typesetting replaced by a quick stand-in, so the order of the steps and what each one leaves are what is tested."""
 import base64  # the test's small pictures
 import json  # the stand-in's PDFs
@@ -14,7 +14,8 @@ from unittest import mock  # the typesetting stand-in
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
-from apps.api import autopilot as AP  # noqa: E402  the run
+from apps.api.services import applications, interview, profile  # noqa: E402  the services whose actions the tests call
+from apps.api.services.agent import autopilot as AP  # noqa: E402  the run
 from apps.api.client import Client  # noqa: E402  the API in this process
 sys.path.insert(0, str(ROOT / "src"))  # the engine's modules
 sys.path.insert(0, str(ROOT / "tests" / "render"))  # the small PDF writer
@@ -88,7 +89,7 @@ class Collect(unittest.TestCase):
         return b.getvalue()
 
     def test_a_linkedin_export_gives_the_career_files_and_never_other_peoples(self):
-        from apps.api.workspace import Workspace
+        from apps.api.core.workspace import Workspace
         ws = Workspace(self.tmp / "ws")
         data = self.zipped({"Profile.csv": "First Name,Headline\nGildong,Backend engineer\n", "Positions.csv": "Company Name,Title\nAlpha Pay,Engineer\n",
                             "Connections.csv": "First Name,Email Address\nMinsu,minsu@example.com\n", "messages.csv": "FROM,CONTENT\nx,hi\n"})
@@ -100,7 +101,7 @@ class Collect(unittest.TestCase):
         f.write_bytes(self.zipped({"old/notes.md": "# notes", "old/app.exe": "MZ", "__MACOSX/._notes.md": "x", "old/.hidden.md": "x"}))
         files, _ = AP.collect([str(f)])
         self.assertEqual([f], files)  # taken as one file
-        from apps.api.workspace import Workspace
+        from apps.api.core.workspace import Workspace
         self.assertEqual(["old - notes.md"], [m["name"] for m in Workspace(self.tmp / "ws2").add_materials(f.name, f.read_bytes())])
 
     def test_a_whole_drive_is_capped_and_said(self):
@@ -188,7 +189,7 @@ class Run(unittest.TestCase):
             for f in ("resume.pdf", "deck.pdf") + (("cover.pdf",) if with_cover else ()):  # what the run would make
                 write_pdf(d / f, [[(72, 72, 12, "Gildong Hong")]])  # one page
                 pdfmeta.stamp(d / f, f"Gildong Hong {f}", "Gildong Hong")  # with its title and author, as the engine writes them
-            from apps.api.tasks import file_hash  # the bytes the checks passed, as the real build records them
+            from apps.api.core.stamps import file_hash  # the bytes the checks passed, as the real build records them
             (d / "build.json").write_text(json.dumps({"pages": 2, "hashes": {f.name: file_hash(f) for f in d.glob("*.pdf")}}), encoding="utf-8")
             self.c.api.tasks._set(f"build:{job_id}", state="done")  # as the real one ends
         self.patch = mock.patch.object(self.c.api.tasks, "_build", side_effect=build)  # no browser, no container
@@ -496,7 +497,7 @@ class Run(unittest.TestCase):
 
     def test_a_letter_that_failed_shows_no_tile(self):
         """The letter's picture from an earlier build stays in preview/, but its PDF is gone: no tile that leads nowhere."""
-        from apps.api import documents  # the editions in the state
+        from apps.api.services.documents import documents  # the editions in the state
         d = self.c.api.tasks.build_dir("-general", "ko")  # an edition
         (d / "preview").mkdir(parents=True)
         (d / "build.json").write_text("{}", encoding="utf-8")
@@ -578,7 +579,7 @@ class Deliver(unittest.TestCase):
             write_pdf(self.ed / f, [[(72, 72, 12, "Gildong Hong")]])
             pdfmeta.stamp(self.ed / f, f"홍길동 {f}", "홍길동")
         make_docx(self.ed / "resume.docx")  # a Word copy beside them, as the typesetting writes one
-        from apps.api.tasks import file_hash  # what the build records
+        from apps.api.core.stamps import file_hash  # what the build records
         self.record = {"at": "2026-11-19 10:00", "pages": 1, "issues": [], "hashes": {f: file_hash(self.ed / f) for f in ("resume.pdf", "deck.pdf")}}
         (self.ed / "build.json").write_text(json.dumps(self.record), encoding="utf-8")
 
@@ -598,7 +599,7 @@ class Deliver(unittest.TestCase):
         for f, word in (("resume.pdf", "Resume"), ("deck.pdf", "Portfolio")):  # titled as the engine titles them
             write_pdf(en / f, [[(72, 72, 12, "Gildong Hong")]])
             pdfmeta.stamp(en / f, f"Gildong Hong {word}", "Gildong Hong")
-        from apps.api.tasks import file_hash  # what the build records
+        from apps.api.core.stamps import file_hash  # what the build records
         (en / "build.json").write_text(json.dumps({"at": "2026-11-20 09:00", "pages": 1, "issues": [], "hashes": {f: file_hash(en / f) for f in ("resume.pdf", "deck.pdf")}}),
                                        encoding="utf-8")
         self.assertEqual(["Gildong_Hong_Resume_20261120.pdf", "Gildong_Hong_Portfolio_20261120.pdf"], self.c.api.tasks.export("-general", "en"))  # a foreign recruiter's view, on its build's day
@@ -650,7 +651,7 @@ class Deliver(unittest.TestCase):
     def test_a_pdf_still_named_by_the_build_is_made_again_before_anything_goes(self):
         write_pdf(self.ed / "deck.pdf", [[(72, 72, 12, "Gildong Hong")]])
         pdfmeta.stamp(self.ed / "deck.pdf", "owl_1a2b3c4d_ko_deck", "홍길동")  # the browser's file name as its title
-        rec = {**self.record, "hashes": {**self.record["hashes"], "deck.pdf": __import__("apps.api.tasks", fromlist=["file_hash"]).file_hash(self.ed / "deck.pdf")}}
+        rec = {**self.record, "hashes": {**self.record["hashes"], "deck.pdf": __import__("apps.api.core.stamps", fromlist=["file_hash"]).file_hash(self.ed / "deck.pdf")}}
         (self.ed / "build.json").write_text(json.dumps(rec), encoding="utf-8")
         with self.assertRaises(ValueError) as cm:
             self.c.api.tasks.export("-general", "ko")
@@ -712,10 +713,10 @@ class Deliver(unittest.TestCase):
     def test_a_photo_is_a_jpeg_or_a_png_and_goes_on_the_resume(self):
         api = self.c.api
         with self.assertRaises(ValueError):
-            api.set_photo(b"GIF89a not a photo")  # refused by what it is
+            profile.set_photo(api, b"GIF89a not a photo")  # refused by what it is
         with self.assertRaises(ValueError):
-            api.set_photo(JPEG[:30])  # a JPEG cut short
-        api.set_photo(JPEG)  # a JPEG
+            profile.set_photo(api, JPEG[:30])  # a JPEG cut short
+        profile.set_photo(api, JPEG)  # a JPEG
         st = self.c.get("/api/v1/state")["photo"]
         self.assertTrue(st and st["on"])  # kept, and on the resume
         self.assertEqual("photo.jpg", api.tasks.photo_for_build().name)  # the build passes it on
@@ -725,20 +726,20 @@ class Deliver(unittest.TestCase):
         self.assertIsNone(self.c.get("/api/v1/state")["photo"])  # gone
 
     def test_a_photo_keeps_its_picture_and_its_turn_but_not_what_the_phone_wrote(self):
-        from apps.api import photo  # the reader of the turn
+        from apps.api.services.profile import photo  # the reader of the turn
         head, rest = JPEG[:20], JPEG[20:]  # the start and JFIF, then the tables, the frame and the scan
         phone = (segment(0xE1, b"Exif\x00\x00" + camera_tiff(6))  # the maker, and stored on its side
                  + segment(0xE1, b"http://ns.adobe.com/xap/1.0/\x00<x:xmpmeta>GPSLatitude 37.5665</x:xmpmeta>")  # where
                  + segment(0xED, b"Photoshop 3.0\x00 by-line") + segment(0xFE, b"taken at home"))  # an editor's block, a comment
-        self.c.api.set_photo(head + phone + rest)
-        kept = self.c.api.photo_file().read_bytes()
+        profile.set_photo(self.c.api, head + phone + rest)
+        kept = profile.photo_file(self.c.api).read_bytes()
         for word in (b"PhoneCo", b"GPSLatitude", b"Photoshop", b"taken at home"):
             self.assertNotIn(word, kept)
         self.assertTrue(kept.startswith(head) and kept.endswith(rest))  # the picture itself, byte for byte
         self.assertEqual(6, photo.orientation(kept[kept.index(b"Exif\x00\x00") + 6:]))  # still turned, so it prints upright
         upright = PNG[:33] + png_chunk(b"tEXt", b"Author\x00Gildong") + png_chunk(b"tIME", b"\x07\xea\x0b\x06\x0c\x00\x00") + png_chunk(b"eXIf", camera_tiff(1)) + PNG[33:]
-        self.c.api.set_photo(upright)
-        self.assertEqual(PNG, self.c.api.photo_file().read_bytes())  # the PNG as drawn, with nothing of the rest
+        profile.set_photo(self.c.api, upright)
+        self.assertEqual(PNG, profile.photo_file(self.c.api).read_bytes())  # the PNG as drawn, with nothing of the rest
 
 
 class Questions(unittest.TestCase):
@@ -810,7 +811,7 @@ class Questions(unittest.TestCase):
     def test_ids_stay_with_their_questions_and_a_late_answer_lands_nowhere_else(self):
         self.c.post("/api/v1/jobs/questions", {"job": self.jid, "questions": [{"text": "A?", "limit": 100}, {"text": "지원 동기를 쓰세요.", "limit": 160}]})
         self.assertEqual(["q1", "q2"], [q["id"] for q in self.questions()])
-        from apps.api import answers as A  # the writer, held up for the first question
+        from apps.api.services.applications import answers as A  # the writer, held up for the first question
         real = A.write
 
         def write(q, *a, **kw):  # the person removes the question while its answer is written, and adds another
@@ -851,7 +852,7 @@ class Questions(unittest.TestCase):
         self.assertEqual(1, len(self.c.api.tasks.export_answers(self.jid)))
 
     def test_a_forms_questions_are_read_with_their_limits(self):
-        from apps.api.answers import parse_questions
+        from apps.api.services.applications.answers import parse_questions
         form = ("자기소개서 문항\n1. 지원 동기와 입사 후 포부를 기술해 주세요. (공백 포함 700자 이내)\n"
                 "2. 가장 어려웠던 기술적 문제와 해결 과정을 서술하십시오.\n최대 1,000자\n"
                 "3) 협업 경험을 말씀해 주세요 (500자)\nQ4. Why do you want to join us? (300 words)\n5. 성장 과정(가족, 학교)을 기술하세요 [1500byte]")
@@ -877,29 +878,29 @@ class Questions(unittest.TestCase):
 
     def test_a_saved_form_page_or_text_file_brings_its_questions(self):
         page = "<html><body><h2>자기소개서</h2><p>1. 지원 동기를 기술해 주세요. (700자 이내)</p><p>2. 본인의 강점을 설명해 주세요. (최대 1,000자)</p><script>var x=1</script></body></html>"
-        self.assertEqual(2, self.c.api.questions_from_file(self.jid, "form.html", page.encode("utf-8")))
-        self.assertEqual(1, self.c.api.questions_from_file(self.jid, "q.txt", "Q3. Why us? (250 words)".encode("utf-8")))
+        self.assertEqual(2, applications.questions_from_file(self.c.api, self.jid, "form.html", page.encode("utf-8")))
+        self.assertEqual(1, applications.questions_from_file(self.c.api, self.jid, "q.txt", "Q3. Why us? (250 words)".encode("utf-8")))
         self.assertEqual([700, 1000, 250], [q["limit"] for q in self.questions()])
         with self.assertRaises(ValueError):  # a kind with no reader
-            self.c.api.questions_from_file(self.jid, "form.xlsx", b"PK")
+            applications.questions_from_file(self.c.api, self.jid, "form.xlsx", b"PK")
 
     def test_a_limit_ocr_misread_is_mended_or_left_out(self):
-        from apps.api.answers import parse_questions
+        from apps.api.services.applications.answers import parse_questions
         got = parse_questions("1. 경험을 서술하십시오. (최대 ]000자)\n2. 강점을 설명해 주세요. (|,500자)\n3. 목표를 기술해 주세요. (000자)")
         self.assertEqual([1000, 1500, 500], [q["limit"] for q in got])  # a 1 read as ] or | is a 1; a number that lost its start is the usual limit
 
     def test_scenes_written_before_join_the_kit(self):
         kit = ROOT / "examples" / "interview" / "jobs" / "gamma-platform" / "interview"  # the fictional kit's scene files
         with self.assertRaises(ValueError):  # a file with no scene is refused
-            self.c.api.add_scenes(self.jid, "notes.md", "그냥 메모입니다.".encode("utf-8"))
-        got = self.c.api.add_scenes(self.jid, "qa.md", (kit / "qa.md").read_bytes())  # question scripts
+            interview.add_scenes(self.c.api, self.jid, "notes.md", "그냥 메모입니다.".encode("utf-8"))
+        got = interview.add_scenes(self.c.api, self.jid, "qa.md", (kit / "qa.md").read_bytes())  # question scripts
         self.assertGreater(got["scenes"], 0)
-        deep = self.c.api.add_scenes(self.jid, "deep.md", (kit / "deep.md").read_bytes())  # resume deep dives keep their role
+        deep = interview.add_scenes(self.c.api, self.jid, "deep.md", (kit / "deep.md").read_bytes())  # resume deep dives keep their role
         iv = self.c.api.ws.job_dir(self.jid) / "interview"
         roles = {s["file"]: s["role"] for s in json.loads((iv / "kit.json").read_text(encoding="utf-8"))["sources"] if s["file"] != "@stories"}
         self.assertEqual("deep", roles[deep["file"]])
         self.assertEqual("scenes", roles[got["file"]])
-        again = self.c.api.add_scenes(self.jid, "qa.md", (kit / "qa.md").read_bytes())  # the same name twice: never over the first
+        again = interview.add_scenes(self.c.api, self.jid, "qa.md", (kit / "qa.md").read_bytes())  # the same name twice: never over the first
         self.assertNotEqual(got["file"], again["file"])
 
     def test_a_run_for_the_job_answers_its_questions(self):
@@ -923,7 +924,7 @@ class Ledger(unittest.TestCase):
         {"title": "직접 고른 것", "resume": True, "body_md": "- 링크 https://example.com/c"}]}
 
     def test_rules_take_out_rows_and_characters_and_a_list_of_links(self):
-        from apps.api.tasks import ledger_for_resume
+        from apps.api.services.documents.task_build import ledger_for_resume
         got = {s["title"]: s for s in ledger_for_resume(self.PROFILE, self.STYLE)["sections"]}
         self.assertNotIn("정보처리기능사", got["자격증"]["body_md"])  # the row, and the note that named it
         self.assertNotIn("<!--", got["자격증"]["body_md"])
@@ -933,8 +934,8 @@ class Ledger(unittest.TestCase):
         self.assertNotIn("resume", {k for k in got["직접 고른 것"] if got["직접 고른 것"]["resume"] is not True})  # the person's own mark stays
 
     def test_an_edition_over_its_limit_keeps_each_lists_first_part(self):
-        from apps.api.tasks import ledger_for_resume
-        from apps.api.tasks import ledger_parts
+        from apps.api.services.documents.task_build import ledger_for_resume
+        from apps.api.services.documents.task_build import ledger_parts
         self.assertEqual(2, ledger_parts(self.PROFILE))  # the papers have two parts
         got = {s["title"]: s for s in ledger_for_resume(self.PROFILE, self.STYLE, compact=1)["sections"]}
         self.assertIn("| A | 2021 |", got["논문"]["body_md"])
@@ -970,7 +971,7 @@ class OwnResumeText(unittest.TestCase):
         c.post("/api/v1/facts/keep-all", {})
         before = json.dumps(c.api.tasks.facts.profile().get("competencies"), ensure_ascii=False)
         got = c.api.tasks._write("-general", "ko")  # as a run calls it
-        from apps.api import drafts as D
+        from apps.api.services.documents import drafts as D
         draft, _ = D.load(c.api.tasks, "-general")
         self.assertEqual(before, json.dumps((draft or c.api.tasks.facts.profile()).get("competencies"), ensure_ascii=False))  # the person's words, not new ones
         self.assertIn(got["state"], ("done", "needs_agent"))
@@ -1026,10 +1027,10 @@ class WindowsOcr(unittest.TestCase):
 
 
 class WslDesktop(unittest.TestCase):
-    """Under WSL the PDFs go to the Windows Desktop the person sees, and "Open" asks Windows' Explorer (apps/api/delivery.py)."""
+    """Under WSL the PDFs go to the Windows Desktop the person sees, and "Open" asks Windows' Explorer (apps/api/services/documents/delivery.py)."""
 
     def setUp(self):
-        from apps.api import delivery  # the functions under test, where they live (tasks.py names them too)
+        from apps.api.services.documents import delivery  # the functions under test, where they live
         self.T = delivery
         self.T.WSL_DESKTOP.clear()  # no answer kept from another test
         self.addCleanup(self.T.WSL_DESKTOP.clear)

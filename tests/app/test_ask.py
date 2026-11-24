@@ -1,4 +1,4 @@
-"""The command bar (apps/api/ask.py): the route keeps every ask with its answer; with no agent that can act through
+"""The command bar (apps/api/services/agent/ask.py): the route keeps every ask with its answer; with no agent that can act through
 tools it says so plainly; empty words are refused; Claude Code's stream is read for its answer and the tools it ran.
 No real model is called.
 
@@ -13,7 +13,7 @@ import unittest  # the runner
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests" / "app"))
-from apps.api import ask as A  # noqa: E402
+from apps.api.services.agent import ask as A  # noqa: E402
 from test_panel import PanelCase  # noqa: E402
 
 

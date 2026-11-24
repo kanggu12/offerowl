@@ -79,7 +79,7 @@ python3 src/figure_draft.py propose ~/my-application/profile.json   # (optional)
 | `doctor [--json] [--only ...]` | Checks what Offerowl needs on this PC and says what to do about what is missing | nothing |
 
 `cover`, `interview`, `panel`, `edition`, `api`, `mcp`, `doctor`, `baseline`, `shrink` and `depth` are separate programs (`src/cover.py`, `src/interview/cli.py`,
-`apps/panel/server.py`, `apps/api/editions.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`, `src/baseline.py`, `src/pdf_shrink.py`, `apps/api/depth.py`), and `import` and `export` are `src/write_jsonresume.py`.
+`apps/panel/server.py`, `apps/api/services/documents/editions.py`, `apps/api/__main__.py`, `apps/mcp/__main__.py`, `src/doctor.py`, `src/baseline.py`, `src/pdf_shrink.py`, `apps/api/services/documents/depth.py`), and `import` and `export` are `src/write_jsonresume.py`.
 The launcher passes your arguments and the exit code through. When a file is missing it prints "not installed", names
 the file, and exits with code 3.
 

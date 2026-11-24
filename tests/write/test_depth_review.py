@@ -65,7 +65,7 @@ class Units(unittest.TestCase):
         self.assertEqual(["item:nara-1", "item:dasom-en1"], en)  # the English edition's own item, not the Korean one
 
     def test_sentences_are_cut_as_the_canvas_cuts_them(self):  # a rewrite names its sentence by its words: both cuts must agree
-        from apps.api import evidence  # the canvas's cut
+        from apps.api.services.profile import evidence  # the canvas's cut
         for text in ("가상은행 분석 플랫폼 이관 과제. 플랫폼을 이관. ==쿼리 지연 개선==", "Moved it. Cut ==latency. by half==. Version 3.5 shipped. Done!",
                      "한 문장", "", "A? B! C."):  # Korean bullets, a stop inside a highlight, a number, one sentence, nothing, every end mark
             self.assertEqual(evidence.sentences(text), D.sentences(text), text)

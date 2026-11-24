@@ -129,7 +129,7 @@ class TestProtocol(McpCase):
         self.assertEqual(1, len(self.call_ok("list_jobs")["jobs"]))  # and nothing was added
 
     def test_an_ask_fetches_only_the_links_the_person_wrote(self):
-        # the command bar's MCP server (apps/api/ask.py passes the person's links): any other link is refused before the
+        # the command bar's MCP server (apps/api/services/agent/ask.py passes the person's links): any other link is refused before the
         # panel is asked, so nothing the agent read can leave in a link's query
         ask = Server(Panel(self.url), links=["https://posting.example.invalid/job/1"])
         jobs = len(self.call_ok("list_jobs")["jobs"])

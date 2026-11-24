@@ -25,12 +25,13 @@ for p in (ROOT, ROOT / "src", ROOT / "tests" / "app", ROOT / "tests" / "render")
     sys.path.insert(0, str(p))
 from test_choices import Base  # noqa: E402  one data folder per test, nothing real called
 from test_pdftools import write_pdf  # noqa: E402  a small PDF with a text layer
+from apps.api.services import applications, documents  # noqa: E402  the services whose actions the tests call
 from apps.api import app as appmod  # noqa: E402  the settings' writer, slowed down below
-from apps.api import backup, library  # noqa: E402  the names under test
-from apps.api.facts import FACT_FILES, OwnFacts  # noqa: E402  the files of a fact change, an own edition's facts
+from apps.api.services.library import backup, library  # noqa: E402  the names under test
+from apps.api.services.profile import FACT_FILES, OwnFacts  # noqa: E402  the files of a fact change, an own edition's facts
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
-from apps.api.tasks import file_hash  # noqa: E402  what a build records
-from apps.api.workspace import Workspace, read_json, stored_name, write_json  # noqa: E402  the files and their names
+from apps.api.core.stamps import file_hash  # noqa: E402  what a build records
+from apps.api.core.workspace import Workspace, read_json, stored_name, write_json  # noqa: E402  the files and their names
 import pdfmeta  # noqa: E402  the title and the author a build stamps
 
 POSTING = (ROOT / "tests" / "app" / "fixtures" / "posting_ko.md").read_text(encoding="utf-8")  # a fictional posting
@@ -109,7 +110,7 @@ class Jobs(Base):
         start, ids = threading.Barrier(6), []  # six adds let go at once
         def add():
             start.wait()  # all together
-            ids.append(api.add_job({"company": "감마클라우드", "posting": POSTING}, select=False))  # the same company each time
+            ids.append(applications.add_job(api, {"company": "감마클라우드", "posting": POSTING}, select=False))  # the same company each time
         threads = [threading.Thread(target=add) for _ in range(6)]
         for t in threads:
             t.start()
@@ -197,13 +198,13 @@ class Jobs(Base):
 
     def test_an_own_edition_that_fails_to_come_in_keeps_the_one_before(self):
         api = self.make()
-        jid = api.add_job({"company": "감마클라우드", "posting": POSTING}, select=False)
+        jid = applications.add_job(api, {"company": "감마클라우드", "posting": POSTING}, select=False)
         self.wait(api, f"analyze:{jid}")
-        api.own_edition({"job": jid, "profile": SAMPLE, "langs": ["ko"], "name": "first"})  # the one that came in
+        documents.own_edition(api, {"job": jid, "profile": SAMPLE, "langs": ["ko"], "name": "first"})  # the one that came in
         before = (api.ws.job_dir(jid) / "own" / "own.json").read_text(encoding="utf-8")
         with mock.patch.object(OwnFacts, "import_profile", side_effect=RuntimeError("stopped")):  # the second stops half way
             with self.assertRaises(RuntimeError):
-                api.own_edition({"job": jid, "profile": SAMPLE, "langs": ["ko"], "name": "second"})
+                documents.own_edition(api, {"job": jid, "profile": SAMPLE, "langs": ["ko"], "name": "second"})
         self.assertEqual(before, (api.ws.job_dir(jid) / "own" / "own.json").read_text(encoding="utf-8"))  # the first stays
         self.assertEqual(["own"], sorted(p.name for p in api.ws.job_dir(jid).iterdir() if p.name.startswith("own")))  # nothing half made beside it
 
@@ -211,7 +212,7 @@ class Jobs(Base):
 class Lock(Base):
     def edition(self, api, issues):
         """A named edition as a build leaves it: a resume with its title and author, and the build's record."""
-        jid = api.add_edition({"name": "Platform roles"})  # an edition that can be locked
+        jid = documents.add_edition(api, {"name": "Platform roles"})  # an edition that can be locked
         ed = api.tasks.build_dir(jid, "ko")
         ed.mkdir(parents=True)
         write_pdf(ed / "resume.pdf", [[(72, 72, 12, "Gildong Hong")]])  # one page

@@ -359,7 +359,7 @@ function errorText(e) {                                                         
   if (/^unsupported:(\d+)/.test(what)) return tn(what.split(":")[1], "{n} sentence has no evidence. Fix it before exporting.", "{n} sentences have no evidence. Fix them before exporting.");
   if (/^blind_leak:(\d+)/.test(what)) return tn(what.split(":")[1], "{n} pattern of your table still shows in the blind edition, so nothing was exported. Add it to what the table covers and make the PDFs again.",   // a covered name in a PDF's text, title or link
     "{n} patterns of your table still show in the blind edition, so nothing was exported. Add them to what the table covers and make the PDFs again.");
-  if (/^parity:(\d+)$/.test(what)) return tn(what.split(":")[1], "This edition says {n} thing otherwise than the edition in the language your facts are written in, so nothing was exported. Make both editions' PDFs again to see where.",   // a translation held to its source (apps/api/task_compare.py)
+  if (/^parity:(\d+)$/.test(what)) return tn(what.split(":")[1], "This edition says {n} thing otherwise than the edition in the language your facts are written in, so nothing was exported. Make both editions' PDFs again to see where.",   // a translation held to its source (apps/api/services/documents/task_compare.py)
     "This edition says {n} things otherwise than the edition in the language your facts are written in, so nothing was exported. Make both editions' PDFs again to see where.");
   if (what === "parity_unchecked") return t("The two languages' editions could not be compared, so nothing was exported. Make the PDFs again.");   // a check that did not run is never taken for passed
   if (/^blind_pattern:\w+:\d+$/.test(what)) { const [, list, n] = what.split(":"); return t("Pattern {n} of {list} in that table cannot be used. Fix it and pick the file again.", { n, list }); }   // the first pattern Python or JavaScript would read otherwise
@@ -381,10 +381,10 @@ function errorText(e) {                                                         
     no_files: t("Add your old resume, portfolio or notes first: there is nothing yet to make the documents from."),
     too_many: t("This application holds as many as it can keep. Remove an old one first."),
     job: t("That application is not there any more. It may be in the Trash."),
-    // 0.10.0: an edition started from another one's words (apps/api/editions.py)
+    // 0.10.0: an edition started from another one's words (apps/api/services/documents/editions.py)
     from: t("The edition you picked is not there any more. It may be in the Trash."), no_edition: t("That edition has no words of its own to start from."),
     same_edition: t("An edition cannot start from itself."), own_exists: t("It got an edition of its own meanwhile. Start it again to see what would be replaced."),
-    // 0.11.0: the depth review's findings (apps/api/depth.py) and the rules kept from the person's corrections
+    // 0.11.0: the depth review's findings (apps/api/services/documents/depth.py) and the rules kept from the person's corrections
     depth_no_rewrite: t("That finding has no words to use, or they were used already."), depth_changed: t("The item was written again since the review. Review it again."),
     depth_unsupported: t("The item's evidence does not hold those words, so they were not used. Answer its question instead."),
     depth_finding: t("That finding is not in the review any more. Open the review again."), depth_none: t("This edition has no review yet."),

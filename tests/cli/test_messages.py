@@ -30,7 +30,7 @@ import ocr_selfcheck  # noqa: E402  its messages
 import pdf_shrink  # noqa: E402  its messages
 import resume  # noqa: E402  its messages
 import review  # noqa: E402  its messages
-from apps.api import editions  # noqa: E402  its messages (offerowl edition)
+from apps.api.services.documents import editions  # noqa: E402  its messages (offerowl edition)
 
 
 def load_launcher():
@@ -61,7 +61,7 @@ TABLES = {
     "pdf_shrink": (pdf_shrink.MSG, SRC / "pdf_shrink.py"),
     "review": (review.MSG, SRC / "review.py"),
     "launcher": (launcher.MSG, LAUNCHER),
-    "editions": (editions.MSG, ROOT / "apps" / "api" / "editions.py"),
+    "editions": (editions.MSG, ROOT / "apps" / "api" / "services" / "documents" / "editions.py"),
 }
 
 

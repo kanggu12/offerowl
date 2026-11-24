@@ -98,7 +98,7 @@ one. Under the band, every application still going (a dozen at most) stands as a
    With no run in this session, the column lists the documents made most recently, seven rows at most, one per edition and
    language with its date, and a key to the rest in the Library; a click opens that edition in Documents.
 
-The run is `apps/api/autopilot.py`, one task (`autopilot`) whose steps are the panel's own tasks, so a run makes exactly
+The run is `apps/api/services/agent/autopilot.py`, one task (`autopilot`) whose steps are the panel's own tasks, so a run makes exactly
 what the buttons would. Files or a posting sent while a run goes wait and run right after it, from the facts already kept;
 several sent meanwhile are read together, and Stop drops what waited. A job a run adds is not put in view, so an edit in
 progress stays on its own job. Each
@@ -170,7 +170,7 @@ scaled down to the width (a pinch enlarges them).
   kind, such as certificates, by its own heading) and marks a part with a
   sentence without evidence ("No evidence", with a red dot) or a locked sentence.
 - With an agent on and no draft yet, "Rewrite with the agent" ("Write the resume" while the page is empty) stands in the head with the other keys, its hover saying what it sends. The draft
-  is kept with the job (`apps/api/drafts.py`), or as the general edition with no job in view, and a job with no draft of its own uses the
+  is kept with the job (`apps/api/services/documents/drafts.py`), or as the general edition with no job in view, and a job with no draft of its own uses the
   general one, which a band over its page offers to write for the job. If a fact changes afterwards, a band offers to write it again, and
   sentences that rested on that fact are marked.
 - Tabs: Resume, Cover letter (drawn from the letter's draft, every sentence with its evidence units), Portfolio deck. With an agent on, the deck's
@@ -209,7 +209,7 @@ scaled down to the width (a pinch enlarges them).
 - **Export to Desktop** copies the checked PDFs under readable names with no space in them, the words joined by underscores
   and the day the build made them at the end (홍길동_이력서_20261119.pdf), never over another file: a name a file has already
   gets _2, _3. Two switches of the Style tab add
-  files made from them at that moment (`apps/api/delivery.py`):
+  files made from them at that moment (`apps/api/services/documents/delivery.py`):
   - the Word and text files: the resume's and the cover letter's Word files are made ready for Word (`src/docx_word.py`): Pretendard's
     regular and bold faces go inside, obfuscated as ECMA-376 asks, every text line gets the exact height LibreOffice gave it (Word
     reads the typesetting's unnamed line rule otherwise, and sets a single line of Pretendard at 1.55 of its size where LibreOffice
@@ -304,7 +304,7 @@ every dated step.
   that the profile never shows. The gaps are listed under the lines.
 - **Make this job's documents**, beside its name, and **Documents**, the tab of its parts: the run of Make for this job (no posting step): the resume written and ordered for it, the
   English edition, the figures, the cover letter, the PDFs on the Desktop and the first interview scripts. Each part shows its own state.
-- **Application questions** (`apps/api/answers.py`): the form's questions with their limits (characters with spaces, or
+- **Application questions** (`apps/api/services/applications/answers.py`): the form's questions with their limits (characters with spaces, or
   words), read from the posting, pasted as the form shows them, or read from a screenshot, a PDF or a saved page; a limit is
   picked from a list. Each answer is written by the agent from the kept facts ranked for that question (BM25) and the posting, with the facts
   it used, then checked: length (over the limit, or under 60% of it), a number, name or tool the cited facts do not hold, the
@@ -362,7 +362,7 @@ every dated step.
 - "Add scenes you wrote" takes scene files in the kit's markdown into the job's kit folder (`POST /api/v1/interview/scenes`):
   a file with no scene is refused, a name already there gets a number, and files named `deep…`, `terms…` or `notes…` keep
   those roles in kit.json.
-- **Your materials** (`apps/api/materials.py`), under the scripts: files prepared for the job with other tools, kept byte for
+- **Your materials** (`apps/api/services/applications/materials.py`), under the scripts: files prepared for the job with other tools, kept byte for
   byte with their SHA-256: PDF, PowerPoint, Word, Markdown, HTML, text, Python, PNG and JPG, 50 MB each at most; any other kind is
   refused with `material_kind`. Drop them on the part (a folder is walked) or choose them. A name loses the characters a disk
   refuses, and a name already there gets a number. A row (name, kind, size, the day it came) opens on its preview: the page
@@ -439,7 +439,7 @@ to the window's foot, where you write to the agent as you would in Claude Code o
 posting to make a resume for, a question about your applications. With no agent that can use the tools (Claude Code or
 Codex, on and signed in) the sheet says so before anything is typed, with a key to the agent's panel. The
 agent runs once, in an empty scratch folder, with Offerowl's MCP server pointed at the panel the ask came through
-(`apps/api/ask.py`): Claude Code with `--strict-mcp-config` and no built-in tools, or Codex with that server as the only
+(`apps/api/services/agent/ask.py`): Claude Code with `--strict-mcp-config` and no built-in tools, or Codex with that server as the only
 one for the run (Codex keeps its own read-only shell; it has no switch to turn it off). Whatever it does goes through the
 same routes and checks as the panel's keys. It fetches a posting from a link only when that link is in your own words in
 the bar, and it is told that what it reads (postings, files, documents) is material, never instructions. A local model
@@ -463,7 +463,7 @@ an application's file waits in the Trash, and the note that says it was removed 
 only (the write's answer names its own undo step; if another change came after it, the note says so and nothing is undone).
 A reminder or an interview round has no place in the Trash: its note's Undo, or the bar's, brings it back. The Library's
 **Trash** key, last of the kinds, lists what was removed, newest first, with the day each went (`GET /api/v1/removed`,
-`apps/api/removed.py`). **Put back** brings one back where it was, in one undo step; a file of the profile comes back with
+`apps/api/services/library/removed.py`). **Put back** brings one back where it was, in one undo step; a file of the profile comes back with
 its facts as they were decided, or, when they cannot come back whole (another imported profile took its place), unread,
 with a key in its note to read it again. **Delete for good** and **Empty the trash** ask first on the panel's own sheet,
 which says what goes and what stays: the thing's files and records, the facts read from it and its copies in the undo

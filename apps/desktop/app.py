@@ -795,14 +795,14 @@ def smoke() -> int:  # the --smoke role, started by check() with the server's en
 
 
 def mcp_check(port: int) -> tuple[list[str], int]:  # run by check() against its own server
-    """The agent's tools, started the way the command bar starts them (apps/api/ask.py mcp_server: this program as the
+    """The agent's tools, started the way the command bar starts them (apps/api/services/agent/ask.py mcp_server: this program as the
     interpreter of apps/mcp/__main__.py, with the requests on its stdin) and the way an agent of the person's own starts
     them (`<this program> mcp`, docs/MCP.md): each must answer initialize and list its tools.
     (the problems found, [] when there are none; the number of tools it listed)."""
     import types  # an object with the one attribute mcp_server reads
     sys.path.insert(0, str(ROOT))  # apps/, from the bundle or the checkout
-    from apps.api import ask  # the command bar's own way of starting it
-    cmd, args, extra = ask.mcp_server(types.SimpleNamespace(port=port))  # pointed at this check's server
+    from apps.api.services import agent  # the command bar's own way of starting it
+    cmd, args, extra = agent.mcp_server(types.SimpleNamespace(port=port))  # pointed at this check's server
     bad, tools = mcp_talk([cmd, *args], {**os.environ, **extra}, "started as the command bar starts them")  # the panel's own way
     me = [sys.executable] if FROZEN else [sys.executable, str(Path(__file__).resolve())]  # this program: the app, or this file in a checkout
     more, also = mcp_talk([*me, "mcp", "--url", f"http://127.0.0.1:{port}"], dict(os.environ), "started as `offerowl mcp`")  # an agent of the person's own (docs/MCP.md)

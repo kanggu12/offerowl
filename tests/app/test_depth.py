@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""The depth review in the panel's API (apps/api/depth.py): an edition reviewed, each finding answered (the answer becomes
+"""The depth review in the panel's API (apps/api/services/documents/depth.py): an edition reviewed, each finding answered (the answer becomes
 evidence of its project), used (the rewrite through the canvas's own sentence path) or left (kept left on the same words),
 the copy that went out compared, the review as the last stage of a draft, a review with no agent, the person's corrections
 kept as rules of their pack, and the command-line twin `offerowl depth`. Everything is the fictional example person
-(examples/sample_ko.json); the agent is the stand-in of apps/api/standin.py or a function, never a model.
+(examples/sample_ko.json); the agent is the stand-in of apps/api/services/agent/standin.py or a function, never a model.
 
 Run: python3 -m unittest tests/app/test_depth.py -v
 """
@@ -21,10 +21,10 @@ from unittest import mock  # the environment of one test
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
 sys.path.insert(0, str(ROOT / "src"))  # and the engine's modules
-from apps.api import depth as DEP  # noqa: E402  the module under test
-from apps.api import documents  # noqa: E402  the canvas's model
+from apps.api.services.documents import depth as DEP  # noqa: E402  the module under test
+from apps.api.services.documents import documents  # noqa: E402  the canvas's model
 from apps.api.client import Client  # noqa: E402  the API in this process
-from apps.api.workspace import read_json, write_json  # noqa: E402  files
+from apps.api.core.workspace import read_json, write_json  # noqa: E402  files
 
 GENERAL = "-general"  # the edition with no job
 

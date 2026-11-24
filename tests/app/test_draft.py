@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The resume drafted in the panel: written from the evidence, shown with what each sentence cites, edited, locked, written
-again, used for one job or for all, and typeset. The agent is the stand-in of apps/api/standin.py."""
+again, used for one job or for all, and typeset. The agent is the stand-in of apps/api/services/agent/standin.py."""
 import hashlib  # the stamp of a translated profile
 import json  # the stored files
 import os  # the stand-in's switch
@@ -14,6 +14,7 @@ from unittest import mock  # no PDF for the check's rule
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
 sys.path.insert(0, str(ROOT))  # apps/ is found from here
+from apps.api.services import profile  # noqa: E402  the services whose actions the tests call
 from apps.api.client import Client  # noqa: E402  the API in this process
 from core.schema import validate  # noqa: E402  the board's schema
 
@@ -25,7 +26,7 @@ class LedgerCards(unittest.TestCase):
     """A profile in the ledger form (another tool's export) shows its companies, titles, dates and evidence on the cards."""
 
     def test_the_career_block_and_the_evidence_text_fill_the_cards(self):
-        from apps.api import facts as F  # the import of a profile file
+        from apps.api.services.profile import facts as F  # the import of a profile file
         doc = json.loads((ROOT / "tests" / "write" / "fixtures" / "ledger_ko.json").read_text(encoding="utf-8"))  # a fictional ledger
         _, cands = F.import_profile(doc, "m1", "ledger_ko.json")
         role = next(c for c in cands if c["kind"] == "role")  # the first job held
@@ -36,7 +37,7 @@ class LedgerCards(unittest.TestCase):
         self.assertNotIn("- ", proj["statement"][:2])  # without the list's marks
 
     def test_ledger_text_drops_the_marks(self):
-        from apps.api import facts as F
+        from apps.api.services.profile import facts as F
         md = "## 맡은 일\n\n- 설계안을 만들었다\n| 항목 | 값 |\n|---|---|\n| 기간 | 6개월 |\n<!-- note -->\n> 인용"
         self.assertEqual("맡은 일 설계안을 만들었다 항목 · 값 기간 · 6개월", F.ledger_text(md))  # sentences and rows, no marks
 
@@ -46,7 +47,7 @@ class OwnEnglishLists(unittest.TestCase):
     sentence rests on its own row, and none is left without evidence (which stops the English edition's export)."""
 
     def test_a_translation_shares_the_rows_and_a_list_written_apart_does_not(self):
-        from apps.api.facts import own_english  # the rule
+        from apps.api.services.profile.facts import own_english  # the rule
         self.assertEqual([], own_english({"ko": [["가", "나"]], "en": [["A", "B"]]}))  # row for row: a translation
         self.assertEqual([0, 1], [i for i, _ in own_english({"ko": [["가", "나"]], "en": [["A", "B"], ["C", "D"]]})])  # written apart
         self.assertEqual([], own_english([["가", "나"]]))  # one list for both editions
@@ -115,10 +116,10 @@ class EditionItems(unittest.TestCase):
 
 
 class SlideParts(unittest.TestCase):
-    """A drafted project's slide (apps/api/drafts.py slide_parts) has words in every language its summary has."""
+    """A drafted project's slide (apps/api/services/documents/drafts.py slide_parts) has words in every language its summary has."""
 
     def test_a_language_that_does_not_split_keeps_its_summary_as_the_lede(self):
-        from apps.api.drafts import slide_parts  # the function under test
+        from apps.api.services.documents.drafts import slide_parts  # the function under test
         project = {"summary": {"ko": "결제 승인 경로를 나눴다. 승인만 따로 배포하게 했다. 배포가 9분으로 줄었다.",  # three parts in Korean
                                "en": "Split the authorization path out."}}  # one sentence left in English (the others failed a check)
         draft = {"evidence": [{"lang": "ko", "at": "project.p1.summary", "text": t, "part": k} for t, k in
@@ -202,8 +203,8 @@ class Draft(unittest.TestCase):
     def test_the_draft_a_job_draws_is_found_without_reading_it_again(self):
         # the state asks every job which draft it draws at every poll: decided from a check kept while the file is unchanged,
         # and a build still goes stale when the general draft is rewritten or the job gets its own
-        from apps.api import drafts as D  # the draft's owner
-        from apps.api.tasks import file_hash  # the stamp a build keeps
+        from apps.api.services.documents import drafts as D  # the draft's owner
+        from apps.api.core.stamps import file_hash  # the stamp a build keeps
         t = self.c.api.tasks
         jid = self.c.post("/api/v1/jobs", {"company": "감마클라우드", "role": "백엔드 플랫폼 엔지니어",
                                            "posting": "결제 승인 서비스와 Kubernetes 배포 플랫폼을 운영할 백엔드 엔지니어를 찾습니다."})["job"]
@@ -311,7 +312,7 @@ class Draft(unittest.TestCase):
         self.assertFalse(planted.exists())  # gone with the rest
 
     def test_words_that_look_like_a_path_stay_words_on_a_slide(self):
-        from apps.api.tasks import live_html  # the page for the frame
+        from apps.api.services.documents.task_build import live_html  # the page for the frame
         secret = self.tmp / "secret.png"  # a picture's name, outside where pictures come from
         secret.write_bytes(b"not for the page")  # its bytes
         spaced = self.tmp / "with space"  # a folder a person may have
@@ -333,7 +334,7 @@ class Draft(unittest.TestCase):
         from PIL import Image  # its pixels
         buf = io.BytesIO()
         Image.new("RGB", (30, 40), "#335577").save(buf, "PNG")  # a stand-in photo, no person in it
-        self.c.api.set_photo(buf.getvalue())  # on the resume
+        profile.set_photo(self.c.api, buf.getvalue())  # on the resume
         m = self.resume(GENERAL)  # the canvas
         self.assertTrue(m["person"]["photo"].startswith("/api/v1/photo?v="))  # in the name band
         figs = {b["key"]: b for b in m["blocks"] if b["type"] == "figure"}  # the figures, by name
@@ -358,7 +359,7 @@ class Draft(unittest.TestCase):
     def test_a_role_that_prints_nowhere_is_not_on_the_canvas(self):
         # a ledger's note of a company that has neither a name nor a career block: src/profile_loader.js leaves it out of the
         # PDF, and the canvas showed it as an empty row and an empty band
-        from apps.api import evidence as E  # the model itself
+        from apps.api.services.profile import evidence as E  # the model itself
         prof = {"person": {"name": "홍길동", "email": "gildong@example.com", "info": {"ko": "1990년생", "en": ""}, "location": {"ko": "", "en": "Seoul"},
                            "linkedin": "https://www.linkedin.com/in/example"},
                 "roles": [{"heading": "예전 회사 (Old)", "org": "", "career": None},  # prints nowhere
@@ -374,7 +375,7 @@ class Draft(unittest.TestCase):
     def test_an_svg_picture_on_a_slide_is_in_the_page(self):
         # 2026-11-09: a person's own deck draws its timeline's logo tiles as SVG <image href="file://...">; the frame showed
         # them broken because only <img src> was put in the page
-        from apps.api.tasks import live_html  # the page for the frame
+        from apps.api.services.documents.task_build import live_html  # the page for the frame
         pics = self.tmp / "pics"  # where pictures come from
         pics.mkdir()
         (pics / "tile.png").write_bytes(b"tile bytes")  # one logo tile
@@ -617,7 +618,7 @@ class Draft(unittest.TestCase):
     def test_an_edition_printed_as_written_gives_the_kit_its_printed_lines(self):
         """An edition the person wrote has no sentences of ours: the kit asks about the lines its PDF printed, in the language
         it has, and never about the name, the headings or the contact lines."""
-        from apps.api import documents  # the resume's text for the kit
+        from apps.api.services.documents import documents  # the resume's text for the kit
         jid = self.c.post("/api/v1/jobs", {"company": "감마", "posting": POSTING})["job"]  # a job
         out = self.c.api.tasks.build_dir(jid, "en")  # its English edition, the only one made
         out.mkdir(parents=True, exist_ok=True)  # made

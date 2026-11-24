@@ -34,7 +34,7 @@ if __package__ in (None, ""):  # started as a file (python3 apps/panel/server.py
     __import__("apps.panel")  # the package itself, so its modules can be found
 
 from apps.api.app import Api, data_dir  # noqa: E402  the API object and the data folder rule
-from apps.api.facts import FACT_FILES  # noqa: E402,F401  src/ui/server.py reads it from here
+from apps.api.services.profile import FACT_FILES  # noqa: E402,F401  src/ui/server.py reads it from here
 from apps.api.routes import Router  # noqa: E402  the API's table
 from apps.api.web import ApiHandler  # noqa: E402  the table behind HTTP
 
@@ -119,7 +119,7 @@ def serve(port: int = PORT, host: str = "127.0.0.1", data: Path | None = None, w
         srv.server_close()
         raise
     real = srv.server_address[1]  # the port it got
-    api.port = real  # the command bar's agent reaches this panel through it (apps/api/ask.py)
+    api.port = real  # the command bar's agent reaches this panel through it (apps/api/services/agent/ask.py)
     Handler.bind(Router(api), real)  # the API's table, this PC's names and the page's origins
     Handler.panel = api  # every request thread shares this one API object
     srv.daemon_threads = True  # a stuck request never holds the exit

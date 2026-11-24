@@ -325,7 +325,7 @@ def _log(rec: dict) -> None:
 
 def _log_error(backend: str, task: str, t0: float, attempt: int, code: str) -> None:
     """One failed call in the log: when, how long it ran and a short code. Never the error's words, which may quote the CLI's
-    output. calls_summary (apps/api/agent.py) counts these apart from the answered calls."""
+    output. calls_summary (apps/api/services/agent/agent.py) counts these apart from the answered calls."""
     _log({"t": int(t0), "backend": backend, "task": task, "sec": round(time.time() - t0, 1), "attempt": attempt, "error": code})
 
 

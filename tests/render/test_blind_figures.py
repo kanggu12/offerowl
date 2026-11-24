@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "tests" / "render"))  # the small PDF writer
 import blind as B  # noqa: E402  src/blind.py
 import pdfmeta  # noqa: E402  the strings a PDF keeps besides its text
 from test_pdftools import write_pdf  # noqa: E402  a small PDF
+from apps.api.services import profile  # noqa: E402  the services whose actions the tests call
 
 HAVE_PIL = importlib.util.find_spec("PIL") is not None  # the figures are drawn with Pillow
 TABLE = B.merged({"mask": ["Alphapay", "Betacommerce"]})  # two invented companies
@@ -157,13 +158,13 @@ class RealRenderTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, tmp, True)
         with mock.patch.dict(os.environ, {"OFFEROWL_PANEL_BACKEND": "none", "OFFEROWL_DESKTOP": str(tmp / "Desktop"), "OFFEROWL_RENDERER": "container"}):
             a = appmod.Api(tmp)
-            a.add_example("ko")  # the fictional person
+            profile.add_example(a, "ko")  # the fictional person
             for _ in range(400):
                 if a.tasks.state().get("ingest", {}).get("state") != "running":
                     break
                 time.sleep(0.05)
-            a.keep_all()
-            a.set_blind({"table": {"mask": ["알파페이", "베타커머스", r"gildong@example\.com", "010-0000-0000", r"github\.com/example-gildong"],
+            profile.keep_all(a)
+            profile.set_blind(a, {"table": {"mask": ["알파페이", "베타커머스", r"gildong@example\.com", "010-0000-0000", r"github\.com/example-gildong"],
                                    "mask_whole": [r"gildong@example\.com", "010-0000-0000", r"github\.com/example-gildong"]}})
             a.tasks._build("-general", "ko", "navy", 3, False, False, True)  # a blind edition
             self.assertEqual("done", a.tasks.state()["build:-general"]["state"], a.tasks.state()["build:-general"])

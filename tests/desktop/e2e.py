@@ -35,7 +35,7 @@ import urllib.parse  # job ids in paths
 import urllib.request  # the API
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]  # the repository
-sys.path.insert(0, str(ROOT))  # apps.api.standin is imported from here
+sys.path.insert(0, str(ROOT))  # apps.api.services.agent.standin is imported from here
 RESULTS: list = []  # (name, ok, detail) of every check
 
 
@@ -156,7 +156,7 @@ class App:
 def cover_stub():
     """A model server that answers the cover letter's calls from the example letter, so the panel's cover step runs with
     no real model: the plan falls back to word matching, and the draft is the example's sentences, placed by paragraph kind."""
-    from apps.api import standin  # the OpenAI-compatible stand-in of the tests and the app check
+    from apps.api.services.agent import standin  # the OpenAI-compatible stand-in of the tests and the app check
     letter = json.loads((ROOT / "examples" / "cover" / "cover_ko.json").read_text(encoding="utf-8"))
     pools = {}  # example sentences by paragraph kind, in the letter's order
     for p in letter["paragraphs"]:

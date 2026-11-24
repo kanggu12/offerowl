@@ -1,4 +1,4 @@
-"""What the panel's own interview views read (apps/api/routes.py): every script with its words for the contents, the search
+"""What the panel's own interview views read (apps/api/services/interview/routes.py): every script with its words for the contents, the search
 and the cards (kit.js), the interview deck in its printed order, and the talk's speaker script with its slides' pictures
 (interview.js). Each answers for the job asked, in the panel's language; the two large ones come with an ETag, so a page that
 asks again for an unchanged kit gets a 304 and no body; a job with no kit, or no talk, gets a 404 that says so. No model is

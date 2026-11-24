@@ -4,7 +4,7 @@ hierarchy figure's boxes), the logo tiles and a blind edition's bars with square
 src/blind.py ask here. src/corners.js reads the same switch for the built-in deck. Unset, or any other value ("round"), every
 box keeps the rounded corners it always had, so the pictures are the same bytes as before the setting existed.
 
-The panel hands the switch to each build from the person's setting `corners` (apps/api/tasks.py blind_env); on the command
+The panel hands the switch to each build from the person's setting `corners` (apps/api/services/documents/task_build.py blind_env); on the command
 line it is set by hand: OFFEROWL_CORNERS=square ./offerowl build profile.json job.json
 """
 import os  # the switch

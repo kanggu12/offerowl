@@ -1,7 +1,7 @@
 // Offerowl's panel, the command bar: "Ask the AI", a closed prompt floating at the bottom right of every view (a pill with its
 // mark and words, on a phone too, each page ending with room under its last line), as the owner asked: a box like a coding agent's prompt, where the person writes
 // to the AI agent ("Gamma Cloud's first call is done, write it down", "make a resume for this posting: ..."). It opens a sheet
-// at the window's right edge. The agent acts through Offerowl's own tools (POST /api/v1/ask, apps/api/ask.py) and its answer
+// at the window's right edge. The agent acts through Offerowl's own tools (POST /api/v1/ask, apps/api/services/agent/ask.py) and its answer
 // comes back there with the tools that ran. Ctrl+K or Cmd+K opens and closes it; Enter sends, Shift+Enter starts a new line.
 "use strict";                                                                       // catches undeclared names and silent writes early
 

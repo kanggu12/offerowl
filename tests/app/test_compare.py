@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What an edition is held against (0.10.0, apps/api/task_compare.py): the pages of the copy that last went out (its
+"""What an edition is held against (0.10.0, apps/api/services/documents/task_compare.py): the pages of the copy that last went out (its
 baseline, src/baseline.py), the edition in the other language and its own deck (src/check_parity.py), and a blind edition's
 ordinary twin (src/check_blind.py). Fictional people and companies only: the example profiles, and seeded differences.
 No typesetting runs: the PDFs and the page pictures are small ones written here, and the checks run on this PC
@@ -25,8 +25,9 @@ for p in (ROOT, ROOT / "src", ROOT / "tests" / "app", ROOT / "tests" / "render")
         sys.path.insert(0, str(p))
 from test_blind import Builds, Person  # noqa: E402  a fictional person, and builds with the typesetting stood in for
 from test_pdftools import H, W, write_pdf  # noqa: E402  a small PDF with a text layer
+from apps.api.services import profile  # noqa: E402  the services whose actions the tests call
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
-from apps.api.workspace import read_json, write_json  # noqa: E402  an edition's files
+from apps.api.core.workspace import read_json, write_json  # noqa: E402  an edition's files
 import baseline as BL  # noqa: E402  src/baseline.py
 import check_blind as CB  # noqa: E402  src/check_blind.py
 import check_parity as CP  # noqa: E402  src/check_parity.py
@@ -446,7 +447,7 @@ class PanelCompareTests(Builds):
         write_json(out / "job.json", {"lang": lang, "theme": "navy", "out": "x"})
         write_pdf(out / "resume.pdf", [[(72, 72, 12, words)]])
         pdfmeta.stamp(out / "resume.pdf", "Gildong Hong Resume" if lang == "en" else "홍길동 이력서", "Gildong Hong")
-        from apps.api.tasks import file_hash  # the hashes a build records
+        from apps.api.core.stamps import file_hash  # the hashes a build records
         write_json(out / "build.json", {"lang": lang, "issues": [], "notes": [], "hashes": {"resume.pdf": file_hash(out / "resume.pdf")}, "at": "2026-11-13 09:00"})
         return out
 
@@ -516,7 +517,7 @@ class PanelCompareTests(Builds):
             if "_twin" in str(cfg):
                 raise SystemExit("no LibreOffice for the twin")
             return made(profile, cfg, env)
-        from apps.api.task_compare import Comparisons  # the real checks across documents, under the stand-in
+        from apps.api.services.documents.task_compare import Comparisons  # the real checks across documents, under the stand-in
         with mock.patch.object(a.tasks, "cross_checks", side_effect=lambda *x: Comparisons.cross_checks(a.tasks, *x)), \
              mock.patch.object(a.tasks, "_compare_tool", return_value=None), mock.patch.object(resume, "build", side_effect=build):
             a.tasks._build("-general", "ko", "navy", 3, False, False, True)  # a blind edition
@@ -538,7 +539,7 @@ class PanelCompareTests(Builds):
 
     def test_patterns_another_blind_edition_matched_are_not_dead(self):
         a = self.person()
-        a.set_blind({"table": {"mask": ["Alphapay", "Betacommerce", "Gammaworks"], "mask_keep": ["Gammaworks"]}})
+        profile.set_blind(a, {"table": {"mask": ["Alphapay", "Betacommerce", "Gammaworks"], "mask_keep": ["Gammaworks"]}})
         other = a.tasks.build_dir("-general", "en")  # an English blind edition made before with this table
         other.mkdir(parents=True)
         write_json(other / "build.json", {"blind": True, "blind_table": a.tasks.blind_stamp()})

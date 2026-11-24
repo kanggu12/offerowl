@@ -24,8 +24,8 @@ import urllib.parse  # paths and queries
 import urllib.request  # the kit, reached in this process
 from pathlib import Path  # the folder an upload is written to
 
-from . import materials  # a job's own materials, sent as files
-from .routes import JSON, Router, dumps  # the API's table
+from .core.routing import JSON, FileStream, dumps  # the answers' shapes
+from .routes import Router  # the API's table, the gateway's
 
 MAX_JSON = 2_000_000  # bytes of a JSON request
 
@@ -151,8 +151,7 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
 
     def send(self, code: int, body, ctype: str = JSON, cache: bool = False, name: str | None = None, etag: str | None = None) -> None:
         """Send one answer. An answer with an ETag (the state) is compressed for a client that takes gzip."""
-        from .routes import FileStream  # a file sent in pieces
-        if isinstance(body, FileStream):
+        if isinstance(body, FileStream):  # a file sent in pieces
             return self.send_stream(code, body, ctype)
         data = dumps(body)  # bytes (send_state hands them over already made, and dumps keeps bytes as they are)
         zipped = bool(etag) and len(data) >= GZIP_MIN and self.takes_gzip()  # only the state is compressed (the page polls it)
@@ -358,22 +357,9 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
                 return self.refuse(403, {"error": "origin"})
             return self.kit_proxy("POST")
         try:  # the body's checks: refusals become 403, bad bodies 400
-            if path == "/api/v1/materials":  # a file upload: its own body type, which no other site's page can send
-                return self.upload()  # it checks its own headers
-            if path == "/api/v1/workspace/restore":  # a backup, sent the same way
-                return self.restore()  # the same checks
-            if path == "/api/v1/photo":  # the resume's photo, sent the same way
-                return self.photo()  # the same checks
-            if path == "/api/v1/interview/scenes":  # interview scripts written before, sent the same way
-                return self.scenes()  # the same checks
-            if path == "/api/v1/jobs/questions/file":  # a screenshot, a PDF or a saved page of the form, its questions read from it
-                return self.question_file()  # the same checks
-            if path == "/api/v1/jobs/own-file":  # a document the person made for an edition, kept as it is
-                return self.job_file("own_file")  # the same checks
-            if path == "/api/v1/jobs/sent-file":  # a file that went out with an application, kept as its submitted copy
-                return self.job_file("sent_file")  # the same checks
-            if path == "/api/v1/jobs/materials":  # a deck, notes or a brief for a job's materials, sent the same way
-                return self.job_material()  # the same checks
+            route = self.router.upload(path)  # a file upload (a service's table names it): its own body type, which no other site's page can send
+            if route is not None:
+                return self.upload(route)  # it checks its own headers
             req = self.read_json()  # every other write is JSON
         except PermissionError as exc:  # origin, type or size refused, or the system refusing a file
             if exc.errno is not None:  # the system's own refusal: its words hold a path, which never goes to the page
@@ -534,19 +520,39 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             return None  # the caller stops
         return n  # checked
 
-    def upload(self) -> None:
-        """One file for the workspace's sources."""
-        data = self.file_body(MAX_UPLOAD)  # with every check
+    def upload(self, route) -> None:
+        """One file for a service's upload route (core/routing.Upload): read under the route's cap with every check of
+        file_length, or written to a file of its own in the data folder when the route spools it (a backup, which never sits
+        whole in memory, and goes again before the answer); then the route's handler keeps it. Its fields answer
+        {"ok": true, ...}; its refusal (ValueError) answers 400 {"error": code}."""
+        caps = {"file": MAX_UPLOAD, "photo": MAX_PHOTO, "backup": MAX_BACKUP}  # the caps a route names, as they are now
+        cap = route.cap() if callable(route.cap) else caps[route.cap]  # the route's own cap, read at each upload
+        api = self.router.api  # the panel's API
+        if route.spool:  # into the data folder beside the workspace
+            f = self.file_spool(cap, api.ws.root.parent)  # with every check
+            if f is None:  # refused, and answered
+                return  # nothing more
+            try:
+                try:
+                    got = route.handler(api, self.query(), None, f)  # the service keeps what the file holds
+                finally:
+                    with contextlib.suppress(OSError):  # held a moment longer on Windows: the hour-old sweep of file_spool takes it then
+                        f.unlink(missing_ok=True)  # the upload's own file, whatever happened, gone before the answer (after it, a
+                        # client that looked at once could still find it: Windows' CI did)
+            except ValueError as exc:  # not a backup, too large, or a task is running
+                return self.send(400, {"error": str(exc)})  # the page says which
+            return self.send(200, {"ok": True, **got})  # the page reloads
+        data = self.file_body(cap)  # with every check
         if data is None:  # refused, and answered
             return  # nothing more
-        name = urllib.parse.unquote(self.headers["X-File-Name"])[:200]  # the file's own name
+        name = urllib.parse.unquote(self.headers["X-File-Name"])  # the file's own name: its kind, and the name it is kept under
+        if not route.whole_name:  # a route that does not shorten it itself
+            name = name[:200]
         try:
-            recs = self.router.api.ws.add_materials(name, data)  # kept in sources/; a zip gives each file in it
-        except ValueError as exc:  # a program, or a file that is not the kind its name says
+            got = route.handler(api, self.query(), name, data)  # the service keeps it (the job, the language, the kind come in the query)
+        except ValueError as exc:  # a kind it does not take, a file that is not what its name says, no such job
             return self.send(400, {"error": str(exc)})  # the page says which
-        if not recs:  # a zip with nothing a reader knows
-            return self.send(400, {"error": "empty"})  # the page says so
-        return self.send(200, {"ok": True, "material": recs[0], "materials": recs})  # the page then asks to read them
+        return self.send(200, {"ok": True, **got})  # what was kept: the page draws it
 
     def navigating(self) -> bool:
         """A person's own page load (the browser's address bar, a link), not a page's request."""
@@ -570,81 +576,3 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(body)
-
-    def photo(self) -> None:
-        """The resume's photo (JPEG or PNG), in the workspace's profile folder."""
-        data = self.file_body(MAX_PHOTO)  # with every check
-        if data is None:  # refused, and answered
-            return  # nothing more
-        try:
-            kept = self.router.api.set_photo(data)  # checked and kept; the one before went to the Trash
-        except ValueError as exc:  # not a JPEG or a PNG
-            return self.send(400, {"error": str(exc)})  # the page says so
-        return self.send(200, {"ok": True, "replaced": kept})  # the page draws it, with an Undo that puts the old one back
-
-    def scenes(self) -> None:
-        """A file of interview scenes (the kit's markdown) into a job's interview folder; the job is in the query."""
-        data = self.file_body(MAX_UPLOAD)  # with every check
-        if data is None:  # refused, and answered
-            return  # nothing more
-        name = urllib.parse.unquote(self.headers["X-File-Name"])[:200]  # the file's own name
-        try:
-            got = self.router.api.add_scenes(str(self.query().get("job") or ""), name, data)  # the job named in the query
-        except ValueError as exc:  # not a scene file, or no such job
-            return self.send(400, {"error": str(exc)})  # the page says which
-        return self.send(200, {"ok": True, **got})  # the page draws the new scenes
-
-    def question_file(self) -> None:
-        """A picture or a file of an application form: its text read (OCR for a picture), its questions added to the job in the query."""
-        data = self.file_body(MAX_UPLOAD)  # with every check
-        if data is None:  # refused, and answered
-            return  # nothing more
-        name = urllib.parse.unquote(self.headers["X-File-Name"])[:200]  # the file's own name, for its kind
-        try:
-            got = self.router.api.questions_from_file(str(self.query().get("job") or ""), name, data)  # read and added
-        except ValueError as exc:  # no question in it, or no such job
-            return self.send(400, {"error": str(exc)})  # the page says which
-        return self.send(200, {"ok": True, "added": got})  # the page draws them
-
-    def job_file(self, action: str) -> None:
-        """A file for one edition of a job (or a named edition): the job, the language and the kind of document are in the
-        query. action is the App method that keeps it (own_file: it stands for the typeset one; sent_file: a submitted copy)."""
-        data = self.file_body(MAX_UPLOAD)  # with every check
-        if data is None:  # refused, and answered
-            return  # nothing more
-        name = urllib.parse.unquote(self.headers["X-File-Name"])[:200]  # the file's own name, for its type
-        q = self.query()  # job, lang, kind
-        try:
-            got = getattr(self.router.api, action)(str(q.get("job") or ""), str(q.get("lang") or ""), str(q.get("kind") or ""), name, data)
-        except ValueError as exc:  # no such job, a kind or a type it does not take
-            return self.send(400, {"error": str(exc)})  # the page says which
-        return self.send(200, {"ok": True, **got})  # what was kept
-
-    def job_material(self) -> None:
-        """One file for a job's own materials (a deck, notes, a brief, an answer, a solution), kept byte for byte; the job is
-        in the query. A kind a job does not keep is refused with material_kind, a file over 50 MB with too_large."""
-        data = self.file_body(materials.MAX_BYTES)  # with every check, under the materials' own cap
-        if data is None:  # refused, and answered
-            return  # nothing more
-        name = urllib.parse.unquote(self.headers["X-File-Name"])  # the file's own name, whole: its extension is its kind (materials.add shortens it)
-        try:
-            rec = materials.add(self.router.api.ws, self.router.api.ws.resolve_job(str(self.query().get("job") or "")), name, data)  # the job named in the query (an id from before a rename finds it, as on every other route)
-        except ValueError as exc:  # a kind not kept, no such job
-            return self.send(400, {"error": str(exc)})  # the page says which
-        return self.send(200, {"ok": True, "material": rec})  # the page draws it in the list
-
-    def restore(self) -> None:
-        """A backup in the workspace's place. The workspace as it was stays beside it, and its folder is named in the answer."""
-        f = self.file_spool(MAX_BACKUP, self.router.api.ws.root.parent)  # with every check, into the data folder beside the workspace
-        if f is None:  # refused, and answered
-            return  # nothing more
-        try:
-            try:
-                done = self.router.api.restore(f)  # the workspace, from the file
-            finally:
-                with contextlib.suppress(OSError):  # held a moment longer on Windows: the hour-old sweep above takes it then
-                    f.unlink(missing_ok=True)  # the upload's own file, whatever happened, gone before the answer (after it, a
-                    # client that looked at once could still find it: Windows' CI did)
-        except ValueError as exc:  # not a backup, too large, or a task is running
-            return self.send(400, {"error": str(exc)})  # the page says which
-        return self.send(200, {"ok": True, **done})  # the page reloads

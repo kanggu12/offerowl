@@ -1,5 +1,5 @@
 """The talk (src/interview/talk.py): the brief's kinds and minutes, the plan's slides and times, the pace check, and the whole run
-on the fictional example, with no agent and with the stand-in agent (apps/api/standin.py). The runs draw and print the deck with
+on the fictional example, with no agent and with the stand-in agent (apps/api/services/agent/standin.py). The runs draw and print the deck with
 the PC's browser, so they are skipped where Node.js or a browser is missing."""
 import json  # the talk's record
 import os  # the renderer and the stand-in's address
@@ -180,7 +180,7 @@ class RunTest(unittest.TestCase):
     def test_with_the_stand_in(self):
         """With the stand-in agent every text rests on the evidence by construction: the slides get their own words, every slide
         a script of its own, and what failed the checks is listed with its reasons."""
-        sys.path.insert(0, str(ROOT / "apps" / "api"))
+        sys.path.insert(0, str(ROOT / "apps" / "api" / "services" / "agent"))  # standin.py, imported from its own folder
         import standin  # noqa: E402
         srv = standin.serve(0)
         threading.Thread(target=srv.serve_forever, daemon=True).start()

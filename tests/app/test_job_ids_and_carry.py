@@ -19,7 +19,7 @@ for p in (ROOT, ROOT / "src"):  # apps/ and the interview package
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-from apps.api.workspace import Workspace, romanize, slug  # noqa: E402
+from apps.api.core.workspace import Workspace, romanize, slug  # noqa: E402
 from interview import carry as C  # noqa: E402
 from interview import check  # noqa: E402
 from interview.job import Job  # noqa: E402

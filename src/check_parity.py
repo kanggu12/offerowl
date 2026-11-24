@@ -643,7 +643,7 @@ def edition(view: dict, cfg: dict, raw: dict, resume_pdf, deck_pdf, pack: dict) 
 def pack_problem(pack: dict) -> str:
     """Why a style pack's "parity" object cannot be used ("" when it can, or when there is none): aliases, glossary, deck_only,
     whole_period, newest_first and terms of their shapes, every glossary and terms pattern compiling. The panel refuses such a
-    pack before it is kept (apps/api/app.py add_style), so a broken pattern never stops a build."""
+    pack before it is kept (apps/api/services/profile/style.py add_style), so a broken pattern never stops a build."""
     rules = pack.get("parity", {}) if isinstance(pack, dict) else None  # the object, when the pack has one
     if not isinstance(rules, dict):  # an object or nothing
         return "parity"

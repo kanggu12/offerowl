@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The talk's routes (apps/api/task_kit.py, apps/api/routes.py) through the panel's server, on a fictional job: the brief kept
+"""The talk's routes (apps/api/services/interview/task_kit.py and routes.py) through the panel's server, on a fictional job: the brief kept
 with only its own keys and refused without a topic, the job's talk read before it is made, the kit's /talk page and its PDFs at
 the panel's own address, the Desktop copy refused when there is nothing to copy. Making the talk draws and prints a deck and is
 tested in tests/interview/test_talk.py and the panel's walk.

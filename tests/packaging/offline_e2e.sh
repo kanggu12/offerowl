@@ -18,7 +18,7 @@ trap cleanup EXIT
 docker run -d --name "$NAME" --network none --read-only --tmpfs /tmp:size=1g,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true \
   -e OFFEROWL_LLM=openai-compat -e OFFEROWL_LLM_URL=http://127.0.0.1:18080 -e OFFEROWL_LLM_MODEL=standin \
   -v "$NAME-data:/data" -v "$NAME-out:/work/output" "$IMAGE" > /dev/null || exit 1
-docker exec -d "$NAME" python3 apps/api/standin.py serve 18080 > /dev/null || exit 1   # the stand-in for a model server in the closed network
+docker exec -d "$NAME" python3 apps/api/services/agent/standin.py serve 18080 > /dev/null || exit 1   # the stand-in for a model server in the closed network
 docker exec -i "$NAME" python3 - <<'PY'
 import json, socket, sys, time, urllib.error, urllib.parse, urllib.request
 BASE = "http://127.0.0.1:8797"  # the panel, from inside the container

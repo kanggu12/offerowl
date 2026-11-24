@@ -19,12 +19,13 @@ for p in (ROOT, ROOT / "src", ROOT / "tests" / "app", ROOT / "tests" / "render")
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 from test_blind import Builds, Person  # noqa: E402  a fictional person, and builds with the typesetting stood in for
-from apps.api import answers as A  # noqa: E402  the application answers' checks
-from apps.api import documents  # noqa: E402  the canvas's resume model
-from apps.api.evidence import as_written  # noqa: E402  a finding's words as written
+from apps.api.services import applications  # noqa: E402  the services whose actions the tests call
+from apps.api.services.applications import answers as A  # noqa: E402  the application answers' checks
+from apps.api.services.documents import documents  # noqa: E402  the canvas's resume model
+from apps.api.services.profile.evidence import as_written  # noqa: E402  a finding's words as written
 from apps.api.routes import Router  # noqa: E402  the table the panel calls
-from apps.api.tasks import build_error  # noqa: E402  a failed typesetting's error
-from apps.api.workspace import read_json  # noqa: E402  an edition's files
+from apps.api.services.documents.task_build import build_error  # noqa: E402  a failed typesetting's error
+from apps.api.core.workspace import read_json  # noqa: E402  an edition's files
 import check_documents as CD  # noqa: E402  src/check_documents.py
 import check_lines as CL  # noqa: E402  src/check_lines.py
 import resume  # noqa: E402  the typesetting steps
@@ -45,7 +46,7 @@ class LockedApplicationTests(Person):
     def test_every_write_to_a_locked_jobs_documents_is_refused(self):
         a = self.person()
         r = Router(a)
-        jid = a.add_job({"company": "감마클라우드", "posting": POSTING}, select=False)  # a fictional job
+        jid = applications.add_job(a, {"company": "감마클라우드", "posting": POSTING}, select=False)  # a fictional job
         sid = next(iter(documents.resume(a.tasks, "ko", "navy", jid)["sentences"]))  # one of its sentences
         lock(a, jid)
         for path, body in (("/api/v1/sentences/edit", {"sid": sid, "text": "새 문장", "job": jid}),
