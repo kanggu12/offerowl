@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime  # due times
 import re  # reminder ids and dates
 
+from ...core.routing import text_field  # a request's text, or refused
 from ...core.workspace import STAGES, today  # the board's columns, in order, and the day a card moved
 
 MAX_REMINDERS = 20  # per job: a card is not a calendar
@@ -140,18 +141,50 @@ MAX_ROUNDS = 20  # rounds one card keeps: more than any hiring has
 ROUND_TEXT = 4000  # the questions asked, or the notes, of one round: a long debrief fits
 
 
+ROUND_FIELDS = ("kind", "at", "asked", "notes")  # what a round's form shows and sends back
+
+
+def _round_kept(k: str, v) -> str:
+    """A round's field as set_round keeps it: the words trimmed and cut to their bound, the kind and the day as sent."""
+    return str(v).strip()[:ROUND_TEXT] if k in ("asked", "notes") else str(v)  # the same shape on both sides of a comparison
+
+
+def check_round_start(st: dict, req: dict) -> None:
+    """A change to a round sent with `was`, the round as its form started from it ({kind, at, asked, notes}): a field another
+    window has changed since, which this change would overwrite with other words, refuses the whole change (D4-06: a second
+    window wiped the first one's notes and answered "Round kept."). A field already holding what is sent overwrites nothing.
+    A caller that sends no `was` (the command line, an agent) changes the round as before. Raises ValueError."""
+    was = req.get("was")  # the round as the form started from it, when it says
+    if was is None or req.get("remove") is True or not req.get("id"):  # nothing to hold against: no start, a removal, a new round
+        return
+    if not isinstance(was, dict):  # a start that is not one
+        raise ValueError("was")
+    hit = next((r for r in st.get("rounds") or [] if r.get("id") == str(req.get("id"))), None)  # the round as it is now
+    if hit is None:  # set_round says the id is unknown
+        return
+    for k in ROUND_FIELDS:  # field by field: a window that changed only the notes never blocks a change of the day
+        if k in req and isinstance(was.get(k), str) and isinstance(req[k], str):  # both the start and the new words of this field
+            now = _round_kept(k, hit.get(k) or "")  # what the round holds
+            if now != _round_kept(k, was[k]) and now != _round_kept(k, req[k]):  # changed since, and this would write other words over it
+                raise ValueError("round_changed")  # refused, nothing overwritten: the page says so and draws the round again
+
+
 def set_round(st: dict, req: dict) -> dict | None:
     """Add, change or remove one interview round on a job's status (changed in place). A new round needs a kind and a day
     (YYYY-MM-DD, or with its time YYYY-MM-DDTHH:MM); `asked` holds the questions asked, one a line, and `notes` how it went.
     Returns the round added or changed (None once removed). Raises ValueError for a bad field or an unknown id."""
     rs = st.setdefault("rounds", [])  # the card's rounds, oldest first as added
-    rid = str(req.get("id") or "")
+    rid = text_field(req, "id")  # which round, as text
     hit = next((r for r in rs if r.get("id") == rid), None) if rid else None  # the round asked for
     if rid and hit is None:  # an id that is not there
         raise ValueError("id")
+    for k in ("at", "asked", "notes"):  # its words: text, or refused with the field's name (a list of notes was dropped without a word)
+        text_field(req, k)  # refused when sent and not text
     if hit is not None and req.get("remove") is True:  # taken off the card (undo brings it back)
         rs.remove(hit)
         return None
+    if hit is not None and not any(k in req for k in ("kind", "at", "asked", "notes")):  # a change that names nothing to change (D4-07)
+        raise ValueError("fields")
     rec = dict(hit) if hit is not None else {}  # what is changed, or a new one
     if hit is None or "kind" in req:  # a new round names its kind
         if req.get("kind") not in ROUND_KINDS:
@@ -188,6 +221,24 @@ def set_reminder(st: dict, rid: str, done: bool | None = None, remove: bool = Fa
         hit["done"] = bool(done)  # the new state
 
 
+ICS_LINE = 75  # octets of one line of an iCalendar file, its line end aside (RFC 5545 3.1)
+
+
+def fold(line: str) -> str:
+    """One content line of an iCalendar file folded as RFC 5545 asks: no line over 75 octets of UTF-8, each further line
+    started by one space (which counts), and a character never cut in two (a Korean letter is three octets). A reminder's
+    long words went out on one line of hundreds of octets (B4-04), which a strict calendar reads wrongly or refuses."""
+    out, cur, size = [], "", 0  # the lines made, the one being filled and its octets
+    for ch in line:  # one character at a time, whole
+        n = len(ch.encode("utf-8"))  # its octets
+        if size + n > ICS_LINE:  # it would pass the end
+            out.append(cur)  # this line is full
+            cur, size = " ", 1  # the next starts with its space
+        cur, size = cur + ch, size + n  # on this line
+    out.append(cur)  # the last part
+    return "\r\n".join(out)  # folded with the format's own line end
+
+
 def ics(jobs: list[dict], lang: str = "ko") -> str:
     """Every open reminder and every interview round from today on, as an iCalendar file, so the person can put them in the
     calendar they already use. A round is named by its kind in the panel's language (lang)."""
@@ -198,7 +249,7 @@ def ics(jobs: list[dict], lang: str = "ko") -> str:
 
     def entry(uid: str, when: str, at: datetime.datetime, summary: str, before: str) -> list[str]:
         """One calendar entry with its alarm (before: how long ahead it rings, as the format writes it)."""
-        summary = summary.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", " ")  # escaped as the format asks
+        summary = summary.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\r", " ").replace("\n", " ")  # escaped as the format asks, on one line
         whole_day = "T" not in when  # a day without a time is an all-day entry
         start = f"DTSTART;VALUE=DATE:{at:%Y%m%d}" if whole_day else f"DTSTART:{at:%Y%m%dT%H%M%S}"  # floating local time
         return ["BEGIN:VEVENT", f"UID:{uid}@offerowl", f"DTSTAMP:{stamp}", start, f"SUMMARY:{summary}",  # one entry
@@ -219,4 +270,4 @@ def ics(jobs: list[dict], lang: str = "ko") -> str:
             lines += entry(f"{j.get('id')}-round-{r.get('id')}", str(r.get("at")), at, f"{name}: {words.get(r.get('kind'), words['other'])}",
                            "-PT30M" if timed else "PT0M")  # an all-day round rings at the day's start
     lines.append("END:VCALENDAR")  # the end
-    return "\r\n".join(lines) + "\r\n"  # the format's line ends
+    return "\r\n".join(fold(x) for x in lines) + "\r\n"  # the format's line ends, each line folded at 75 octets

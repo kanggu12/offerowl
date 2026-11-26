@@ -102,6 +102,8 @@ into this one (`src/interview/carry.py`):
   given) stays behind: it is about that interview;
 - nothing of this kit is replaced: a file name already here gets `-carried`, an id this kit uses moves to the hundreds of
   its letter (`K3` becomes `K103`), and a section of bold-labelled bullets gets headed items with ids of their own;
+- a scene this kit holds under the same title is not brought again, and the report counts it once as here already
+  (`same`); a title the earlier kit holds twice comes once, and is not counted;
 - `korean` (from the posting when left out: a mostly Korean posting is a Korean interview) turns each English scene round:
   its 해석, the Korean already checked against the facts, is spoken, and its English goes under it without speech marks.
 
@@ -117,6 +119,7 @@ Every key is optional.
 | `ui` | `ko` | language of the page and the messages |
 | `speak` | read from the scenes | the language the interview is held in, `ko` or `en`: practice asks, follows up and transcribes in it. Without it, a kit whose scenes are mostly spoken in Korean is a Korean interview |
 | `carried` | none | written by a carry: each kit it came from, with the names its scenes were left behind for |
+| `added` | none | written by the panel's "Add scenes you wrote": the files the person added, whose scenes the board counts as their own (`counts.own`) |
 | `sources` | every `*.md` in the folder, then the workspace's stories | `[{"file", "label", "prefix", "role"}]` in order. `file` is relative to the interview folder; `@stories` is the workspace's stories file. `label` names the source on the page, `prefix` makes ids for items without one, `role` is `scenes`, `deep` (resume deep dives), `terms` ("what is X" entries) or `reference` (notes, stories) |
 | `sections` | heading text | short tab name per section letter, e.g. `{"A": "Intro"}` |
 | `synonyms` | none | extra synonym groups, added to `src/interview/synonyms.json` |
@@ -402,7 +405,10 @@ body but the recording.
 In the panel, a job that is not there answers 404 `no_job`, one with no kit 404 `no_kit`, and a kit whose server stopped
 502 `kit_unreachable`. A person who opens `/kit/<job>/` itself in a browser (a bookmark, an older link) is sent to the job's
 scripts in the panel's Interview tab (`/?job=<job>&show=scripts`), inside the panel's menus; the printable pages, the practice
-and the API under it answer as above, and an id the job had before a rename is sent on to the one it has now.
+and the API under it answer as above, and an id the job had before a rename is sent on to the one it has now. A printable
+page with nothing on it yet answers 404 with a page of the panel's own that says so, the key back to the Interview tab and no
+print key: `/talk` before the talk is made, `/deck` and `/cue` while the kit holds no script (a scene or a deep dive with its
+dialogue, as the board counts them). So does a page of the kit that is not there, opened by a person.
 
 ## Checks
 

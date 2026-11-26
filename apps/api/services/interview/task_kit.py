@@ -1,6 +1,7 @@
 """Tasks' part for the interview kits (apps/api/tasks.py inherits it): the interview service's long tasks and its kit servers."""
 from __future__ import annotations
 
+from collections import OrderedDict  # the deck data of the kits used last, in the order they were used
 from pathlib import Path  # paths
 import hashlib  # a short stamp of the kit's files
 import logging  # the panel's log
@@ -13,7 +14,7 @@ from ...core.workspace import read_json, write_json  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]  # the repository (or the app's bundle)
 log = logging.getLogger("offerowl.panel")  # the panel's log
-KIT_KEEP = 4  # kit servers kept for the panel's /kit/<job>/ (one per job, the most recently used)
+KIT_KEEP = 4  # kit servers kept for the panel's /kit/<job>/ (one per job, the most recently used); the deck data too
 KIT_GRACE = 30  # seconds a kit server let go keeps answering what was already on its way
 SCRIPTS_AT_ONCE = 10  # interview scripts one click writes: about ten minutes of the agent, and the likeliest questions come first
 SCRIPT_WORKERS = 3  # scripts written side by side by a CLI agent
@@ -21,6 +22,7 @@ SCRIPT_WORKERS = 3  # scripts written side by side by a CLI agent
 
 
 NAMES_MADE = "# the resume's English names, made again on each refresh (lines above this one are the kit's own)"  # names.txt: where the made block starts
+_TRIM = []  # glibc's malloc_trim, looked up once ([None] where there is none)
 
 class Kits:
     """Each job's interview kit: its server for the panel's /kit/<job>/, its folder and question map, and the scripts the agent
@@ -29,7 +31,7 @@ class Kits:
     def __init__(self):
         super().__init__()  # the other parts' own
         self.kit_srvs = {}  # job -> (its own kit server, the agent it was given) for the panel's /kit/<job>/, the most recent last (kit_url)
-        self._deck_cache, self._deck_lock = {}, threading.Lock()  # the panel's deck data per kit stamp
+        self._deck_cache, self._deck_lock = OrderedDict(), threading.Lock()  # the panel's deck data per kit stamp, the least recently used first
         self.kit_lock = threading.Lock()  # one start at a time: two first requests never bind two servers for one job
 
     @staticmethod
@@ -101,6 +103,21 @@ class Kits:
         data["stamp"] = hashlib.sha1(repr(index.stamp).encode("utf-8")).hexdigest()[:12]  # changes when a kit file does
         return data
 
+    def kit_scripts(self, job_id: str) -> int:
+        """How many scripts the job's kit holds, counted as the board counts them (a scene or a deep dive with its dialogue):
+        its printable pages wait for the first one (C4-03). Read from the job's own kit server, which keeps the parsed files
+        until one changes; 0 when the job has no kit or it would not start."""
+        from .studio import turns  # a scene's dialogue, as the board reads it
+        if not self.kit_url(job_id):  # no kit, or it would not start
+            return 0  # nothing to print
+        with self.kit_lock:  # never while another request starts or takes one
+            got = self.kit_srvs.get(job_id)  # its server, started above
+        if not got:  # let go meanwhile
+            return 0  # read as none
+        index = got[0].RequestHandlerClass.index  # the server's own index
+        index.ensure()  # the files read again when one changed
+        return sum(1 for it in index.items if it.get("role") in ("scenes", "deep") and turns(it.get("md", "")))  # a scene or a deep dive with its dialogue
+
     def kit_deck(self, job_id: str, lang: str = "ko") -> dict | None:
         """What the panel's own interview deck draws (src/interview/deck.py data): the same scripts in the same order as the
         printed deck, each line as written, with the deck's words in the panel's language. None when the job has no kit."""
@@ -114,10 +131,13 @@ class Kits:
             watched = [job.out_path() / "plan.json", job.dir / "status.json"]  # what else the deck reads: the map and the application's record
             key = (job_id, lang, repr(corpus.stamp(job)), tuple((f.stat().st_mtime_ns, f.stat().st_size) if f.is_file() else None for f in watched))  # changes with any file it is made from
             with self._deck_lock:  # two requests at once make it once
+                for old in [k for k in self._deck_cache if k[:2] == key[:2] and k != key]:  # this kit's deck before its files changed: never read again
+                    del self._deck_cache[old]  # gone
                 if key not in self._deck_cache:  # 2.5 s for a kit of 600 scripts: made once per change (C3-21)
-                    while len(self._deck_cache) >= 4:  # a few kits at a time
-                        self._deck_cache.pop(next(iter(self._deck_cache)))
+                    while len(self._deck_cache) >= KIT_KEEP:  # four kits at most: the one used longest ago goes (it went in the order made, D4-11)
+                        self._deck_cache.popitem(last=False)  # the least recently used
                     self._deck_cache[key] = ivdeck.data(job, lang=lang)  # read from the files as they are now
+                self._deck_cache.move_to_end(key)  # used now
                 return self._deck_cache[key]
         except (OSError, SystemExit) as exc:  # the kit is unreadable: said in the log, the panel says the deck could not be read
             log.warning("interview deck for %s could not be read: %s", job_id, exc)
@@ -125,13 +145,38 @@ class Kits:
 
     @staticmethod
     def _stop_kit_later(srv) -> None:
-        """Stop a kit server after KIT_GRACE seconds, off the caller's thread: a request on its way to it is answered first."""
+        """Stop a kit server after KIT_GRACE seconds, off the caller's thread: a request on its way to it is answered first.
+        Its parsed scripts (tens of megabytes for a large kit) then go, and the memory goes back to the system."""
         def stop():
             srv.shutdown()  # stops its loop
             srv.server_close()  # frees the port
+            srv.RequestHandlerClass = None  # its index and practice, let go with it
+            Kits.give_back()  # the kit's memory, to the system (the allocator kept it: D4-11)
         timer = threading.Timer(KIT_GRACE, stop)
         timer.daemon = True  # never holds the exit
         timer.start()
+
+    @staticmethod
+    def give_back() -> None:
+        """Hand the memory a kit's large answer freed back to the system: Python's allocator keeps what it frees for its next
+        use, so the panel grew by tens of megabytes for each kit opened and never shrank (149 to 615 MB over twenty views of
+        ten kits, D4-11). glibc's malloc_trim returns it; nothing to do elsewhere (Windows and macOS give it back themselves).
+        web.py calls it once a kit's view or deck is sent."""
+        if not _TRIM:  # looked up once
+            fn = None  # no such call here
+            try:
+                import ctypes  # the C library
+                import sys  # which system
+                if sys.platform.startswith("linux"):  # glibc's own call
+                    fn = ctypes.CDLL("libc.so.6").malloc_trim  # musl has none: OSError or AttributeError below
+                    fn.argtypes, fn.restype = [ctypes.c_size_t], ctypes.c_int  # a size in, a number out
+            except (OSError, AttributeError):  # another C library
+                fn = None  # nothing to call
+            _TRIM.append(fn)  # looked up once
+        if _TRIM[0]:  # glibc
+            import gc  # a kit's parsed scripts hold cycles (its handler class)
+            gc.collect()  # freed now, not at the collector's next turn
+            _TRIM[0](0)  # every arena trimmed to what it uses
 
     def let_kit_go(self, job_id: str) -> None:
         """Stop the kit server a job has, so the next open reads its folder and its kit.json again (a rename, a carried kit), or

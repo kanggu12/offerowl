@@ -122,17 +122,19 @@ class TalkApiTest(unittest.TestCase):
         self.assertEqual(self.post("/api/v1/interview/talk/brief", {"job": self.job, "brief": {"minutes": 25}})["brief"]["topics"], ["소개"])  # and later changes keep it
 
     def test_kit_pages_before_the_talk_is_made(self):
-        """At the panel's own address the kit's /talk says there is no talk yet, and its PDFs are not there; the Desktop copy
-        writes nothing."""
+        """At the panel's own address the kit's /talk says there is no talk yet on a page of the panel's own (its viewport, its
+        theme, the key back to the Interview tab: C4-02), and its PDFs are not there; the Desktop copy writes nothing."""
         self.post("/api/v1/interview/talk/brief", {"job": self.job, "brief": {"topics": ["소개"]}})  # the interview folder exists now
         self.assertTrue(self.post("/api/v1/interview/start", {"job": self.job})["started"])
         code, body, ctype = self.raw(f"/kit/{urllib.parse.quote(self.job)}/talk")
-        self.assertEqual(code, 200)
+        self.assertEqual(code, 404)  # nothing there yet, said on the panel's page
         self.assertIn("text/html", ctype)
         page = body.decode("utf-8")
-        self.assertTrue(any(html.escape(W["none"]) in page for W in talk_page.WORDS.values()), page[:300])  # "no talk yet", in the kit's language
-        self.assertIn("background: #ffffff", page)  # a sheet of its own: its dark words never stand on the panel's dark desk
-        self.assertNotIn(b"<script", body)
+        self.assertIn('data-w="talk"', page)  # "no talk yet", in the words the panel's table translates
+        self.assertIn('name="viewport"', page)
+        self.assertIn("/static/kitgone.js", page)
+        self.assertNotIn("<style>", page)  # the panel's own look, no colours of its own
+        self.assertFalse(any(html.escape(W["none"]) in page for W in talk_page.WORDS.values()))  # not the kit's bare sheet
         code, _, _ = self.raw(f"/kit/{urllib.parse.quote(self.job)}/talk/deck.pdf")
         self.assertEqual(code, 404)
         code, _, _ = self.raw(f"/kit/{urllib.parse.quote(self.job)}/talk/..%2Fplan.json")

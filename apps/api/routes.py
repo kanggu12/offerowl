@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging  # bugs go to the log
 import re  # the schemas' path
 
-from .core.routing import JSON, NotFound, matches  # the answers' shapes, and how a route's matcher is read
+from .core.routing import JSON, NotFound, matches, text_field  # the answers' shapes, how a route's matcher is read, a request's text
 from .core.workspace import HISTORY_MAX  # the undo steps a workspace keeps: the most one request can take back
 from .services import agent, applications, documents, insights, interview, library, profile  # the services, each with its table
 
@@ -60,7 +60,7 @@ def post_undo(a, req, path):
     """POST /api/v1/undo: the undo button; {"only": id} from a toast takes back that step only."""
     t = a.tasks  # long tasks
     with a.ws.lock:  # the newest step is looked at and taken back in one go
-        if req.get("only") is not None and str(req["only"]) != a.ws.newest()[0]:  # another change came after it (or it was undone)
+        if req.get("only") is not None and text_field(req, "only") != a.ws.newest()[0]:  # another change came after it (or it was undone)
             return {"undone": None, "moved": True}  # nothing is taken back: the page says the change is in the history
         label = a.ws.undo()  # the files back
         if label is not None and not t.busy("ingest"):  # a reading's step put back the list as it was while those files were read
@@ -79,7 +79,7 @@ def post_history_undo(a, req, path):
         raise ValueError("steps")  # refused before anything is undone (0 or none used to undo the newest change, A3-20)
     done = []  # the labels taken back
     with a.ws.lock:  # the newest step is compared and the steps taken back in one go
-        if req.get("newest") is not None and str(req["newest"]) != a.ws.newest()[0]:  # a change came after the list the page drew
+        if req.get("newest") is not None and text_field(req, "newest") != a.ws.newest()[0]:  # a change came after the list the page drew
             return {"undone": [], "moved": True}  # nothing is taken back: n would now count that newer change too
         for _ in range(n):  # one step at a time
             label = a.ws.undo()  # the newest step
@@ -129,6 +129,8 @@ class Router:
         try:
             if method == "GET":  # reads
                 return self.get(path, query)  # status, answer, type
+            if method == "HEAD":  # a read's headers: its own cheap head where it has one
+                return self.head(path, query)
             if method == "POST":  # writes
                 self.api.ws.forget_mine()  # this request's own undo step, if it makes one, is named in its answer
                 out = self.post(path, body or {})  # the action
@@ -161,6 +163,15 @@ class Router:
             m = matches(matcher, path)  # True for an exact path, a pattern's match, or None
             if m:
                 return handler(self.api, q, m)  # status, answer, type
+        raise NotFound(path)  # no route matched
+
+    def head(self, path: str, q: dict) -> tuple[int, object, str]:
+        """A HEAD: the read's own head where it has one (core/routing.cheap_head: a backup, the calendar file, a listing),
+        which does no work for a body that is never sent; else the read itself, as a GET, its body dropped by web.py."""
+        for matcher, handler in GET:  # the same table as the reads
+            m = matches(matcher, path)  # this route's match, or None
+            if m:
+                return (getattr(handler, "head", None) or handler)(self.api, q, m)  # status, answer, type
         raise NotFound(path)  # no route matched
 
     def post(self, path: str, req: dict) -> dict | None:

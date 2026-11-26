@@ -170,6 +170,29 @@ class DeckTest(unittest.TestCase):
         self.assertIn('<div class="bar">', alone)  # with its print key
         self.assertEqual(inside.count('<section class="scene"'), alone.count('<section class="scene"'))  # the same scripts either way
 
+    def test_a_note_on_the_writer_s_records_is_not_printed(self):
+        """A 주의 note that names the writer's own records (the ledger, the kits before, a rule's number) stays out of the deck,
+        on the page and in the panel's data, with the line that runs on under it; another 주의 note is printed (C4-08, as the
+        search view leaves them out)."""
+        from helpers import copy_workspace  # a copy: a file is changed
+        tmp, jd = copy_workspace()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        qa = jd / "interview" / "qa.md"
+        text = qa.read_text(encoding="utf-8")
+        at = text.index("**핵심**", text.index("### A1."))  # the first note of the self-introduction
+        qa.write_text(text[:at] + "**주의** 그 일화는 대장에 없다.\n**주의** 기존 키트 W8과 같은 흐름이다\n그대로 따라 말한다.\n"
+                      "**주의** 숫자를 부풀리지 않는다 (대장 12).\n" + text[at:], encoding="utf-8")
+        from interview.job import Job
+        job = Job(jd)
+        notes = " ".join(n for s in deck.data(job, lang="ko")["scenes"] for n in s["notes"])  # the panel's deck
+        page = deck.page(job, lang="ko")  # and the printed one
+        for gone in ("대장에 없다", "기존 키트", "그대로 따라 말한다"):
+            self.assertNotIn(gone, notes)
+            self.assertNotIn(gone, page)
+        self.assertIn("숫자를 부풀리지 않는다", notes)  # another 주의 note stays, its bracketed reference to the ledger taken out
+        self.assertIn("숫자를 부풀리지 않는다", page)
+        self.assertNotIn("대장 12", notes)
+
 
 if __name__ == "__main__":  # the file can also run on its own
     unittest.main()

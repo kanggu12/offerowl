@@ -6,7 +6,7 @@ from __future__ import annotations
 import re  # paths
 import urllib.parse  # job ids in paths
 
-from ...core.routing import JSON, NotFound, Upload, lang_of  # the answers' shapes, an upload's route, the request's language
+from ...core.routing import JSON, NotFound, Upload, lang_of, text_field  # the answers' shapes, an upload's route, the request's language and its text
 from . import documents, editions, task_export  # the canvas's models and its edits, own and named editions, the copies that went out
 from .delivery import desktop_dir, open_in_files  # the Desktop and the file manager
 from .task_build import THEMES  # the colour packs a build takes
@@ -95,22 +95,22 @@ def get_file(a, q, m):
 
 def post_sentence_edit(a, req, path):
     """POST /api/v1/sentences/edit: new words for one sentence of the canvas."""
-    return {"sentence": documents.edit_sentence(a.tasks, str(req.get("sid") or ""), req.get("text"), lang_of(req.get("lang")), unlocked(a, a.job_in(req)))}  # its new state
+    return {"sentence": documents.edit_sentence(a.tasks, text_field(req, "sid"), req.get("text"), lang_of(req.get("lang")), unlocked(a, a.job_in(req)))}  # its new state
 
 
 def post_sentence_lock(a, req, path):
     """POST /api/v1/sentences/lock: keep a sentence through later drafts."""
-    documents.lock_sentence(a.tasks, str(req.get("sid") or ""), req.get("locked") is not False, lang_of(req.get("lang")), unlocked(a, a.job_in(req)))  # one undo step
+    documents.lock_sentence(a.tasks, text_field(req, "sid"), req.get("locked") is not False, lang_of(req.get("lang")), unlocked(a, a.job_in(req)))  # one undo step
     return None  # the new state is the whole answer
 
 
 def post_regenerate(a, req, path):
     """POST /api/v1/sentences/regenerate: new words from the evidence (the agent)."""
-    sid = str(req.get("sid") or "")  # which sentence
+    sid = text_field(req, "sid")  # which sentence
     if not documents.SID.match(sid):  # a made-up id
         raise ValueError("sentence")  # refused
     jid = unlocked(a, a.job_in(req))  # a submitted application's sentences stay as they went
-    return {"started": a.tasks.regen(sid, lang_of(req.get("lang")), jid, str(req.get("way") or "")), "task": f"regen:{sid}"}  # the task's key, in the direction picked
+    return {"started": a.tasks.regen(sid, lang_of(req.get("lang")), jid, text_field(req, "way")), "task": f"regen:{sid}"}  # the task's key, in the direction picked
 
 
 def post_write(a, req, path):
@@ -176,9 +176,9 @@ def post_depth(a, req, path):
 def post_finding(a, req, path):
     """POST /api/v1/jobs/depth/answer, /apply and /leave: what the person does with one finding."""
     from . import depth  # the finding's actions
-    jid, lang, fid = a.need_job(req), lang_of(req.get("lang")), str(req.get("finding") or "")  # which edition and which finding
+    jid, lang, fid = a.need_job(req), lang_of(req.get("lang")), text_field(req, "finding")  # which edition and which finding
     if path.endswith("/answer"):  # an answer to its question, kept as a fact of its project (a page that names none says which): one undo step
-        return depth.answer(a.tasks, jid, lang, fid, req.get("text"), str(req.get("project") or "") or None)
+        return depth.answer(a.tasks, jid, lang, fid, text_field(req, "text"), text_field(req, "project") or None)  # an answer ["x"] was kept as the fact "['x']" (D4-05)
     if path.endswith("/apply"):  # its rewrite in place of the sentence it replaces: one undo step (refused once submitted)
         return depth.apply(a.tasks, jid, lang, fid)
     return depth.leave(a.tasks, jid, lang, fid)  # left as it is: one undo step
@@ -212,7 +212,7 @@ def post_setup(a, req, path):
 
 def post_open(a, req, path):
     """POST /api/v1/open: show a folder in the file manager (the folder's path never reaches the page)."""
-    where = {"workspace": a.ws.root, "desktop": desktop_dir()}.get(req.get("what"))  # only these two, named by a word
+    where = {"workspace": a.ws.root, "desktop": desktop_dir()}.get(text_field(req, "what"))  # only these two, named by a word (a list was a 500: unhashable)
     if where is None:  # any other word
         raise ValueError("what")  # answered as bad_request
     return {"opened": open_in_files(where)}  # False when this system has no file manager

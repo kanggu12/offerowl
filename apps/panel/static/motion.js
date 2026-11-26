@@ -44,7 +44,7 @@ function keepPhase(root) {                                                      
   for (const el of root.querySelectorAll(".pill.busy, .lit.busy")) el.style.setProperty("--ph", `-${Date.now() % 1200}ms`);
 }
 
-const BLOCKS = ".rhead, .card.chain, .active-card, .flow-col > .colhead, .flow-cards > .card, .viewsheet, .facts-sheet, .joblist, .jobdetail, .col, .jobs-viz, .dochead, .pagewrap, .ins-persona, .ins-kpi, .ins-grid > .ins-tile, .lib-top, .lib-table";   // what rises when a view opens
+const BLOCKS = ".rhead, .card.chain, .active-card, .flow-col > .colhead, .flow-cards > .card, .viewsheet, .facts-sheet, .joblist, .jobdetail, .col, .jobs-viz, .dochead, .pagewrap, .ins-persona, .ins-kpi, .ins-grid > .ins-tile, .ins-col > .ins-tile, .lib-top, .lib-table";   // what rises when a view opens
 function afterDraw(el, name) {                                                      // drawPane calls this after it draws a pane
   keepPhase(el);                                                                    // lamps first: they show at once
   if (name === "bar") return barMotion(el);                                         // the bar's own

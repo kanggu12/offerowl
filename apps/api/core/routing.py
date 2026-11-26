@@ -8,7 +8,7 @@ A table is three tuples in a service's routes.py:
     UPLOADS (Upload(path, handler(api, query, name, data) -> the answer's fields, ...))
 
 A matcher is a path ("/api/v1/jobs"), a tuple of paths, or a pattern's match or fullmatch method, called with the path (the
-match it returns reaches the handler). The gateway tries the tables one after the other and the first route that matches
+match it returns reaches the handler). A read that makes a file or takes long may carry a HEAD of its own (cheap_head). The gateway tries the tables one after the other and the first route that matches
 answers; no two routes of any tables match one path (tests/app/test_architecture.py checks it), so their order never
 decides an answer.
 """
@@ -41,6 +41,25 @@ class FileAnswer(bytes):
         return obj
 
 
+class HeadAnswer:
+    """The headers of a read asked with HEAD, its body never made: web.py sends them as they are and with no length, since
+    nobody knows it before the body is made, and a HEAD never states a length its GET would not send."""
+
+    def __init__(self, headers: dict | None = None):
+        self.headers = dict(headers or {})  # a file's name for Save as, and the like
+
+
+def cheap_head(head):
+    """Give a read a HEAD of its own: head(api, query, match) -> (status, HeadAnswer, content type), with no work done for a
+    body that is never sent. Without one a HEAD runs the read as a GET does and drops the body, which is right for most;
+    but it made a whole backup (762 MB, 7 s, a request slot held) only to send the headers, and listed the Library (3 s
+    under load) for nothing (D4-04)."""
+    def mark(read):
+        read.head = head  # the gateway's head() answers with it
+        return read
+    return mark
+
+
 class Upload:
     """A file upload route: the raw body (application/octet-stream) with its name in X-File-Name, which web.py reads under
     the route's cap before the handler keeps it. cap: "file" (60 MB), "photo" (10 MB) or "backup" (the edge's own caps,
@@ -64,6 +83,18 @@ def matches(matcher, path: str):
 def lang_of(v) -> str:
     """A document language from a request: ko or en, Korean when unknown."""
     return v if v in LANGS else "ko"  # only the editions there are
+
+
+def text_field(req: dict, key: str, default: str = "") -> str:
+    """A request's text field: the string sent, `default` when it is not there or null, and refused when it is anything else
+    (ValueError(key): 400 bad_request, what <key>). str() made a number, a list or an object into words that were kept: a
+    posting of 10**30 became an application, a reminder ["r"] the words "['r']" (D4-05)."""
+    v = req.get(key)  # as sent
+    if v is None:  # not sent, or null: the field's own default
+        return default
+    if not isinstance(v, str):  # a number, a boolean, a list, an object
+        raise ValueError(key)  # named, so the page and a program know which field
+    return v  # the text itself
 
 
 def dumps(obj) -> bytes:

@@ -116,6 +116,19 @@ function sent(m, sid, extra, kids) {                                            
 // split: "lines" for a paragraph LibreOffice may break between its lines, "rows" for a table it may break between rows.
 // The classes carry the printed measures (app.css .rs); the widths of a table's columns are resume_form.js's own.
 const TWIPS_W = 10406;                                                              // the text's width in twips (layout.js CONTENT_W)
+// A picture of the resume drawn again under a new address (its figures and logos are made again when the profile changes: a
+// new stamp) keeps the one it showed until the new one has loaded (B4-11: the overview was a grey box for 1.5 s after an
+// edit). Kept by the picture's path, so another application's or language's picture is never the one shown
+const SHOWN_PICS = {};                                                              // a picture's path -> the address it last showed, loaded
+function keptImg(props) {
+  const key = String(props.src || "").split("?")[0], was = SHOWN_PICS[key];         // which picture, and what it showed last
+  const img = h("img", { ...props, src: was && was !== props.src ? was : props.src });   // the last one at once while a new one is on its way
+  if (!was || was === props.src) { img.addEventListener("load", () => { if (img.isConnected) SHOWN_PICS[key] = props.src; }, { once: true }); return img; }   // the first time, or the same: as it is (a picture a later draw replaced records nothing)
+  const next = new Image();                                                         // the new one, loaded aside
+  next.onload = () => { if (!img.isConnected) return; SHOWN_PICS[key] = props.src; img.src = props.src; };   // then shown in its place (a draw since has its own); one that fails leaves the last one, and the next draw asks again
+  next.src = props.src;
+  return img;
+}
 function resumeUnits(m) {                                                           // [{el, keep, label, sids, split}] for the pager
   const U = [], P = m.person || {}, L = m.labels || {}, ko = m.lang !== "en";      // the units, the person, the table heads; the faint English labels are the Korean edition's only
   const form = m.form || "detailed", plain = form === "compact";                   // the form it prints in (src/resume_form.js FORMS); the one-column form draws lines where the others draw tables
@@ -140,7 +153,7 @@ function resumeUnits(m) {                                                       
   for (const b of m.blocks || []) {                                                 // in print order
     if (b.type === "headline") add(h("p", { class: "r-headline" }, sent(m, b.sid)), { sids: [b.sid] });  // one line, or two where it was written so
     else if (b.type === "intro") add(h("p", { class: "r-prose" }, words(b.sids)), { sids: b.sids, split: "lines" });   // the introduction
-    else if (b.type === "figure") add(h("img", { class: "r-fig f-" + b.key, src: b.src, alt: "",   // the timeline or the hierarchy figure at 694 px, as printed (f-: the tracker owns .timeline)
+    else if (b.type === "figure") add(keptImg({ class: "r-fig f-" + b.key, src: b.src, alt: "",   // the timeline or the hierarchy figure at 694 px, as printed (f-: the tracker owns .timeline)
       style: `height:${Math.round(b.h * 694 / b.w)}px` }));
     else if (b.type === "section") {                                                // a heading: kept with what follows
       section = sectionKey(b);                                                      // for the margin label
@@ -177,7 +190,7 @@ function resumeUnits(m) {                                                       
       }
     } else if (b.type === "role") {                                                 // a company: its band, the line under it, a grey line, then its projects
       if (b.logo) add(h("div", { class: "r-gap" }), { keep: true });               // the band's 200 twips above it are a paragraph of their own
-      add(h("div", { class: "r-band" + (b.logo ? "" : " plain") }, b.logo ? h("img", { class: "r-logo", src: b.logo, alt: "" }) : null,
+      add(h("div", { class: "r-band" + (b.logo ? "" : " plain") }, b.logo ? keptImg({ class: "r-logo", src: b.logo, alt: "" }) : null,
         h("b", { text: b.org }), b.badge ? h("span", { class: "badge", text: b.badge }) : null,
         b.place ? h("span", { class: "place", text: b.place + "   " }) : null, h("span", { class: "when" + (b.tenure ? "" : " quiet"), text: (b.period || "") + (b.tenure ? ` (${b.tenure})` : "") })),   // the dates alone in grey, as the printed band (tenure off)
         { keep: true });
@@ -216,7 +229,7 @@ function lines(...items) {                                                      
   return items.filter((x) => x !== null && x !== undefined && x !== "").map((x, i) => (i ? h("div", { class: "g", text: x }) : h("div", {}, x))); // each a paragraph of the cell
 }
 function nameCell(logo, kids) {                                                     // a table's name cell: the logo tile at its left, centred on the lines
-  return logo ? { kids: [h("div", { class: "r-org" }, h("img", { class: "r-logo", src: logo, alt: "" }), h("div", {}, kids))], cls: "lg" } : { kids }; // no logo: the lines alone
+  return logo ? { kids: [h("div", { class: "r-org" }, keptImg({ class: "r-logo", src: logo, alt: "" }), h("div", {}, kids))], cls: "lg" } : { kids }; // no logo: the lines alone
 }
 function careerTable(m, b, L) {                                                     // the career summary with resume_form.js's columns and widths
   const en = m.lang === "en", logos = b.rows.some((r) => r.logo);                   // the edition; a logo column needs a wider name column
@@ -643,9 +656,7 @@ function viewDocuments(host) {                                                  
   const subline = $("dochead").querySelector(".viewhead > .sub"); if (subline) subline.title = subline.textContent;   // a subtitle the wide head cuts short with an ellipsis keeps its words on hover (B3-13)
   fill(host,
     buildBand(ed),                                                                  // the last PDFs of this edition failed: why, with the key that fixes it
-    counts.unsupported ? h("div", { class: "band" }, h("p", { text: UI.doc === "cover"   // the letter's sentences have no Edit of their own: what can be done there
-      ? t("A sentence with no evidence is marked with a red wave and cannot be exported. Write the letter again, or put the evidence in your profile.")
-      : t("A sentence with no evidence is marked with a red wave and cannot be exported. Click it to fix it, regenerate it or put the evidence in your profile.") }),
+    counts.unsupported ? h("div", { class: "band" }, h("p", { text: t("A sentence with no evidence is marked with a red wave and cannot be exported.") }),   // the state in one sentence; what to do is the key beside it and the sentence's own keys (B4-12: a second sentence of advice)
       h("button", { class: "btn small", onclick: () => selectNextBad(), text: t("Show the first one") })) : null,
     blindBand(b),                                                                   // a blind edition says what its pages are
     checksBand(b),                                                                  // the checks its typeset pages failed, which keep them home
@@ -771,13 +782,20 @@ function buildBand(ed) {                                                        
   if (bt.state !== "error" || !bt.error) return null;                               // made, never asked, or making now
   return band(bt.error.code, { retry: () => makePdfs(), detail: bt.error.detail });   // a missing English text offers the translation; anything else, to try again
 }
-function sentPanel(j, sent) {                                                       // a submitted application: the copies that went out, as they went
-  const kindOf = (f) => /^resume/.test(f) ? "Resume" : /^deck/.test(f) ? "Portfolio deck" : /^cover/.test(f) ? "Cover letter" : null;   // a copy by its document, whatever its file is called
+const SENT_DOCS = [["resume", "Resume", "No resume went out with this application."], ["cover", "Cover letter", "No cover letter went out with this application."],
+  ["deck", "Portfolio deck", "No portfolio deck went out with this application."]];   // a submission's documents in the tabs' order, and the line a tab says when its own did not go
+function sentPanel(j, sent) {                                                       // a submitted application: each document that went out, as it went (B4-08)
+  const files = Object.keys(sent.files || {});                                     // the copies the lock recorded
+  const copyOf = (k) => files.find((f) => f === k + ".pdf") || files.find((f) => f.startsWith(k + ".") || f.startsWith(k + "_"));   // the copy itself: its PDF, else its first other file (a Word file brought)
+  const lang = sent.lang === "en" ? t("English") : sent.lang === "ko" ? t("Korean") : String(sent.lang || "");   // the language it went in
+  const tab = SENT_DOCS.find(([k]) => k === UI.doc);                                // this tab's document
   return h("div", { class: "empty glass sent-panel" },
     h("h3", {}, icon("lock"), t("Submitted and locked")),
-    h("p", { text: t("The copies that went out on {date}, kept as they went.", { date: sent.at || "" }) }),   // the head's export key gives them: no second one here (B-18)
-    h("ul", { class: "matlist" }, Object.keys(sent.files || {}).map((f) => h("li", {}, h("span", { class: "nm", text: kindOf(f) ? t(kindOf(f)) : f }),   // the document's name, never a hash
-      sent.brought && sent.name && f === "deck.pdf" ? h("span", { class: "hint", text: sent.name }) : null))),   // a file the person brought, under its own name beside it
+    h("p", { text: t("The copies that went out, kept as they went.") }),            // the head's export key gives them all to the Desktop (B-18); each opens here
+    h("ul", { class: "matlist sent-docs" }, SENT_DOCS.filter(([k]) => copyOf(k)).map(([k, w]) => h("li", {},   // one row a document: what, in which language, on which day, and the copy itself
+      h("span", { class: "nm", text: t(w) }), h("span", { class: "sd-lang", text: lang }), h("span", { class: "sd-day", text: sent.at || "" }),
+      h("a", { class: "btn small", href: `/api/v1/jobs/${enc(j.id)}/sent/${enc(copyOf(k))}`, target: "_blank", rel: "noopener", "aria-label": t("Open {name}", { name: t(w) }) }, icon("open"), h("span", { text: t("Open") }))))),
+    tab && !copyOf(tab[0]) ? h("p", { class: "sd-none", text: t(tab[2]) }) : null,   // this tab's document did not go: said once, under the ones that did
     h("div", { class: "part-keys" }, h("button", { class: "btn", type: "button", onclick: () => openApplication(j.id, "docs") }, icon("case"), t("Open the application"))));
 }
 function docBody(m, j) {                                                            // the page area under the toolbar
@@ -932,7 +950,7 @@ function fileWordsOf(name) {                                                    
 async function startFrom(ed) {                                                      // the editions to start from on the panel's own sheet, then the copy
   let got;                                                                          // the list as it is now, and what this edition has
   try { got = await api(`/api/v1/editions?job=${enc(ed.id)}`); }
-  catch (e) { toast(e.message === "offline" ? t("Offerowl is not answering, so this was not saved.") : errorText(e), null, "bad"); return; }   // said, never silent
+  catch (e) { actFailed(`/api/v1/editions`, e); return; }                         // said, never silent: a server gone once, by the bar's band when it is in sight
   const list = got.editions || [], target = got.target || {}, own = target.own || {};   // the editions; this one's own things
   if (!list.length) { toast(t("No other edition has words of its own yet."), null, "info"); return; }   // gone meanwhile
   const name = target.name || ed.name || [ed.company, ed.role].filter(Boolean).join(", ") || ed.id;   // as the head names it

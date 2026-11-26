@@ -259,18 +259,32 @@ class Workspace:
         return new
 
     def _rename_in_history(self, old: str, new: str) -> None:
-        """The undo steps that hold a renamed job's files hold them under its new folder, so an undo writes where it lives."""
-        was, now = f"jobs/{old}/", f"jobs/{new}/"
+        """The undo steps that hold a renamed job's files hold them under its new folders (its own and its kit's output, which
+        rename_job moves too), so an undo writes where it lives and takes back the folders it made there."""
+        now = f"jobs/{new}/"  # the job's own folder under its new name
+        pairs = ((f"jobs/{old}/", now), (f"out/interview/{old}/", f"out/interview/{new}/"))  # each folder of the job, and its new name
+
+        def moved(k: str) -> str:  # a path under one of the job's folders, under the folder's new name
+            for was, to in pairs:  # the job's folder, then its kit's output
+                if k.startswith(was):  # a file or a folder inside it
+                    return to + k[len(was):]  # under the new name
+                if k + "/" == was:  # the folder itself (a step's folders name it)
+                    return to[:-1]  # its new name
+            return k  # another job's, or the workspace's
+
         for f in self._history():  # each step, oldest first
             try:
                 d = json.loads(f.read_text(encoding="utf-8"))
             except ValueError:  # a broken step is left to the undo's own handling
                 continue
-            if not any(k.startswith(was) for part in ("files", "made") for k in (d.get(part) or {})):
+            dirs = d.get("dirs") if isinstance(d.get("dirs"), list) else []  # the folders it made
+            if not any(moved(k) != k for part in ("files", "made") for k in (d.get(part) or {})) and not any(moved(str(k)) != str(k) for k in dirs):  # it names none of the job's paths
                 continue  # not this job's
-            for part in ("files", "made"):
+            for part in ("files", "made"):  # the files it puts back, and the records it made
                 if isinstance(d.get(part), dict):
-                    d[part] = {(now + k[len(was):] if k.startswith(was) else k): v for k, v in d[part].items()}
+                    d[part] = {moved(k): v for k, v in d[part].items()}  # under the job's new folders
+            if dirs:  # the folders it made
+                d["dirs"] = [moved(str(k)) for k in dirs]  # named as they are now
             status = d.get("files", {}).get(now + "status.json")
             if isinstance(status, str):  # the record as it was then names its id
                 d["files"][now + "status.json"] = status.replace(f'"id": "{old}"', f'"id": "{new}"')
@@ -343,14 +357,38 @@ class Workspace:
         except ValueError:  # a broken file has no records to keep apart
             return []
 
+    def _missing_dirs(self, rels) -> list[str]:
+        """The folders the files in `rels` would need and that are not there now, named from the workspace's root, deepest
+        first: a change that makes them leaves them only while its step stands (C4-03)."""
+        out = set()  # relative folder names
+        for rel in rels:  # each file the change may write
+            d = (self.root / rel).parent  # its folder
+            while d != self.root and d.is_relative_to(self.root) and not d.exists():  # up to the first folder that is there
+                out.add(d.relative_to(self.root).as_posix())  # named from the root
+                d = d.parent  # and the one above it
+        return sorted(out, key=lambda x: (-x.count("/"), x))  # the deepest first: each is empty before its parent is tried
+
+    def _drop_dirs(self, dirs) -> None:
+        """Remove the folders a change made, deepest first, each only when nothing is in it (later work keeps its folder)."""
+        for rel in dirs or []:  # as the step names them
+            p = self.root / str(rel)  # absolute path
+            try:  # a folder held or gone meanwhile is left
+                if p.resolve().is_relative_to(self.root.resolve()) and p.resolve() != self.root.resolve():  # never outside the workspace, never the workspace itself
+                    p.rmdir()  # only an empty folder goes
+            except OSError:  # not empty, gone already, or held: it stays
+                pass  # nothing else to do
+
     @contextlib.contextmanager
-    def change(self, label: dict, rels, coalesce: str | None = None, adopt: dict | None = None):
+    def change(self, label: dict, rels, coalesce: str | None = None, adopt: dict | None = None, join: str | None = None):
         """Make a change that one undo can take back. `rels` names every file (relative to the workspace) the change
         may write. `label` says what it was, for the undo button. Changes with the same `coalesce` key made within a
         few seconds are one undo step (typing in a field saves on every pause). `adopt` ({merged list: ids}) names records
-        listed just before the step that belong to it (a file added, then read): the step's undo takes them away too."""
+        listed just before the step that belong to it (a file added, then read): the step's undo takes them away too. `join`
+        names the step this change belongs to (the later files of one pick, C4-13): it joins that step while it is still the
+        newest and of the same kind, else it is a step of its own. The folders a change makes go with its undo (C4-03)."""
         with self.lock:  # one change at a time
             before = self._snapshot_files(rels)  # the files as they were
+            missing = self._missing_dirs(rels)  # the folders its files would need: made by it, they go with its undo
             undo_to = dict(before)  # what the step's undo writes back: the records it owns taken out
             for rel, ids in (adopt or {}).items():  # records the step owns although they were listed before it
                 if rel in self.MERGED and before.get(rel) and ids:
@@ -363,12 +401,15 @@ class Workspace:
                 yield  # the caller writes
             except BaseException:  # it stopped half way: what it wrote has no undo step, so it goes now
                 self._put_back(before)  # the files as they were before the change (the owned records too: a file whose reading broke stays listed)
+                self._drop_dirs(missing)  # and the folders it made for them (a carry refused after it made the kit's folder)
                 raise  # the caller's error is still the answer
             after = self._snapshot_files(rels)  # the files as they are now
             if after == before:  # nothing changed: no undo step
+                self._drop_dirs(missing)  # a folder made for nothing goes too
                 return
             before = undo_to  # the restore point
             made = {rel: self._ids(after[rel]) for rel in self.MERGED if rel in after}  # what each merged list held right after the step
+            dirs = [d for d in missing if (self.root / d).is_dir()]  # the folders this step made
             hist = self._history()  # existing steps
             if coalesce and hist:  # typing in the same field again
                 last = read_json(hist[-1], {})  # newest step
@@ -379,10 +420,23 @@ class Workspace:
                     write_json(hist[-1], last)  # the same step covers this edit too
                     self._mine.step = f"{int(hist[-1].stem)}:{last['t']}"  # its name now (newest() names it the same way)
                     return
+            if join and hist:  # a later file of the same pick
+                last = read_json(hist[-1], {})  # newest step
+                if f"{int(hist[-1].stem)}:{last.get('t')}" == join and (last.get("label") or {}).get("code") == label.get("code"):   # still the newest, and of this kind
+                    files = last.setdefault("files", {})  # what its undo writes back
+                    for rel, text in before.items():  # a file this change wrote first: as it was before it (one the step holds keeps its older text)
+                        files.setdefault(rel, text)  # the older text wins
+                    for rel, ids in made.items():  # the records the joined step made
+                        last.setdefault("made", {})[rel] = sorted(set((last.get("made") or {}).get(rel) or []) | set(ids), key=str)  # both changes' records
+                    if dirs:  # the folders made by either
+                        last["dirs"] = sorted(set(last.get("dirs") or []) | set(dirs), key=lambda x: (-x.count("/"), x))  # the deepest first
+                    write_json(hist[-1], last)  # one step for the whole pick
+                    self._mine.step = join  # the same name: the note's Undo takes every file of the pick
+                    return  # joined: no step of its own
             n = int(hist[-1].stem) + 1 if hist else 1  # next counter
             t = time.time()  # the step's time, part of its name
             write_json(self.path(".history", f"{n:06d}.json"),
-                       {"t": t, "label": label, "coalesce": coalesce, "files": before, "made": made})  # the restore point
+                       {"t": t, "label": label, "coalesce": coalesce, "files": before, "made": made, **({"dirs": dirs} if dirs else {})})  # the restore point, with the folders it made
             self._mine.step = f"{n}:{t}"  # for the answer to this thread's request: its own step, whatever another writer did since
             for old in self._history()[:-HISTORY_MAX]:  # keep the newest HISTORY_MAX
                 old.unlink(missing_ok=True)  # the oldest steps go
@@ -552,6 +606,7 @@ class Workspace:
                             pass
                 else:
                     write_text(p, text)  # its old text back
+            self._drop_dirs(step.get("dirs") if isinstance(step.get("dirs"), list) else [])  # the folders it made, once its files are gone (an interview folder of a carry undone: C4-03)
             hist[-1].unlink(missing_ok=True)  # the step is used
             return step.get("label") or {}  # what was undone
 
@@ -683,11 +738,29 @@ class Workspace:
         return jid
 
     def new_job_id(self, company: str, role: str) -> str:
-        """A new folder name for a job: the company (else the role), made unique with -2, -3 ..."""
+        """A new folder name for a job: the company (else the role), made unique with -2, -3 ... An empty folder under a
+        name holds no job: a request of the page that came in just after the job's add was undone wrote the folder back,
+        and the next job of that name got "-2" (round 4, worker b). Such a name is free again and its folder is taken away.
+        Called under the workspace's lock (add_job), so no other add is making a folder meanwhile."""
         base = slug(company or role or "job")  # readable name
-        taken = ({d.name for d in self.path("jobs").iterdir()} if self.path("jobs").is_dir() else set()) | self.gone  # existing folders, and the names of those deleted for good
+        jobs = self.path("jobs")  # where the jobs' folders are
+
+        def used(name: str) -> bool:  # a name a job holds, or held
+            if name in self.gone:  # deleted for good: never given again (its undo steps and aliases name it)
+                return True
+            d = jobs / name  # the folder of that name
+            if not d.exists():  # nothing there
+                return False
+            if d.is_dir() and not any(d.iterdir()):  # an empty folder: a leftover, no job
+                try:
+                    d.rmdir()  # taken away (only an empty folder can be), so the new job starts in a clean one
+                    return False
+                except OSError:  # something wrote into it meanwhile: it is somebody's
+                    return True
+            return True  # a job's folder, or a file of that name
+
         jid, n = base, 2  # first try the plain name
-        while jid in taken:  # already used
+        while used(jid):  # already used
             jid, n = f"{base}-{n}"[:40], n + 1  # add a counter
         return jid
 

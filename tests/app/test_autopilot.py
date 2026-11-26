@@ -946,6 +946,31 @@ class Questions(unittest.TestCase):
         j2 = next(x for x in self.c.get("/api/v1/state")["jobs"] if x["id"] == jid2)
         self.assertEqual("", j2["company"])  # a role's own first word is never taken for a company
 
+    def test_a_first_line_that_is_a_company_alone_names_the_company(self):
+        # B4-09: a posting whose first line is one word that reads as a company kept that word as the role, the company empty
+        def added(posting):  # the card a pasted posting makes: its company and role
+            jid = self.c.post("/api/v1/jobs", {"posting": posting})["job"]
+            j = next(x for x in self.c.get("/api/v1/state")["jobs"] if x["id"] == jid)
+            return j["company"], j["role"]
+        self.assertEqual(("감마회사", "백엔드 엔지니어"), added("감마회사\n\n[직무] 백엔드 엔지니어\n- 결제 서비스를 설계하고 운영합니다.\n- 장애를 줄입니다."))  # the role from the posting's own role line
+        self.assertEqual(("델타랩스", "플랫폼 엔지니어"), added("델타랩스\n\n플랫폼 엔지니어 채용\n\n주요 업무\n- Kubernetes 클러스터를 운영합니다."))
+        self.assertEqual(("GammaLabs", "Platform Engineer"), added("GammaLabs\n\nPlatform Engineer\n\nResponsibilities\n- Run the deploy pipeline for the payments team."))
+        self.assertEqual(("감마랩스", ""), added("감마랩스\n\n주요 업무\n- 결제 서비스를 설계하고 운영합니다.\n- 장애를 줄입니다."))  # no role line: no role, never the company's name again
+        self.assertNotEqual("회사", added("회사\n\n감마랩스는 결제를 만듭니다.\n\n주요 업무\n- 결제 서비스를 설계합니다.")[0])  # a heading word alone is no company
+
+    def test_an_empty_folder_left_under_a_name_frees_the_name(self):
+        # a job added and undone within a second left its folder empty (a page's request wrote it back after the undo), and
+        # the next job of that name became "-2" (round 4, worker b's note)
+        from apps.api.core.workspace import slug  # the folder name a company gets
+        posting = "감마랩스 플랫폼 엔지니어\n\n주요 업무\n- Kubernetes 클러스터 운영과 장애 대응"
+        jobs, gamma, delta = self.c.api.ws.path("jobs"), slug("감마랩스"), slug("델타랩스")  # the jobs' folders, the two names
+        (jobs / gamma).mkdir(parents=True, exist_ok=True)  # the leftover: an empty folder under the name
+        self.assertEqual(gamma, self.c.post("/api/v1/jobs", {"posting": posting})["job"])  # the name is free
+        (jobs / delta).mkdir()  # a folder that holds something is somebody's
+        (jobs / delta / "notes.md").write_text("kept", encoding="utf-8")
+        self.assertEqual(delta + "-2", self.c.post("/api/v1/jobs", {"posting": posting.replace("감마", "델타")})["job"])
+        self.assertEqual("kept", (jobs / delta / "notes.md").read_text(encoding="utf-8"))  # left as it was
+
     def test_a_posting_brings_its_questions_but_never_its_duty_lines(self):
         posting = POSTING + "\n\n주요 업무\n- 결제 승인 서비스를 설계하고 운영하실 분\n\n지원서 문항\n① 본인의 강점을 설명해 주세요 (800자 이내)\n② 이 직무에 지원한 이유는 무엇인가요?\n"
         jid = self.c.post("/api/v1/jobs", {"posting": posting})["job"]
@@ -957,7 +982,14 @@ class Questions(unittest.TestCase):
         self.c.post("/api/v1/jobs/questions", {"job": self.jid, "questions": [{"text": "지원 동기를 쓰세요.", "limit": 160}]})
         got = self.c.post("/api/v1/jobs/questions/paste", {"job": self.jid, "text": "1. 지원 동기를 쓰세요. (160자)\n2. 입사 후 하고 싶은 일을 기술해 주세요. (600자 이내)"})
         self.assertEqual(1, got["added"])  # the one already kept is not added twice
+        self.assertEqual(1, got["there"])  # and said to be there, for the page's words (B4-06)
         self.assertEqual([("지원 동기를 쓰세요.", 160, "q1"), ("입사 후 하고 싶은 일을 기술해 주세요.", 600, "q2")], [(q["text"], q["limit"], q["id"]) for q in self.questions()])
+        again = self.c.post("/api/v1/jobs/questions/paste", {"job": self.jid, "text": "1. 지원 동기를 쓰세요. (160자)\n2. 입사 후 하고 싶은 일을 기술해 주세요. (600자 이내)\n3. 지원 동기를 쓰세요. (160자)"})
+        self.assertEqual((0, 2), (again["added"], again["there"]))  # all there already: nothing came in, two questions were held (one pasted twice counts once)
+        self.assertEqual(2, len(self.questions()))
+        twice = self.c.post("/api/v1/jobs/questions/paste", {"job": self.jid, "text": "1. 본인의 강점을 쓰세요. (300자)\n2. 본인의 강점을 쓰세요. (300자)"})
+        self.assertEqual((1, 0), (twice["added"], twice["there"]))  # a new question pasted twice comes in once
+        self.assertEqual(3, len(self.questions()))
         with self.assertRaises(Exception):  # nothing that reads as a question
             self.c.post("/api/v1/jobs/questions/paste", {"job": self.jid, "text": "안녕하세요"})
 

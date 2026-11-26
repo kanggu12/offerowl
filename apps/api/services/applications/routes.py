@@ -6,7 +6,8 @@ from __future__ import annotations
 import re  # paths
 import urllib.parse  # job ids in paths
 
-from ...core.routing import JSON, FileAnswer, NotFound, Upload, lang_of  # the answers' shapes, an upload's route, a request's language
+from ...core.routing import JSON, FileAnswer, HeadAnswer, NotFound, Upload, cheap_head, lang_of, text_field  # the answers' shapes, a cheap HEAD, an upload's route, a request's language and its text
+from ...core.workspace import today  # the day the calendar file's name carries
 from . import answers, jobs, materials, postings, tracker  # the form's answers, the jobs, a job's own materials, where its posting is kept, the board
 
 JOB = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)$")  # one job, with its posting
@@ -68,14 +69,33 @@ def get_due(a, q, m):
     return 200, {"due": tracker.due(jobs.jobs_view(a))}, JSON  # due and not done
 
 
+ICS = "text/calendar; charset=utf-8"  # the calendar file's type
+
+
+def ics_headers(jid: str | None) -> dict:
+    """The calendar file's name as the Progress tab's link names it: offerowl_<job>_calendar_YYYYMMDD.ics for one
+    application, offerowl_calendar_YYYYMMDD.ics for all; the header wins over the link's own name, and it said
+    offerowl-reminders.ics (B4-04). A job's id is ASCII (Workspace.ascii_job_ids)."""
+    name = f"offerowl_{jid + '_' if jid else ''}calendar_{today().replace('-', '')}.ics"  # underscores and the day, as every file handed out
+    return {"Content-Disposition": f'attachment; filename="{name}"'}  # saved, not shown
+
+
+def head_ics(a, q, m):
+    """HEAD /api/v1/reminders.ics: the file's headers, the application checked, nothing made."""
+    jid = a.need_job({"job": q.get("job")}) if q.get("job") else None  # it exists, as the GET asks
+    return 200, HeadAnswer(ics_headers(jid)), ICS
+
+
+@cheap_head(head_ics)
 def get_ics(a, q, m):
     """GET /api/v1/reminders.ics[?job=<job>&lang=ko|en]: the open reminders and the rounds from today on, for the person's
     calendar: one application's with job, every application's without; the rounds named in lang (the panel's language)."""
     cards = jobs.jobs_view(a)  # every job
+    jid = None  # every application's
     if q.get("job"):  # one application's, from its Progress tab
         jid = a.need_job({"job": str(q.get("job"))})  # it exists (an id from before a rename finds it)
         cards = [c for c in cards if c["id"] == jid]  # that one only
-    return 200, tracker.ics(cards, lang_of(q.get("lang"))).encode("utf-8"), "text/calendar; charset=utf-8"  # a file to open
+    return 200, FileAnswer(tracker.ics(cards, lang_of(q.get("lang"))).encode("utf-8"), ics_headers(jid)), ICS  # a file to open, under its name
 
 
 # ------------------------------------------------------------------ writes
@@ -107,7 +127,7 @@ def post_analyze(a, req, path):
 def post_posting(a, req, path):
     """POST /api/v1/jobs/posting: a job's posting written again (the part with the duties pasted in), read again at once."""
     jid = a.need_job(req)  # which job
-    jobs.set_posting(a, jid, str(req.get("posting") or ""))  # one undo step
+    jobs.set_posting(a, jid, text_field(req, "posting"))  # one undo step; a posting that is no text is refused (D4-05)
     return {"job": jid, "started": a.tasks.analyze(jid, agent=False, step=False)}  # by words: nothing goes to the agent; the paste's step holds the plan
 
 
@@ -125,7 +145,7 @@ def post_edit(a, req, path):
 
 def post_clear_day(a, req, path):
     """POST /api/v1/tracker/clear_day: the day a batch of applications was added, off their stages."""
-    return {"cleared": jobs.clear_batch_day(a, str(req.get("day") or ""))}  # the cards changed; the new state is drawn
+    return {"cleared": jobs.clear_batch_day(a, text_field(req, "day"))}  # the cards changed; the new state is drawn
 
 
 def post_next(a, req, path):
@@ -146,13 +166,13 @@ def post_round(a, req, path):
 
 def post_material_remove(a, req, path):
     """POST /api/v1/jobs/materials/remove: a job's material off its list (its file stays, and undo brings it back)."""
-    materials.remove(a.ws, a.need_job(req), str(req.get("id") or ""))  # one undo step
+    materials.remove(a.ws, a.need_job(req), text_field(req, "id"))  # one undo step
     return None  # the new state is the whole answer
 
 
 def post_material_export(a, req, path):
     """POST /api/v1/jobs/materials/export: a copy of a job's material on the Desktop, byte for byte."""
-    return {"exported": materials.export(a.ws, a.need_job(req), str(req.get("id") or ""))}  # the name written, for the page's message
+    return {"exported": materials.export(a.ws, a.need_job(req), text_field(req, "id"))}  # the name written, for the page's message
 
 
 def answers_open(a, jid) -> None:
@@ -171,14 +191,17 @@ def post_questions(a, req, path):
 def post_paste(a, req, path):
     """POST /api/v1/jobs/questions/paste: a form's questions pasted as it shows them, read with their limits."""
     answers_open(a, req.get("job"))  # never once submitted
-    added, assumed = answers.paste_questions(a, req)  # how many came in, how many without a written limit
-    return {"added": added, "assumed": assumed}
+    added, assumed, there = answers.paste_questions(a, req)  # how many came in, how many without a written limit, how many were there already
+    return {"added": added, "assumed": assumed, "there": there}
 
 
 def post_write(a, req, path):
     """POST /api/v1/jobs/questions/write: their answers, by the agent."""
     answers_open(a, req.get("job"))  # never once submitted
-    return {"started": a.tasks.answers(a.need_job(req), [str(x) for x in req.get("ids") or []] or None)}  # False when they are being written
+    ids = req.get("ids")  # the questions to write, or none for every one
+    if ids is not None and (not isinstance(ids, list) or not all(isinstance(x, str) for x in ids)):  # a number was a 500, a word was read letter by letter
+        raise ValueError("ids")
+    return {"started": a.tasks.answers(a.need_job(req), list(ids or []) or None)}  # False when they are being written
 
 
 def post_answer(a, req, path):
@@ -199,7 +222,9 @@ def post_answers_export(a, req, path):
 def upload_questions(a, q, name, data):
     """POST /api/v1/jobs/questions/file?job=: a picture or a file of an application form, its questions read (OCR for a picture) and added."""
     answers_open(a, q.get("job"))  # never once submitted
-    return {"added": answers.questions_from_file(a, str(q.get("job") or ""), name, data)}  # read and added; the page draws them
+    jid = a.need_job({"job": str(q.get("job") or "")})  # which job
+    added, assumed, there = answers.paste_questions(a, {"job": jid, "text": answers.form_text(a, jid, name, data)})  # read and added; the page draws them
+    return {"added": added, "assumed": assumed, "there": there}  # counted as a paste is (B4-06)
 
 
 def upload_material(a, q, name, data):

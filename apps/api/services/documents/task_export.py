@@ -18,6 +18,10 @@ from .editions import OWN_KINDS  # noqa: E402  what a file of an edition may sta
 
 log = logging.getLogger("offerowl.panel")  # the panel's log
 SENT_FILE = re.compile(r"^(resume|deck|cover)\.(pdf|docx|pptx)$")  # the copies a lock keeps (keep_sent_file, Workspace.freeze)
+DESK_WORDS = {"ko": {"resume": "이력서", "plain": "이력서 일반 양식", "deck": "포트폴리오", "cover": "자기소개서"},  # each document's word in a file name, in the edition's language
+              "en": {"resume": "Resume", "plain": "Resume plain", "deck": "Portfolio", "cover": "Cover letter"}}
+DESK_KEY = {"resume.pdf": "resume", "resume.docx": "resume", "resume_plain.docx": "plain", "resume.txt": "plain", "deck.pdf": "deck",
+            "deck.pptx": "deck", "cover.pdf": "cover", "cover.docx": "cover"}  # an edition's file -> the document it is, as the export names it
 
 
 def sent_file(ws, jid: str, name: str) -> Path | None:
@@ -81,12 +85,8 @@ class Exports:
         settings = self.card.settings_fn()  # what the person asked for
         extras = settings.get("export_extras") is True  # Word and text files too, only when asked
         pptx = settings.get("export_pptx") is True  # the deck as a PowerPoint file too, only when asked
-        who = self.person_name(lang)  # the person's name, as the edition's own title writes it
-        # the company, or a named edition's own name (one for headhunters and one per role must not land as the same file); the general edition has none
-        where = "" if job_id == "-general" else str((st.get("name") if st.get("kind") == "edition" else None) or st.get("company") or st.get("role") or job_id).strip()
-        words = {"ko": {"resume": "이력서", "plain": "이력서 일반 양식", "deck": "포트폴리오", "cover": "자기소개서"},  # the file names in the edition's language
-                 "en": {"resume": "Resume", "plain": "Resume plain", "deck": "Portfolio", "cover": "Cover letter"}}[lang]  # file name words
-        who, where, mark = self.blind_names(who, where, lang) if blind else (who, where, "")  # a blind edition's names
+        words = DESK_WORDS[lang]  # the file names in the edition's language
+        who, where, mark = self.desk_parts(job_id, lang, blind)  # the person, the company or the edition's name, a blind edition's mark
         dest = desktop_dir()  # the Desktop
         dest.mkdir(parents=True, exist_ok=True)  # a fresh Desktop folder in a test
         written, names = [], []  # the copies this export made (taken back on a failure), and every name it reports
@@ -178,6 +178,32 @@ class Exports:
         keep = lambda x: "" if blind.hits(x, table) else x  # noqa: E731  a covered name is left out whole
         return keep(who), keep(where), {"ko": "블라인드", "en": "Blind"}[lang]
 
+    def desk_parts(self, job_id: str, lang: str, blind: bool) -> tuple:
+        """(the person's name, the company or a named edition's own name, the blind edition's word) an edition's files carry
+        on the Desktop: the export, the copies that went out and the Library's copy all name them so. The general edition
+        names no company; a named edition its own name, so one for headhunters and one per role never land as one file."""
+        st = self.ws.job(job_id) or {}  # the job or the named edition
+        who = self.person_name(lang)  # the person's name, as the edition's own title writes it
+        where = "" if job_id == "-general" else str((st.get("name") if st.get("kind") == "edition" else None) or st.get("company") or st.get("role") or job_id).strip()
+        return self.blind_names(who, where, lang) if blind else (who, where, "")  # a blind edition's names leave out what its table covers
+
+    def export_name(self, job_id: str, lang: str, file: str, sent: bool = False) -> str | None:
+        """The name an edition's file takes on the Desktop when the Documents view exports it (홍길동_감마랩스_이력서_20261126.pdf):
+        underscores and the day it was made, or for a copy that went out (`sent`) the day it went. The Library's export of the
+        same file takes this name too: it was "-general-ko-deck.pdf" (D4-08). None for a file the export never names."""
+        from . import delivery  # the safe name and the day
+        key = DESK_KEY.get(file)  # the document it is
+        if not key or lang not in DESK_WORDS:  # profile.json and the like
+            return None
+        if sent:  # what went out: the lock's day and its blind mark
+            lock = (self.ws.job(job_id) or {}).get("locked")  # the record of what went out
+            rec = lock if isinstance(lock, dict) else {}  # its day and its blind mark
+        else:  # the edition as its last build made it
+            rec = read_json(self.build_dir(job_id, lang) / "build.json", {})  # the build's record
+            rec = rec if isinstance(rec, dict) else {}  # an object, or nothing known
+        who, where, mark = self.desk_parts(job_id, lang, rec.get("blind") is True)  # the names it carries
+        return delivery.safe_name(who, where, mark, DESK_WORDS[lang][key], delivery.made_day(rec)) + Path(file).suffix
+
     def person_name(self, lang: str) -> str:
         """The person's name for a file on the Desktop: the English name in English (as the PDF's own title and author write
         it, src/resume.py stamp_meta), else the name; a ledger's '홍 길 동 (Gil-Dong Hong)' is read as both."""
@@ -191,11 +217,8 @@ class Exports:
         nor stamped: they are the record of what was sent. Returns the names written."""
         folder = self.ws.job_dir(job_id) / "submitted" / Path(str(lock["folder"])).name  # the frozen copies, never a path from the record
         hashes = lock.get("files") or {}  # their hashes when frozen
-        st = self.ws.job(job_id) or {}  # the job
-        who = self.person_name(lang)  # the person's name, as the edition's file names write it
-        where = str((st.get("name") if st.get("kind") == "edition" else None) or st.get("company") or st.get("role") or job_id).strip()  # the company
-        words = {"ko": {"resume": "이력서", "deck": "포트폴리오", "cover": "자기소개서"}, "en": {"resume": "Resume", "deck": "Portfolio", "cover": "Cover letter"}}[lang]
-        who, where, mark = self.blind_names(who, where, lang) if lock.get("blind") is True else (who, where, "")  # a blind edition went out under its names
+        words = {k: DESK_WORDS[lang][k] for k in ("resume", "deck", "cover")}  # the documents that go: a plain resume's Word file stays with the lock
+        who, where, mark = self.desk_parts(job_id, lang, lock.get("blind") is True)  # a blind edition went out under its names
         from . import delivery  # the safe name and the day, as export() names its files
         extras = self.card.settings_fn().get("export_extras") is True  # Word files too, only when asked
         dest = desktop_dir()  # the Desktop

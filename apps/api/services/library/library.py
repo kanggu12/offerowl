@@ -148,24 +148,28 @@ def file_of(api, row_id: str) -> tuple[Path, str] | None:
             return None
         api.need_job({"job": oid})                                                  # it exists
         f = documents.printed_file(t, oid, lang, name)                              # as the documents keep it
-        return (f, f"{oid}-{lang}-{name}") if f else None
+        return (f, t.export_name(oid, lang, name) or f"{oid}-{lang}-{name}") if f else None   # named as the Documents view's export names it (D4-08)
     if kind in ("sent", "kit", "kitout"):                                           # a copy that went out, a kit's note, what the kit's maker wrote
         jid, _, name = rest.rpartition(":")
         api.need_job({"job": jid})
         f = documents.sent_file(ws, jid, name) if kind == "sent" else interview.kit_file(ws, jid, name, out=(kind == "kitout"))
+        if f and kind == "sent":                                                    # a copy that went out: as the export of what went names it, with the day it went
+            lock = (ws.job(jid) or {}).get("locked") or {}  # what went out, in which language
+            return f, t.export_name(jid, str(lock.get("lang") or "ko"), name, sent=True) or f"{jid}-{name}"
         return (f, f"{jid}-{name}") if f else None
     return None
 
 
 def desk_name(name: str) -> str:
     """A Library file's name as it lands on the Desktop, one every system takes: no character Windows refuses, no name it
-    keeps for a device (CON.md), no dot or space at the end, at most 180 bytes with the extension kept whole (a disk takes
-    255; a twin's number needs room)."""
+    keeps for a device (CON.md), no dot or space at the end, none at the start either, nor a dash (a name that begins with
+    "-" reads as an option to ls, cp and rm; one that begins with "." is hidden: D4-08), at most 180 bytes with the
+    extension kept whole (a disk takes 255; a twin's number needs room)."""
     name = ODD_CHARS.sub("_", name)  # refused characters out
     stem, dot, ext = name.rpartition(".")  # the last extension
     if not dot or not stem or not re.fullmatch(r"\w{1,16}", ext):  # no extension, a dot file, or a dot followed by no extension ("notes. ")
         stem, ext = name, ""  # all of it is the name
-    stem = stem.strip(" .") or "file"  # Windows takes no name that ends in a dot or a space
+    stem = stem.strip(" .").lstrip("-. ") or "file"  # Windows takes no name that ends in a dot or a space; no leading dash or dot
     if RESERVED_NAMES.fullmatch(stem.split(".")[0]):  # a device name of Windows, whatever follows it
         stem = "_" + stem  # a mark before it, and it can be made
     suffix = f".{ext}" if ext else ""  # kept whole: the system opens the file by it
@@ -186,11 +190,12 @@ def export(api, row_id: str) -> str:
     dest_dir = documents.desktop_dir()                                              # where the person looks
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / name
+    stem, suffix = (name[: -len(Path(name).suffix)], Path(name).suffix) if Path(name).suffix else (name, "")   # the name and its extension
     n = 2
     while dest.exists():                                                            # never over a file already there
         if dest.stat().st_size == f.stat().st_size and dest.read_bytes() == f.read_bytes():   # those very bytes are there already: named, never copied again
             return dest.name
-        dest = dest_dir / f"{Path(name).stem} ({n}){Path(name).suffix}"
+        dest = dest_dir / f"{stem}_{n}{suffix}"                                     # a twin numbered as every file handed out is (delivery.free_name): never "name (2).pdf"
         n += 1
     shutil.copyfile(f, dest)
     return dest.name

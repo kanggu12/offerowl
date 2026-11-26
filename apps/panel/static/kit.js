@@ -132,6 +132,7 @@ const labelOf = (k) => (k ? LABELS[k] || k : "");  // a shown label; an empty sp
 // regular expressions ("strip"); they are removed from titles and text before showing.
 const REF_DEFAULT = ["\\s*\\([^()]*\\b[\\w.-]+\\.(?:md|txt|json)\\b[^()]*\\)", "\\s*\\([^()]*\\bproject_[\\w-]+[^()]*\\)", "\\s*\\((?:[^()]*\\s)?대장(?=[\\s)\\d에의])[^()]*\\)", "\\s*(?:대본 근거|Script basis|Sources)\\s*:\\s*[A-Z]\\d{1,3}(?:\\s*,\\s*[A-Z]\\d{1,3})*\\.?", "\\s*\\(\\s*[A-Z]\\d{1,3}(?:\\s*,\\s*[A-Z]\\d{1,3})*\\s*\\)"];  // the writer's own files named in brackets ("(qa.md D3)", "(project_x 메모)", "(대장 12)"), in every kit
 const REF = new RegExp(REF_DEFAULT.concat(KIT.strip || []).join("|"), "g");
+const NOTE_RECORDS = /대장|기존 키트|\brules?\s*\d/;  // a 주의 note that names the writer's own records (the ledger, the kits before, a rule's number) is the writer's, never said in the room: left out whole (C4-08)
 const unref = (s) => (REF ? String(s).replace(REF, "") : String(s));  // text without the writer's cross-references
 ITEMS.forEach((it) => { it.tko = unref(it.tko).replace(/==|\*\*|`/g, ""); });  // titles: no cross-references, no marks
 function inline(s) {  // highlight, bold, italic, inline code on escaped text, without the writer's cross-references
@@ -179,6 +180,7 @@ function render(md, lead) {  // a small block parser: fields, tables, lists, cod
       const lab = f[1] === "해석" ? labelOf(who) : labelOf(f[1] === "국문" || f[1] === "KO" ? "해석" : f[1]) + (f[2] ? ` (${f[2]})` : "");  // the Korean text is the 해석 of the English script
       let html = joinLines(buf);
       if (cls === "note" && !html.replace(/<[^>]+>/g, "").trim()) continue;  // a note that held only the writer's references: no empty label left
+      if (f[1] === "주의" && NOTE_RECORDS.test(html.replace(/<[^>]+>/g, ""))) continue;  // a note about the writer's records, read as shown (a bracketed reference to them is gone already): other 주의 notes stay
       if (cls === "ko" && !led) {  // the conclusion comes first; skipped when the script already marks its own phrases
         if (!/<mark class="hl">/.test(html)) html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.length <= 80 ? `<span class="lead">${s1}</span>${s2}` : m0));
         led = true;
@@ -318,8 +320,20 @@ function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
   const sw = DATA && DATA.model ? h("button", { class: "switch", type: "button", role: "switch", "aria-checked": "false", "aria-label": fmt("engine_title") }) : null;   // the similarity switch, when the server has a model
   const lamp = sw ? h("span", { class: "lit off", "aria-hidden": "true" }) : null;  // its lamp: off, loading, on, or out of reach
   const examples = KIT.examples ? (typeof KIT.examples === "string" ? KIT.examples : KIT.examples[STR.lang] || "") : "";   // the job's own example questions
+  const PH = fmt("placeholder", { examples: examples || STR.examples || "" });       // the box's words with the job's own examples
   const qIn = h("input", { type: "search", class: "kit-q", "data-key": "kit-q-" + host.job, autocomplete: "off", spellcheck: "false",
-    placeholder: fmt("placeholder", { examples: examples || STR.examples || "" }), "aria-label": fmt("placeholder", { examples: examples || STR.examples || "" }) });
+    placeholder: PH, "aria-label": PH, title: PH });                                // the whole words on its hover too
+  // the words fitted to the box: a phone's box held a third of them, cut mid-syllable (C4-10), and the language chips' room
+  // takes some on a wide window too. The short words where the whole ones do not fit; the whole ones in its title
+  const phPen = document.createElement("canvas").getContext("2d");                 // measures the words in the box's own type
+  const fitPh = () => {                                                            // the whole words, or the short ones when they do not fit
+    const cs = getComputedStyle(qIn), room = qIn.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);   // its type, and the room inside its padding
+    if (room <= 0 || !phPen) return;                                                // not laid out yet: fitted when it is
+    phPen.font = cs.font;                                                           // its size, weight and family
+    qIn.placeholder = STR.placeholder_short && phPen.measureText(PH).width > room ? STR.placeholder_short : PH;   // never cut mid-syllable
+  };
+  const phWatch = window.ResizeObserver ? new ResizeObserver(fitPh) : null;        // the box grows and shrinks with the window and the keys beside it
+  if (phWatch) phWatch.observe(qIn);                                               // fitted at its first layout and each change after
   const homeKey = h("button", { class: "btn kit-home", type: "button", title: fmt("home_title") }, icon("grid"), fmt("home"));   // back to the contents
   const langSeg = h("div", { class: "seg kit-lang", role: "group", "aria-label": fmt("lang_group") },
     [["both", fmt("lang_both"), "Alt+1"], ["ko", "KO", "Alt+2"], ["en", "EN", "Alt+3"]].map(([v, w, key]) =>
@@ -449,6 +463,10 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   let lang = store.get("lang", "both");                                             // which scripts the cards show
   let words = [];                                                                   // query words for underlining
   let weak = false;                                                                 // nothing close to the query
+  const WEAK_SHOWN = 3;                                                             // a question nothing is close to: its best few answers, the rest a row away (C4-07)
+  let weakOpen = null;                                                              // the question whose other answers that row opened
+  const weakMore = () => (mode === "search" && weak && weakOpen !== current ? Math.max(0, Math.min(results.length, BOARD_MAX) - WEAK_SHOWN) : 0);   // how many answers the row holds back now
+  const openWeak = () => { weakOpen = current; layout(); };                         // the row pressed: every answer on the board, as for any question
   const GAP = 16, VGAP = 12, BOARD_MAX = 24;                                        // gaps in px (the panel's own between cards), answers on a board
   let FSB = clamp(Number(store.get("fs", 13)) || 13, 12, 15);                       // the one type size, from the settings (12 to 15 px)
   let COLW = [22, 25, 29].includes(Number(store.get("colw", 25))) ? Number(store.get("colw", 25)) : 25;   // column width in ems
@@ -555,6 +573,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   function layoutNarrow(el) {                                                       // a narrow view: every answer in one column, in rank order, and the page scrolls
     el.className = "kit-cards phone lang-" + lang;
     el.innerHTML = board.map((r, k) => cardHtml(r, k)).join("");                    // no measuring: the column grows with the cards
+    const more = weakMore();                                                        // a question nothing is close to: the others under the best few, a row away
+    if (more) el.append(moreRow(tn(more, "{n} more script", "{n} more scripts"), { run: openWeak }));   // the panel's own "more" row (core.js)
     if (words.length) el.querySelectorAll(".kit-card").forEach((c) => markQuery(c, words));   // the query's words underlined
     boardOrder = board.map((_, k) => k);
     screensBox.hidden = true;                                                       // a narrow view scrolls down: no screens to turn
@@ -567,7 +587,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const asked = mode === "search" && !BY_ID_LC.has(current.toLowerCase());        // a question, ranked
     if (!results.length) {                                                          // nothing matched: the script for questions without a script
       const k = KIT.fallback ? BY_ID.get(KIT.fallback) : undefined; board = k === undefined ? [] : [{ i: k, score: 0, kn: 0, dn: 0, sim: null, why: null }];   // the kit's "what to say when you do not know" item
-    } else if (asked) board = results.slice(0, BOARD_MAX);                          // a question: the best answers first, more screens to the right
+    } else if (asked) board = results.slice(0, weakMore() ? WEAK_SHOWN : BOARD_MAX);   // a question: the best answers first, more screens to the right; nothing close: the best few, the rest a row away
     else if (mode === "group") board = results;                                     // a section from its key: that section, in its own order, and nothing of the next
     else {                                                                          // an item number: its section, then the items that follow it in the files
       const last = Math.max(...results.map((r) => r.i));
@@ -614,8 +634,9 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     const rowOf = (k) => { const it = ITEMS[board[k].i];
       return `<button type="button" class="kit-row" data-id="${esc(it.id)}" data-src="${esc(it.src)}" data-c="${cat(it.id)}" title="${esc(tip(board[k]))}">` +
         `<span class="kit-id">${esc(it.id)}</span><span class="kit-t">${esc(titleOf(it))}</span></button>`; };
-    el.innerHTML = boardOrder.map(rowOf).join("");
-    if (!el.clientHeight || el.scrollHeight <= el.clientHeight + 1) return;         // it all fits (one layout)
+    const held = weakMore();                                                        // a question nothing is close to: its other answers, one key away under its best few
+    el.innerHTML = boardOrder.map(rowOf).join("") + (held ? `<button type="button" class="kit-row kit-more" data-more="weak">${esc(tn(held, "{n} more script", "{n} more scripts"))}</button>` : "");
+    if (held || !el.clientHeight || el.scrollHeight <= el.clientHeight + 1) return;   // it all fits (one layout)
     // whole rows only, never a cut-off line, and the last place says how many more there are; it goes to the first of them.
     // Every row's foot is read once and the list written once (a row taken off at a time laid the list out again each time)
     const top = el.getBoundingClientRect().top + el.clientTop, room = el.clientHeight - parseFloat(getComputedStyle(el).paddingBottom || "0");
@@ -824,7 +845,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || elMenu.scrollWidth <= elMenu.clientWidth + 1) return;
     elMenu.scrollLeft += e.deltaY; e.preventDefault();
   }, { passive: false });
-  elRank.addEventListener("click", (e) => { const b = e.target.closest(".kit-row"); if (b) pick(b.dataset.id); });
+  elRank.addEventListener("click", (e) => { const b = e.target.closest(".kit-row"); if (b && b.dataset.more === "weak") openWeak(); else if (b) pick(b.dataset.id); });   // a script on the board, or the row that opens the rest
   elCards.addEventListener("click", (e) => {
     const b = e.target.closest(".kit-tg button"); if (!b) return;                   // a contents entry
     if (b.dataset.g) openGroup(b.dataset.g); else { search(b.dataset.id); settle(); }
@@ -889,7 +910,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     clearTimeout(tSize); tSize = setTimeout(refit, 120);
   }) : null;
   if (watch) watch.observe(elCards);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measured.clear(); if (root.isConnected) refit(); });   // fitted again once the fonts are in, measured again in them
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measured.clear(); fitPh(); if (root.isConnected) refit(); });   // fitted again once the fonts are in, measured again in them (the box's words too)
 
   // ---------------------------------------------------------------- start
   langSeg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === lang ? "true" : "false"));   // remembered language
@@ -913,6 +934,6 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
       secStarts = starts;
       return box;
     },
-    destroy() { gone = true; clearTimeout(tHealth); clearTimeout(tKey); clearTimeout(tDense); clearTimeout(tSize); clearTimeout(tRest); if (inflight) inflight.abort(); if (watch) watch.disconnect(); },
+    destroy() { gone = true; clearTimeout(tHealth); clearTimeout(tKey); clearTimeout(tDense); clearTimeout(tSize); clearTimeout(tRest); if (inflight) inflight.abort(); if (watch) watch.disconnect(); if (phWatch) phWatch.disconnect(); },
   };
 }

@@ -412,6 +412,25 @@ class TestTracker(PanelCase):
         self.assertEqual("plain", next(j for j in st["jobs"] if j["id"] == jid)["next"])
         self.post("/api/v1/jobs/remove", {"job": jid})  # off the board, so the timeline test beside it sees its own card only
 
+    def test_a_round_saved_from_a_stale_start_is_refused(self):
+        jid = self.post("/api/v1/jobs", {"company": "델타", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # a card
+        rec = self.post("/api/v1/tracker/round", {"job": jid, "kind": "first", "at": "2026-11-12T14:00", "asked": "왜 이 회사", "notes": ""})["round"]
+        start = {k: rec.get(k, "") for k in ("kind", "at", "asked", "notes")}  # two windows open its form
+        round_of = lambda: next(r for r in next(j for j in self.get("/api/v1/state")["jobs"] if j["id"] == jid)["rounds"] if r["id"] == rec["id"])  # noqa: E731  as kept
+        self.post("/api/v1/tracker/round", {"job": jid, "id": rec["id"], **start, "notes": "window A's notes", "was": start})  # A saves first
+        out = self.post("/api/v1/tracker/round", {"job": jid, "id": rec["id"], **start, "kind": "second", "notes": "window B's notes", "was": start}, expect=400)  # B started before A saved (D4-06)
+        self.assertEqual("round_changed", out["what"])  # refused, with the word the page says in its own
+        self.assertEqual(("first", "window A's notes"), (round_of()["kind"], round_of()["notes"]))  # nothing of B's written, A's notes kept
+        # a window that changes only the kind: its form showed A's notes once a poll brought them, so it sends them and overwrites nothing
+        self.post("/api/v1/tracker/round", {"job": jid, "id": rec["id"], **start, "kind": "second", "notes": "window A's notes", "was": start})
+        self.assertEqual(("second", "window A's notes"), (round_of()["kind"], round_of()["notes"]))
+        self.post("/api/v1/tracker/round", {"job": jid, "id": rec["id"], "notes": "plain"})  # a caller that sends no start (the CLI, an agent) saves as before
+        self.assertEqual("plain", round_of()["notes"])
+        self.assertEqual("was", self.post("/api/v1/tracker/round", {"job": jid, "id": rec["id"], "notes": "x", "was": "stale"}, expect=400)["what"])  # a start that is not one
+        self.post("/api/v1/tracker/round", {"job": jid, "id": rec["id"], "remove": True, "was": start})  # a removal is no save over the other window's words (undo brings it back)
+        self.assertEqual([], next(j for j in self.get("/api/v1/state")["jobs"] if j["id"] == jid).get("rounds") or [])
+        self.post("/api/v1/jobs/remove", {"job": jid})  # off the board, so the timeline test beside it sees its own card only
+
     def test_board_timeline_reminders(self):
         jid = self.post("/api/v1/jobs", {"company": "감마클라우드", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # a card
         st = self.post("/api/v1/tracker/next", {"job": jid})["state"]  # preparing -> submitted
@@ -463,6 +482,26 @@ class TestTracker(PanelCase):
         with self.assertRaises(urllib.error.HTTPError) as no:  # an application that is not there
             self.raw_get("/api/v1/reminders.ics?job=no-such-job")
         self.assertEqual(400, no.exception.code)  # refused with words, as every route refuses an unknown job
+
+    def test_the_calendar_file_is_named_as_the_page_names_it_and_its_lines_are_folded(self):
+        jid = self.post("/api/v1/jobs", {"company": "감마클라우드", "posting": POSTING.read_text(encoding="utf-8")})["job"]
+        long = "결과 메일 확인, 인사 담당자에게 회신하고 2차 면접 일정을 맞춘다; 준비물은 포트폴리오와 과제 설명 자료 " * 3  # a reminder of a few hundred octets
+        self.post("/api/v1/reminders", {"job": jid, "at": "2099-01-01", "text": long.strip()})
+        day = time.strftime("%Y%m%d")  # the server's day, as S.today gives the page
+        for path, name in ((f"/api/v1/reminders.ics?job={jid}&lang=ko", f"offerowl_{jid}_calendar_{day}.ics"), ("/api/v1/reminders.ics", f"offerowl_calendar_{day}.ics")):
+            with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=20) as r:  # as the browser saves it
+                self.assertEqual(f'attachment; filename="{name}"', r.headers["Content-Disposition"])  # the header wins over the link: it said offerowl-reminders.ics (B4-04)
+                ics = r.read()
+            lines = ics.split(b"\r\n")
+            self.assertEqual(b"", lines[-1])  # the file ends with a line end
+            self.assertLessEqual(max(len(x) for x in lines), 75, path)  # RFC 5545: no line over 75 octets
+            unfolded = ics.replace(b"\r\n ", b"").decode("utf-8")  # a calendar puts the lines back together
+            want = long.strip().replace(",", "\\,").replace(";", "\\;")  # escaped as the format asks
+            self.assertIn(f"SUMMARY:감마클라우드: {want}\r\n", unfolded)  # whole, no letter cut in two
+            req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", method="HEAD")  # a HEAD names the file and makes none
+            with urllib.request.urlopen(req, timeout=20) as r:
+                self.assertEqual(f'attachment; filename="{name}"', r.headers["Content-Disposition"])
+                self.assertIsNone(r.headers.get("Content-Length"))  # no length it would not send
 
 
 class TestStandin(PanelCase):
@@ -744,6 +783,28 @@ class TestServingLimit(unittest.TestCase):
                             (b"GET / HTTP/1.0\r\n\r\n", False), (b"POST /x HTTP/1.1\r\nAccept: text/html\r\n\r\n", False), (b"", False)):
             self.assertEqual(want, ownport.wants_page(first), first)  # a page for a person, JSON for the API and for a script
 
+    def test_the_busy_page_is_the_panel_s_own_in_one_language(self):
+        sys.path.insert(0, str(ROOT / "src"))  # the engine's flat modules
+        import ownport  # the busy answer
+        for accept, want in (("ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7", "ko"), ("en-US,en;q=0.9,ko;q=0.8", "en"), ("fr-FR,ko;q=0.5", "ko"),
+                             ("ko;q=0.4,en;q=0.6", "en"), ("de", "en"), ("", "en")):  # the browser's first of Korean and English, else English
+            first = f"GET / HTTP/1.1\r\nAccept: text/html\r\nAccept-Language: {accept}\r\n\r\n".encode() if accept else b"GET / HTTP/1.1\r\n\r\n"
+            self.assertEqual(want, ownport.language(first), accept)
+        for retry in (2, 5):
+            head, body = ownport.busy_answer(retry, page=True, lang="ko").split(b"\r\n\r\n", 1)
+            page = body.decode("utf-8")
+            self.assertIn(f'http-equiv="refresh" content="{retry}"', page)  # it loads again when the answer says to try again (it was 3 s against 2, D4-12)
+            self.assertIn(f"Retry-After: {retry}".encode(), head)
+            self.assertIn("Offerowl이 요청을 많이 받고 있습니다.", page)  # one language
+            self.assertNotIn("Offerowl is answering", page)  # never both stacked
+            self.assertIn(b"default-src 'none'", head)  # a policy of its own: its style and its one script, nothing loaded
+            self.assertIn(b"script-src 'sha256-", head)
+            self.assertIn('class="mark"', page)  # the wordmark, drawn in the page itself
+            self.assertIn("var(--desk)", page)  # the panel's desk
+            self.assertIn("prefers-color-scheme:dark", page)  # and its dark theme
+            self.assertNotIn("src=", page)  # nothing from the busy server: every file would be refused as busy
+        self.assertIn("Offerowl is answering many requests at once.", ownport.busy_answer(2, page=True, lang="en").decode("utf-8"))
+
     @unittest.skipUnless(sys.platform.startswith("linux"), "measured on Linux, whose system queue the burst waits in")
     def test_a_burst_waits_in_the_system_s_queue_instead_of_being_dropped(self):
         """200 clients at once against a server that answers in no time: with Python's own queue of 5 most of them were
@@ -784,6 +845,69 @@ class TestServingLimit(unittest.TestCase):
         self.assertEqual([200] * 200, codes)  # every one answered
         # measured on this burst: 0.2 s with the server's queue, 7.4 s with Python's 5 (the clients' retries after 1 and 3 s)
         self.assertLess(time.monotonic() - t0, 3)
+
+    def test_every_waiting_connection_is_told_in_its_own_second(self):
+        """With every slot held, twelve clients at once are each answered busy once their own wait is over, not one a second
+        after the other (D4-03: the wait ran on the accept loop, so the twelfth was told after nine seconds); and past the
+        connections that may wait, the next is told at once."""
+        import socket  # requests by hand
+        sys.path.insert(0, str(ROOT / "src"))  # the engine's flat modules
+        from ownport import Server  # the class every server binds with
+        go = threading.Event()  # lets the held requests finish
+
+        class Held(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                go.wait(20)  # holds its slot until the test lets go
+                self.send_response(200)
+                self.send_header("Content-Length", "2")
+                self.end_headers()
+                self.wfile.write(b"ok")
+
+            def log_message(self, *a):  # quiet
+                pass
+
+        class Two(Server):  # the limit, made small
+            max_threads = 2
+            slot_wait = 0.5
+            wait_cap = 6
+
+        srv = Two(("127.0.0.1", 0), Held)
+        threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.1}, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        self.addCleanup(go.set)
+        port = srv.server_address[1]
+        held = []
+        for _ in range(2):  # every slot taken
+            s = socket.create_connection(("127.0.0.1", port), timeout=20)
+            self.addCleanup(s.close)
+            s.sendall(b"GET / HTTP/1.0\r\n\r\n")
+            held.append(s)
+        time.sleep(0.3)  # their threads are serving them
+        got = []
+
+        def one():
+            t0 = time.monotonic()
+            with socket.create_connection(("127.0.0.1", port), timeout=20) as s:
+                s.sendall(b"GET /api/v1/state HTTP/1.0\r\n\r\n")
+                answer = b""
+                while True:  # until the server closes
+                    piece = s.recv(4096)
+                    if not piece:
+                        break
+                    answer += piece
+            got.append((time.monotonic() - t0, answer.split(b"\r\n", 1)[0]))
+        clients = [threading.Thread(target=one) for _ in range(12)]
+        for c in clients:
+            c.start()
+        for c in clients:
+            c.join(30)
+        self.assertEqual(12, len(got))
+        self.assertTrue(all(b" 503 " in line for _, line in got), got)  # each told to try again
+        self.assertLess(max(t for t, _ in got), 2.0, sorted(t for t, _ in got))  # each after its own half second at most, not 0.5, 1.0 ... 6.0 s
+        go.set()  # the held requests end
+        for s in held:
+            self.assertIn(b" 200 ", s.recv(100))  # and were answered
 
     def test_past_the_limit_a_connection_waits_then_is_told_to_try_again(self):
         import socket  # requests by hand
@@ -1114,6 +1238,49 @@ class TestBackup(PanelCase):
         except urllib.error.HTTPError as e:  # 4xx answers land here
             return e.code, json.loads(e.read() or b"{}")  # the error's own JSON
 
+    def test_a_backup_is_saved_under_its_name_and_a_head_makes_none(self):
+        from apps.api.services.library import backup, library  # what a HEAD must never run
+        day = time.strftime("%Y%m%d")  # today, as the name carries it
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/v1/workspace/backup", timeout=60) as r:  # as the browser saves it
+            self.assertEqual(f'attachment; filename="offerowl_backup_{day}.zip"', r.headers["Content-Disposition"])  # underscores and the day (B4-04: it had no name at all)
+            r.read()
+        with mock.patch.object(backup, "write_file", side_effect=AssertionError("a backup was made for a HEAD")), \
+             mock.patch.object(library, "listing", side_effect=AssertionError("the Library was listed for a HEAD")):  # D4-04: a HEAD made the whole zip
+            for path, ctype in (("/api/v1/workspace/backup", "application/zip"), ("/api/v1/library", "application/json"), ("/api/v1/removed", "application/json")):
+                req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", method="HEAD")
+                with urllib.request.urlopen(req, timeout=20) as r:
+                    self.assertEqual(200, r.status, path)
+                    self.assertTrue(r.headers["Content-Type"].startswith(ctype), path)
+                    self.assertIsNone(r.headers.get("Content-Length"), path)  # no length it would not send
+            req = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/v1/workspace/backup", method="HEAD")
+            with urllib.request.urlopen(req, timeout=20) as r:
+                self.assertEqual(f'attachment; filename="offerowl_backup_{day}.zip"', r.headers["Content-Disposition"])  # the name a download would get
+        self.assertEqual([], [p.name for p in (self.tmp / "data").iterdir() if p.name.startswith(".backup-")])  # no backup left beside the workspace
+
+    def test_a_full_disk_is_said_before_a_backup_or_a_restore_writes_a_byte(self):
+        import collections  # the shape disk_usage answers in
+        import shutil as sh  # the system's measure of a disk, made small below
+        self.post("/api/v1/onboarding", {"step": "files"})  # something in the workspace
+        big = self.tmp / "data" / "workspace" / "profile" / "zz-notes.md"  # and a file that unpacks to far more than it zips to
+        big.write_text("회의 메모 " * 200_000, encoding="utf-8")
+        self.addCleanup(big.unlink, True)  # gone for the class's other tests
+        data = self.raw_get("/api/v1/workspace/backup")[1]  # a backup made while there is room
+        self.assertLess(len(data) * 10, big.stat().st_size)  # a few kilobytes for megabytes
+        self.assertEqual(True, self.get("/api/v1/workspace/backup?check=1")["room"])  # the page's question: room now
+        Usage = collections.namedtuple("Usage", "total used free")
+        here = lambda: sorted(p.name for p in (self.tmp / "data").iterdir())  # noqa: E731  what the data folder holds
+        before = here()
+        with mock.patch.object(sh, "disk_usage", return_value=Usage(10 ** 9, 10 ** 9 - 1000, 1000)):  # a disk with 1000 bytes left (D4-09)
+            for path in ("/api/v1/workspace/backup?check=1", "/api/v1/workspace/backup"):  # the page's question, and the download itself
+                with self.assertRaises(urllib.error.HTTPError, msg=path) as no:
+                    self.raw_get(path)
+                self.assertEqual({"error": "bad_request", "what": "disk_full"}, json.loads(no.exception.read()), path)  # said before the zip was begun
+            self.assertEqual((400, {"error": "disk_full"}), self.send_file(data))  # a restore: refused before its file was written
+        with mock.patch.object(sh, "disk_usage", return_value=Usage(10 ** 9, 0, len(data) + 64_000_001)):  # room for the file, not for unpacking it
+            self.assertEqual((400, {"error": "disk_full"}), self.send_file(data))
+        self.assertEqual(before, here())  # no zip, no piece, no unpacked folder, nothing set aside
+        self.assertEqual("files", self.get("/api/v1/state")["onboarding"]["step"])  # the workspace as it was
+
     def test_out_and_in_again(self):
         self.post("/api/v1/example", {"lang": "ko"})  # the fictional person
         self.wait_task("ingest")  # read
@@ -1365,6 +1532,94 @@ class TestRefusedInWords(unittest.TestCase):
         det = self.c.api.facts.details()
         self.assertEqual(("gildong@example.com", None), (det.get("email"), det.get("name")))  # nothing of them kept, the good field of a mixed one neither
         self.assertNotIn("nickname", det)
+
+    def test_an_email_that_is_no_address_is_never_kept(self):
+        self.c.post("/api/v1/details", {"fields": {"email": "gildong@example.com"}})  # a good one first
+        steps = len(self.c.get("/api/v1/history")["steps"])  # the history now
+        for mail in ("abc", "gildong@", "gildong@example", "길동 @example.com", "a@b@c.kr"):  # words on their way to an address, and words that are none
+            self.refused("/api/v1/details", {"fields": {"email": mail}}, "email")  # it was saved as typed and printed on the resumes (A4-03)
+        self.refused("/api/v1/details", {"fields": {"name": "홍길동", "email": "abc"}}, "email")  # the good field beside it is not kept either: one answer, all or nothing
+        det = self.c.api.facts.details()
+        self.assertEqual(("gildong@example.com", None), (det.get("email"), det.get("name")))  # the good address stays
+        self.assertEqual(steps, len(self.c.get("/api/v1/history")["steps"]))  # and no step was made of a refusal
+        self.c.post("/api/v1/details", {"fields": {"email": " hong.gildong@example.co.kr "}})  # an address with the spaces a paste brings
+        self.c.post("/api/v1/details", {"fields": {"email": ""}})  # emptied: a choice, kept
+        self.assertEqual("", self.c.api.facts.details().get("email"))
+
+    def test_a_fact_s_title_and_words_are_kept_whole_or_refused(self):
+        steps = len(self.c.get("/api/v1/history")["steps"])  # the history now
+        self.refused("/api/v1/facts/add", {"kind": "skill", "title": "가" * 201, "statement": "짧은 말"}, "fact_title_long")   # a title of 600 was kept and ran 30 lines (A4-08)
+        self.refused("/api/v1/facts/add", {"kind": "skill", "title": "짧은 제목", "statement": "나" * 20001}, "fact_statement_long")
+        self.assertEqual(steps, len(self.c.get("/api/v1/history")["steps"]))  # nothing was kept of them
+        cid = self.c.post("/api/v1/facts/add", {"kind": "skill", "title": "가" * 200, "statement": "나" * 20000})["cid"]   # at the bounds: kept
+        row = next(r for r in self.c.get("/api/v1/facts")["rows"] if r["cid"] == cid)
+        self.assertEqual((200, 20000), (len(row["title"]), len(row["statement"])))  # whole: a statement of 5000 was kept as its first 2000, without a word
+        for fields, what in (({"title": "다" * 201}, "fact_title_long"), ({"statement": "라" * 20001}, "fact_statement_long")):   # an edit, the same bounds
+            self.refused("/api/v1/facts/decide", {"cid": cid, "action": "edit", "fields": fields}, what)
+        self.c.post("/api/v1/facts/decide", {"cid": cid, "action": "edit", "fields": {"statement": "마" * 20000}})   # an edit at the bound: kept whole
+        row = next(r for r in self.c.get("/api/v1/facts")["rows"] if r["cid"] == cid)
+        self.assertEqual(("가" * 200, "마" * 20000), (row["edit"].get("title", row["title"]), row["edit"]["statement"]))
+
+    def test_a_fact_s_edit_takes_its_fields_as_an_object_of_text(self):
+        cid = self.c.post("/api/v1/facts/add", {"kind": "project", "org": "감마랩스", "title": "결제 승인", "statement": "승인을 분리했다"})["cid"]
+        steps = len(self.c.get("/api/v1/history")["steps"])  # the history now
+        for fields in (5, True, ["x"], "title", {}, {"title": 5}, {"statement": ["승인"]}):  # D4-01: the first four were a 500 ('str' object has no attribute 'items')
+            self.refused("/api/v1/facts/decide", {"cid": cid, "action": "edit", "fields": fields}, "fields")
+        self.refused("/api/v1/facts/decide", {"cid": cid, "action": "edit"}, "fields")  # no fields at all: nothing to edit
+        self.assertEqual(steps, len(self.c.get("/api/v1/history")["steps"]))  # no step was made
+        self.assertEqual("결제 승인", next(r for r in self.c.get("/api/v1/facts")["rows"] if r["cid"] == cid)["title"])  # the fact as it was
+        self.c.post("/api/v1/facts/decide", {"cid": cid, "action": "edit", "fields": {"title": "결제 승인 분리"}})  # as the page sends it
+        self.assertEqual("결제 승인 분리", next(r for r in self.c.get("/api/v1/facts")["rows"] if r["cid"] == cid)["edit"]["title"])
+
+    def test_text_fields_refuse_a_value_that_is_no_text(self):
+        posting = "감마랩스 플랫폼 엔지니어 채용 공고. 쿠버네티스 클러스터를 운영하고 장애를 줄이는 일을 합니다."  # a fictional posting
+        jobs = len(self.c.api.ws.jobs(removed=True))  # the cards now
+        for bad in (10 ** 30, ["x" * 30], {"a": "b" * 30}, True):  # D4-05: each became an application, named "1000000000000000000000000000000-2" and the like
+            self.refused("/api/v1/jobs", {"posting": bad}, "posting")
+        self.refused("/api/v1/jobs", {"posting": posting, "company": ["감마랩스"]}, "company")
+        self.refused("/api/v1/jobs", {"posting": posting, "role": 5}, "role")
+        for bad in (1, True, [], {"n": 1}):  # editions "-1" and "-true" were made
+            self.refused("/api/v1/editions", {"name": bad}, "name")
+        self.assertEqual(jobs, len(self.c.api.ws.jobs(removed=True)))  # nothing was made
+        jid = self.c.post("/api/v1/jobs", {"posting": posting, "company": "감마랩스"})["job"]
+        self.c.settle()
+        self.refused("/api/v1/reminders", {"job": jid, "at": "2099-01-01", "text": ["r"]}, "text")  # it was kept as the words "['r']"
+        self.refused("/api/v1/reminders", {"job": jid, "at": 20990101, "text": "결과 확인"}, "at")
+        self.refused("/api/v1/facts/add", {"title": ["x"], "statement": "승인을 분리했다"}, "title")
+        self.refused("/api/v1/facts/add", {"statement": {"a": 1}}, "statement")
+        self.refused("/api/v1/jobs/rename", {"job": jid, "id": 5}, "id")
+        self.refused("/api/v1/jobs/questions/paste", {"job": jid, "text": ["1. 지원 동기 (500자)"]}, "text")
+        self.refused("/api/v1/jobs/questions", {"job": jid, "questions": [{"text": 5}]}, "questions")
+        self.refused("/api/v1/jobs/questions/write", {"job": jid, "ids": 5}, "ids")  # it was a 500 (an int is not iterable)
+        self.refused("/api/v1/tracker/round", {"job": jid, "kind": "first", "at": "2099-01-02", "notes": ["a"]}, "notes")
+        self.refused("/api/v1/undo", {"only": 5}, "only")
+        self.refused("/api/v1/jobs/select", {"job": ["x"]}, "job")
+        self.refused("/api/v1/open", {"what": ["workspace"]}, "what")  # a 500: a list is no key of the folders it opens
+        self.refused("/api/v1/interview/carry", {"job": jid, "from": jid, "names": 5}, "names")  # a 500: a number is no list of names
+        card = self.c.api.ws.job(jid)
+        self.assertEqual([], card.get("reminders") or [])  # nothing of them kept
+        self.assertEqual([], card.get("rounds") or [])
+        self.assertFalse(any(r["title"] == "['x']" for r in self.c.get("/api/v1/facts")["rows"]))
+
+    def test_a_request_that_names_nothing_to_change_is_refused(self):
+        jid = self.c.post("/api/v1/jobs", {"posting": "감마랩스 플랫폼 엔지니어 채용 공고. 쿠버네티스 클러스터를 운영하는 일을 합니다.", "company": "감마랩스"})["job"]
+        self.c.settle()
+        steps = len(self.c.get("/api/v1/history")["steps"])  # the history now
+        self.refused("/api/v1/details", {"name": "홍길동"}, "fields")  # D4-07: the field beside "fields", answered ok with nothing kept
+        for body, what in (({"stage": "zzz"}, "stage"), ({"stage": ["preparing"]}, "stage"), ({"stage": None}, "stage"), ({}, "fields"),  # each was answered ok
+                           ({"next": ["a", "b"]}, "next"), ({"result": 5}, "result"), ({"dates": "2026-01-01"}, "dates"),
+                           ({"dates": {"someday": "2026-01-01"}}, "dates"), ({"date": 20260101}, "date"), ({"removed": "yes"}, "removed")):
+            self.refused("/api/v1/tracker/edit", {"job": jid, **body}, what)
+        self.refused("/api/v1/settings", {"deck_max": 5}, "settings")  # a setting there is not
+        self.refused("/api/v1/onboarding", {"stage": "files"}, "fields")  # neither the step nor whether it is done
+        rec = self.c.post("/api/v1/reminders", {"job": jid, "at": "2099-01-01", "text": "결과 확인"})["reminder"]
+        self.refused("/api/v1/reminders", {"job": jid, "id": rec["id"]}, "fields")  # neither done nor removed
+        rnd = self.c.post("/api/v1/tracker/round", {"job": jid, "kind": "first", "at": "2099-01-02"})["round"]
+        self.refused("/api/v1/tracker/round", {"job": jid, "id": rnd["id"]}, "fields")  # nothing of it to change
+        self.assertEqual(steps + 2, len(self.c.get("/api/v1/history")["steps"]))  # the reminder and the round only
+        self.assertEqual("preparing", self.c.api.ws.job(jid)["stage"])  # the card as it was
+        self.c.post("/api/v1/tracker/edit", {"job": jid, "stage": "submitted"})  # a real change still goes
+        self.assertEqual("submitted", self.c.api.ws.job(jid)["stage"])
 
 
 class TestNoFileStaysReading(unittest.TestCase):

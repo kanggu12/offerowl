@@ -35,7 +35,7 @@ function insLayout() {                                                          
   const w = innerWidth;                                                             // skin.css switches the grid's columns at the same widths
   if (w <= 720) return { cols: 1, tile: 1, wide: 1 };                               // a phone: one under another
   if (w <= 1180) return { cols: 6, tile: 3, wide: 6 };                              // two to a row
-  if (w >= 1800) return { cols: 12, tile: 3, wide: 6 };                             // a wide screen: four to a row, all of it on one screen
+  if (w >= 1800) return { cols: 12, tile: 3, wide: 12 };                            // a wide screen: four columns, the career across them all above (half of it left a hole beside it)
   return { cols: 12, tile: 4, wide: 12 };                                           // three to a row
 }
 function tileW(host, wide) {                                                        // the drawing width of a figure in a tile, or in the wide tile
@@ -349,9 +349,13 @@ function readyTile(d) {
   return tile("ready", "mic", "Interview readiness", tn(all.length, "{n} open application", "{n} open applications"),
     rows.length ? h("ul", { class: "rd-list" }, rows.map((r) => {
       const c = r.coverage, sum = c ? c.strong + (c.draft || 0) + c.weak + c.none : 0;   // the kit's likely questions, the drafts' among them (left out, a kit of drafts read as 0% in red)
+      const j = (S.jobs || []).find((x) => x.id === r.job) || {}, name = jobNameOf(r.job, r.company);   // the application, and its name as every list says it
+      const role = j.company && j.role && name === `${j.company} · ${j.role}` ? j.role : "";   // two roles at one company: the role tells them apart, on a line of its own
       return h("li", { class: "rd-item", "data-stage": r.stage },
         mono(r.company, "sm", r.stage),
-        h("button", { class: "rd-name", type: "button", onclick: () => goJob(r, "interview"), title: jobNameOf(r.job, r.company) + " · " + t("Open its interview tab") }, h("b", { text: jobNameOf(r.job, r.company) }), h("small", { text: t(STAGE[r.stage]) })),
+        h("button", { class: "rd-name", type: "button", onclick: () => goJob(r, "interview"), title: name + " · " + t("Open its interview tab") },
+          h("span", { class: "rd-co" }, h("b", { text: role ? j.company : name }), h("small", { text: t(STAGE[r.stage]) })),   // the company and its stage on the first line
+          role ? h("span", { class: "rd-role", text: role }) : null),               // the role whole under it, never cut with an ellipsis (A4-10)
         h("span", { class: "rd-fit", "data-tip": r.fit === null ? null : t("Fit {n} / 100", { n: r.fit }) }, r.fit === null ? h("small", { text: t("No posting") }) : [h("b", { text: String(r.fit) }), h("i", { class: "rd-fitbar", style: `--w:${r.fit}%;--c:${MET_SOLO[metTone(r.fit)]}`, "aria-hidden": "true" })]),
         h("span", { class: "rd-meta" },
           c ? h("span", { class: "rd-cov", tabindex: "0", "data-tip": c.draft ? t("Interview map: {s} met, {d} by the agent's drafts, {w} in part, {n} not met, {k} scripts", { s: c.strong, d: c.draft, w: c.weak, n: c.none, k: r.scripts })
@@ -409,15 +413,19 @@ function viewInsights(host) {
   if (!d) return fill(host, h("div", { class: "ins loading", "aria-busy": "true" }, h("div", { class: "ins-kpis" }, [1, 2, 3, 4, 5, 6].map(() => h("div", { class: "ins-kpi ghost" }))),
     h("p", { class: "ins-none", text: t("Counting…") })));
   if (d.error) return fill(host, h("div", { class: "ins" }, h("p", { class: "ins-none", text: t("The numbers could not be read.") })));
+  // each column stacks its own tiles (A4-09): in rows, the tallest of a row left a hole under the others beside it. The tiles
+  // are dealt in reading order, a row at a time; the career's wide tile comes above the columns, since under columns that
+  // end at different heights it stood below a hole (a phone's one column keeps it last, as before)
+  const L = insLayout();                                                            // the same spans the figures were drawn for
+  const n = L.cols === 1 ? 1 : Math.round(L.cols / L.tile);                         // how many columns: one on a phone, else two, three or four
+  const cols = Array.from({ length: n }, () => h("div", { class: "ins-col" }));     // a column of tiles
+  [funnelTile(d), weeksTile(d, host), mapTile(d, host), areasTile(d), gapsTile(d, host), readyTile(d)].forEach((el, i) => cols[i % n].append(el));
+  const career = careerTile(d, host);                                               // the career and its evidence, across the width
   const out = h("div", { class: "ins" },
     personaTile(d),
     kpiRow(d),
-    h("div", { class: "ins-grid" },
-      funnelTile(d), weeksTile(d, host), mapTile(d, host),
-      areasTile(d), gapsTile(d, host), readyTile(d),
-      careerTile(d, host)));
-  const L = insLayout();                                                            // the same spans the figures were drawn for
-  if (L.cols > 1) for (const el of out.querySelectorAll(".ins-grid > .ins-tile")) el.style.gridColumn = "span " + (el.classList.contains("ins-career") ? L.wide : L.tile);
+    h("div", { class: "ins-grid" }, n > 1 ? career : null, cols, n > 1 ? null : career));
+  if (L.cols > 1) for (const el of out.querySelectorAll(".ins-grid > .ins-col")) el.style.gridColumn = "span " + L.tile;   // a column as wide as a tile was
   for (const el of out.querySelectorAll(".ins-tile")) el.dataset.viz = (el.className.split(" ")[1] || "") + ":" + hashText(el.textContent);   // its name and numbers: motion.js plays it again only when they change
   fill(host, out);
   // drawn for the width the canvas had a moment ago (opening from Documents, whose inspector takes a side): when a

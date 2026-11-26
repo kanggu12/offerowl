@@ -30,6 +30,31 @@ REF_DEFAULT = [r"\s*\([^()]*\b[\w.-]+\.(?:md|txt|json)\b[^()]*\)", r"\s*\([^()]*
                r"\s*(?:대본 근거|Script basis|Sources)\s*:\s*[A-Z]\d{1,3}(?:\s*,\s*[A-Z]\d{1,3})*\.?", r"\s*\(\s*[A-Z]\d{1,3}(?:\s*,\s*[A-Z]\d{1,3})*\s*\)"]
 
 
+NOTE_RECORDS = re.compile(r"대장|기존 키트|\brules?\s*\d")  # kit.js NOTE_RECORDS: a 주의 note naming the writer's own records (the ledger, the kits before, a rule's number) is left out whole (C4-08)
+NOTE_LABEL = re.compile(r"^(?:-\s+)?\*\*([^*]{1,12})\*\*")  # a note line's own label, such as **주의**
+LIST_LINE = re.compile(r"^(?:[-*]|\d+\.)\s+")  # a list item, which ends the note above it as kit.js reads it
+
+
+def drop_record_notes(lines, unref=lambda x: x):
+    """A scene's note lines without its 주의 notes that name the writer's records, each with the lines that run on under it,
+    read as the page shows them (unref: the cross-references taken out first, a bracketed "(대장 12)" among them), as the
+    search view leaves them out; every other note stays as it is."""
+    blocks = []  # [the note's own line, the lines that run on under it]
+    for ln in lines:  # in order
+        s = ln.strip()  # as the label is read
+        if not blocks or not s or NOTE_LABEL.match(s) or (LIST_LINE.match(ln) and not ln.startswith("  ")) or not blocks[-1][-1].strip():
+            blocks.append([ln])  # a note or a line of its own
+        else:  # a line with words, under a note
+            blocks[-1].append(ln)  # runs on under the note above
+    keep = []  # the lines kept, in order
+    for b in blocks:  # each note with its lines
+        m = NOTE_LABEL.match(b[0].strip())  # its label
+        if m and m.group(1).strip() == "주의" and NOTE_RECORDS.search(unref(" ".join(b))):  # about the writer's own records, as shown
+            continue  # left out whole
+        keep.extend(b)  # kept as it is
+    return keep  # in their order
+
+
 def _unref(kit):  # the kit's cross-reference patterns are JavaScript syntax, which Python reads the same way here
     """A function that removes the writer's cross-references, as the search view does."""
     pats = []  # the patterns that compile in Python

@@ -161,6 +161,27 @@ class TestInterviewViews(PanelCase):
             api.tasks.kit_deck(self.job, "ko")
             self.assertEqual(3, made.call_count)
 
+    def test_the_deck_s_memory_keeps_the_four_kits_used_last(self):
+        """The deck data of four kits at most, the one used longest ago going first: it went in the order it was made, so the
+        kit read most often was the first to go, and every kit's data stayed until four newer came (D4-11)."""
+        from unittest import mock  # stands in for the real work
+        from interview import deck as ivdeck  # what makes it
+        api = type(self).srv.RequestHandlerClass.panel  # the panel's API
+        api.tasks._deck_cache.clear()  # what an earlier test made is not counted
+        with mock.patch.object(ivdeck, "data", side_effect=lambda job, lang: {"lang": lang}) as made:  # one deck per language asked, as a kit per job
+            for lang in ("ko", "en", "x1", "x2"):  # four: as many as are kept
+                api.tasks.kit_deck(self.job, lang)
+            api.tasks.kit_deck(self.job, "ko")  # the first, used again
+            self.assertEqual(4, made.call_count)  # from memory
+            api.tasks.kit_deck(self.job, "x3")  # a fifth: the one used longest ago goes, "en"
+            api.tasks.kit_deck(self.job, "ko")  # still kept
+            self.assertEqual(5, made.call_count)  # FIFO dropped "ko" here and made it again
+            api.tasks.kit_deck(self.job, "en")  # the one that went
+            self.assertEqual(6, made.call_count)
+            self.assertLessEqual(len(api.tasks._deck_cache), 4)
+        api.tasks._deck_cache.clear()  # nothing of the stand-in stays for later tests
+        api.tasks.give_back()  # the memory handed back to the system, as after every view (glibc), or nothing elsewhere
+
     def test_the_general_edition_has_no_talk(self):
         """The edition with no job has no interview folder at all: its talk reads as not made, never as a dropped connection."""
         code, _, body = self.read("/api/v1/jobs/-general/talk/script")

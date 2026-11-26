@@ -152,14 +152,17 @@ def note_lines(block):
     return out
 
 
-def carry_file(text, deny, taken, korean, moved, have=None):
+def carry_file(text, deny, taken, korean, moved, have=None, before=None):
     """One file carried: scenes naming the earlier company left out (in their title or what is said; a note that names it
     is dropped and the scene kept), scenes the target already holds under the same title skipped, ids the target uses moved,
     bullet categories headed, and, for a Korean interview, English scenes turned round. have: the target's titles (title_key),
-    grown as scenes come in. Returns (text, scenes kept, titles left out, scenes the target had)."""
+    grown as scenes come in. before: the titles the target held before the carry and not yet counted, the only ones said to
+    be there already, each once (a title the carried kit holds twice comes once, and is no scene the target had: C4-15); it
+    shrinks as they are counted. Returns (text, scenes kept, titles left out, scenes the target had)."""
     lines = text.splitlines()
     out, kept, left, same = [], 0, [], 0
     have = have if have is not None else set()
+    before = set(have) if before is None else before  # called alone: what the target holds as it starts
     k = 0
     while k < len(lines):
         ln = lines[k]
@@ -200,8 +203,9 @@ def carry_file(text, deny, taken, korean, moved, have=None):
                 continue
             block = [b for i, b in enumerate(block) if not (i in notes and deny is not None and deny.search(b))]   # a note that only names that company goes, the answer stays
             key = title_key(m.group(4))
-            if key and key in have:  # the target holds this scene already (its own, or carried before)
-                same += 1
+            if key and key in have:  # the target holds this scene already (its own, or carried a moment ago from another file of this kit)
+                same += key in before  # said as "here already" only when the target had it before the carry,
+                before.discard(key)  # and once: the same title again is a double of the carried kit's own
                 k = j
                 continue
             have.add(key)
@@ -237,6 +241,7 @@ def carry(src_iv: Path, dst_iv: Path, korean: bool = False, names=(), job_from: 
     taken = ids_of(dst_iv)  # the target's own ids are never taken
     own_letters = {m.group(1) for f in dst_iv.glob("*.md") for m in re.finditer(r"^## ([A-Z])\.", f.read_text(encoding="utf-8"), re.M)}   # the sections the target names itself
     have = {title_key(x) for f in dst_iv.glob("*.md") for x in re.findall(r"^### [A-Z]\d+b?\.(.*)$", f.read_text(encoding="utf-8"), re.M)}   # the target's scene titles: one it holds is never carried again
+    before = set(have)  # the titles it held before this carry: the report's "here already" counts each of these once
     if dst_kit.get("sources") is None:  # a kit that reads every file as scenes: its files named once, with their roles
         dst_kit["sources"] = [{"file": f.name, "role": next((r for s, r in SCENE_ROLES if f.stem.lower().startswith(s)), "scenes")}
                               for f in sorted(dst_iv.glob("*.md"))] + [{"file": "@stories", "role": "reference"}]
@@ -250,7 +255,7 @@ def carry(src_iv: Path, dst_iv: Path, korean: bool = False, names=(), job_from: 
         if re.match(r"(?:research|company)", f.stem, re.I) or source.lower() in f.stem.lower():  # that company's research, or a file named after it: about that interview whole
             report["kept_aside"].append(f.name)
             continue
-        text, kept, left, same = carry_file(f.read_text(encoding="utf-8"), deny, taken, korean, report["moved"], have)
+        text, kept, left, same = carry_file(f.read_text(encoding="utf-8"), deny, taken, korean, report["moved"], have, before)
         report["left"].extend(left)
         report["same"] += same
         if not kept and not left:  # a file with no scene of its own (a note page): carried as it is

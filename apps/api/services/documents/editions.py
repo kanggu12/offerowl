@@ -28,6 +28,7 @@ if __package__ in (None, ""):  # started as a file: make the relative imports wo
     __import__("apps.api.services.documents")  # the package itself
 
 from ..profile import FACT_FILES, OwnFacts  # noqa: E402  the fact files, and an edition's own facts (the profile's)
+from ...core.routing import text_field  # noqa: E402  a request's text, or refused
 from ...core.workspace import Workspace, dump_json, today, write_json, write_text  # noqa: E402  files, JSON as the workspace writes it, the day, safe writes
 
 GENERAL = "-general"  # the edition with no job: the profile itself (app.py has the same name)
@@ -221,6 +222,7 @@ def own_edition(api, req: dict) -> dict:
     doc, langs = req.get("profile"), [x for x in (req.get("langs") if isinstance(req.get("langs"), list) else []) if x in ("ko", "en")]  # the edition and its languages (only a list of them)
     if not isinstance(doc, dict) or not doc.get("roles") or not langs:  # nothing a resume could print
         raise ValueError("profile")
+    title = text_field(req, "name")[:120]  # what the edition is called: text, or refused
     import shutil  # the staging folder
     root = api.ws.job_dir(jid) / "own"  # beside the job's other files
     new = root.with_name(f"own.new-{os.getpid()}")  # the one coming in, made whole beside the one before
@@ -228,10 +230,10 @@ def own_edition(api, req: dict) -> dict:
         shutil.rmtree(new, ignore_errors=True)  # what a stopped import left
         try:  # made whole apart, so an import that fails replaces nothing
             facts = OwnFacts(Workspace(new), api.facts)  # its own workspace
-            n = facts.import_profile(doc, "own", str(req.get("name") or "own edition")[:120])  # its items as facts
+            n = facts.import_profile(doc, "own", title or "own edition")  # its items as facts
             write_json(new / "sources" / "review.json", {c["cid"]: "accepted" for c in facts.candidates()})  # all kept: the person wrote them
             facts.rebuild()  # its profile and evidence
-            write_json(new / "own.json", {"langs": langs, "name": str(req.get("name") or "")[:120], "at": today()})  # what it is
+            write_json(new / "own.json", {"langs": langs, "name": title, "at": today()})  # what it is
             from .task_own import OWN_FORM_KEYS  # the layout choices the form reads
             form = req.get("form") if isinstance(req.get("form"), dict) else {}  # per language, as the edition was made
             write_json(new / "form.json", {lang: {k: v for k, v in (form.get(lang) or {}).items() if k in OWN_FORM_KEYS}
@@ -248,7 +250,7 @@ def own_edition(api, req: dict) -> dict:
 
 def add_edition(api, req: dict) -> str:
     """A named general edition (one for headhunters, one per target role): no posting, never on the board. Returns its id."""
-    name = " ".join(str(req.get("name") or "").split())[:80]  # its name, on one line, bounded
+    name = " ".join(text_field(req, "name").split())[:80]  # its name, on one line, bounded: 1, true or [] made editions "-1", "-true" (D4-05)
     if not name:  # a name is what tells it apart
         raise ValueError("name")
     with api.ws.lock:  # the folder name picked and the edition written in one go

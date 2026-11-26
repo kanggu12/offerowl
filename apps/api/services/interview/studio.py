@@ -84,7 +84,7 @@ def board(tasks, job_id: str, lang: str = "ko") -> dict:
             "cue": {"available": (KIT / "cue.py").is_file(), "url": url + "cue"},  # the printable cue cards
             "deck": {"available": (KIT / "deck.py").is_file(), "url": url + "deck"}}  # the printable interview deck
     if not ready:  # no kit yet
-        return {"ready": False, "categories": [], "scripts": [], "counts": {"questions": 0, "scripts": 0, "uncovered": 0}, **base}  # the page offers to make it
+        return {"ready": False, "categories": [], "scripts": [], "counts": {"questions": 0, "scripts": 0, "uncovered": 0, "drafted": 0, "own": 0}, **base}  # the page offers to make it
     from interview import corpus  # the scene files
     from interview import plan as ivplan  # the question map
     from interview.job import Job  # the kit's job folder
@@ -128,7 +128,9 @@ def board(tasks, job_id: str, lang: str = "ko") -> dict:
                         "category": it.get("cat") or "", "key": it.get("key") or "", "note": it.get("note") or "",  # its core and caution
                         "turns": tt, "draft": bool(it.get("draft"))})  # the dialogue
     drafted = sum(1 for s in scripts if s["draft"])  # the scripts that are the agent's drafts (the page says how many of the scripts)
-    counts = {"questions": len(rows), "scripts": len(scripts), "uncovered": sum(1 for r in rows if r.get("coverage") == "none") - was_none, "drafted": drafted}  # the board's totals
+    added = set(x for x in (job.kit.get("added") or []) if isinstance(x, str)) if isinstance(job.kit.get("added"), list) else set()  # the files the person added ("Add scenes you wrote")
+    own = sum(1 for it in items if it.get("file") in added)  # their scenes, as the note that took them counted them, whatever lines they hold (C4-06)
+    counts = {"questions": len(rows), "scripts": len(scripts), "uncovered": sum(1 for r in rows if r.get("coverage") == "none") - was_none, "drafted": drafted, "own": own}  # the board's totals
     if not scripts:  # a kit with no script yet: nothing to print (C3-14: "대본 0개" with a print key, a cue page of 0 cards)
         base = {**base, "cue": {**base["cue"], "available": False}, "deck": {**base["deck"], "available": False}}
     return {"ready": True, "categories": cats, "scripts": scripts, "counts": counts, **base}  # the board
@@ -208,11 +210,21 @@ GENERAL = "-general"  # the edition with no job (the documents' drafts.GENERAL h
 SCENE_ROLES = (("deep", "deep"), ("terms", "terms"), ("english", "reference"), ("notes", "reference"), ("research", "reference"))  # a kit file's role by the start of its name
 
 
-def add_scenes(api, jid: str, name: str, data: bytes) -> dict:
+SCENE_KINDS = (".md", ".txt")  # what scenes come in: the kit's markdown, or the same as plain text
+
+
+def add_scenes(api, jid: str, name: str, data: bytes, join: str | None = None) -> dict:
     """Interview scenes written before (the kit's own markdown: "### Q1. question" headings with 핵심, 면접관 and 나 lines) into
-    the job's interview folder, beside the ones the agent writes. Refused when the file holds no scene. Returns how many."""
+    the job's interview folder, beside the ones the agent writes. Refused when the file is no .md or .txt (scenes_kind: a Word
+    file of text was kept as markdown, C4-13) or holds no scene. join: the step of the pick's earlier file, which this one
+    joins (one undo step for every file of a pick). The kit names it as the person's own (kit.json "added", which the board
+    counts), and a scene whose number another one has already takes the next free one (Z9-2): the answer names every number
+    that changed (C4-06). Returns how many, the file kept, the step and the numbers changed ([[before, now]])."""
     from interview import corpus  # src/interview/corpus.py: the scene reader the search view uses
+    from interview.job import Job  # the kit as it reads its files, for the ids it gives them
     jid = api.need_job({"job": jid})  # which job
+    if Path(name).suffix.lower() not in SCENE_KINDS:  # a document of another kind is not read as scenes, whatever its bytes
+        raise ValueError("scenes_kind")  # 400 with its own words
     try:
         text = data.decode("utf-8-sig")  # the kit's files are UTF-8
     except UnicodeDecodeError as exc:
@@ -232,21 +244,36 @@ def add_scenes(api, jid: str, name: str, data: bytes) -> dict:
     while (iv / free).exists():
         free, n = f"{stem}-{n}.md", n + 1
     st = api.ws.job(jid)  # its name, for the undo key
-    # one undo step takes the scenes back with the map and the kit's settings they changed (C3-05)
-    with api.ws.lock, api.ws.change({"code": "undo_scenes", "company": st.get("company") or st.get("role")}, made_rels(api, jid) + [(iv / free).relative_to(api.ws.root).as_posix()]):
+    def places():  # {(file, its n-th item): id}, as the kit numbers its items now (the ids made unique across its files)
+        seen = {}  # items counted so far per file
+        out = {}  # (file, n) -> id
+        for it in corpus.load(Job(api.ws.job_dir(jid), confined=True))[0] if (iv / "kit.json").is_file() else []:  # no kit yet: nothing numbered
+            k = seen[it.get("file")] = seen.get(it.get("file"), -1) + 1  # its place in its file
+            out[(it.get("file"), k)] = it["id"]  # and the id the kit gives it there
+        return out  # every item of the kit
+    # one undo step takes the scenes back with the map and the kit's settings they changed (C3-05), and the folders it made
+    with api.ws.lock, api.ws.change({"code": "undo_scenes", "company": st.get("company") or st.get("role")},
+                                    made_rels(api, jid) + [(iv / free).relative_to(api.ws.root).as_posix()], join=join or None):
+        was = places()  # the kit's numbers before
         iv.mkdir(parents=True, exist_ok=True)
         dest = iv / free  # the name chosen above
         dest.write_text(text, encoding="utf-8")  # kept as written
         kit = read_json(iv / "kit.json", {}) or {}  # the kit's settings
+        lang = kit.get("ui") if kit.get("ui") in ("ko", "en") else "ko"  # the language its map was made in: scenes added never turn an English map Korean (496 questions became 323)
         if kit.get("sources") is not None:  # a kit that names its files: this one joins with its role
             kit["sources"] = list(kit["sources"]) + [{"file": dest.name, "role": role}]
         elif role != "scenes":  # the default reads every file as scenes: name the roles once
             kit["sources"] = [{"file": f.name, "role": next((r for start, r in SCENE_ROLES if f.stem.lower().startswith(start)), "scenes")} for f in sorted(iv.glob("*.md"))]
             kit["sources"].append({"file": "@stories", "role": "reference"})  # the workspace's stories stay searchable
+        added = kit.get("added") if isinstance(kit.get("added"), list) else []  # the files the person added, as the board counts them
+        kit["added"] = [x for x in added if isinstance(x, str)] + [dest.name]  # this one joins them
         write_json(iv / "kit.json", kit)  # saved
-        api.tasks.ensure_kit(jid, "ko")  # the question map sees them
+        api.tasks.ensure_kit(jid, lang)  # the question map sees them, in its own language
+        now = places()  # and after: the new file's scenes, and any other the new one took a number from
     api.tasks.let_kit_go(jid)  # its server reads the new file
-    return {"scenes": len(items), "file": dest.name, "step": api.ws.mine()}
+    was.update({(dest.name, k): it["id"] for k, it in enumerate(items)})  # the new file's numbers as written
+    renamed = [[was[p], now[p]] for p in now if p in was and was[p] != now[p]]  # every number that changed, in the kit's order
+    return {"scenes": len(items), "file": dest.name, "step": api.ws.mine(), "renamed": renamed}  # the note says each
 
 
 def carry_kit(api, req: dict) -> dict:
@@ -254,6 +281,8 @@ def carry_kit(api, req: dict) -> dict:
     src/interview/carry.py. korean: true or false, or left out to follow this job's posting (a Korean posting is a Korean
     interview). Returns the carry's report and the question map's size."""
     from interview import carry as C  # src/interview/carry.py
+    if req.get("names") is not None and (not isinstance(req["names"], list) or not all(isinstance(n, str) for n in req["names"])):  # a list of names: a number was a 500, a word was read letter by letter
+        raise ValueError("names")
     jid, src = api.need_job(req), api.need_job({"job": req.get("from")})
     if jid == src or jid == GENERAL:
         raise ValueError("job")
@@ -265,7 +294,7 @@ def carry_kit(api, req: dict) -> dict:
         text = api.ws.posting(jid)
         letters = re.findall(r"[A-Za-z가-힣]", text)
         korean = bool(letters) and sum(1 for c in letters if "가" <= c <= "힣") / len(letters) > 0.3
-    names = [str(n)[:80] for n in (req.get("names") or []) if isinstance(n, str) and n.strip()][:20]
+    names = [n[:80] for n in (req.get("names") or []) if n.strip()][:20]  # the names checked above, bounded
     iv = api.ws.job_dir(jid) / "interview"  # the files a carry may write, every one of them in its undo step
     cands = [iv / "kit.json", iv / "alts.json", iv / "names.txt"]
     made = made_rels(api, jid)  # the maker's files and the question map: undone with the scripts (C3-02)

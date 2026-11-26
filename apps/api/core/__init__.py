@@ -5,5 +5,5 @@ the core, never the other way round (tests/app/test_architecture.py keeps it so)
                    steps, the job and source records with the Trash's marks on them, and the moves Windows makes wait
     stamps.py      a file's version without reading it, and the short hashes of files the panel's every poll asks for
     routing.py     what every service's table and the gateway share: the answers' shapes, a route's matcher, an upload's
-                   route, the request's language
+                   route, the request's language, a request's text field (a string or refused)
 """

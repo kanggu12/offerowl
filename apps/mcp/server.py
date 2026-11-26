@@ -616,7 +616,7 @@ class Server:
         @tool("add_fact", "Add a fact the person states (for example something they told after an interview): its kind, "
                           "organisation, period, title and statement. It is kept as typed, its own words its evidence. One undo step.",
               S({"kind": {"type": "string", "enum": ["role", "project", "education", "skill", "paper", "patent", "award", "certificate", "other"]},
-                 "org": {"type": "string"}, "period": {"type": "string"}, "title": {"type": "string"}, "statement": {"type": "string"},
+                 "org": {"type": "string"}, "period": {"type": "string"}, "title": {"type": "string", "maxLength": 200}, "statement": {"type": "string", "maxLength": 20000},
                  "project": {"type": "string", "description": "a project's id: the fact becomes one more line of that project's evidence"}},
                 ("kind", "statement")), read=False)
         def add_fact(a):

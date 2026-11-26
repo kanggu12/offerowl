@@ -8,6 +8,7 @@ import os  # the links a test may fetch from this PC
 import re  # a role's words read from the posting
 
 from .. import documents, interview  # a job's editions, and when its interview kit's map was made
+from ...core.routing import text_field  # a request's text, or refused
 from ...core.workspace import STAGES, today, write_json, write_text  # the board's columns, the day, files
 from . import materials, tracker  # a job's own materials, the board's rules
 from .answers import questions_of  # its questions as the page shows them
@@ -68,34 +69,56 @@ def set_posting(api, jid: str, posting: str) -> None:
 ROLE_WORDS = re.compile(r"(엔지니어|개발자|매니저|디자이너|연구원|리서처|사이언티스트|분석가|아키텍트|운영자|담당자|기획자|\b(?:PM|PO|SRE|DevOps|MLOps)\b|"
                         r"engineer|developer|manager|designer|scientist|researcher|architect|analyst|lead\b)", re.I)  # words that name a role
 COMPANY_FORM = re.compile(r"(^\(주\)|^㈜|\(주\)$|㈜$|(?:랩스|랩|테크|소프트|시스템즈|코리아|컴퍼니|그룹|증권|은행|카드|생명|화재|전자|바이오|헬스케어|모빌리티|게임즈|"
-                          r"스튜디오|파트너스|네트웍스|솔루션즈|인베스트먼트|에이아이)$|^[A-Za-z][\w&.-]*(?:Labs?|AI|Inc\.?|Corp\.?|Tech|Technologies|Systems|Software)$)")  # a company's name by its form
+                          r"스튜디오|파트너스|네트웍스|솔루션즈|인베스트먼트|에이아이)$|(?<=\S)회사$|^[A-Za-z][\w&.-]*(?:Labs?|AI|Inc\.?|Corp\.?|Tech|Technologies|Systems|Software)$)")  # a company's name by its form ("회사" after a name: "회사" alone is a heading)
+
+
+def _title_words(line: str) -> str:
+    """A posting's title line as a card names it: no heading marks, no note in brackets ("(가상의 예제)", "[직무]"), no word
+    the posting uses for itself ("채용 공고")."""
+    words = re.sub(r"\s*[(\[].*?[)\]]\s*", " ", str(line).lstrip("# ")).strip()  # a note in brackets
+    return re.sub(r"\s*(?:채용\s*공고|채용|모집|공고|job posting|hiring)\s*$", "", words, flags=re.I).strip()  # the posting's own word for itself
+
+
+def _role_line(posting: str) -> str:
+    """The posting's own line that names its role, among the lines above its first section: for a posting whose first line is
+    its company's name alone (B4-09). "" when none does: a role is never made up from another line."""
+    import cover  # src/cover.py: what a section's heading looks like (add_job's fit import put src on the path)
+    for line in [x.strip() for x in posting.splitlines() if x.strip()][1:12]:  # after the first line, among the first few
+        if cover.heading_kind(line):  # the duties begin: a role line comes before them
+            break
+        words = _title_words(line)  # as a title is cleaned
+        if words and len(words) <= 90 and ROLE_WORDS.search(words):  # a short line that names a role
+            return words
+    return ""
 
 
 def add_job(api, req: dict, select: bool = True) -> str:
     """A job from a pasted posting or a link: its folder, the posting, its card on the board. Returns its id. With
     select False (a run adds it) the job in view stays as it is."""
-    posting = str(req.get("posting") or "").strip()  # the posting
-    url = str(req.get("url") or "").strip()  # or the link it lives at
+    posting = text_field(req, "posting").strip()  # the posting: text (a posting of 10**30 became an application, D4-05)
+    url = text_field(req, "url").strip()  # or the link it lives at
     if not posting and url:  # a link alone: fetch the page's text once
         from . import postings  # the fetch
         got = postings.fetch(url, allow_local=os.environ.get("OFFEROWL_ALLOW_LOCAL_LINKS") == "1")  # raises ValueError with a code
         posting = got["text"]  # the posting's text
-    company, role = str(req.get("company") or "").strip()[:80], str(req.get("role") or "").strip()[:80]  # both optional, bounded
+    company, role = text_field(req, "company").strip()[:80], text_field(req, "role").strip()[:80]  # both optional, bounded
     if len(posting) < 20:  # too short to be a posting
         raise ValueError("posting")  # nothing to analyze
     if not company and not role:  # nothing typed: the posting's own words name it
         from . import fit as F  # the posting parser
         f = F.compute({"schema": "resume-profile/0.1", "roles": [{"org": "-", "projects": [{"id": "x", "title": "-", "summary": "-"}]}]}, posting)  # parse only
         company = (f.get("company") or "")[:80]  # the company the posting names
-        role = f.get("role") or posting.splitlines()[0]  # its title, else its first line
-        role = re.sub(r"\s*[(\[].*?[)\]]\s*", " ", role.lstrip("# ")).strip()  # a note in brackets ("(가상의 예제)")
-        role = re.sub(r"\s*(?:채용\s*공고|채용|모집|공고|job posting|hiring)\s*$", "", role, flags=re.I).strip()  # the posting's own word for itself
+        role = _title_words(f.get("role") or posting.splitlines()[0])  # its title, else its first line, without notes in brackets or the posting's word for itself
         if company and role.startswith(company):  # the company named twice
             role = role[len(company):].strip(" -·|,")
         if not company:  # no company the parser could name: a first line "가나다랩스 플랫폼 엔지니어" starts with it (B3-16)
             head, _, rest = role.partition(" ")  # its first word, and the rest
             if rest and ROLE_WORDS.search(rest) and COMPANY_FORM.search(head):  # the rest names the role, the first word reads as a company (never "플랫폼", "Senior")
                 company, role = head.strip("|,·-")[:80], rest.strip()
+        first = _title_words(posting.splitlines()[0]).strip("|,·-")  # the posting's first line, as a title is cleaned
+        if not company and first and " " not in first and COMPANY_FORM.search(first) and not ROLE_WORDS.search(first):   # one word that reads as a company, and names no role (B4-09: "테스트회사" was kept as the role)
+            company = first[:80]  # the company the first line names
+            role = role if role and role != first else _role_line(posting)  # the posting's own role line, or none: never the company's name again
         role = role[:80]  # bounded
     with api.ws.lock:  # the folder name picked and its job written in one go: two adds at once never share a folder
         jid = _add_job_locked(api, company, role, posting, url)
@@ -128,12 +151,35 @@ def rename_job(api, req: dict) -> str:
     if jid == GENERAL:  # the general edition's folder has a fixed name
         raise ValueError("job")
     api.tasks.let_kit_go(jid)  # its kit server named the old folder
-    return api.ws.rename_job(jid, str(req.get("id") or "").strip())
+    return api.ws.rename_job(jid, text_field(req, "id").strip())  # the new id, as text
+
+
+BOARD_FIELDS = ("stage", "date", "dates", "next", "result", "company", "role", "removed")  # what a card's edit may change
+CARD_TEXT = ("next", "result", "company", "role", "next_was")  # the card's words: text, or refused
+
+
+def board_checked(req: dict) -> None:
+    """The card's edit as sent, checked before anything is looked up (D4-07): it names at least one field it may change, a
+    stage is one of the board's, a day is a day, and each word field is text. Each of these was answered ok with nothing
+    changed ({"stage": "zzz"}, {"next": ["a"]}); now each is refused with the field's name."""
+    if not any(k in req for k in BOARD_FIELDS):  # nothing to change at all
+        raise ValueError("fields")
+    if "stage" in req and req["stage"] not in STAGES:  # "zzz", ["preparing"], null
+        raise ValueError("stage")
+    if "date" in req and not isinstance(req["date"], str):  # a day is written YYYY-MM-DD, or empty to clear
+        raise ValueError("date")
+    if "dates" in req and (not isinstance(req["dates"], dict) or any(k not in STAGES or not isinstance(v, str) for k, v in req["dates"].items())):  # {stage: day}
+        raise ValueError("dates")
+    for k in CARD_TEXT:  # the words of the card
+        text_field(req, k)  # refused when present and not text
+    if "removed" in req and not isinstance(req["removed"], bool):  # only true takes it off
+        raise ValueError("removed")
 
 
 def board(api, req: dict) -> None:
     """Move a job on the board or change its date, next step or result. Taking it off ({"removed": true}) records the
     day, for the Removed list; undo or that list puts it back."""
+    board_checked(req)  # a request that would change nothing, or a field of the wrong kind, is refused in words
     with api.ws.lock:  # looked up and changed in one step: a job deleted for good meanwhile is refused, never half written
         jid = api.need_job(req)  # which job
         st = api.ws.job(jid)  # its status
@@ -201,6 +247,7 @@ def set_round(api, req: dict) -> dict | None:
     with api.ws.lock:  # looked up and changed in one step: a job deleted for good meanwhile is refused
         jid = api.need_job(req)  # which job
         st = api.ws.job(jid)  # its status
+        tracker.check_round_start(st, req)  # a form that started from a round another window has changed since: refused before any step (D4-06)
         with api.ws.change({"code": "undo_round", "company": st.get("company") or st.get("role")}, api.ws.job_files(jid)):  # one undo step
             rec = tracker.set_round(st, req)  # checked (a round never moves the card: a recruiter's call is a round too)
             api.ws.save_job(st)  # saved
@@ -209,16 +256,18 @@ def set_round(api, req: dict) -> dict | None:
 
 def reminder(api, req: dict) -> dict | None:
     """Add a reminder to a job, or mark one done or remove it. One undo step."""
+    if req.get("id") and not isinstance(req.get("done"), bool) and req.get("remove") is not True:  # one named, with nothing to do to it (D4-07)
+        raise ValueError("fields")  # refused in words, never answered ok with nothing done
     with api.ws.lock:  # looked up and changed in one step: a job deleted for good meanwhile is refused
         jid = api.need_job(req)  # which job
         st = api.ws.job(jid)  # its status
         how = "remove" if req.get("id") and req.get("remove") is True else "change" if req.get("id") else "add"  # what the undo key says
         with api.ws.change({"code": "undo_reminder", "company": st.get("company") or st.get("role"), "how": how}, api.ws.job_files(jid)):  # one undo step
             if req.get("id"):  # an existing reminder
-                tracker.set_reminder(st, str(req["id"]), done=req.get("done") if isinstance(req.get("done"), bool) else None,
+                tracker.set_reminder(st, text_field(req, "id"), done=req.get("done") if isinstance(req.get("done"), bool) else None,
                                      remove=req.get("remove") is True)  # done, not done, or removed
                 rec = None  # nothing new
             else:  # a new one
-                rec = tracker.add_reminder(st, str(req.get("at") or ""), str(req.get("text") or ""))  # checked
+                rec = tracker.add_reminder(st, text_field(req, "at"), text_field(req, "text"))  # checked: a text ["r"] was kept as "['r']" (D4-05)
             api.ws.save_job(st)  # saved
     return rec  # the new reminder, for the answer

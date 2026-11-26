@@ -121,9 +121,16 @@ function drawMenu() {                                                           
         onchange: (e) => act("/api/v1/settings", { llm_model: e.target.value }) }))] : null,
     h("hr"),
     h("button", { class: "item", type: "button", onclick: async () => { const r = await act("/api/v1/open", { what: "workspace" }); if (r && !r.opened) toast(t("This PC has no file manager to open it with."), null, "warn"); } }, icon("folder"), t("Open the workspace folder")),
-    h("a", { class: "item", href: "/api/v1/workspace/backup", download: "" }, icon("download"), t("Back up my files")),  // the browser saves it, in every way Offerowl runs
+    h("a", { class: "item", href: "/api/v1/workspace/backup", download: "", onclick: saveBackup }, icon("download"), t("Back up my files")),  // the browser saves it, in every way Offerowl runs
     h("label", { class: "item" }, icon("upload"), t("Restore a backup"), h("input", { type: "file", accept: ".zip", hidden: true, onchange: (e) => { const f = e.target.files[0]; e.target.value = ""; restoreBackup(f); } })),   // emptied: the same file can be picked again
     S.version && S.version !== "0" ? [h("hr"), h("p", { class: "menu-ver", text: t("Offerowl version {v}", { v: S.version }) })] : null);   // the version, also here: the bar's narrowest width has no room for it  // a label is the input's key
+}
+async function saveBackup(e) {                                                      // a backup key: the disk's room asked first (D4-09), so a full disk is said in words, never a download that fails with no word
+  e.preventDefault();                                                               // not before the answer
+  try { await api("/api/v1/workspace/backup?check=1"); }                            // room for the zip beside the workspace?
+  catch (err) { actFailed("/api/v1/workspace/backup", err); return; }               // no: why, in words; nothing was made
+  const a = h("a", { href: "/api/v1/workspace/backup", download: "", hidden: true });   // yes: the download, from a link of its own (a redraw meanwhile may have replaced the key)
+  document.body.append(a); a.click(); a.remove();                                   // the browser saves it under the name the answer gives
 }
 async function restoreBackup(file) {                                               // a backup in the workspace's place, once the person agrees
   if (!file) return;                                                                // nothing picked
@@ -139,7 +146,8 @@ async function restoreBackup(file) {                                            
     await askFirst({ title: t("Restored"), cancel: false, text: t("The files you had are in the folder {name}, beside your workspace. The Library's trash lists it, and can delete it once you no longer need it.", { name: j.kept }) });
     location.reload(); return;
   }
-  toast(t({ not_a_backup: "This file is not an Offerowl backup.", busy: "Wait until the work in progress ends, then try again.", too_large: "This file is too large to be a backup." }[j.error] || "The backup could not be restored."), null, "bad");  // why, in words
+  toast(t({ not_a_backup: "This file is not an Offerowl backup.", busy: "Wait until the work in progress ends, then try again.", too_large: "This file is too large to be a backup.",
+    disk_full: "There is not enough free space on this PC's disk. Free some space and try again." }[j.error] || "The backup could not be restored."), null, "bad");  // why, in words
 }
 function openAgentMenu() { UI.agentPop = true; UI.menu = false; render(); window.scrollTo({ top: 0 }); focusSheet(".barpop .pop"); }  // the agent's panel opens from the bar, the keyboard in it
 function trashUndoNow() {                                                           // the last removal to the Trash (a photo has no undo step), while no undo step came after it
@@ -240,7 +248,8 @@ function paneKey(name) {                                                        
     // dragged 40 px wider no longer count: each drew the canvas again, and the frame's page with it, emptying its search box
     framed ? kitFrameDocs() : UI.docsVer, S.materials, S.photo, S.engine, S.engine_needs, S.due, typeof Notification === "undefined" ? "" : Notification.permission, PHONE.matches,
     framed ? 0 : Math.round(($("canvas").clientWidth || 0) / 40), taskMarks(), S.runs, S.agent, S.agent_calls,
-    UI.sending, UI.changesOpen, UI.depthOpen]);                                     // a run's clock moves in place (make.js data-since), not by a redraw; the picture of changed pages opened or closed; the depth sheet's key says it is open
+    UI.sending, UI.changesOpen, UI.depthOpen,                                       // a run's clock moves in place (make.js data-since), not by a redraw; the picture of changed pages opened or closed; the depth sheet's key says it is open
+    UI.kitBusy]);                                                                   // a long kit action began or ended: its key says so at once (views.js kitWork)
 }
 function drawPane(el, name, fn) {                                                   // one pane, kept when nothing changed
   const key = paneKey(name);                                                        // what it would show
@@ -334,6 +343,8 @@ document.addEventListener("keydown", (e) => {                                   
       const k = document.querySelector('[data-key="jobs-add"]'); if (k) k.focus({ preventScroll: true }); return; }
     if (UI.editing) { UI.editing = false; render(); const s = UI.sel && document.querySelector(`[data-sid="${CSS.escape(UI.sel)}"]`); if (s) s.focus({ preventScroll: true }); return; }   // the sentence
     if (UI.drawer) { UI.drawer = false; render(); const k = document.querySelector(".insp-toggle"); if (k) k.focus({ preventScroll: true }); return; }   // the drawer's key
+    if (UI.view === "profile" && !field && UI.editDetails) { closeDetails(); return; }   // the details' fields, Esc pressed on the page rather than in them (A4-11): closed as from inside, the words kept
+    if (UI.view === "profile" && !field && UI.factAdd) { closeFactForm(); return; }   // the add form the same way: its words wait in its boxes (a fact's edit closes from inside only: there Esc is Cancel)
     if (UI.sel) { UI.sel = null; render(); return; }                                // the selection
   }
   if (UI.setup != null) return;                                                     // the guide is modal: no undo or view change behind it, unseen
@@ -348,20 +359,27 @@ document.addEventListener("click", (e) => {                                     
 $("scrim").addEventListener("click", () => { UI.drawer = false; if (UI.askOpen) askToggle(false); UI.depthOpen = null; render(); });   // a tap beside the drawer, the open command bar or the depth sheet closes it
 $("filepick").addEventListener("change", (e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) makeFrom({ files: f }); });  // picked files start a run
 $("scenepick").addEventListener("change", async (e) => {                         // interview scenes written before, into the job in view
-  const files = [...e.target.files]; e.target.value = ""; if (!files.length || !UI.scenesFor) return;
-  let scenes = 0, refused = 0, twice = 0, step = null;                              // what came in, what held no scenes, what was in the kit already
-  for (const f of files) {                                                          // one request each
-    try {
-      const r = await postFile(`/api/v1/interview/scenes?job=${enc(UI.scenesFor)}`, f);
-      const j = await r.json().catch(() => ({}));                                   // its answer
-      if (r.ok) { scenes += j.scenes || 0; step = j.step || step; }                 // counted; the last step is the one the toast's Undo takes back
-      else if (j.error === "already_there") twice++; else refused++;                // the reason, as the server gives it (C3-05)
-    } catch (_) { refused++; }
-  }
-  const said = [scenes || !(refused || twice) ? tn(scenes, "{n} scene added.", "{n} scenes added.") : "", twice ? tn(twice, "{n} file was in the kit already.", "{n} files were in the kit already.") : "",
+  const files = [...e.target.files]; e.target.value = ""; const jid = UI.scenesFor; if (!files.length || !jid) return;
+  let scenes = 0, refused = 0, twice = 0, kind = 0, step = null; const renamed = [];   // what came in, what held no scenes, what was in the kit already, what was no .md or .txt
+  const ran = await kitWork(jid, "scenes", async () => {                            // the key busy from the pick until the last answer: a second pick waits (C4-05)
+    for (const f of files) {                                                        // one request each, every later one joining the first's step: one Undo takes the pick back (C4-13)
+      try {
+        const r = await postFile(`/api/v1/interview/scenes?job=${enc(jid)}` + (step ? `&join=${enc(step)}` : ""), f);
+        const j = await r.json().catch(() => ({}));                                 // its answer
+        if (r.ok) { scenes += j.scenes || 0; step = j.step || step; renamed.push(...(j.renamed || [])); }   // counted; the step the toast's Undo takes back, and a number the kit had already
+        else if (j.error === "already_there") twice++; else if (j.error === "scenes_kind") kind++; else refused++;   // the reason, as the server gives it (C3-05)
+      } catch (_) { refused++; }
+    }
+    return true;                                                                    // the pick was sent
+  });
+  if (!ran) return;                                                                 // another kit action of this application ran: nothing was sent
+  const said = [scenes || !(refused || twice || kind) ? tn(scenes, "{n} scene added.", "{n} scenes added.") : "",
+    renamed.length ? t("Numbers changed so that none is used twice: {list}.", { list: renamed.map(([a, b]) => `${a} → ${b}`).join(", ") }) : "",   // each number that changed, and what it is now (C4-06)
+    twice ? tn(twice, "{n} file was in the kit already.", "{n} files were in the kit already.") : "",
+    kind ? tn(kind, "{n} file is not .md or .txt.", "{n} files are not .md or .txt.") : "",
     refused ? tn(refused, "{n} file held no scenes.", "{n} files held no scenes.") : ""].filter(Boolean).join(" ");   // each reason on its own
-  toast(said, step && files.length === 1 ? { words: t("Undo"), run: () => undoOnly(step) } : null, refused || twice ? "warn" : "done");   // one file: its own Undo on the note
-  if (typeof boardReload === "function") boardReload(UI.scenesFor);                 // the board reads them again
+  toast(said, step ? { words: t("Undo"), run: () => undoOnly(step) } : null, refused || twice || kind ? "warn" : "done");   // every file of the pick in one step: its Undo on the note
+  if (typeof boardReload === "function") boardReload(jid);                          // the board reads them again
   refresh();
 });
 $("formpick").addEventListener("change", (e) => {                                 // a screenshot or a file of a form: its questions
@@ -375,7 +393,7 @@ async function questionsFromFile(jid, f) {                                      
   try {
     const r = await postFile(`/api/v1/jobs/questions/file?job=${enc(jid)}`, f);
     const j = await r.json().catch(() => ({}));                                     // its answer
-    toast(r.ok ? tn(j.added, "{n} question added.", "{n} questions added.") : t("No question was found in it. Paste the form's questions as they appear."), null, r.ok ? "done" : "bad");
+    if (r.ok) questionsSaid(j); else toast(t("No question was found in it. Paste the form's questions as they appear."), null, "bad");   // counted as a paste is (views.js)
   } catch (_) { toast(t("No question was found in it. Paste the form's questions as they appear."), null, "bad"); }
   refresh();                                                                        // the card shows them
 }

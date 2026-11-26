@@ -312,5 +312,140 @@ class Slow(unittest.TestCase):
         self.assertIn(b" 413 ", got.split(b"\r\n")[0], got[:100])  # told, not cut off
 
 
+class Bodies(unittest.TestCase):
+    """A body that stops coming, a length that is no number and JSON's own non-numbers, each answered with its code and never
+    a 500 (D4-02, D4-07)."""
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-bodies-"))  # the data folder
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        p = mock.patch.dict(os.environ, {"OFFEROWL_PANEL_BACKEND": "none", "OFFEROWL_DESKTOP": str(self.tmp / "Desktop")})  # nothing real
+        p.start()
+        self.addCleanup(p.stop)
+        from apps.panel import server  # the panel's server
+        self.srv = server.serve(0, data=self.tmp / "data")  # a free port
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        self.addCleanup(self.srv.server_close)
+        self.addCleanup(self.srv.shutdown)
+        self.port = self.srv.server_address[1]
+
+    def send(self, head: str, body: bytes = b"", wait: float = 20) -> tuple[bytes, bytes, float]:
+        """A request written by hand: (status line, the answer's body, the seconds it took)."""
+        t0 = time.monotonic()
+        with socket.create_connection(("127.0.0.1", self.port), timeout=wait) as s:
+            s.sendall(head.replace("\n", "\r\n").encode() + b"\r\n" + body)  # the head, its blank line, and what of the body is sent
+            got = b""
+            while True:  # the whole answer, until the server closes
+                piece = s.recv(65536)
+                if not piece:
+                    break
+                got += piece
+        head_part, _, rest = got.partition(b"\r\n\r\n")
+        return head_part.split(b"\r\n")[0], rest, time.monotonic() - t0
+
+    def write_head(self, path: str, length: str, ctype: str = "application/json", extra: str = "") -> str:
+        return (f"POST {path} HTTP/1.1\nHost: 127.0.0.1:{self.port}\nContent-Type: {ctype}\n{extra}"
+                f"Content-Length: {length}\nConnection: close\n")
+
+    def test_a_body_that_stops_coming_is_answered_408(self):
+        with mock.patch.object(self.srv.RequestHandlerClass, "BODY_WAIT", 1):  # a second instead of ten, for the test
+            status, body, took = self.send(self.write_head("/api/v1/settings", "100"), b'{"a":1}')  # 7 of the 100 bytes it said
+        self.assertIn(b" 408 ", status, body)  # it was a 500 after ten seconds, with a traceback in the log (D4-02)
+        self.assertEqual({"error": "timeout"}, json.loads(body))
+        self.assertLess(took, 8)  # after the body's own wait
+
+    def test_a_file_that_stops_coming_is_answered_408_and_leaves_no_piece(self):
+        with mock.patch.object(self.srv.RequestHandlerClass, "BODY_WAIT", 1):
+            status, body, _ = self.send(self.write_head("/api/v1/workspace/restore", "5000000", "application/octet-stream", "X-File-Name: backup.zip\n"), b"PK" + b"\0" * 1000)
+        self.assertIn(b" 408 ", status, body)  # a backup that stopped part way
+        self.assertEqual({"error": "timeout"}, json.loads(body))
+        self.assertEqual([], [p.name for p in (self.tmp / "data").iterdir() if p.name.endswith(".part")])  # its piece went with it
+
+    def test_a_length_that_is_no_number_is_refused_as_the_length(self):
+        for path, ctype, extra in (("/api/v1/settings", "application/json", ""),
+                                   ("/api/v1/materials", "application/octet-stream", "X-File-Name: notes.md\n")):  # a write, and an upload (it said "json")
+            status, body, _ = self.send(self.write_head(path, "abc", ctype, extra))
+            self.assertIn(b" 400 ", status, path)
+            self.assertEqual({"error": "bad_request", "what": "length"}, json.loads(body), path)
+
+    def test_json_s_non_numbers_are_refused(self):
+        for raw in (b'{"deck_max_mb": NaN}', b'{"deck_max_mb": Infinity}', b'{"deck_max_mb": -Infinity}'):  # Python reads them; JSON has none (D4-07)
+            status, body, _ = self.send(self.write_head("/api/v1/settings", str(len(raw))), raw)
+            self.assertIn(b" 400 ", status, raw)
+            self.assertEqual({"error": "bad_request", "what": "json"}, json.loads(body), raw)
+        self.assertNotIn("deck_max_mb", read_json(self.tmp / "data" / "settings.json", {}))  # nothing was kept
+
+
+class LibraryNames(Base):
+    """The Library's copy on the Desktop takes the name every file handed out takes (D4-08): a made or a sent document as the
+    Documents view's export names it, other files their own name with no leading dash or dot, a twin numbered _2."""
+
+    def test_the_library_names_its_copies_as_the_export_does(self):
+        api = self.make()  # an empty workspace
+        desk = self.tmp / "Desktop"  # this test's own Desktop
+        p = mock.patch.dict(os.environ, {"OFFEROWL_DESKTOP": str(desk)})
+        p.start()
+        self.addCleanup(p.stop)
+        api.facts.set_details({"name": "홍길동"})  # the person, as their details name them
+        api.facts.rebuild()
+        jid = applications.add_job(api, {"company": "감마랩스", "posting": POSTING}, select=False)  # an application
+        for job, file in (("-general", "resume.pdf"), (jid, "deck.pdf")):  # an edition of each, as a build leaves it
+            out = api.tasks.build_dir(job, "ko")
+            out.mkdir(parents=True, exist_ok=True)
+            (out / file).write_bytes(b"%PDF-1.4 " + job.encode())
+            write_json(out / "build.json", {"at": "2026-11-19 15:46", "issues": []})  # the day it was made
+        sent = api.ws.job_dir(jid) / "submitted" / "ko-20261120"  # what went out, as a lock keeps it
+        sent.mkdir(parents=True)
+        (sent / "resume.pdf").write_bytes(b"%PDF-1.4 sent")
+        st = api.ws.job(jid)
+        st["locked"] = {"folder": "ko-20261120", "files": {"resume.pdf": "x"}, "lang": "ko", "at": "2026-11-20 10:00"}
+        api.ws.save_job(st)
+        self.assertEqual("홍길동_이력서_20261119.pdf", library.export(api, "made:-general:ko:resume.pdf"))  # it was "-general-ko-resume.pdf"
+        self.assertEqual("홍길동_감마랩스_포트폴리오_20261119.pdf", library.export(api, f"made:{jid}:ko:deck.pdf"))  # it was "<job>-ko-deck.pdf"
+        self.assertEqual("홍길동_감마랩스_이력서_20261120.pdf", library.export(api, f"sent:{jid}:resume.pdf"))  # the day it went
+        self.assertEqual("홍길동_이력서_20261119.pdf", library.export(api, "made:-general:ko:resume.pdf"))  # those very bytes: named, not copied again
+        (desk / "홍길동_감마랩스_포트폴리오_20261119.pdf").write_bytes(b"another file")  # another file under that name
+        self.assertEqual("홍길동_감마랩스_포트폴리오_20261119_2.pdf", library.export(api, f"made:{jid}:ko:deck.pdf"))  # a twin: _2, never " (2)"
+        mid = api.ws.add_materials("-notes.md", "회의 메모".encode("utf-8"))[0]["id"]  # a file whose own name begins with a dash
+        self.assertEqual("notes.md", library.export(api, f"source:{mid}"))  # its own name, with no leading dash
+        self.assertFalse([x.name for x in desk.iterdir() if x.name.startswith(("-", ".")) or " (" in x.name])  # none an option or hidden, no "(2)"
+
+
+class DamagedSettings(Base):
+    """A settings.json that does not read as settings: the panel starts on it, and the first change of a setting keeps it
+    beside as settings.json.bad before the write replaces it (D4-14)."""
+
+    def started_on(self, raw: bytes):
+        """An API started on a data folder whose settings.json holds these bytes."""
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-settings-"))  # the data folder
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "settings.json").write_bytes(raw)  # as a crash or a hand edit left it
+        for p in (mock.patch.object(appmod, "START", {}), mock.patch.dict(os.environ, {"OFFEROWL_PANEL_BACKEND": "none"})):  # nothing real
+            p.start()
+            self.addCleanup(p.stop)
+        api = appmod.Api(tmp)  # [1, 2] stopped it here with a TypeError, at every start
+        self.addCleanup(self.settle)  # its first look ends before the folder goes
+        return api
+
+    def test_a_damaged_settings_file_is_kept_beside_before_a_change_replaces_it(self):
+        for raw in (b'{"lang": "ko", "form": ', b"[1, 2]", b'"text"', b"null", b"\xff\xfe broken"):
+            with self.subTest(raw=raw):
+                api = self.started_on(raw)
+                self.assertEqual("auto", api.settings()["lang"])  # no choices read: the defaults
+                self.assertIsInstance(api.state(), dict)  # the panel draws
+                api.set_settings({"lang": "en"})  # the first change
+                self.assertEqual(raw, api.settings_file.with_name("settings.json.bad").read_bytes())  # the damaged file kept (it was replaced, D4-14)
+                self.assertEqual("en", api.settings()["lang"])  # the change kept
+                api.set_settings({"theme": "dark"})  # a later change has nothing damaged to keep
+                self.assertEqual(raw, api.settings_file.with_name("settings.json.bad").read_bytes())
+                self.assertFalse(api.settings_file.with_name("settings.json.bad-2").exists())
+
+    def test_settings_that_read_are_never_copied(self):
+        api = self.started_on(json.dumps({"lang": "ko"}).encode())
+        api.set_settings({"theme": "dark"})
+        self.assertEqual(("ko", "dark"), (api.settings()["lang"], api.settings()["theme"]))  # both kept
+        self.assertEqual(["settings.json"], sorted(p.name for p in api.data.iterdir() if p.name.startswith("settings")))  # no copy beside it
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,6 +9,7 @@ leaves behind the scenes about the earlier interview and, for a Korean interview
 """
 import json  # the files on disk
 import pathlib  # paths
+import re  # the carried scenes' headings
 import shutil  # clean up
 import sys  # the import path
 import tempfile  # a workspace per test
@@ -66,6 +67,9 @@ class RenameTest(Tmp):
         ws.set_prefs(job="감마클라우드")
         write(ws.root / ".history" / "000001.json", {"t": 1.0, "label": {"code": "undo_board"}, "coalesce": None,
                                                     "files": {"jobs/감마클라우드/status.json": '{\n "id": "감마클라우드"\n}'}, "made": {}})
+        write(ws.root / ".history" / "000002.json", {"t": 2.0, "label": {"code": "undo_carry"}, "coalesce": None, "made": {},   # a carry's step: the kit's map and the folders it made
+                                                    "files": {"jobs/감마클라우드/interview/kit.json": None, "out/interview/감마클라우드/plan.json": None},
+                                                    "dirs": ["jobs/감마클라우드/interview", "out/interview/감마클라우드"]})
         self.assertEqual("gamma", ws.rename_job("감마클라우드", "gamma"))
         self.assertTrue((ws.root / "jobs" / "gamma" / "posting.md").is_file())
         self.assertFalse((ws.root / "jobs" / "감마클라우드").exists())
@@ -79,6 +83,9 @@ class RenameTest(Tmp):
         step = json.loads((ws.root / ".history" / "000001.json").read_text(encoding="utf-8"))
         self.assertEqual(['jobs/gamma/status.json'], list(step["files"]))  # an undo writes where the job lives now
         self.assertIn('"id": "gamma"', step["files"]["jobs/gamma/status.json"])
+        step = json.loads((ws.root / ".history" / "000002.json").read_text(encoding="utf-8"))
+        self.assertEqual(["jobs/gamma/interview/kit.json", "out/interview/gamma/plan.json"], sorted(step["files"]))  # the kit's output moved with the job
+        self.assertEqual(["jobs/gamma/interview", "out/interview/gamma"], step["dirs"])  # and the folders its undo takes back
 
     def test_rename_refuses_what_it_must(self):
         """A taken id, a non-ASCII one, and a job made an edition (or the other way) are refused, and nothing moves."""
@@ -264,6 +271,24 @@ class CarryTest(Tmp):
         with self.assertRaises(ValueError) as e:  # brought from there already: a second run would double it
             C.carry(src, dst, job_from="gamma")
         self.assertEqual("already_carried", str(e.exception))
+
+    def test_here_already_counts_only_what_the_target_held_before(self):
+        """C4-15: a title the carried kit holds twice (in two of its files) comes once, and is not counted as one the target had:
+        a carry into an empty kit said "1 was here already". A title the target held before is still counted."""
+        src, dst = self.kits()
+        write(src / "common.md", "## R. About me\n\n### R7. Tell me about yourself / Tell me about yourself\n\n**면접관** Tell me about yourself.\n"
+              "**해석** 자기소개 해 주세요.\n**나** I run GPU clusters.\n**해석** GPU 클러스터를 운영합니다.\n")   # the same title as qa.md's R1
+        write(src / "kit.json", {"company": {"ko": "감마클라우드", "en": "Gamma Cloud"},
+                                 "sources": [{"file": "qa.md", "role": "scenes"}, {"file": "common.md", "role": "scenes"}]})
+        empty = self.root / "jobs" / "epsilon" / "interview"  # a kit with nothing in it yet
+        write(empty / "kit.json", {"company": {"ko": "엡실론", "en": "Epsilon"}})
+        report = C.carry(src, empty, job_from="gamma")
+        self.assertEqual(0, report["same"])  # nothing was there before
+        heads = "".join(f.read_text(encoding="utf-8") for f in empty.glob("*.md"))
+        self.assertEqual(1, len(re.findall(r"^### [A-Z]\d+\. Tell me about yourself /", heads, re.M)))  # the twice-held title came once
+        write(dst / "qa.md", DST_QA + "\n### D9. Tell me about yourself / Tell me about yourself\n\n**면접관** Tell me about yourself.\n**나** Hi.\n")
+        report = C.carry(src, dst, job_from="gamma")  # the target holds that title itself
+        self.assertEqual(1, report["same"])  # once, though the carried kit holds it twice
 
     def test_for_a_korean_interview_an_english_scene_is_turned_round(self):
         """The checked Korean goes on top, spoken; the English goes under it, plain; the kit reads as spoken in Korean."""

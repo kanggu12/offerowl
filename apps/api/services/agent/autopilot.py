@@ -23,6 +23,7 @@ from collections import Counter  # the address a person's files write most
 from pathlib import Path  # paths
 
 from .. import applications, documents, profile  # a job added, a build's record, the facts kept and the details filled in, as the panel's keys do
+from ...core.routing import text_field  # a request's text, or refused
 
 log = logging.getLogger("offerowl.panel")  # the panel's log
 GENERAL_EDITION = "-general"  # the edition with no job (the documents' drafts.GENERAL has the same name)
@@ -233,9 +234,12 @@ def start(api, req: dict) -> dict:
     """Start one run from the person's files to finished documents (POST /api/v1/autopilot, task "autopilot"): the files
     the page uploaded and those under the paths pasted, a posting, or one edition made again. A run asked for while one runs
     waits for it, merged with anything already waiting (merge_requests)."""
-    mids = [str(x) for x in req.get("ids") or [] if any(m["id"] == str(x) for m in api.ws.materials())]  # files the page uploaded
-    paths = [str(x) for x in req.get("paths") or [] if str(x).strip()][:50]  # paths the person pasted
-    posting, url = str(req.get("posting") or "")[:20000], str(req.get("url") or "")[:2000]  # the posting, if any
+    for k in ("ids", "paths"):  # lists of words: a number was a 500, a word was read letter by letter
+        if req.get(k) is not None and (not isinstance(req[k], list) or not all(isinstance(x, str) for x in req[k])):
+            raise ValueError(k)
+    mids = [x for x in req.get("ids") or [] if any(m["id"] == x for m in api.ws.materials())]  # files the page uploaded
+    paths = [x for x in req.get("paths") or [] if x.strip()][:50]  # paths the person pasted
+    posting, url = text_field(req, "posting")[:20000], text_field(req, "url")[:2000]  # the posting, if any: text, or refused (D4-05)
     with_job = bool(posting.strip() or url.strip())  # a posting turns on the job's steps
     again = api.need_job({"job": req["again"]}) if req.get("again") else ""  # one edition's PDFs once more
     job = api.need_job({"job": req["job"]}) if req.get("job") else ""  # a job already added: its documents from the facts kept

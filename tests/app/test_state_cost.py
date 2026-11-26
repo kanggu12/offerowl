@@ -93,6 +93,43 @@ class TestStateOnTheWire(PanelCase):
         self.assertEqual("gzip", self.fetch({"Accept-Encoding": "*"})[1].get("Content-Encoding"))  # any coding: gzip
 
 
+class TestPollReuse(PanelCase):
+    """A poll within a second of the last state made takes that state while nothing was written and no task runs or changed
+    (D4-10: every poll of every tab made a whole state, 70 ms each with 177 applications)."""
+
+    def test_a_poll_takes_the_last_state_while_nothing_moved(self):
+        import threading  # a task held running
+        api = type(self).srv.RequestHandlerClass.panel  # the panel's one API object
+        made, real = [], api.state  # the states made, counted
+        def counted():
+            made.append(1)
+            return real()
+        with mock.patch.object(api, "state", side_effect=counted):
+            time.sleep(1.1)  # past any state made before
+            for _ in range(3):  # three polls in a row, nothing changed
+                self.get("/api/v1/state")
+            self.assertEqual(1, len(made))  # one state made for all three
+            self.post("/api/v1/onboarding", {"step": "files"})  # a write: its answer carries a state of its own
+            n = len(made)
+            self.assertEqual("files", self.get("/api/v1/state")["onboarding"]["step"])  # the next poll sees it
+            self.assertEqual(n + 1, len(made))  # made anew: never a state from before a write
+            time.sleep(1.1)  # older than a second
+            self.get("/api/v1/state")
+            self.assertEqual(n + 2, len(made))  # made anew
+            go = threading.Event()
+            api.tasks.start("test:held", go.wait, 10)  # a task that runs until let go
+            self.addCleanup(go.set)
+            first = self.get("/api/v1/state")
+            self.assertEqual("running", first["tasks"]["test:held"]["state"])
+            self.get("/api/v1/state")
+            self.assertEqual(n + 4, len(made))  # while a task runs, every poll makes its own (it writes files no write counted)
+            go.set()  # it ends
+            deadline = time.time() + 5
+            while api.tasks.busy("test:held") and time.time() < deadline:
+                time.sleep(0.02)
+            self.assertEqual("done", self.get("/api/v1/state")["tasks"]["test:held"]["state"])  # the poll after it ends says so at once
+
+
 class TestHashMemory(unittest.TestCase):
     """file_hash and content_hash read a file once per version of it."""
 

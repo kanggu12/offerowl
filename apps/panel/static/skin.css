@@ -2751,13 +2751,113 @@ svg[data-i] { overflow: visible; }                                              
 /* ---- 0.16.1: sturdiness (area D2) ---- */
 /* the keys that fix several lines of a run's list at once stand under the list, with the list's own spacing */
 .problist-keys { display: flex; flex-wrap: wrap; gap: var(--gap-xs); margin-top: var(--gap-s); }
-/* the Documents head keeps one height on every tab (B3-13): from 1400 px the title and the keys share one row, the subtitle giving way with an ellipsis (its words are on the key's title); from 860 px up to that the keys always take the row under the title */
-@media (min-width: 1400px) {
-  .dochead .viewhead { flex-wrap: nowrap; }
-  .dochead .viewhead > .sub { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dochead .viewhead > .docacts { flex: none; flex-wrap: nowrap; }
-  .dochead .viewhead > .grow { flex: 1 1 0; min-width: 0; }
+/* ---- 0.16.2: area b ---- */
+/* the Documents head (B4-02, B4-03; it keeps B3-13's one height on every tab): the title's row holds the title, the subtitle
+   and the start key, the subtitle in two lines at most (its whole words on its title); from 860 px the keys take the row under
+   it on every tab and wrap inside the head; no key leaves the head at any width (the 0.16.1 rules cut the subtitle to 157 of
+   391 px at 1440 and let English keys run 12 to 52 px past the head) */
+.dochead .viewhead > .sub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; white-space: normal; }   /* two lines at most, never one cut short */
+@media (min-width: 860px) {
+  .dochead .viewhead { flex-wrap: wrap; }                                             /* the title's row, then the keys' row */
+  .dochead .viewhead > .sub { flex: 1 1 0; min-width: 0; max-width: max-content; }    /* the room the title's row has, up to its own width: the start key stays beside its words */
+  .dochead .viewhead > .grow { display: none; }                                       /* the keys have a row of their own: nothing to push apart */
+  .dochead .viewhead > .edrm { order: 1; margin-left: auto; }                         /* a named edition's remove key at the title row's end, away from the keys that make it */
+  .dochead .viewhead > .docacts { order: 2; flex: 1 1 100%; flex-wrap: wrap; }        /* the keys under the title on every tab, wrapping inside the head */
 }
-@media (min-width: 860px) and (max-width: 1399px) {
-  .dochead .viewhead > .docacts { flex: 1 1 100%; }
+@media (min-width: 641px) and (max-width: 859px) {
+  .viewhead .docacts > .expgrp { min-width: max-content; }                            /* Export and the lock go to the next row together, never the lock past the head (700 px: 25 to 45 px out) */
 }
+/* ---- 0.16.2: area a ---- */
+/* a note too long for the bar's room, and every note on a phone (A4-07, D4-13): a band along the bar's foot in the bar's own
+   glass, square, its words in line with the bar's from the wordmark to the settings key (core.js toastBand); at the window's
+   foot when a guide's or a question's card reaches the bar. It never lies over the bar's views, chip or keys */
+#toast.barfoot, :root[data-theme] #toast.barfoot { top: var(--toast-top, 0px); bottom: auto; left: var(--toast-left, 0px); right: var(--toast-right, 0px); max-width: none; min-height: 0;
+  padding: 8px var(--toast-pr, 12px) 8px var(--toast-pl, 12px); padding-top: max(8px, calc(env(safe-area-inset-top, 0px) - var(--toast-top, 0px)));
+  border-radius: 0; border-width: 0 0 1px; border-color: var(--bar-rule); box-shadow: var(--bar-shadow);
+  background: var(--grain), var(--bar-glass); -webkit-backdrop-filter: blur(24px) saturate(1.8); backdrop-filter: blur(24px) saturate(1.8); transform: translateY(-4px); }
+#toast.barfoot.show, :root[data-theme] #toast.barfoot.show { transform: none; }   /* shown: at rest (the themed rule above outranks a plain .show) */
+#toast.barfoot.winfoot, :root[data-theme] #toast.barfoot.winfoot { top: auto; bottom: 0; border-width: 1px 0 0; padding-top: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); transform: translateY(4px); }
+#toast.barfoot.winfoot.show, :root[data-theme] #toast.barfoot.winfoot.show { transform: none; }
+/* the details: a note under the email never moves the name beside it (A4-02): each field stands at the top of its row */
+.details { align-items: start; }
+/* the Library's "no file matches" with the padding of the panel's other empty lines, under the table's head (A4-05) */
+.lib-table > .lib-none { padding: var(--pad-l) var(--pad-s); }
+/* the profile's file row ends where the drop zone above it ends (A4-06): its Remove key has a rim now, so no margin past the card's padding */
+.ob-file > .btn:last-child { margin-right: 0; }
+/* a phone's Library groups: every one in sight, on a second row when the first is full, each row filling the width (A4-12) */
+@media (max-width: 720px) {
+  :root .seg.lib-groups, :root[data-theme] .seg.lib-groups { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+  :root .seg.lib-groups > button { flex: 1 1 auto; justify-content: center; }
+}
+/* Insights: each column stacks its own tiles, so no tile's height leaves a hole beside it (A4-09) */
+.ins-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ins-col > .ins-tile { min-width: 0; }
+/* the interview readiness rows: the company and its stage on the first line, the role whole under it, never cut short (A4-10) */
+.rd-item .rd-name { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
+.rd-co { display: flex; align-items: baseline; gap: 6px; min-width: 0; max-width: 100%; }
+.rd-item .rd-name b { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.rd-role { font-size: 12px; line-height: 1.4; color: var(--ink-2); overflow-wrap: anywhere; }
+.rd-name:hover .rd-role { text-decoration: underline; text-underline-offset: 3px; }
+/* a table in an answer: a box of its own at the sheet's width that slides sideways, its edge fading on the side with more (A4-04) */
+.ask-tablebox { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--line); border-radius: 2px; scrollbar-width: thin; }
+:root #askpanel .ask-tablebox > .ask-table { display: table; width: auto; min-width: 100%; max-width: none; overflow: visible; }
+.ask-tablebox > .ask-table tbody tr:last-child > td { border-bottom: 0; }
+.ask-tablebox.fade-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+.ask-tablebox.fade-l { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px); mask-image: linear-gradient(to right, transparent, #000 32px); }
+.ask-tablebox.fade-l.fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
+/* a fact's long title folds as its words do, with the word for more (views.js factRow), never cut by a clamp's "…" (A4-08) */
+.fact:not(.open) .fact-t { display: block; -webkit-line-clamp: none; overflow: visible; }
+.fact-t .ev-more { margin-left: 6px; font-size: 11.5px; font-weight: 400; color: var(--ink-3); white-space: nowrap; text-decoration: underline dotted; text-underline-offset: 3px; }
+/* ---- 0.16.2: area c ---- */
+/* the practice's question counts, the scripts' language and their settings row: chips with a rim and room, as the kinds beside them (C4-09) */
+:is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg, :root[data-theme] :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg { gap: 6px; }
+:is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button, :root[data-theme] :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button {
+  justify-content: center; min-width: 36px; min-height: var(--ctl-h-sm); padding: 0 10px; border: 1px solid var(--key-edge); border-radius: 2px;
+  background: var(--key-face); color: var(--ink-2); box-shadow: none; }
+/* under the pointer the face and the rim deepen, and the one chosen keeps them, its words in ink */
+:is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button:hover:not(:disabled), :root[data-theme] :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button:hover:not(:disabled) {
+  border-color: var(--key-edge-hi); background: var(--key-face-hi); color: var(--ink); }
+:is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button[aria-pressed="true"], :root[data-theme] :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button[aria-pressed="true"] {
+  border-color: var(--key-edge-hi); background: var(--key-face-hi); color: var(--ink); font-weight: 600; box-shadow: none; }
+@media (max-width: 640px), (pointer: coarse) {
+  :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button, :root[data-theme] :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button { min-width: 44px; min-height: 44px; }
+}
+:is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button::after { content: none; }   /* the choice is said by the chip's face, never also by the tabs' short line under it (a phone's) */
+/* a row that slides sideways (the section chips, the deck's tabs) stops with a chip whole past the fade at its start, never cut (C4-11) */
+.kit-menu, .dn-row { scroll-snap-type: x mandatory; scroll-padding-inline: 48px; }
+.kit-menu > .btn, .dn-row > .dn-key { scroll-snap-align: start; }
+/* a board card's foot (B4-01): its day is never cut; the foot wraps before the day would give way, and on a narrow board every card puts its move key on a line of its own, the day keeping the first */
+.tfoot { flex-wrap: wrap; row-gap: 6px; }                                             /* a foot with no room wraps its keys under the day */
+.tfoot .when { flex: 1 0 auto; overflow: visible; text-overflow: clip; }              /* the day takes the room it needs, never less */
+.tfoot .btn.move { margin-left: auto; }                                               /* the move key at the card's right edge, on either line */
+@media (min-width: 860px) and (max-width: 1199px) {                                   /* four columns of 145 to 220 px */
+  .tfoot { row-gap: 0; }                                                              /* the break below is a line of no height: the key's own margin is the gap */
+  .tfoot::after { content: ""; order: 1; flex: 0 0 100%; }                            /* a line break before the move key, on every card alike */
+  .tfoot .btn.move { order: 2; margin-top: 6px; }                                     /* the move key on the line under the day */
+}
+@media (min-width: 1200px) and (max-width: 1399px) {                                  /* English keys are longer: its cards break the same way up to 1400 px */
+  html:lang(en) .tfoot { row-gap: 0; }                                               /* as the narrow board's foot above */
+  html:lang(en) .tfoot::after { content: ""; order: 1; flex: 0 0 100%; }              /* the line break before the move key */
+  html:lang(en) .tfoot .btn.move { order: 2; margin-top: 6px; }                       /* the move key under the day */
+}
+/* a submitted application's card (B4-08): each document that went out on a row across the card, its language, day and open key in columns */
+.sent-panel .matlist { width: 100%; justify-self: stretch; }                          /* the card's width, not the 560 px of a list beside other content */
+.matlist.sent-docs li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: var(--gap-l); align-items: center; }   /* the document, then its facts and key at the right */
+.matlist.sent-docs .nm { color: var(--ink); font-weight: 600; }                       /* what went out */
+.matlist.sent-docs .sd-lang, .matlist.sent-docs .sd-day { color: var(--ink-3); font-size: var(--fs-xs); white-space: nowrap; }   /* in which language and on which day */
+.sent-panel .sd-none { margin: 0; color: var(--ink-2); font-size: var(--fs-sm); }    /* this tab's document did not go: one line under the ones that did */
+/* the Progress tab's stages under 1000 px (B4-10): one row of four, each day under its word, as a phone has them; at 900 px English words ran 9 to 16 px past their keys, and from 641 to 859 px the four stood two by two */
+@media (max-width: 999px) {
+  .seg.stages, :root[data-theme] .seg.stages { display: flex; flex-wrap: nowrap; column-gap: 8px; }   /* the four in their order on one row */
+  .seg.stages button { flex-direction: column; gap: 0; padding-inline: 2px; line-height: 1.25; }      /* the day under the word, inside the key */
+  .seg.stages button, :root[data-theme] .seg.stages button { padding-top: 2px; } .seg.stages button > .when { margin-bottom: 0; }   /* the two lines on the key's middle, as the phone sets them */
+}
+/* an HTML material's frame (B4-14): as tall as its page (views.js matFrame), between a floor and the old 70vh ceiling, scrolling inside past it; the sheet stays white, the file's own look */
+.mat-frame { height: 160px; min-height: 80px; max-height: 70vh; }                    /* 160 px until its page is measured */
+/* a Markdown material's lists (B4-15): its items one line apart as a paragraph's lines are (they were 30 px apart against 22), the list set off by the note's own gap before and after it; its marks in the text's ink, a bullet as full as a letter */
+.mat-doc .mli + .mli { margin-top: calc(-1 * var(--gap-s)); }                        /* the note's gap between blocks taken back between two items of one list */
+.mat-doc .mk { color: inherit; font-weight: 600; }                                    /* the text's own ink (it was the faint grey of a hint) */
+/* a round's notes (B4-16): under the name the form gives them, in the type of the questions' name above them */
+.round-said { display: grid; gap: 2px; } .round-said .k { font-size: 12px; color: var(--ink-3); }   /* "How it went", then the notes */
+/* an ended card's head (found with B4-01): its result goes under the name, at the same right edge, when the two do not fit one line; the name was broken mid-word beside it at 900 to 1100 px ("뤼튼테크놀로지스") */
+.tcard .tc-top { flex-wrap: wrap; row-gap: 2px; }                                     /* the name whole on its line */

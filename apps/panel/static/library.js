@@ -214,7 +214,7 @@ function viewLibrary(host) {
         h("div", {}, h("h2", { text: t("Library") }), h("p", { text: t("{n} files, {size}", { n: rows.length, size: bytes(d.bytes) }) }))),
       segBar(LIB_GROUPS.slice(1).map(([k, w]) => ({ n: counts[k] || 0, words: t(w), color: LIB_COLOR[k] })), { label: t("Files by kind"), id: "lib", compact: true }),
       h("div", { class: "lib-acts" },
-        h("a", { class: "btn small", href: "/api/v1/workspace/backup", download: "" }, icon("download"), t("Back up my files")),
+        h("a", { class: "btn small", href: "/api/v1/workspace/backup", download: "", onclick: saveBackup }, icon("download"), t("Back up my files")),   // the disk's room asked first (app.js)
         h("label", { class: "btn small" }, icon("upload"), t("Restore a backup"), h("input", { type: "file", accept: ".zip", hidden: true, onchange: (e) => { const f = e.target.files[0]; e.target.value = ""; restoreBackup(f); } })),
         h("button", { class: "btn small", type: "button", onclick: async () => { const r = await act("/api/v1/open", { what: "workspace" }); if (r && !r.opened) toast(t("This PC has no file manager to open it with."), null, "warn"); } }, icon("folder"), t("Open the folder")))),
     h("div", { class: "lib-filters" },

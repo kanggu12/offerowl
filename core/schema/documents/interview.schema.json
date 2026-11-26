@@ -159,6 +159,10 @@
         },
         "drafted": {
           "type": "integer"
+        },
+        "own": {
+          "type": "integer",
+          "description": "Scenes in the files the person added (Add scenes you wrote), whatever lines they hold."
         }
       }
     },

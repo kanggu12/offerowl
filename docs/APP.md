@@ -42,7 +42,9 @@ The panel serves each job's interview kit at its own address, `/kit/<job>/` (the
 
 `OFFEROWL_DATA_DIR` names another one. It holds:
 
-- `settings.json`: the language, the theme and the agent.
+- `settings.json`: the language, the theme and the agent. A file there that does not read as settings (cut short, or a list
+  in place of an object) leaves the panel on its defaults, and the next change of a setting keeps it beside as
+  `settings.json.bad` before it writes a new one.
 - `workspace/`: the person's files, with the layout of [Your workspace](ARCHITECTURE.md#your-workspace):
   - `profile/profile.json` is built from the confirmed facts, and `profile/evidence.json` says which facts each part
     of it rests on. `profile/details.json` holds the person's own fields. `profile/base.json` holds an imported
@@ -323,7 +325,9 @@ every dated step.
   each when the window is small; a key per section above it; a box for the question as the interviewer asks it. The answers
   come up on a board of columns, a long script across several, with the answers in reading order beside it, and a vertical
   wheel turns the board a screen at a time; on a phone or a narrow column they run down one column and the sections become
-  one row to swipe. Both, KO and EN choose the scripts' language (Alt+1 to Alt+3 while the keyboard is in the view, where
+  one row to swipe, which stops with a section's key whole at its start. A question no script is close to shows that it
+  is so on the best card (with the kit's own `weak_hint`), its best three cards, and one row that opens the rest. Both, KO
+  and EN choose the scripts' language (Alt+1 to Alt+3 while the keyboard is in the view, where
   they take the place of the panel's own Alt+1 and on); the settings key sets the type size and
   the column width. The ranking is the kit's own (the same lines of code as its page, `tests/packaging/test_kit_engine.py`):
   keywords with Korean stemming and synonym groups, and with `OFFEROWL_SEARCH_MODEL` set a similarity switch for bge-m3
@@ -359,11 +363,17 @@ every dated step.
   in the part itself: the parts' times, then each slide's picture beside its time, the running total and its words (where
   to point, what to say, the one line when time runs short, the questions to expect), then the questions with what backs
   each answer; beside it the keys to the slides and the script as PDFs and **Save to the Desktop**. It needs no question map.
-- "Add scenes you wrote" takes scene files in the kit's markdown into the job's kit folder (`POST /api/v1/interview/scenes`):
-  a file with no scene, or one whose words the kit holds already, is refused (each with its own word in the note), a name
-  already there gets a number, and files named `deep…`, `terms…` or `notes…` keep those roles in kit.json. Each write that
-  changes the kit's scripts or its map (scenes added, a kit carried, **Make the question map**, **Make the question map
-  again**) is an undo step of its own that takes the question map back with it.
+- "Add scenes you wrote" takes scene files in the kit's markdown (`.md` or `.txt`) into the job's kit folder (`POST
+  /api/v1/interview/scenes`): a file of another kind, one with no scene, or one whose words the kit holds already, is refused
+  (each with its own word in the note), a name already there gets a number, and files named `deep…`, `terms…` or `notes…`
+  keep those roles in kit.json. The files of one pick are one undo step, with Undo on the note; when two scenes share a
+  number, one takes the next free one (`Z9-2`), and the note names each number that changed. The map's line counts the
+  scenes you added. Each
+  write that changes the kit's scripts or its map (scenes added, a kit carried, **Make the question map**, **Make the
+  question map again**) is an undo step of its own that takes the question map back with it, and the kit's folders when the
+  write made them. Its key says it is working from the click until the answer, and takes no second click.
+- The kit's printable pages (the talk, the deck and the cue cards at `/kit/<job>/...`) answer a page of the panel's own while
+  there is nothing on them yet (no talk made, no script), with the key back to the Interview tab.
 - **Your materials** (`apps/api/services/applications/materials.py`), under the scripts: files prepared for the job with other tools, kept byte for
   byte with their SHA-256: PDF, PowerPoint, Word, Markdown, HTML, text, Python, PNG and JPG, 50 MB each at most; any other kind is
   refused with `material_kind`. Drop them on the part (a folder is walked) or choose them. A name loses the characters a disk
@@ -542,9 +552,13 @@ words in a row, the one chosen in the ink with the line of the view in use under
 a badge is its dot and its words; a count is its number; Make's three steps are each one pane with its head inside and
 its parts divided by a hairline; an application's tabs hold no panes; a quote is a line beside its words; the command
 bar opens as a sheet beside the page, as the settings do. A note (the toast) is frosted
-glass in the top bar, in the room between the views and the keys (two lines at most there, else over the views, which
-step aside while it shows), with a mark of its kind before its words and its key as words in the link colour: done
-(green), held back (amber), failed (red) or word of something (blue). On a phone it is a band across the top of the screen, and the bar's row under it steps aside.
+glass in the top bar, in the room between the views and the keys when its words fit there in two lines, with a mark of
+its kind before its words and its key as words in the link colour: done (green), held back (amber), failed (red) or word
+of something (blue). A longer note, and every note on a phone, is a band along the bar's foot in the bar's own glass (the
+screen's top once a phone's bar has scrolled away); it never lies over the views, the agent's chip or the keys. A sheet
+at the window's edge keeps its edge (the band ends there, or on a phone hangs under the sheet's own head), and over the
+setup guide's or a question's card the band stands at the screen's foot. While the bar's band says the server is not
+answering, a write that fails adds no note saying it again.
 
 
 `apps/panel/static/tokens.css` holds the base tokens and `components.css` builds the parts from them: keys, lamps (a

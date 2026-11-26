@@ -311,7 +311,7 @@ function todayBand(j, where) {                                                  
   const r = roundToday(j); if (!r) return null;
   const st = dayState(r), links = linksIn(r.notes).length ? r.notes : j.next;      // the call's address: in the round's notes, else in the next step
   const toScripts = () => { UI.jobTab = "interview"; UI.ivPart = "search"; render(); };   // the scripts' search, where a question heard is typed
-  const toWrite = () => { UI.jobTab = "progress"; UI.roundEdit = { job: j.id, id: r.id }; render(); };   // the round's form, its questions box
+  const toWrite = () => { UI.jobTab = "progress"; UI.roundEdit = { job: j.id, id: r.id, was: roundWas(r) }; render(); };   // the round's form, its questions box, with the round as it opened on it (D4-06)
   return h("div", { class: "today-band " + st.state, role: "status", "aria-label": t("Today's interview") },
     h("span", { class: "lit " + (st.state === "on" ? "ok" : st.state === "ahead" ? "warn" : "off"), "aria-hidden": "true" }),
     h("b", { text: t("Today {time}, {round}", { time: String(r.at).slice(11, 16), round: t(ROUND_KIND[r.kind] || "Other round") }) }),
@@ -331,7 +331,8 @@ function nextPast(text) {                                                       
   return new Date(y, +m[2] - 1, +m[3]) < new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 function activeStrip() {                                                            // the applications still going, as cards: stage, company, role, next step
-  const list = (S.jobs || []).filter((j) => j.stage !== "result").sort((a, b) => (STAGE_ORDER[a.stage] ?? 3) - (STAGE_ORDER[b.stage] ?? 3) || String(b.created || "").localeCompare(String(a.created || ""))).slice(0, 12);   // every one still going (a dozen at most), as dense cards
+  const newest = newestFirst(S.jobs || []);                                         // the newest first, a day's own too (B4-13)
+  const list = (S.jobs || []).filter((j) => j.stage !== "result").sort((a, b) => (STAGE_ORDER[a.stage] ?? 3) - (STAGE_ORDER[b.stage] ?? 3) || newest(a, b)).slice(0, 12);   // every one still going (a dozen at most), as dense cards
   if (!list.length) return null;                                                    // nothing going: no strip
   const goJob = (j, tab) => { S.job = j.id; UI.jobTab = tab; act("/api/v1/jobs/select", { job: j.id }); go("jobs"); };
   return h("section", { class: "active", "aria-label": t("Applications in progress") },
@@ -596,7 +597,10 @@ function resultCard(run) {                                                      
     e.preventDefault();
     const fields = {}; for (const k of needs) { const box = e.target.querySelector(`[data-key="mk-fix-${k}"]`); fields[k.replace("_missing", "")] = String(box ? box.value : UI.typed["mk-fix-" + k] || "").trim(); }   // what the boxes show, a value filled in from the profile included
     if (Object.values(fields).some((v) => !v)) { toast(t("Fill in both.")); return; }
-    await act("/api/v1/details", { fields }); forget("mk-fix-");
+    const mail = e.target.querySelector('[data-key="mk-fix-email_missing"]');      // the email's box, when the run lacked one
+    if (fields.email && !isMail(fields.email)) { if (mail) fieldNote(mail, t("Not an email address")); return; }   // no address: said under the box, nothing sent (A4-03)
+    if (!(await act("/api/v1/details", { fields }))) return;                        // refused: its toast says why, and the PDFs are not made again without them
+    forget("mk-fix-");                                                              // kept: the boxes' words go
     await act("/api/v1/autopilot", { again: run.job, theme: UI.theme, max_pages: UI.maxPages }, t("Making the PDFs again."), "info");   // started, not done
   } },
     h("p", { class: "hint", style: "grid-column:1/-1", text: t("Your files do not give these. Fill them in and the PDFs are made again.") }),

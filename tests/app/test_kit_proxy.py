@@ -185,6 +185,30 @@ class TestKitProxy(PanelCase):
         for w in re.findall(r'data-w="(\w+)"', page):  # every place of the page has its words in the script
             self.assertIn(f"{w}: t(", words)
 
+    def test_a_printable_page_with_nothing_to_print_is_a_page_of_the_panel(self):
+        """C4-02, C4-03: the talk before it is made, and the deck and the cue cards of a kit that holds no script yet, answer
+        the panel's own page that says so: the viewport, the theme, the words in the panel's language, the key back and no print
+        key, for a person's page and a fetch alike. A bare page in the kit's own colours, and a deck of 0 scripts with a print
+        key, answered before."""
+        jid, company = self.jobs[0]  # a kit with its map and no script
+        nav = {"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document"}  # a person opening the address
+        words = (ROOT / "apps" / "panel" / "static" / "kitgone.js").read_text(encoding="utf-8")
+        for sub, word in (("talk", "talk"), ("deck", "scripts"), ("deck?lang=en", "scripts"), ("cue", "scripts"), ("cue?ids=A1", "scripts")):
+            for headers in (nav, {}):
+                conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=60)
+                conn.request("GET", f"/kit/{q(jid)}/{sub}", headers=headers)
+                r = conn.getresponse()
+                page = r.read().decode("utf-8")
+                conn.close()
+                self.assertEqual(404, r.status, (sub, headers))
+                self.assertIn(f'data-w="{word}"', page, sub)  # what is missing, in words the panel's table translates
+                self.assertIn(f"{word}: t(", words)
+                self.assertIn('name="viewport"', page)  # a phone sees it at its own width
+                self.assertIn("/static/kitgone.js", page)
+                self.assertIn(f'href="/?job={q(jid)}&amp;show=scripts"', page)  # the way back
+                self.assertNotIn('id="print"', page)  # nothing to print
+                self.assertIn(f"<title>{company} · Offerowl</title>", page)
+
     def test_the_start_route_answers_for_the_job(self):
         jid = self.jobs[1][0]
         self.assertTrue(self.post("/api/v1/interview/start", {"job": jid})["started"])
@@ -205,6 +229,34 @@ class TestKitProxy(PanelCase):
                            "Connection: close\r\n\r\n").encode())
                 status = s.recv(200).split(b"\r\n", 1)[0]
             self.assertIn(b" 400 ", status, length)  # refused at once, nothing passed to the kit
+
+    def test_a_practice_body_that_stops_coming_is_answered_408(self):
+        jid = self.jobs[0][0]
+        handler = type(self).srv.RequestHandlerClass  # the panel's own
+        with unittest.mock.patch.object(handler, "BODY_WAIT", 1):  # a second instead of ten, for the test
+            with socket.create_connection(("127.0.0.1", self.port), timeout=30) as s:
+                s.sendall((f"POST /kit/{q(jid)}/api/practice/start HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
+                           f"Origin: http://127.0.0.1:{self.port}\r\nContent-Type: application/json\r\nContent-Length: 100\r\n"
+                           "Connection: close\r\n\r\n{\"a\":1}").encode())  # 7 of the 100 bytes it said
+                got = b""
+                while True:  # the whole answer, until the server closes
+                    piece = s.recv(4096)
+                    if not piece:
+                        break
+                    got += piece
+        self.assertIn(b" 408 ", got.split(b"\r\n", 1)[0], got[:200])  # told, never held for 120 s with no answer (D4-02)
+        self.assertEqual({"error": "timeout"}, json.loads(got.split(b"\r\n\r\n", 1)[1]))
+        with socket.create_connection(("127.0.0.1", self.port), timeout=20) as s:  # a length that is no number: named as the length
+            s.sendall((f"POST /kit/{q(jid)}/api/practice/start HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\n"
+                       f"Origin: http://127.0.0.1:{self.port}\r\nContent-Type: application/json\r\nContent-Length: many\r\n"
+                       "Connection: close\r\n\r\n").encode())
+            got = b""
+            while True:
+                piece = s.recv(4096)
+                if not piece:
+                    break
+                got += piece
+        self.assertEqual({"error": "bad_request", "what": "length"}, json.loads(got.split(b"\r\n\r\n", 1)[1]))
 
 
 if __name__ == "__main__":

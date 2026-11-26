@@ -742,6 +742,7 @@ const labelOf = (k) => (k ? LABELS[k] || k : "");  // a shown label; an empty sp
 // regular expressions ("strip"); they are removed from titles and text before showing.
 const REF_DEFAULT = ["\\s*\\([^()]*\\b[\\w.-]+\\.(?:md|txt|json)\\b[^()]*\\)", "\\s*\\([^()]*\\bproject_[\\w-]+[^()]*\\)", "\\s*\\((?:[^()]*\\s)?대장(?=[\\s)\\d에의])[^()]*\\)", "\\s*(?:대본 근거|Script basis|Sources)\\s*:\\s*[A-Z]\\d{1,3}(?:\\s*,\\s*[A-Z]\\d{1,3})*\\.?", "\\s*\\(\\s*[A-Z]\\d{1,3}(?:\\s*,\\s*[A-Z]\\d{1,3})*\\s*\\)"];  // the writer's own files named in brackets ("(qa.md D3)", "(project_x 메모)", "(대장 12)"), in every kit
 const REF = new RegExp(REF_DEFAULT.concat(KIT.strip || []).join("|"), "g");
+const NOTE_RECORDS = /대장|기존 키트|\brules?\s*\d/;  // a 주의 note that names the writer's own records (the ledger, the kits before, a rule's number) is the writer's, never said in the room: left out whole (C4-08)
 const unref = (s) => (REF ? String(s).replace(REF, "") : String(s));  // text without the writer's cross-references
 ITEMS.forEach((it) => { it.tko = unref(it.tko).replace(/==|\*\*|`/g, ""); });  // titles: no cross-references, no marks
 function inline(s) {  // highlight, bold, italic, inline code on escaped text, without the writer's cross-references
@@ -789,6 +790,7 @@ function render(md, lead) {  // a small block parser: fields, tables, lists, cod
       const lab = f[1] === "해석" ? labelOf(who) : labelOf(f[1] === "국문" || f[1] === "KO" ? "해석" : f[1]) + (f[2] ? ` (${f[2]})` : "");  // the Korean text is the 해석 of the English script
       let html = joinLines(buf);
       if (cls === "note" && !html.replace(/<[^>]+>/g, "").trim()) continue;  // a note that held only the writer's references: no empty label left
+      if (f[1] === "주의" && NOTE_RECORDS.test(html.replace(/<[^>]+>/g, ""))) continue;  // a note about the writer's records, read as shown (a bracketed reference to them is gone already): other 주의 notes stay
       if (cls === "ko" && !led) {  // the conclusion comes first; skipped when the script already marks its own phrases
         if (!/<mark class="hl">/.test(html)) html = html.replace(/^(.+?[.?!])(\s|$)/, (m0, s1, s2) => (s1.length <= 80 ? `<span class="lead">${s1}</span>${s2}` : m0));
         led = true;

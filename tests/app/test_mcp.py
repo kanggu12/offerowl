@@ -289,7 +289,8 @@ class TestWrites(McpCase):
         self.assertEqual(("submitted", "2026-01-05", "wait for the call"), (c["stage"], c["dates"]["submitted"], c["next"]))
         self.assertEqual("interview", self.call_ok("move_job", job=self.job, advance=True)["stage"])  # one column right
         self.assertTrue(self.call("move_job", job=self.job)["isError"])  # nothing asked
-        self.assertEqual("interview", self.call_ok("move_job", job=self.job, stage="hired")["stage"])  # a stage the board lacks moves nothing
+        self.assertTrue(self.call("move_job", job=self.job, stage="hired")["isError"])  # a stage the board lacks is refused in words (D4-07: it was ok, with nothing moved)
+        self.assertEqual("interview", next(j for j in self.call_ok("list_jobs")["jobs"] if j["id"] == self.job)["stage"])  # and moves nothing
         r = self.call_ok("reminder", job=self.job, at="2099-01-01", text="follow up")["reminder"]  # a reminder
         self.assertEqual("follow up", r["text"])  # kept
         bad = self.call("reminder", job=self.job, at="tomorrow", text="x")  # not a date

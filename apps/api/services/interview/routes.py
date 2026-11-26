@@ -6,7 +6,7 @@ from __future__ import annotations
 import re  # paths and a script's ids
 import urllib.parse  # job ids in paths
 
-from ...core.routing import JSON, NotFound, Upload, lang_of  # the answers' shapes, an upload's route, the request's language
+from ...core.routing import JSON, HeadAnswer, NotFound, Upload, cheap_head, lang_of  # the answers' shapes, a cheap HEAD, an upload's route, the request's language
 from . import studio  # the interview board
 
 PART = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/(interview|interview/view|interview/deck|talk|talk/script)$")  # its interview board, what the script view and the deck read, its talk or the talk's script
@@ -16,6 +16,16 @@ TALKSLIDE = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)/talk/slides/(\d{1
 # ------------------------------------------------------------------ reads
 
 
+def head_part(a, q, m):
+    """HEAD of a job's interview parts: the job checked, and for the script view and the deck whether it has a kit, with no
+    kit server started and no megabytes made (D4-04)."""
+    jid = a.need_job({"job": urllib.parse.unquote(m.group(1))})  # it exists
+    if m.group(2) in ("interview/view", "interview/deck") and not studio.has_kit(a.ws, jid):  # no kit yet: as the GET says
+        return 404, HeadAnswer(), JSON
+    return 200, HeadAnswer(), JSON
+
+
+@cheap_head(head_part)
 def get_part(a, q, m):
     """GET /api/v1/jobs/<job>/interview, /interview/view, /interview/deck, /talk and /talk/script."""
     jid = a.need_job({"job": urllib.parse.unquote(m.group(1))})  # it exists
@@ -100,8 +110,9 @@ def post_start(a, req, path):
 
 
 def upload_scenes(a, q, name, data):
-    """POST /api/v1/interview/scenes?job=: a file of interview scenes (the kit's markdown) into a job's interview folder."""
-    return studio.add_scenes(a, str(q.get("job") or ""), name, data)  # the job named in the query; the page draws the new scenes
+    """POST /api/v1/interview/scenes?job=&join=: a file of interview scenes (the kit's markdown) into a job's interview folder;
+    join names the step of the same pick's earlier file, so every file of one pick is one undo step."""
+    return studio.add_scenes(a, str(q.get("job") or ""), name, data, join=str(q.get("join") or "")[:64] or None)  # the job named in the query; the page draws the new scenes
 
 
 GET = (  # the reads

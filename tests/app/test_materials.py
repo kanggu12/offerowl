@@ -341,7 +341,7 @@ class KeptAsTheyCame(Server):
         desk = self.tmp / "Desktop"  # the class's own Desktop
         self.assertEqual(data, (desk / "감마 회사 소개.pdf").read_bytes())  # byte for byte
         again = self.post("/api/v1/jobs/materials/export", {"job": self.job, "id": rec["id"]})["exported"][0]  # a second copy
-        self.assertEqual("감마 회사 소개 (2).pdf", again)  # never over the first
+        self.assertEqual("감마 회사 소개_2.pdf", again)  # never over the first, numbered as every file handed out is (D4-08: it was "(2)")
         (self.folder / "감마 회사 소개.pdf").write_bytes(data + b"%changed")  # the kept file changed by hand
         r = self.post("/api/v1/jobs/materials/export", {"job": self.job, "id": rec["id"]}, expect=400)  # not what the person added
         self.assertEqual("material_changed", r["what"])  # said, and nothing copied
@@ -415,6 +415,7 @@ class Previews(Server):
         self.assertTrue(odd.startswith("<p>a</p><p>b</p>"), odd)  # and the page around it stays
         self.assertNotIn("<base", got["html"])  # its links keep no address of their own
         self.assertIn("<h1>Gamma Cloud</h1>", got["html"])  # the page itself
+        self.assertIn(':where(html) { font-family: "Pretendard"', got["html"])  # set in the panel's font, under any font the page names (B4-14: the browser's serif)
         status, headers, body = self.raw(self.base(rec["id"]))  # the file itself, at the panel's address
         self.assertEqual(PAGE.encode("utf-8"), body)  # byte for byte
         c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=30)  # every policy header, not the last one
@@ -553,6 +554,11 @@ class Markdown(unittest.TestCase):
     def test_headings_written_under_a_line_and_an_open_fence(self):
         blocks = M.md_blocks("Title\n=====\n\nPart\n---\n\n```\nleft open\n")  # the other heading form, and a fence never closed
         self.assertEqual([{"t": "h", "n": 1, "text": "Title"}, {"t": "h", "n": 2, "text": "Part"}, {"t": "code", "text": "left open"}], blocks)
+
+    def test_a_list_item_s_wrapped_lines_stay_in_it(self):
+        # B4-15: a list item's second line, indented under it as the note wrapped it, stood out of the list as a paragraph
+        blocks = M.md_blocks("- 감마랩스는 결제를 만든다. 정산은\n  매일 밤에 돈다.\n- 다음 항목\nlazy line\n\n문단")
+        self.assertEqual([("li", "감마랩스는 결제를 만든다. 정산은 매일 밤에 돈다."), ("li", "다음 항목 lazy line"), ("p", "문단")], [(b["t"], b["text"]) for b in blocks])
 
 
 if __name__ == "__main__":  # run as a script

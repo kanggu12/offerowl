@@ -23,7 +23,7 @@ import re  # marks in the notes
 
 from interview import check, corpus, i18n  # scenes, items, strings
 from interview import plan as ivplan  # the question map when none was written
-from interview.cue import PRINT_KEY, PRINT_SCRIPT, _unref, line_html  # the cue cards' cross-reference filter, speech and print key marks
+from interview.cue import PRINT_KEY, PRINT_SCRIPT, _unref, drop_record_notes, line_html  # the cue cards' cross-reference filter, the notes on the writer's records, speech and print key marks
 
 ORDER = ("opening", "asked", "behavioral", "company", "posting", "resume", "portfolio", "scenario", "technical", "closing")  # as an interview runs, what an earlier round asked right after the greeting
 PER_KIND = {"opening": 2, "asked": 10, "behavioral": 6, "company": 2, "posting": 8, "resume": 5, "portfolio": 4,  # scripts per part by default:
@@ -64,6 +64,7 @@ def scenes_of(job):
     items, _ = corpus.load(job)  # every item of the kit
     hidden = [re.escape(x) for x in job.kit.get("hidden_labels") or []]  # notes for the writer (근거: the question a draft was written for)
     secret = re.compile(r"^\s*(?:-\s*)?\*\*(?:" + "|".join(hidden) + r")\*\*") if hidden else None
+    unref = _unref(job.kit)  # the cross-references the page takes out, before a note is read for the writer's records
     cache, out = {}, {}  # file -> its blocks; id -> scene
     for it in items:  # in file order
         if it["path"] not in cache:  # each file is split once
@@ -77,6 +78,7 @@ def scenes_of(job):
                 pairs.append((who, txt, ""))  # its translation may follow
         if secret:  # never on the page, as the search view leaves them out
             notes = [ln for ln in notes if not secret.match(ln)]
+        notes = drop_record_notes(notes, unref)  # nor a 주의 note on the writer's own records (C4-08)
         if pairs:  # only items with a dialogue are scripts
             out[it["id"]] = (it, pairs, notes)  # by id, as the map names them
     return out

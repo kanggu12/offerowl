@@ -143,7 +143,7 @@ const UI = {                                                                    
   docTries: {},                                                                     // how many times in a row each failed, for the wait
   notified: {},                                                                     // reminders already shown as notifications
   typed: {},                                                                        // words typed in forms not sent yet, by field key
-  fieldNotes: {},                                                                   // a kept form's field whose words were refused: its note under it, by field key, through a redraw
+  fieldNotes: {},                                                                   // a field whose words were refused: its note and those words, by field key, through a redraw
 };
 const DRAFT_KEYS = /^(j-|r-|i-|f-|sentence-edit$)/;                                 // forms whose words are kept until sent (the rest save as you type): i- is an interview round
 document.addEventListener("input", (e) => {                                         // every keystroke in a kept form
@@ -203,7 +203,12 @@ async function act(path, body, okText, okKind = "done") {                       
   catch (e) { actFailed(path, e); return null; }                                   // the reason in words; a server gone says so too, beside the bar's band
 }
 function actFailed(path, e) {                                                       // a refused or lost write said in a toast
+  if (e.message === "offline" && offlineSaid()) return;                             // the bar's band says it already, in sight: a note saying it again was the same words twice (D4-13)
   toast(e.message === "offline" ? (/^\/api\/v1\/undo/.test(path) ? t("Offerowl is not answering, so nothing was undone.") : t("Offerowl is not answering, so this was not saved.")) : errorText(e), null, "bad");   // an undo is not a save (D3-09)
+}
+function offlineSaid() {                                                            // the bar's band says the server is not answering, where the person sees it
+  const b = UI.offline && document.querySelector("#top .bar-off .band"), r = b && b.getBoundingClientRect();   // drawn as the server went (setOffline draws it first)
+  return !!(r && r.height && r.bottom > 0 && r.top < innerHeight);                   // in the window: a phone's bar may have scrolled away with it, and then the note says it
 }
 // A "next step" box saves the words it started from along with the new ones (D3-07): a window whose box started from words
 // another window has since changed is refused, and shows the other window's words with a note, never overwriting them
@@ -326,6 +331,10 @@ const KIND = { role: "Employment", project: "Project", education: "Education", s
   award: "Award", certificate: "Certificate", other: "Other", card: "Overview", highlight: "Key project", layer: "Stack",
   competency: "Strength", about: "About me", motivation: "Motivation", typed: "Typed by you", profile: "Profile" };
 const STAGE = { preparing: "Preparing", submitted: "Submitted", interview: "Interview", result: "Result" };  // the tracker's columns
+function newestFirst(list) {                                                        // applications the newest first: by the day each was added, then by when on that day (B4-13: one day's stood oldest first)
+  const at = new Map(list.map((j, i) => [j.id, i]));                                // the server's own order: by day, then by its count
+  return (a, b) => String(b.created || "").localeCompare(String(a.created || "")) || (b.seq || 0) - (a.seq || 0) || (at.get(b.id) ?? 0) - (at.get(a.id) ?? 0);
+}
 const RATING = { strong: "Met", weak: "In part", none: "Not met" };                 // how well a posting line is covered: the words Insights uses
 const RATING_CLS = { strong: "rate strong", weak: "rate weak", none: "rate none", draft: "ai" };   // its lamp: met, in part, not met, as the figures colour them
 const CATEGORY = { asked: "Asked before", posting: "Posting lines", resume: "Resume lines", portfolio: "Portfolio pages", term: "Terms", behavioral: "Behavioral",  // the question map's kinds
@@ -412,6 +421,7 @@ function errorText(e) {                                                         
     changed: t("The PDFs changed after they were checked. Make the PDFs again."), copy_unreadable: t("The copy on the Desktop did not read back, so it was taken away. Try again."),
     material_changed: t("This file changed after you added it, so no copy was made."), material: t("That file is no longer in the list. Open the job again."),
     next_changed: t("The next step was changed in another window, so your words were not saved. Its words are shown."),
+    round_changed: t("This round was changed in another window, so your changes were not saved. It is shown as it is now."),   // D4-06: the round's form drawn again from it
     removed: t("That was put back or deleted already. The list shows how things are now."), busy: t("Wait until the work in progress ends, then try again."),
     delete_failed: t("Some of its files could not be deleted: another program may have them open. Close it and try again."),
     blind_table: t("That file is not a mask table."), blind_unread: t("The blind edition's text could not be read, so nothing was exported. Make the PDFs again."),
@@ -430,18 +440,25 @@ function errorText(e) {                                                         
     // 0.15.1: refusals said before anything changes
     example_over_own: t("Your own facts are kept, so the example was not added: it would replace your profile."),
     fact_empty: t("Write a title or what it says first."),
+    // 0.16.2: what the person types, refused whole rather than kept wrong or cut short (apps/api/services/profile/actions.py)
+    email: t("That is not an email address, so it was not saved."),
+    fact_title_long: t("A fact's title holds up to 200 characters, so it was not saved."),
+    fact_statement_long: t("What a fact says holds up to 20,000 characters, so it was not saved."),
     talk_minutes: t("A talk lasts 5 to 120 minutes."),
     bad_brief: t("Write at least one topic the interviewers asked for."),
     already_carried: t("Its scripts were brought in already. Undo the earlier one first to bring them again."),
     questions_moved: t("The questions changed in another window, so nothing was saved here. Open the application again."),
     json: t("That request could not be read. Open the page again and try once more."), shape: t("That request could not be read. Open the page again and try once more."),   // D3-10: the server's own body refusals
     length: t("That request could not be read. Open the page again and try once more."),
+    timeout: t("The request stopped coming part way, so nothing was done. Try again."),   // 0.16.2: a body that paused for 10 s (D4-02)
+    disk_full: t("There is not enough free space on this PC's disk. Free some space and try again."),   // 0.16.2: a backup or a restore that would fill the disk (D4-09)
     kit_unreachable: t("The interview kit did not answer."),
     body_too_large: t("That is too long to send in one piece. Shorten it, or add it as a file."),
     program: t("Programs are not added. Add documents, pictures or notes."),
     not_that_kind: t("That file is not what its name says, so it was not added."),
     fields: t("That could not be done. Open the page again and try once more."),
     no_kit: t("That application has no interview kit yet."),
+    scenes_kind: t("That file is not .md or .txt."),   // 0.16.2: scenes come as the kit's markdown or plain text (C4-13)
     no_files_at_paths: t("Nothing readable was found at those paths."),
     needs_agent_files: t("The agent is off, so these files cannot be read yet. Turn it on, then add them again."),
     needs_agent_posting: t("No AI agent is ready, so the posting was not read."),   // 0.16.1: a posting refused before a run made an application of nothing
@@ -506,36 +523,64 @@ function linkKeys(text) {                                                       
   const ls = linksIn(text);
   return ls.length ? h("span", { class: "xlinks" }, ls.map(([, , u]) => linkKey(u))) : null;
 }
-function placeToast(el) {                                                          // a note never lies across a box: on a wide window it shows in the bar, in the room between the views and the keys
+// A note never lies across a box, and never over the bar's views, its chip or its keys (A4-07, D4-13). On a wide window it
+// shows in the bar, in the room between the views and the keys, when its words fit there in two lines. Else, and always on a
+// phone, it is a band in the bar's own glass along the bar's foot (the window's top once a phone's bar has scrolled away):
+// the head grown for a moment, which the page passes under as it passes under the bar. A sheet at the window's edge keeps
+// its edge: the band ends there, and where the sheet takes the whole width (a phone) the band hangs under the sheet's own
+// head. Over the guide's or a question's card, which can reach a phone's bar, it stands at the window's foot instead.
+function placeToast(el) {
   document.querySelectorAll(".under-toast").forEach((x) => x.classList.remove("under-toast"));   // what the last note covered shows again
-  el.classList.remove("inbar");
+  el.classList.remove("inbar", "barfoot", "winfoot");                                     // laid out anew
   const bar = document.querySelector("#top .bar-in");                              // the sticky bar
   if (!bar) return;
-  if (!matchMedia("(min-width: 861px)").matches) return stepAside(el, bar, ".brand, .brand-ver, .bar-in > .barchip, .barpop, .actions, .views");   // a phone's bar scrolls away: its note is a band across the window's top (skin.css)
+  if (matchMedia("(min-width: 861px)").matches && toastInBar(el, bar)) return;     // a wide window: in the bar, when the words fit its room
+  toastBand(el);                                                                    // else under the bar
+}
+function toastInBar(el, bar) {                                                      // the room between the views and the keys, in two lines at most; false when the words need more
   const keys = [...bar.children].filter((x) => x.matches(".barchip, .barpop, .actions") && x.getBoundingClientRect().width);   // the bar's own keys, at its right
-  const mark = bar.querySelector(".brand-ver") || bar.querySelector(".brand");     // the wordmark and its version, at its left
-  if (!keys.length || !mark) return;
-  const k = keys[0].getBoundingClientRect(), m = mark.getBoundingClientRect();
-  el.classList.add("inbar");
-  const most = m.right + 16;                                                        // no further left than the wordmark
-  const v = bar.querySelector(".views")?.getBoundingClientRect();                   // the views, when they share the keys' row
-  const from = v && v.width && Math.abs(v.top + v.height / 2 - (k.top + k.height / 2)) < 8 ? v.right + 12 : most;   // where the room beside them starts
-  const last = keys[keys.length - 1].getBoundingClientRect();                       // Undo and the settings: never under a note
-  const chipFree = !bar.querySelector(".barpop .pop");                              // the agent's chip may step aside, unless its panel is open
-  const rooms = [[from, k.left - 12], chipFree && keys.length > 1 ? [from, last.left - 12] : null, [most, (chipFree ? last : k).left - 12]].filter(Boolean);
-  const fit = ([l, r]) => {                                                         // in a room: its size there, against the room's right end
-    el.style.setProperty("--toast-right", `${Math.round(document.documentElement.clientWidth - r)}px`);   // the page's width, its scroll bar left out
-    el.style.setProperty("--toast-max", `${Math.round(Math.max(240, r - l))}px`);
-    return [el.offsetWidth, el.offsetHeight];
-  };
-  let wid = 0, hgt = 0, room = rooms[rooms.length - 1];
-  for (const r of rooms) {                                                          // the room the views leave, then with the agent's chip aside, then over the views
-    [wid, hgt] = fit(r); room = r;
-    if (r[1] - r[0] >= 200 && hgt <= k.height + 12) break;                          // two lines at most, within the bar's row
+  if (!keys.length) return false;                                                   // a bar still being drawn
+  const k = keys[0].getBoundingClientRect(), mid = k.top + k.height / 2;            // the first key, and the middle of the keys' row
+  let from = 0;                                                                     // where the room starts: after the last part of the bar on that row
+  for (const [sel, gap] of [[".brand", 16], [".brand-ver", 16], [".views", 12], [".jobpick", 12]]) {   // the wordmark, its version, the views, the job in view
+    const r = bar.querySelector(sel)?.getBoundingClientRect();
+    if (r && r.width && Math.abs(r.top + r.height / 2 - mid) < 8) from = Math.max(from, r.right + gap);   // only what shares the keys' row (two rows: the views are below it)
   }
-  el.style.setProperty("--toast-right", `${Math.round(document.documentElement.clientWidth - (room[0] + room[1]) / 2 - wid / 2)}px`);   // centred in its room, as Sidenote's notes stand
-  el.style.setProperty("--toast-top", `${Math.max(4, Math.round(k.top + k.height / 2 - hgt / 2))}px`);   // its middle on the keys' row, never above the window
-  stepAside(el, bar, ".views, .jobpick, .saved, .bar-in > .barchip, .barpop");    // the views whole, and a run's chip: a note never lies across them
+  const to = k.left - 12, W = document.documentElement.clientWidth;                 // up to the first key, with the bar's own gap; the page's width, its scroll bar left out
+  if (to - from < 200) return false;                                                // too narrow for a note's words
+  el.classList.add("inbar");                                                        // laid out in the bar's row (skin.css)
+  el.style.setProperty("--toast-max", `${Math.round(to - from)}px`);                // the room's width, at most
+  el.style.setProperty("--toast-right", `${Math.round(W - to)}px`);                 // against the room's right end while it is measured
+  const wid = el.offsetWidth, hgt = el.offsetHeight;                                // its size in that room
+  if (hgt > k.height + 12) { el.classList.remove("inbar"); return false; }          // three lines or more: under the bar instead, never over the keys
+  el.style.setProperty("--toast-right", `${Math.round(W - (from + to) / 2 - wid / 2)}px`);   // centred in its room, as Sidenote's notes stand
+  el.style.setProperty("--toast-top", `${Math.max(4, Math.round(mid - hgt / 2))}px`);   // its middle on the keys' row, never above the window
+  stepAside(el, bar, ".saved");                                                     // only the "Saved" flash it may lie over: the note says as much
+  return true;
+}
+function toastBand(el) {                                                            // a band along the bar's foot, in the bar's glass
+  const W = document.documentElement.clientWidth;                                   // the page's width, its scroll bar left out
+  const shown = (s) => { const x = document.querySelector(s), r = x && x.getBoundingClientRect(); return r && r.width && r.height ? x : null; };   // a layer that shows now
+  const sheet = shown("#menu") || shown(".barpop .pop") || shown("#askpanel") || shown("#depthpanel");   // a sheet at the window's edge
+  const bar = $("top").getBoundingClientRect();                                     // the bar, its band of a server gone with it
+  const brand = document.querySelector("#top .brand")?.getBoundingClientRect(), acts = document.querySelector("#top .actions")?.getBoundingClientRect();
+  let top = Math.max(0, bar.bottom), left = 0, right = W;                           // the bar's foot, across the window
+  let pl = brand && brand.width ? brand.left : 12, pr = acts && acts.width ? W - acts.right : 12;   // its words in line with the bar's: from the wordmark to the settings key
+  if (sheet && W - sheet.offsetWidth > 40) { right = W - sheet.offsetWidth; pr = 16; }   // a sheet beside the page, docked at the right edge: the band ends at its edge (its width, never where its slide in has it)
+  else if (sheet) {                                                                 // a sheet that takes the width (a phone): under its own head, across it
+    const head = [...sheet.querySelectorAll(".menu-head, .ask-head, .depth-head")].find((x) => x.getBoundingClientRect().height), sr = sheet.getBoundingClientRect();
+    top = head ? head.getBoundingClientRect().bottom : sr.top; left = sr.left; right = sr.right; pl = pr = 14;   // the sheet's own head and padding
+  }
+  el.classList.add("barfoot");                                                      // the bar's glass, square, a rule at its foot (skin.css; never the class "band", whose red dot and wrapping are a refusal's)
+  for (const [k, v] of [["top", top], ["left", left], ["right", W - right], ["pl", pl], ["pr", pr]]) el.style.setProperty("--toast-" + k, `${Math.round(v)}px`);
+  const card = shown("#setup > .setup") || shown("#confirm .confirm"), cr = card && card.getBoundingClientRect();   // the guide's card or a question's, over the page
+  if (cr && cr.top < top + el.offsetHeight && cr.bottom > top) {                    // the band would lie across it (a phone's guide covers its bar)
+    el.classList.add("winfoot");                                                    // the window's foot instead, where nothing of theirs is
+    el.style.setProperty("--toast-left", "0px"); el.style.setProperty("--toast-right", "0px");
+  }
+  // a sheet still sliding in was measured where it stands now: the note takes its place again once the sheet stands still
+  const moving = [sheet, card].filter((x) => x && x.getAnimations).flatMap((x) => x.getAnimations()).filter((a) => a.playState === "running");
+  if (moving.length) Promise.all(moving.map((a) => a.finished.catch(() => null))).then(() => { if (el.classList.contains("show") && el.classList.contains("barfoot")) placeToast(el); });
 }
 function stepAside(el, bar, what) {                                                 // what of the bar the note lies over steps aside while it shows (its glass would show it blurred)
   const t = { left: el.offsetLeft, top: el.offsetTop, right: el.offsetLeft + el.offsetWidth, bottom: el.offsetTop + el.offsetHeight };   // where it comes to rest (laid out now), not where its slide in has it
@@ -554,7 +599,10 @@ function toastWords(text) {                                                     
   }
   return cut < 0 ? [h("b", { text: s })] : [h("b", { text: s.slice(0, cut) + (sep === ": " ? ":" : "") }), (sep === ": " ? " " : " · ") + s.slice(cut + sep.length)];   // set as text, never as HTML; the colon and the dot stay (without them "되살렸습니다 이력서 사진" read run together)
 }
-function toast(text, key, kind) {                                                   // a short note in the bar (at the top on a phone); key {words, run, icon}: one key in it (Undo)
+for (const ev of ["scroll", "resize"]) window.addEventListener(ev, () => {          // a band follows a phone's bar as it scrolls away, up to the window's top
+  const n = $("toast"); if (n && n.classList.contains("show") && !n.classList.contains("inbar")) placeToast(n);
+}, { passive: true });
+function toast(text, key, kind) {                                                   // a short note in the bar, or a band under it; key {words, run, icon}: one key in it (Undo)
   const el = $("toast");                                                            // the one toast
   clearTimeout(toast.tm);                                                           // the newest note decides how long
   const hide = () => { el.classList.remove("show", "keyed"); document.querySelectorAll(".under-toast").forEach((x) => x.classList.remove("under-toast")); };   // gone, no longer in the way of a click, and what it covered back
@@ -564,7 +612,7 @@ function toast(text, key, kind) {                                               
     h("span", { class: "toast-w" }, toastWords(text)),                              // what happened in bold, then about what
     key ? h("button", { class: "btn small toast-key", type: "button", onclick: () => { clearTimeout(toast.tm); hide(); key.run(); } }, key.words) : null);   // a key in the note's colour, its words alone (as Sidenote's)
   el.classList.toggle("keyed", !!key);                                              // a note with a key takes clicks (skin.css); the others let them through
-  placeToast(el);                                                                   // inside the bar on a wide window, at the foot on a phone
+  placeToast(el);                                                                   // inside the bar when its words fit there, else a band along the bar's foot
   el.classList.add("show");                                                         // shown
   const words = String(text || "").split(/\s+/).length;                            // a long message, an error's reason and its fix, needs the time to be read
   const stay = key ? 10000 : Math.min(12000, Math.max(3600, words * 350));          // a key needs the time to be reached as well
@@ -582,7 +630,7 @@ async function removeAct(path, body, words) {                                   
     const k = $("toast").querySelector(".toast-key");
     if (k) k.focus({ preventScroll: true });                                        // always: a redraw put the keyboard on the next row's key of the same words, and a second Enter removed that one too
     return j;
-  } catch (e) { toast(e.message === "offline" ? t("Offerowl is not answering, so this was not saved.") : errorText(e), null, "bad"); return null; }    // the reason in words
+  } catch (e) { actFailed(path, e); return null; }                                  // the reason in words; a server gone is said once, by the bar's band when it is in sight
 }
 async function undoOnly(id) {                                                       // a note's Undo: the change it named, only while it is still the newest
   const r = await act("/api/v1/undo", { only: id });                                // the server compares the names under its lock
@@ -786,12 +834,13 @@ const pad2 = (n) => String(n).padStart(2, "0");
 const dayTime = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;   // a Date as 2026-11-10 04:37, this PC's time
 // A field whose words were refused says why under it, in the panel's own line (never the browser's bubble, whose complaint
 // stayed on the field and kept its form from being sent again): the rim turns the problem's colour, the keyboard goes back
-// to it, and the next keystroke takes the note away. A kept form's note (its words survive a redraw) is drawn again with it.
+// to it, and the next keystroke takes the note away. A field's note is drawn again with it, and with the words it refused
+// (B4-05: a day typed wrong in the days table lost its note to the first poll's redraw while its words stayed).
 function fieldNote(box, words) {
   const key = box.dataset.key || "";                                                // the field's name in the form
   const host = box.closest(".field, .dt-cell") || box.parentElement;                // the field's own box: the note goes under the field
   const old = host && [...host.children].find((x) => x.classList.contains("fnote"));   // the note it shows now
-  if (key && DRAFT_KEYS.test(key)) { if (words) UI.fieldNotes[key] = words; else delete UI.fieldNotes[key]; }   // kept with the words typed, through a redraw
+  if (key) { if (words) UI.fieldNotes[key] = { words, text: box.value }; else delete UI.fieldNotes[key]; }   // kept with the words it refused, through a redraw, for every named field
   if (!words) {                                                                     // put right: the note and the mark go
     if (old) old.remove();
     box.removeAttribute("aria-invalid"); box.removeAttribute("aria-describedby");
@@ -805,12 +854,13 @@ function fieldNote(box, words) {
   box.addEventListener("input", () => fieldNote(box, ""), { once: true });           // a new try takes the note away
   box.focus({ preventScroll: true });                                               // back on the field to put it right
 }
-function noteOf(box) {                                                              // the note a field drawn again still has (its kept words were refused), to stand under it; null for none
-  const key = box.dataset.key, words = key && UI.fieldNotes[key];
-  if (!words) return null;                                                          // nothing refused
+function noteOf(box) {                                                              // the note a field drawn again still has (its words were refused), to stand under it; null for none
+  const key = box.dataset.key, kept = key && UI.fieldNotes[key];
+  if (!kept) return null;                                                           // nothing refused
+  if (box.value !== kept.text) box.value = kept.text;                               // the words it refused, not the saved value the redraw drew: the note stays with them until a new try
   box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", "fn-" + key);   // marked as when it was said
   box.addEventListener("input", () => fieldNote(box, ""), { once: true });           // a new try takes it away
-  return h("span", { class: "fnote", id: "fn-" + key, text: words });              // already said once: drawn again without a second announcement
+  return h("span", { class: "fnote", id: "fn-" + key, text: kept.words });         // already said once: drawn again without a second announcement
 }
 function pickField(kind, attrs, value, onValue) {                                   // a day or a time typed the panel's way, or picked from the browser's own
   const read = kind === "date" ? isoDay : isoTime;

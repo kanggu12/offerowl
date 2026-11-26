@@ -28,6 +28,8 @@ MAX_UNPACKED = 4_000_000_000  # bytes a backup may unpack to: a real workspace i
 MAX_ENTRIES = 200_000  # entries a backup may hold, for the same reason
 ODD_NAME = re.compile(r'[<>"|?*:\\\x00-\x1f]')  # never in a name the workspace writes; a path with one of these could break out of a page or of the folder
 BACKUP_PREFIX = ".backup-"  # a backup being made is named by the process that makes it (sweep_leftovers)
+SPARE = 64_000_000  # bytes a backup or a restore leaves free beyond what it writes: the panel's own files are written meanwhile
+ENTRY = 200  # bytes a zip adds for each file it holds (its two headers), an upper bound for the names a workspace has
 PASSING = re.compile(r"\.\d+\.\d+\.tmp$")  # a write in progress (workspace.tmp_name)
 
 
@@ -50,23 +52,60 @@ STORED = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".docx", ".pptx", ".
           ".mp3", ".m4a", ".ogg", ".webm", ".mp4"}
 
 
+def room(folder: Path, need: int) -> None:
+    """Refuse with disk_full when the disk that holds `folder` has less than `need` bytes free beside SPARE. A backup or a
+    restore that ran out of room part way stopped with a half-written file and an error that named a path; for a 784 MB
+    workspace a restore needs about 1.5 GB more, a backup its zip beside the workspace (D4-09). A disk that cannot say what it
+    has left is tried, and the write itself tells."""
+    try:
+        free = shutil.disk_usage(folder).free  # what the disk has left
+    except OSError:  # a folder the system will not measure
+        return
+    if free < need + SPARE:  # it would fill the disk
+        raise ValueError("disk_full")  # the page says to free some space
+
+
+def kept_files(ws: Workspace) -> list:
+    """(file, its name in the zip) of every file a backup holds, in a fixed order, listed under the workspace's lock."""
+    with ws.lock:  # only the listing waits for the writes
+        return [(f, rel) for f, rel in ((p, p.relative_to(ws.root)) for p in sorted(ws.root.rglob("*")) if p.is_file()) if _kept(rel)]
+
+
+def size_of(files: list) -> int:
+    """The bytes a backup of these files can take at most: each file whole (a zip stores or shrinks it) and its headers."""
+    total = 0  # bytes
+    for f, rel in files:  # each file
+        try:
+            total += f.stat().st_size + ENTRY + len(rel.as_posix().encode("utf-8")) * 2  # its bytes, its headers and its name twice
+        except OSError:  # taken off since the listing
+            continue  # no longer there: no room needed
+    return total
+
+
+def check_room(ws: Workspace) -> dict:
+    """GET /api/v1/workspace/backup?check=1: whether the disk has room for a backup now, before the browser asks for one (a
+    download that fails says nothing the page can show). {need} in bytes, or disk_full."""
+    need = size_of(kept_files(ws))  # the zip at most
+    room(ws.root.parent, need)  # refused when it would not fit
+    return {"room": True, "need": need}
+
+
 def write_file(ws: Workspace, version: int = 1) -> Path:
     """The workspace as a zip in a file inside the data folder (never /tmp: a container's /tmp is memory, and a killed download
     leaves no stray file there), which the caller sends and then deletes. Never whole in memory: a real workspace backs up to
     hundreds of megabytes. The file list is taken under the workspace lock and the zipping runs outside it, so a write is
-    never held for the seconds a big workspace takes (D3-05). Files a job's working folder holds for a moment stay out."""
+    never held for the seconds a big workspace takes (D3-05). Files a job's working folder holds for a moment stay out. A
+    disk without room for the zip is refused with disk_full before a byte is written (D4-09)."""
     ws.root.parent.mkdir(parents=True, exist_ok=True)  # the data folder, on its own disk
+    files = kept_files(ws)  # every file a person would want back (not the undo steps, a working folder, a write in progress)
+    room(ws.root.parent, size_of(files))  # the zip at most: refused before anything is written
     fd, name = tempfile.mkstemp(prefix=f"{BACKUP_PREFIX}{os.getpid()}-", suffix=".zip", dir=ws.root.parent)  # beside the workspace, not in it: it is not in its own backup; the pid in the name tells a later start whose it was
     os.close(fd)
     path = Path(name)
     try:
-        with ws.lock:  # only the listing waits for the writes
-            files = [(f, f.relative_to(ws.root)) for f in sorted(p for p in ws.root.rglob("*") if p.is_file())]  # every file, in a fixed order, with its name in the zip
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:  # the zipping, outside the lock
             z.writestr(MARK, json.dumps({"app": "offerowl", "backup": version, "at": time.strftime("%Y-%m-%d %H:%M")}))  # what this file is
             for f, rel in files:
-                if not _kept(rel):  # what a person would want back
-                    continue  # an undo step, a working folder, a write in progress
                 try:
                     z.write(f, rel.as_posix(), compress_type=zipfile.ZIP_STORED if f.suffix.lower() in STORED else zipfile.ZIP_DEFLATED)
                 except FileNotFoundError:  # taken off since the listing (a deletion for good): not part of the backup
@@ -139,8 +178,9 @@ def write(ws: Workspace, version: int = 1) -> bytes:
         path.unlink(missing_ok=True)
 
 
-def _checked(z: zipfile.ZipFile) -> None:
-    """Refuse a file that is not a backup, or one that could write outside the folder it is unpacked in."""
+def _checked(z: zipfile.ZipFile) -> int:
+    """Refuse a file that is not a backup, or one that could write outside the folder it is unpacked in. Returns the bytes
+    it unpacks to."""
     if MARK not in z.namelist():  # any other zip
         raise ValueError("not_a_backup")  # the page says so
     if len(z.infolist()) > MAX_ENTRIES:  # far more files than any workspace holds
@@ -155,6 +195,7 @@ def _checked(z: zipfile.ZipFile) -> None:
         total += info.file_size  # as the file says
     if total > MAX_UNPACKED:  # a zip that unpacks to more than any workspace holds
         raise ValueError("too_large")  # the page says so
+    return total  # what unpacking it writes
 
 
 def aside_name(root: Path) -> Path:
@@ -178,8 +219,9 @@ def restore(ws: Workspace, data) -> str:
     new = root.with_name(f"{root.name}.restoring-{os.getpid()}")  # beside it, on the same disk, so the swap is one rename
     kept = aside_name(root)  # never deleted: the person may want it back
     with z:  # closed in every case
-        _checked(z)  # before anything is written
+        unpacked = _checked(z)  # before anything is written
         shutil.rmtree(new, ignore_errors=True)  # what a stopped restore left
+        room(root.parent, unpacked)  # the workspace unpacked beside the one there is: refused before a byte of it is written (D4-09)
         try:
             z.extractall(new)  # the names were checked above
             (new / MARK).unlink()  # the mark is not part of a workspace

@@ -31,7 +31,8 @@ general_view, editions_view, job_builds, desk_view and stale (the editions as th
 printed_file and build_record (an edition's printed files and its build's record); sent_file and keep_sent_file (a copy
 that went out); own_edition, add_edition, keep_own_file and OWN_FORM_KEYS (own and named editions); and the parts of the
 tasks: Builds, Drafting, OwnEdition, Exports and Comparisons, which add build_dir, render_lock, english_for,
-drafted_english, own_dir, own_langs, own_info, forget_own, facts_for, person_name, export, lock, forget_live, _build,
+drafted_english, own_dir, own_langs, own_info, forget_own, facts_for, person_name, export_name (the name an edition's file takes
+on the Desktop), export, lock, forget_live, _build,
 _write, _figures, _previews, _clean_engine and the rest to the runner.
 """
 from .delivery import desk_view, desktop_dir, free_name, keep_portfolio, made_day, safe_name  # noqa: F401  the Desktop

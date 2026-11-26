@@ -15,6 +15,7 @@ The model is optional: --phrase asks it to phrase the questions naturally, one s
 asks it once for the scenario and technical questions that no line of a document shows; those are kept in
 anticipated.json and join every later map. Writes plan.json and plan.md to the output folder.
 """
+import collections  # the coverage of the kits used last, in the order they were used
 import glob  # research files
 import hashlib  # an asked question's id, from its words
 import json  # the map
@@ -223,7 +224,7 @@ def asked_lines(job):
     return out
 
 
-_COVERAGE = {}  # (job folder, its files' stamp) -> cover.Coverage: 1.5 s to build for a kit of 600 scripts, so built once per change
+_COVERAGE = collections.OrderedDict()  # (job folder, its files' stamp) -> cover.Coverage: 1.5 s to build for a kit of 600 scripts, so built once per change; the least recently used first
 _COVERAGE_LOCK = threading.Lock()  # two requests at once build it once
 
 
@@ -232,10 +233,13 @@ def coverage(job, items, alts):
     they are: the board, the deck and practice rate the rounds' questions with it."""
     key = (str(job.dir), repr(corpus.stamp(job)))  # a file changed, a draft written: another key
     with _COVERAGE_LOCK:
+        for old in [k for k in _COVERAGE if k[0] == key[0] and k != key]:  # this kit's coverage before its files changed: never asked again
+            del _COVERAGE[old]  # gone
         if key not in _COVERAGE:
-            while len(_COVERAGE) >= 4:  # a few kits at a time
-                _COVERAGE.pop(next(iter(_COVERAGE)))
+            while len(_COVERAGE) >= 4:  # four kits at most: the one used longest ago goes (it went in the order made)
+                _COVERAGE.popitem(last=False)  # the least recently used
             _COVERAGE[key] = cover.Coverage(items, alts, job.kit)
+        _COVERAGE.move_to_end(key)  # used now
         return _COVERAGE[key]
 
 

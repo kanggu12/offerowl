@@ -37,6 +37,9 @@ FACT_FILES = ["sources/candidates.json", "sources/review.json", "sources/edits.j
 # The person's own fields, edited in "Your details" and laid over the profile.
 DETAIL_KEYS = ("name", "name_en", "email", "phone", "tagline", "headline", "intro")  # the fields 'Your details' edits
 PERSON_KEYS = ("name", "name_en", "email", "phone")  # who the person is: the same in every edition (an application's own edition borrows them)
+# How long a fact typed or edited by the person may be: its title a line or two, its words a long page. The page's fields hold
+# no more (views.js), and the routes refuse longer (actions.py), so nothing is ever cut short without a word.
+FACT_MAX = {"title": 200, "statement": 20000}  # characters the person's own form takes; the store keeps its 2000 for the rest (a title a canvas edit grew)
 # Kinds that come from an imported profile's summary and texts, beside the ingest kinds of src/ingest.py.
 TEXT_KINDS = ("card", "highlight", "layer", "competency", "about", "motivation")  # the summary texts an imported profile gives as facts
 # Section titles of an imported profile mapped to fact kinds (the rest are "other").
@@ -589,7 +592,7 @@ class Facts:
     def set_edit(self, cid: str, fields: dict) -> None:
         """The person's version of a fact (only the shown fields)."""
         ed = self.edits()  # current
-        clean = {k: str(v)[:2000] for k, v in fields.items() if k in ("kind", "org", "period", "title", "statement")}  # bounded
+        clean = {k: str(v)[:max(2000, FACT_MAX.get(k, 0))] for k, v in fields.items() if k in ("kind", "org", "period", "title", "statement")}  # bounded, never below what the route takes whole (a statement of 5000 was kept as its first 2000)
         if isinstance(fields.get("evidence"), list):  # the entries a project item rests on (a depth review's rewrite cites them)
             clean["evidence"] = [str(x)[:80] for x in fields["evidence"] if isinstance(x, str) and x.strip()][:24]  # ids, bounded
         if isinstance(fields.get("rows"), list):  # a key project card's rows, edited on the canvas
@@ -612,7 +615,7 @@ class Facts:
 
     def add_typed(self, fields: dict) -> str:
         """A fact the person typed: its own quote, kept at once (they wrote it)."""
-        c = {k: str(fields.get(k) or "")[:2000] for k in ("kind", "org", "period", "title", "statement")}  # the fields
+        c = {k: str(fields.get(k) or "")[:max(2000, FACT_MAX.get(k, 0))] for k in ("kind", "org", "period", "title", "statement")}  # the fields, bounded, never below what the route takes whole
         if c["kind"] not in ("role", "project", "education", "skill", "paper", "patent", "award", "certificate", "other"):  # only the kinds the review rules know
             c["kind"] = "other"  # unknown kinds are listed as other
         if c["kind"] == "project" and re.fullmatch(r"[\w.:#-]{1,80}", str(fields.get("project") or "")):  # an answer about a project already there (the depth review's)

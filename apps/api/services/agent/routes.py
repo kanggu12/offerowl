@@ -3,7 +3,7 @@ answers (status, answer, content type); a write answers the fields of its {"ok":
 how a table is read)."""
 from __future__ import annotations
 
-from ...core.routing import JSON  # most answers
+from ...core.routing import JSON, text_field  # most answers, and a request's text
 from . import ask, autopilot  # the command bar, the run from files to documents
 
 
@@ -39,7 +39,7 @@ def post_autopilot_stop(a, req, path):
 
 def post_ask(a, req, path):
     """POST /api/v1/ask: the command bar: the person's words to the agent, which acts through Offerowl's own tools."""
-    return {"started": ask.start(a, str(req.get("text") or ""))}  # False while an ask still runs
+    return {"started": ask.start(a, text_field(req, "text"))}  # False while an ask still runs
 
 
 def post_ask_clear(a, req, path):

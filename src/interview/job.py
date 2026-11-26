@@ -12,6 +12,7 @@ A workspace holds one person's material (see docs/ARCHITECTURE.md, "Your workspa
 kit.json is optional. It names the scene files and their roles, the short tab names of the sections, extra
 synonyms and the other per-job settings, so no job's names live in code. docs/INTERVIEW.md lists every key.
 """
+import collections  # the PDFs read last, in the order they were read
 import glob  # material patterns such as research/*.md
 import json  # kit.json and the other JSON files
 import pathlib  # paths
@@ -234,7 +235,8 @@ class Job:
         return p
 
 
-_PDF = {}  # (path, size, change time, layout) -> text: a PDF is converted once per run
+_PDF = collections.OrderedDict()  # (path, size, change time, layout) -> text: a PDF is converted once per change of it, the least recently read first
+PDF_KEEP = 32  # texts kept: a panel runs for days, and every kit's PDFs (and every change of them) stayed (D4-11)
 
 
 def read_text(path, layout=True):
@@ -247,11 +249,17 @@ def read_text(path, layout=True):
             return ""
         st = p.stat()  # a changed file is converted again
         key = (str(p.resolve()), st.st_size, st.st_mtime_ns, bool(layout))  # what the conversion depends on
-        if key not in _PDF:  # first time in this run
+        if key not in _PDF:  # first time in this run, or the file changed
+            for old in [k for k in _PDF if k[0] == key[0] and k[3] == key[3]]:  # the same file's text before it changed: never read again
+                del _PDF[old]  # gone
             try:  # a damaged file grounds nothing
-                _PDF[key] = pdftools.text(p, layout=layout)  # pages split by form feeds in both modes
+                text = pdftools.text(p, layout=layout)  # pages split by form feeds in both modes
             except Exception:  # noqa: BLE001  each reader has its own errors for a damaged file
-                _PDF[key] = ""
+                text = ""  # nothing read
+            while len(_PDF) >= PDF_KEEP:  # the text read longest ago goes
+                _PDF.popitem(last=False)  # the least recently read
+            _PDF[key] = text  # kept for the next read
+        _PDF.move_to_end(key)  # read now
         return _PDF[key]
     if p.suffix.lower() == ".json":  # the profile: every string value, one per line, so its facts read as text
         try:

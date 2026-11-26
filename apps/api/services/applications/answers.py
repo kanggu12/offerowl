@@ -19,6 +19,7 @@ import threading  # one writer of a job's questions at a time
 import time  # when an answer was written
 from pathlib import Path  # paths
 
+from ...core.routing import text_field  # a request's text, or refused
 from ...core.workspace import read_json, write_json  # the questions file
 
 UNITS = ("chars", "words")  # a limit in characters (Korean forms count them with spaces) or in words
@@ -272,7 +273,9 @@ def clean_questions(rows, old: list[dict]) -> list[dict]:
     for r in rows[:MAX_QUESTIONS]:  # in the page's order, bounded
         if not isinstance(r, dict):  # a broken row
             continue
-        text = re.sub(r"\s+", " ", str(r.get("text") or "")).strip()[:600]  # the question as one line
+        if not isinstance(r.get("text") or "", str):  # a question of 5 or ["x"] was kept as the words "5" (D4-05)
+            raise ValueError("questions")
+        text = re.sub(r"\s+", " ", r.get("text") or "").strip()[:600]  # the question as one line
         if not text:  # an empty row
             continue
         unit = r.get("unit") if r.get("unit") in UNITS else "chars"  # characters unless words
@@ -327,11 +330,12 @@ def set_questions(api, req: dict) -> None:
         write_json(f, {"questions": qs})  # kept
 
 
-def paste_questions(api, req: dict) -> tuple[int, int]:
+def paste_questions(api, req: dict) -> tuple[int, int, int]:
     """The questions of a form pasted as the form shows them, read with their limits and added after the ones kept.
-    Returns how many were added and how many of them had no limit written (given the usual one)."""
+    Returns how many were added, how many of them had no limit written (given the usual one), and how many were kept
+    already (B4-06: a paste of questions all there said "0 questions added." as a success)."""
     jid = api.need_job(req)  # which job
-    found = parse_questions(str(req.get("text") or "")[:20000])  # each question with its limit
+    found = parse_questions(text_field(req, "text")[:20000])  # each question with its limit: a pasted list that is no text is refused
     if not found:  # nothing that reads as a question
         raise ValueError("no_questions")
     f = api.ws.job_dir(jid) / "questions.json"  # where they are kept
@@ -339,14 +343,25 @@ def paste_questions(api, req: dict) -> tuple[int, int]:
     with LOCK, api.ws.change({"code": "undo_questions", "company": st.get("company") or st.get("role")}, [f"jobs/{jid}/questions.json"]):  # the answering task writes here too; one undo step
         old = read_json(f, {}).get("questions") or []  # as kept
         have = {q.get("text") for q in old}  # a question pasted twice is kept once
-        rows = [{"text": q["text"], "limit": q["limit"], "unit": q["unit"]} for q in old] + [{k: v for k, v in q.items() if k != "assumed"} for q in found if q["text"] not in have]
+        first = {}  # each question of the paste once, where it first stands
+        for q in found:
+            first.setdefault(q["text"], q)
+        new = [q for text, q in first.items() if text not in have]  # the ones added
+        rows = [{"text": q["text"], "limit": q["limit"], "unit": q["unit"]} for q in old] + [{k: v for k, v in q.items() if k != "assumed"} for q in new]
         write_json(f, {"questions": clean_questions(rows, old)})  # ids and answers kept
-    new = [q for q in found if q["text"] not in have]  # the ones added
-    return len(new), sum(1 for q in new if q.get("assumed"))
+    there = sum(1 for text in first if text in have)  # the ones the job held already
+    return len(new), sum(1 for q in new if q.get("assumed")), there
 
 
 def questions_from_file(api, jid: str, name: str, data: bytes) -> int:
-    """A form's questions read from a file of it: a screenshot (OCR, Korean and English), a PDF, a saved page or a text file."""
+    """A form's questions read from a file of it: a screenshot (OCR, Korean and English), a PDF, a saved page or a text file.
+    Returns how many were added."""
+    jid = api.need_job({"job": jid})  # which job
+    return paste_questions(api, {"job": jid, "text": form_text(api, jid, name, data)})[0]  # how many came in
+
+
+def form_text(api, jid: str, name: str, data: bytes) -> str:
+    """The text of a file of a form, read as its kind is read (questions_from_file adds the questions in it)."""
     import tempfile  # the file, for a moment
     import ingest  # src/ingest.py: the same readers as the person's files
     jid = api.need_job({"job": jid})  # which job
@@ -361,7 +376,7 @@ def questions_from_file(api, jid: str, name: str, data: bytes) -> int:
             text = postings.page_text(data.decode("utf-8", "replace"))
         else:
             text = ingest.ocr(f, block=True) if suffix in ingest.IMAGES else ingest.to_text(f)  # a screenshot read line by line; a PDF's text layer
-    return paste_questions(api, {"job": jid, "text": text})[0]  # how many came in
+    return text  # the questions are read from it by paste_questions
 
 
 def edit_answer(api, req: dict) -> None:
@@ -370,7 +385,7 @@ def edit_answer(api, req: dict) -> None:
     jid = api.need_job(req)  # which job
     f = api.ws.job_dir(jid) / "questions.json"  # where they are kept
     qs = read_json(f, {}).get("questions") or []  # as kept
-    qid, text = str(req.get("id") or ""), req.get("answer")  # which and what
+    qid, text = text_field(req, "id"), req.get("answer")  # which and what
     if not isinstance(text, str) or len(text) > MAX_LIMIT * 2 or not any(q.get("id") == qid for q in qs):  # a stale page or an odd value
         raise ValueError("question")  # refused
     style = draft.style_pack(api.tasks.style_spec())  # the person's rules

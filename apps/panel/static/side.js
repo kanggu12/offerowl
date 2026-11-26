@@ -68,7 +68,7 @@ function inspEvidence() {                                                       
     h("div", { class: "ev-actions" }, h("button", { class: "btn primary small", type: "submit", text: t("Save") }), h("button", { class: "btn small", type: "button", onclick: () => { UI.editing = false; forget("sentence-edit"); render(); }, text: t("Cancel") }))) : null;
   return [
     h("div", { class: "ins-sec" }, h("div", { class: "ev-state" }, pill(st[0], t(st[1])), rec.locked ? h("span", { class: "chip" }, icon("lock", 12), t("Locked")) : null,
-      rec.drafted ? h("span", { class: "chip ai", text: t("Written by the agent") }) : rec.kind ? h("span", { class: "chip", text: t(KIND[rec.kind] || "Other") }) : null),
+      rec.drafted ? h("span", { class: "chip ai", text: t("Written by the agent") }) : rec.kind && !(rec.kind === "typed" && rec.state === "typed") ? h("span", { class: "chip", text: t(KIND[rec.kind] || "Other") }) : null),   // its kind, unless it only says again what the state pill says ("Your own words" beside "Typed by you", B4-07)
       UI.editing ? editor : h("p", { class: "ev-sentence" }, marks(rec.text, "hl")),
       (rec.issues || []).length ? h("ul", { class: "band issues" }, rec.issues.map((i) => { const why = t(ISSUE[i.code] || ISSUE.other, { w: i.words, said: i.said || "" }); return h("li", { text: why.charAt(0).toUpperCase() + why.slice(1) }); })) : null),   // a list item starts as a sentence does
     cover || UI.editing ? null : sentAway() ? h("p", { class: "hint", text: t("This application was submitted and locked: its sentences stay as they went.") })

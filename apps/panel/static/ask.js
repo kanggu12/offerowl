@@ -33,8 +33,8 @@ function answerView(text) {                                                     
       while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { rows.push(lines[i]); i++; }
       i--;
       const cells = rows.filter((r) => !/^\s*\|[\s:|-]+\|\s*$/.test(r)).map((r) => r.trim().slice(1, -1).split("|").map((c) => c.trim()));
-      if (cells.length) blocks.push(h("table", { class: "ask-table" }, h("thead", {}, h("tr", {}, cells[0].map((c) => h("th", {}, inline(c))))),
-        h("tbody", {}, cells.slice(1).map((r) => h("tr", {}, r.map((c) => h("td", { class: c.length <= 16 ? "nw" : null }, inline(c))))))));   // a date or a number never broken at its hyphen
+      if (cells.length) blocks.push(fadeRow(h("div", { class: "ask-tablebox" }, h("table", { class: "ask-table" }, h("thead", {}, h("tr", {}, cells[0].map((c) => h("th", {}, inline(c))))),   // in a box of its own at the sheet's width: a table wider than that slides in it, its edge fading on the side with more (A4-04)
+        h("tbody", {}, cells.slice(1).map((r) => h("tr", {}, r.map((c) => h("td", { class: c.length <= 16 ? "nw" : null }, inline(c)))))))))); // a date or a number never broken at its hyphen
     } else if (/^\s*[-*] /.test(line)) {                                             // a list
       const items = [];
       while (i < lines.length && /^\s*[-*] /.test(lines[i])) { items.push(lines[i].replace(/^\s*[-*] /, "")); i++; }

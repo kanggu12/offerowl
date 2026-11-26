@@ -7,6 +7,7 @@ import json  # a pack's size
 import re  # the names of style packs, and each pattern compiled once
 from pathlib import Path  # paths
 
+from ...core.routing import text_field  # a request's text, or refused
 from ...core.workspace import read_json, write_json  # files
 
 ROOT = Path(__file__).resolve().parents[4]  # the repository (or the app's bundle): the shipped pack
@@ -23,7 +24,7 @@ def add_style(api, req: dict, step: bool = True) -> str:
     check later. {name, pack}: the pack is the JSON of docs/WRITING.md. Returns the name it is kept under. A pack kept over one of
     the same name is one undo step (D3-01), so the old rules come back with Undo; `step` is False for a caller that makes the
     step itself (add_rule)."""
-    name = re.sub(r"[^\w가-힣.-]+", "-", str(req.get("name") or "").strip())[:60].strip("-.") or "mine"  # a safe file name
+    name = re.sub(r"[^\w가-힣.-]+", "-", text_field(req, "name").strip())[:60].strip("-.") or "mine"  # a safe file name
     if name == "default":  # the shipped pack keeps its name
         name = "mine"
     pack = req.get("pack")  # the rules
@@ -92,7 +93,7 @@ def add_rule(api, req: dict) -> dict:
     a new one is (add_style), so a pattern that does not compile is refused here. One undo step. Returns {style, list, lang,
     rows}: the pack's name and the rows that list holds now in that language."""
     import copy  # the pack is changed on a copy
-    kind, lang, row = str(req.get("list") or ""), str(req.get("lang") or "both"), req.get("row")  # what is asked
+    kind, lang, row = text_field(req, "list"), text_field(req, "lang", "both") or "both", req.get("row")  # what is asked
     if kind not in ("retired", "shared", "proposal") or lang not in ("ko", "en", "both"):  # the lists and languages there are
         raise ValueError("rule")
     if not (isinstance(row, list) and 2 <= len(row) <= 4 and all(isinstance(x, str) and len(x) <= 400 for x in row[:3])

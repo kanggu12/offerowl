@@ -5,27 +5,48 @@ from __future__ import annotations
 
 import hashlib  # the rows' stamp
 import json  # the rows' text, for the stamp
+import re  # an email address's shape
 import time  # when the first run began
 
+from ...core.routing import text_field  # a request's text, or refused
 from ...core.workspace import write_json  # files
-from .facts import DETAIL_KEYS, FACT_FILES, pick, text_of  # the fields "Your details" holds, the files a fact change touches, a field in one language, plain text
+from .facts import DETAIL_KEYS, FACT_FILES, FACT_MAX, pick, text_of  # the fields "Your details" holds, the files a fact change touches, how long a typed fact may be, a field in one language, plain text
+
+EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")  # an address as the page reads one (views.js badMail): words, an @, a dot after it
+
+
+def fact_lengths(fields) -> None:
+    """A fact's title and words within FACT_MAX, or the request refused with which one runs over: kept whole or not at all,
+    never cut short without a word (a title of 600 characters was kept and ran 30 lines in the list)."""
+    for k, code in (("title", "fact_title_long"), ("statement", "fact_statement_long")):  # each bounded field and its refusal
+        v = fields.get(k) if isinstance(fields, dict) else None  # what was sent for it
+        if isinstance(v, str) and len(v) > FACT_MAX[k]:  # longer than the form's field holds
+            raise ValueError(code)  # 400, its words on the page (core.js errorText)
+
+TEXT_FIELDS = ("kind", "org", "period", "title", "statement")  # a fact's words, as the form shows them: text only
 
 
 def fact(api, req: dict) -> None:
     """Keep, drop, edit or put back one fact."""
-    cid, act = str(req.get("cid") or ""), req.get("action")  # which and what
+    cid, act = text_field(req, "cid"), req.get("action")  # which and what
     known = {c["cid"]: c for c in api.facts.candidates()}  # every fact
     if cid not in known or act not in ("keep", "drop", "edit", "reset"):  # only a listed fact and a known action
         raise ValueError("fact")  # a stale page or a made-up request
     label = {"code": f"undo_{act}", "title": (known[cid].get("title") or known[cid].get("statement") or "")[:60]}  # the undo button's words
+    fields = req.get("fields")  # an edit's words, read once
     if act == "edit":  # the fact as it would read after the edit: a title or a statement must stay
-        fields = req.get("fields") or {}
-        after = {**known[cid], **(api.facts.edits().get(cid) or {}), **(fields if isinstance(fields, dict) else {})}
+        if not isinstance(fields, dict) or not fields:  # a number, true, a list, a string or nothing where the fields go (D4-01: a 500 on .items())
+            raise ValueError("fields")  # refused with its reason, nothing changed
+        if any(k in TEXT_FIELDS and not isinstance(v, str) for k, v in fields.items()):  # a title of 5 was kept as the words "5" (D4-05)
+            raise ValueError("fields")
+        after = {**known[cid], **(api.facts.edits().get(cid) or {}), **fields}  # as it would read
         if not str(after.get("title") or "").strip() and not str(after.get("statement") or "").strip():
             raise ValueError("fact_empty")  # a blank fact is never saved
+    if act == "edit":  # the person's own words, as long as the form holds them
+        fact_lengths(req.get("fields"))  # refused before anything is written
     with api.ws.change(label, FACT_FILES):  # one undo step
         if act == "edit":  # their own wording of the fact
-            api.facts.set_edit(cid, req.get("fields") or {})  # their version
+            api.facts.set_edit(cid, fields)  # their version, the fields checked above
             api.facts.set_status(cid, "accepted")  # an edited fact is kept
         else:  # keep, drop or put back
             api.facts.set_status(cid, {"keep": "accepted", "drop": "rejected", "reset": None}[act])  # None: to confirm again
@@ -48,9 +69,12 @@ def keep_all(api, material: str | None = None) -> int:
 
 def add_fact(api, req: dict) -> str:
     """A fact typed by the person."""
-    if not str(req.get("statement") or "").strip() and not str(req.get("title") or "").strip():  # a fact needs some words
+    for k in TEXT_FIELDS + ("project",):  # its words: text, or refused with the field's name (a title ["x"] was kept as "['x']")
+        text_field(req, k)  # refused when sent and not text
+    if not text_field(req, "statement").strip() and not text_field(req, "title").strip():  # a fact needs some words
         raise ValueError("fact_empty")  # nothing to keep (its own word: "empty" is a posting's page with no text)
-    with api.ws.change({"code": "undo_typed", "title": str(req.get("title") or "")[:60]}, FACT_FILES):  # one undo step
+    fact_lengths(req)  # a title or words longer than the form holds: refused, never cut short
+    with api.ws.change({"code": "undo_typed", "title": text_field(req, "title")[:60]}, FACT_FILES):  # one undo step
         cid = api.facts.add_typed(req)  # listed and kept
         api.facts.rebuild()  # the profile follows
     return cid  # its id; the new state lists it
@@ -58,12 +82,15 @@ def add_fact(api, req: dict) -> str:
 
 def details(api, req: dict) -> None:
     """The person's own fields (autosaved while typing: one undo step per field and pause)."""
-    raw = req.get("fields") or {}
-    if not isinstance(raw, dict):  # a string, a number or a list where the fields go
+    raw = req.get("fields")  # the fields typed
+    if not isinstance(raw, dict) or not raw:  # a string, a number, a list or nothing where the fields go: {"name": ...} beside them was answered ok with nothing kept (D4-07)
         raise ValueError("fields")
     if any(k not in DETAIL_KEYS or not isinstance(v, str) for k, v in raw.items()):  # a field the card has not, or a value that is no text (an email of 123):
         raise ValueError("fields")  # refused with its reason, never answered ok with nothing kept (A3-16)
     fields = dict(raw)  # text only, the card's own fields
+    mail = fields.get("email", "").strip()  # the email as it would print
+    if mail and not EMAIL.fullmatch(mail):  # words that are no address ("abc"): never kept, so no resume prints them (A4-03)
+        raise ValueError("email")  # refused with its reason; the page marks the field and sends nothing
     key = "details:" + ",".join(sorted(fields))  # one step while typing in the same field
     with api.ws.change({"code": "undo_details", "fields": sorted(fields)}, FACT_FILES, coalesce=key):  # pauses merge
         src = req.get("src") if isinstance(req.get("src"), dict) else None  # a run says which file each field came from
@@ -101,6 +128,8 @@ def onboarding(api) -> dict:
 
 def set_onboarding(api, req: dict) -> None:
     """Remember where the first run stands (not undoable: it is where you are, not what you made)."""
+    if "step" not in req and "done" not in req:  # a request that names neither changed nothing and was answered ok (D4-07)
+        raise ValueError("fields")
     values = {}  # the changed keys
     if req.get("step") in ("welcome", "language", "agent", "files", "preview"):  # only the steps the page has
         values["onboarding_step"] = req["step"]  # resumed there after a reload

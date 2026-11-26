@@ -3,7 +3,7 @@ answers (status, answer, content type); a write answers the fields of its {"ok":
 file it was sent (core/routing.py says how a table is read)."""
 from __future__ import annotations
 
-from ...core.routing import JSON, NotFound, Upload  # the answers' shapes, and an upload's route
+from ...core.routing import JSON, NotFound, Upload, text_field  # the answers' shapes, an upload's route, a request's text
 from . import actions, masks, photo, sources, style  # the person's actions on the facts, the mask table, the photo, the sources, the style packs
 
 
@@ -62,7 +62,7 @@ def post_read(a, req, path):
 
 def post_remove(a, req, path):
     """POST /api/v1/materials/remove: take a file and its facts out."""
-    sources.remove_material(a, str(req.get("id") or ""))  # undoable
+    sources.remove_material(a, text_field(req, "id"))  # undoable
     return None  # the new state is the whole answer
 
 
@@ -79,7 +79,7 @@ def post_decide(a, req, path):
 
 def post_keep_all(a, req, path):
     """POST /api/v1/facts/keep-all: keep every fact still to confirm."""
-    return {"kept": actions.keep_all(a, str(req.get("material") or "") or None)}  # how many (one material's, when named)
+    return {"kept": actions.keep_all(a, text_field(req, "material") or None)}  # how many (one material's, when named)
 
 
 def post_add_fact(a, req, path):

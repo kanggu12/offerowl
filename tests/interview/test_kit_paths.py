@@ -64,5 +64,40 @@ class ConfinedKit(unittest.TestCase):
         self.assertTrue(job.in_job("interview/kit.json").is_file())  # the job's own
 
 
+
+class PdfTextMemory(unittest.TestCase):
+    """The text of a PDF is converted once per change of the file, and only the texts read last are kept: a panel runs for
+    days, and every kit's PDFs, and every change of them, stayed in memory (D4-11)."""
+
+    def setUp(self):
+        import tempfile  # a folder of the test's own
+        from unittest import mock  # the PDF reader, stood in for
+        import pdftools  # src/pdftools.py: what converts a PDF
+        from interview import job as J  # the cache under test
+        self.J = J
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-pdftext-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.read = []  # the files converted
+        for p in (mock.patch.object(pdftools, "reader", return_value="stand-in"),  # no reader needed
+                  mock.patch.object(pdftools, "text", side_effect=lambda p, layout=True: self.read.append(p.name) or p.name),  # each conversion counted
+                  mock.patch.object(J, "_PDF", J._PDF.__class__())):  # an empty cache of the same kind
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_the_texts_read_last_are_kept_and_no_more(self):
+        files = [self.tmp / f"doc-{i}.pdf" for i in range(self.J.PDF_KEEP + 8)]  # more PDFs than are kept
+        for f in files:
+            f.write_bytes(b"%PDF-1.4")
+            self.assertEqual(f.name, self.J.read_text(f))
+        self.assertEqual(self.J.PDF_KEEP, len(self.J._PDF))  # bounded (it kept every one)
+        self.J.read_text(files[-1])  # the last one, read again: from memory
+        self.assertEqual(len(files), len(self.read))
+        self.J.read_text(files[0])  # the first went long ago: converted again
+        self.assertEqual(len(files) + 1, len(self.read))
+        files[-1].write_bytes(b"%PDF-1.4 changed")  # a file changed: its old text is never read again
+        self.J.read_text(files[-1])
+        self.assertEqual(1, sum(1 for k in self.J._PDF if k[0] == str(files[-1].resolve())))  # one text per file and layout
+
+
 if __name__ == "__main__":
     unittest.main()

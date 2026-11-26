@@ -298,7 +298,10 @@ def export(ws, jid: str, mid: str) -> list[str]:
     dest = desktop_dir()  # the Desktop
     dest.mkdir(parents=True, exist_ok=True)  # a fresh Desktop folder in a test or a container
     stem, ext = safe_name(rec.get("name") or rec["file"])  # the name it came with, safe on every system
-    name, _ = free_name({p.name.lower() for p in dest.iterdir()}, stem, ext)  # never over a file already there
+    taken = {p.name.lower() for p in dest.iterdir()}  # the Desktop's names, compared without case as Windows and macOS do
+    name, n = f"{stem}.{ext}", 2  # its own name first
+    while name.lower() in taken:  # never over a file already there
+        name, n = f"{stem}_{n}.{ext}", n + 1  # a twin numbered as every file handed out is (delivery.free_name), never "name (2).md" (D4-08)
     shutil.copyfile(src, dest / name)  # a plain copy: the kept one stays
     if sha256(dest / name) != rec["sha256"]:  # read back, byte for byte
         (dest / name).unlink(missing_ok=True)  # nothing half copied stays
@@ -407,6 +410,7 @@ def md_blocks(text: str) -> list[dict]:
     """Markdown as blocks the page draws as text: {"t": "h", "n": level}, "p", "li" (with its mark and depth), "quote", "row"
     (with its cells, "head" for a table's first row), "code" (the lines as written) and "hr". Every text is plain words."""
     out, para, code, fence = [], [], None, ""  # blocks, the paragraph being read, the code block being read, its fence
+    item = False  # the last line was a list item's (or its wrapped line): a plain line under it goes on with it
     def flush():  # the paragraph read so far ends here
         if para:  # there is one
             out.append({"t": "p", "text": inline(" ".join(para))})  # wrapped lines join into one paragraph
@@ -426,6 +430,7 @@ def md_blocks(text: str) -> list[dict]:
             continue
         if not line.strip():  # a blank line ends a paragraph
             flush()
+            item = False  # and a list item's words
             continue
         under = UNDER.match(line)  # Title, then === or ---
         if under and para:  # the paragraph above is a heading
@@ -455,6 +460,7 @@ def md_blocks(text: str) -> list[dict]:
             flush()
             mark = im.group(2) if im.group(2)[0].isdigit() else ""  # a numbered item keeps its number; a bullet is drawn
             out.append({"t": "li", "text": inline(im.group(3)), "mark": mark, "depth": min(len(im.group(1).expandtabs(4)) // 2, 4)})  # nested lists step in, four steps at most
+            item = True  # its wrapped lines may follow
             continue
         qm = QUOTE.match(line)  # a quoted line?
         if qm:
@@ -464,6 +470,10 @@ def md_blocks(text: str) -> list[dict]:
             else:
                 out.append({"t": "quote", "text": inline(qm.group(1))})  # a new quote
             continue
+        if item and out and out[-1]["t"] == "li":  # a list item's wrapped line, indented under it or not (B4-15: it stood out of its list as a paragraph)
+            out[-1]["text"] = (out[-1]["text"] + " " + inline(line.strip())).strip()  # one item, its lines joined
+            continue
+        item = False  # any other line: the item is over
         para.append(line.strip())  # a line of a paragraph
     flush()  # the last paragraph
     if code:  # a fence never closed: what it held
@@ -471,14 +481,19 @@ def md_blocks(text: str) -> list[dict]:
     return out
 
 
+PANEL_FONT = ('@font-face { font-family: "Pretendard"; font-weight: 100 900; src: url("/fonts/PretendardVariable.woff2") format("woff2"); } '
+              ':where(html) { font-family: "Pretendard", system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }')  # the panel's own font (tokens.css --font); with no weight of its own, any font the page names wins
+
+
 def frame_html(text: str) -> str:
     """A saved page for the preview's frame: its scripts, its base address and any redirect out (the frame's sandbox runs
-    nothing either), and links a click cannot follow. The frame's page takes the panel's policy: nothing loads from elsewhere."""
+    nothing either), and links a click cannot follow. The frame's page takes the panel's policy: nothing loads from elsewhere.
+    A page that names no font is set in the panel's (B4-14: it showed in the browser's serif)."""
     out = re.sub(r"<script\b[^>]*>.*?</script\b[^>]*>", "", text, flags=re.S | re.I)  # scripts with their code (an end tag may hold more, "</script foo>")
     out = re.sub(r"<script\b[^>]*>", "", out, flags=re.I)  # a script tag left open
     out = re.sub(r"<base\b[^>]*>", "", out, flags=re.I)  # no other address for its links and pictures
     out = re.sub(r"<meta\b[^>]*http-equiv\s*=\s*[\"']?refresh[^>]*>", "", out, flags=re.I)  # no redirect to another page
-    return out + "<style>a { pointer-events: none; }</style>"  # last, so the page keeps its own doctype; a link in the frame would leave it
+    return out + "<style>a { pointer-events: none; } " + PANEL_FONT + "</style>"  # last, so the page keeps its own doctype; a link in the frame would leave it
 
 
 def preview(tasks, jid: str, rec: dict) -> dict:

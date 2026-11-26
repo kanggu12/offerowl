@@ -10,13 +10,16 @@ Every change goes through Workspace.change(), so one undo takes it back and the 
 from __future__ import annotations
 
 import contextlib  # a job read that a deletion may overtake
+import json  # settings.json read as it is, a damaged one included
 import logging  # the panel's log
 import os  # environment
 import sys  # paths
 import threading  # the agent card's first look
+import time  # how old the last state made for a poll is
 from pathlib import Path  # paths
 
-from .core.workspace import STAGES, Workspace, read_json, today, write_json  # files, undo, the board's columns, the day
+from .core.routing import text_field  # a request's text, or refused
+from .core.workspace import STAGES, Workspace, today, write_json  # files, undo, the board's columns, the day
 from .services import applications, documents, library, profile  # the services the state is made of
 from .services.agent import BACKENDS, AgentCard, finished_runs  # the agent card, and the finished runs the page lists
 from .services.documents import DECK_STYLES, FORMS, THEMES  # the choices a document offers
@@ -31,6 +34,8 @@ GENERAL = "-general"  # the folder of the edition with no job; a company name ne
 # Tasks.backend later writes these names for src/llm.py. It keeps a local model from being replaced by an agent found on the PC.
 START = {"backend": os.environ.get("OFFEROWL_LLM", "").strip(), "llm_url": os.environ.get("OFFEROWL_LLM_URL", "").strip(),
          "llm_model": os.environ.get("OFFEROWL_LLM_MODEL", "").strip()}
+SETTING_KEYS = ("lang", "theme", "backend", "agent", "form", "deck_style", "style", "llm_url", "llm_model", "export_extras", "export_pptx",
+                "desk_portfolio", "photo", "corners", "deck_max_mb")  # what POST /api/v1/settings changes: a request names one at least
 
 
 def data_dir() -> Path:
@@ -73,22 +78,57 @@ class Api:
         self._state_gen = 0  # bumped by every write: a state made before it is never answered after it
         self._state_cv = threading.Condition()  # one poll's state made at a time: polls that come meanwhile take its answer
         self._state_making = False  # a poll's state is being made now
-        self._state_last = None  # (writes seen when it began, state): the last one made for a poll
+        self._state_last = None  # (writes seen when it began, state, when it began): the last one made for a poll
         self._settings_lock = threading.Lock()  # two changes of the settings at once (two quick switches) never lose one
         self.restoring = threading.Lock()  # one restore at a time (the Library's backup, and the Trash's folders kept aside)
         threading.Thread(target=self.card.refresh, kwargs={"force": True}, daemon=True, name="agent").start()  # first look
         threading.Thread(target=self.tasks.letter_pages_all, daemon=True, name="letters").start()  # the pages of letters brought in before the build drew them
 
+    def saved_settings(self) -> dict:
+        """settings.json as an object: {} when it is missing, does not parse, or holds anything but an object. A list or a word
+        there stopped the panel at every start (TypeError in settings()); the file itself is left as it is until a change of
+        the settings, which keeps it beside as settings.json.bad first (keep_bad_settings)."""
+        try:
+            s = json.loads(self.settings_file.read_text(encoding="utf-8"))  # the saved choices
+        except (OSError, ValueError, RecursionError):  # missing, unreadable, not JSON, not UTF-8
+            return {}
+        return s if isinstance(s, dict) else {}  # [1, 2], "text", null: no choices
+
+    def keep_bad_settings(self) -> None:
+        """Before a write replaces settings.json: a file there that does not read as settings is copied beside it as
+        settings.json.bad (or .bad-2 and on, when an earlier damaged one holds that name), and the log says so. The write put
+        the defaults over every other choice the person had, and the damaged file was gone with them (D4-14)."""
+        f = self.settings_file  # the settings
+        try:
+            raw = f.read_bytes()  # as it is on disk
+        except OSError:  # not there, or not readable at all: nothing to keep
+            return
+        try:
+            if isinstance(json.loads(raw.decode("utf-8")), dict):  # settings, as written: nothing to keep aside
+                return
+        except (ValueError, RecursionError):  # not JSON, not UTF-8, nested past reading
+            pass  # read below as no settings: kept
+        if not raw.strip():  # an empty file holds nothing to keep
+            return
+        bad, n = f.with_name(f.name + ".bad"), 2  # beside it
+        while bad.exists() and bad.read_bytes() != raw:  # an earlier damaged file of other bytes keeps its name
+            bad, n = f.with_name(f"{f.name}.bad-{n}"), n + 1  # the next name free
+        if not bad.exists():  # the same bytes kept already: once is enough
+            bad.write_bytes(raw)  # a copy: settings.json stays until the write replaces it whole
+        log.warning("settings.json did not read as settings; kept as %s", bad.name)  # where to look for the choices it held
+
     def settings(self) -> dict:
         """The app's settings: language, theme, backend and the local server's address."""
-        s = read_json(self.settings_file, {})  # saved choices
+        s = self.saved_settings()  # saved choices
         return {"lang": "auto", "theme": "auto", "backend": os.environ.get("OFFEROWL_PANEL_BACKEND", "auto"),  # tests preset the backend
                 "llm_url": "", "llm_model": "", **s, **self.start}  # defaults under the saved choices, what was named at the start over both
 
     def _set_settings_locked(self, req: dict) -> bool:
         """set_settings' reading, checking and writing of settings.json, under its lock. True when the portfolio kept on the
         Desktop was just turned on, or its size changed while it is on."""
-        s = read_json(self.settings_file, {})  # saved choices
+        if not any(k in req for k in SETTING_KEYS):  # a request that names no setting changed nothing and was answered ok (D4-07)
+            raise ValueError("settings")
+        s = self.saved_settings()  # saved choices
         # each setting's type (D3-13): a value of the wrong type is refused with the setting's name; a string the page no longer
         # offers (a stale page's form) is left as before, ignored, so the rest of that request still applies
         text = ("lang", "theme", "backend", "agent", "form", "deck_style", "style", "llm_url", "llm_model")  # strings
@@ -151,6 +191,7 @@ class Api:
                 s[k] = req[k].strip()[:300]  # trimmed and bounded
                 self.start.pop(k, None)  # the menu wins from here on
                 self.card.look_again()  # whether the new address answers is said now, not at the next minute's look
+        self.keep_bad_settings()  # a damaged file is kept beside before the write replaces it
         write_json(self.settings_file, s)  # saved
         return turned_on
 
@@ -179,7 +220,7 @@ class Api:
     def need_job(self, req: dict) -> str:
         """The job a request names, checked. A job or an edition in the Trash is refused like one that is not there: nothing
         is made, changed or started for it until it is put back (the Library's Trash), so no task writes into a folder on its way out."""
-        jid = str(req.get("job") or "")  # which job
+        jid = text_field(req, "job")  # which job: an id, never a number or a list made into one
         if jid == GENERAL:  # the edition with no job: a folder with no card on the board
             return jid
         jid = self.ws.resolve_job(jid)  # an id from before a rename (an old address) finds the job
@@ -207,17 +248,25 @@ class Api:
         with self.tasks.one_read():  # the deck source's stamp worked out once for every edition, not once per edition
             return self._state()
 
+    POLL_REUSE_S = 1.0  # seconds a state made for a poll answers the next polls, while nothing is written and no task runs
+
     def state_for_poll(self) -> dict:
         """The state for a page's poll (GET /api/v1/state). Polls that come while one is being made wait for it and take its
         answer, unless something was written since it began: five tabs polling at once made five states, and with many
-        applications two tabs took several times one tab's time. Never older than the poll by more than one state's making."""
+        applications two tabs took several times one tab's time. A poll within POLL_REUSE_S of the last state made takes that
+        very state when nothing was written since, no task runs and none changed (D4-10: every tab's poll made a whole state,
+        70 ms each with 177 applications, though nothing had changed). Never older than the poll by more than a second and
+        one state's making."""
         with self._state_cv:
+            last = self._state_last  # the last state made for a poll
+            if last is not None and last[0] == self._state_gen and time.monotonic() - last[2] < self.POLL_REUSE_S and self._tasks_still(last[1]):  # nothing moved since
+                return last[1]
             while self._state_making:  # one is being made: wait for it
                 self._state_cv.wait(timeout=30)
                 last = self._state_last
                 if last is not None and last[0] == self._state_gen:  # made from what is there now
                     return last[1]
-            self._state_making, gen = True, self._state_gen
+            self._state_making, gen, began = True, self._state_gen, time.monotonic()
         st = None
         try:
             st = self.state()
@@ -225,8 +274,13 @@ class Api:
         finally:  # the next poll goes on, with this one's answer or making its own
             with self._state_cv:
                 self._state_making = False
-                self._state_last = (gen, st) if st is not None else None
+                self._state_last = (gen, st, began) if st is not None else None
                 self._state_cv.notify_all()
+
+    def _tasks_still(self, st: dict) -> bool:
+        """No task runs, and the tasks are as that state says: one that ran or ended since wrote files no write counted."""
+        now = self.tasks.state()  # every task's record, a copy
+        return now == st.get("tasks") and not any((v or {}).get("state") == "running" for v in now.values())
 
     def state_dirty(self) -> None:
         """A write happened: the next state is made anew (never one from before it)."""
