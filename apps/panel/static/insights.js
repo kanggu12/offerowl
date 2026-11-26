@@ -24,6 +24,7 @@ function insightsDoc() {                                                        
   const key = "insights|" + JSON.stringify([(S.facts || {}).rev, (S.facts || {}).counts, (S.jobs || []).map((j) => [j.id, j.stage, j.result, j.dates, j.next, j.kit, (j.fit || {}).score, (j.questions || []).length, (j.rounds || []).length])]);   // a recorded round counts as an interview reached
   if (!UI.docs[key]) {                                                              // new numbers to fetch: the old ones go, and stay drawn until the new arrive
     for (const k of Object.keys(UI.docs)) if (k.startsWith("insights|") && k !== key && k !== UI.insKey) delete UI.docs[k];
+    for (const k of Object.keys(UI.docTries)) if (k.startsWith("insights|") && k !== key) { delete UI.docTries[k]; delete UI.docWait[k]; }   // the failures of numbers no longer wanted are forgotten
     getDoc(key, "/api/v1/insights");
   }
   if (UI.docs[key] && !UI.docs[key].error) UI.insKey = key;                         // the newest that came
@@ -404,6 +405,7 @@ function careerTile(d, host) {
 
 function viewInsights(host) {
   const d = insightsDoc();                                                          // the numbers
+  if (!d && docFailed("insights|")) return fill(host, h("div", { class: "ins" }, h("p", { class: "ins-none", text: t("The numbers could not be read.") })));   // asked and not answered: said, not counting for ever (D3-08)
   if (!d) return fill(host, h("div", { class: "ins loading", "aria-busy": "true" }, h("div", { class: "ins-kpis" }, [1, 2, 3, 4, 5, 6].map(() => h("div", { class: "ins-kpi ghost" }))),
     h("p", { class: "ins-none", text: t("Counting…") })));
   if (d.error) return fill(host, h("div", { class: "ins" }, h("p", { class: "ins-none", text: t("The numbers could not be read.") })));

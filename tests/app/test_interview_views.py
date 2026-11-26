@@ -142,6 +142,25 @@ class TestInterviewViews(PanelCase):
         roles = {it["role"] for it in view["items"] if it.get("src", "").startswith("terms")}
         self.assertEqual({"terms"}, roles)  # read with its role, not as scenes
 
+    def test_the_deck_is_made_once_per_change_of_the_kit(self):
+        """The deck's data takes seconds for a large kit: asked again with the kit's files as they were, it is not made again (C3-21)."""
+        from unittest import mock  # counts the real work
+        from interview import deck as ivdeck  # what makes it
+        api = type(self).srv.RequestHandlerClass.panel  # the panel's API
+        real = ivdeck.data
+        api.tasks._deck_cache.clear()  # what an earlier test made is not counted
+        with mock.patch.object(ivdeck, "data", side_effect=real) as made:
+            first = api.tasks.kit_deck(self.job, "ko")
+            again = api.tasks.kit_deck(self.job, "ko")
+            self.assertEqual(1, made.call_count)  # the second read came from the first
+            self.assertEqual(first, again)
+            api.tasks.kit_deck(self.job, "en")  # another language is another deck
+            self.assertEqual(2, made.call_count)
+            kit = api.ws.job_dir(self.job) / "interview" / "kit.json"  # a kit file written: the deck reads again
+            kit.write_text(kit.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            api.tasks.kit_deck(self.job, "ko")
+            self.assertEqual(3, made.call_count)
+
     def test_the_general_edition_has_no_talk(self):
         """The edition with no job has no interview folder at all: its talk reads as not made, never as a dropped connection."""
         code, _, body = self.read("/api/v1/jobs/-general/talk/script")

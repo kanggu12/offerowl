@@ -195,6 +195,15 @@ def drop_outputs(ws, jid: str) -> None:
 # ---------------------------------------------------------------- scenes brought in, a kit carried, when its map was made
 
 
+def made_rels(api, jid: str) -> list[str]:
+    """The files the kit's maker writes from the documents (kit.json, names.txt, resume.txt, portfolio.txt and the question map
+    plan.json), named from the workspace's root: every write that remakes the map keeps them in its undo step, so one undo
+    puts the map back as it was with the scripts (C3-02)."""
+    iv = api.ws.job_dir(jid) / "interview"  # the kit's folder
+    files = [iv / n for n in KIT_MADE] + [api.ws.path("out", "interview", jid, "plan.json")]  # the maker's files
+    return [f.relative_to(api.ws.root).as_posix() for f in files]  # as the workspace names them
+
+
 GENERAL = "-general"  # the edition with no job (the documents' drafts.GENERAL has the same name)
 SCENE_ROLES = (("deep", "deep"), ("terms", "terms"), ("english", "reference"), ("notes", "reference"), ("research", "reference"))  # a kit file's role by the start of its name
 
@@ -214,20 +223,30 @@ def add_scenes(api, jid: str, name: str, data: bytes) -> dict:
     if not items:  # no scene in it
         raise ValueError("not_scenes")
     iv = api.ws.job_dir(jid) / "interview"  # the job's kit folder
-    iv.mkdir(parents=True, exist_ok=True)
-    dest, n = iv / f"{stem}.md", 2  # never over a file already there
-    while dest.exists():
-        dest, n = iv / f"{stem}-{n}.md", n + 1
-    dest.write_text(text, encoding="utf-8")  # kept as written
-    kit = read_json(iv / "kit.json", {}) or {}  # the kit's settings
-    if kit.get("sources") is not None:  # a kit that names its files: this one joins with its role
-        kit["sources"] = list(kit["sources"]) + [{"file": dest.name, "role": role}]
-    elif role != "scenes":  # the default reads every file as scenes: name the roles once
-        kit["sources"] = [{"file": f.name, "role": next((r for start, r in SCENE_ROLES if f.stem.lower().startswith(start)), "scenes")} for f in sorted(iv.glob("*.md"))]
-        kit["sources"].append({"file": "@stories", "role": "reference"})  # the workspace's stories stay searchable
-    write_json(iv / "kit.json", kit)  # saved
-    api.tasks.ensure_kit(jid, "ko")  # the question map sees them
-    return {"scenes": len(items), "file": dest.name}
+    fold = lambda x: re.sub(r"\s+", " ", x).strip()  # the same words with other spacing are the same file
+    for f in sorted(iv.glob("*.md")) if iv.is_dir() else []:  # a file already in the kit with these very words
+        if fold(f.read_text(encoding="utf-8", errors="replace")) == fold(text):  # sent twice: its scenes would be there twice
+            raise ValueError("already_there")  # refused, with its own reason (C3-05)
+    api.ws.forget_mine()  # this upload's own undo step, if it makes one, is named in its answer (an upload is no POST of the router's)
+    free, n = f"{stem}.md", 2  # never over a file already there
+    while (iv / free).exists():
+        free, n = f"{stem}-{n}.md", n + 1
+    st = api.ws.job(jid)  # its name, for the undo key
+    # one undo step takes the scenes back with the map and the kit's settings they changed (C3-05)
+    with api.ws.lock, api.ws.change({"code": "undo_scenes", "company": st.get("company") or st.get("role")}, made_rels(api, jid) + [(iv / free).relative_to(api.ws.root).as_posix()]):
+        iv.mkdir(parents=True, exist_ok=True)
+        dest = iv / free  # the name chosen above
+        dest.write_text(text, encoding="utf-8")  # kept as written
+        kit = read_json(iv / "kit.json", {}) or {}  # the kit's settings
+        if kit.get("sources") is not None:  # a kit that names its files: this one joins with its role
+            kit["sources"] = list(kit["sources"]) + [{"file": dest.name, "role": role}]
+        elif role != "scenes":  # the default reads every file as scenes: name the roles once
+            kit["sources"] = [{"file": f.name, "role": next((r for start, r in SCENE_ROLES if f.stem.lower().startswith(start)), "scenes")} for f in sorted(iv.glob("*.md"))]
+            kit["sources"].append({"file": "@stories", "role": "reference"})  # the workspace's stories stay searchable
+        write_json(iv / "kit.json", kit)  # saved
+        api.tasks.ensure_kit(jid, "ko")  # the question map sees them
+    api.tasks.let_kit_go(jid)  # its server reads the new file
+    return {"scenes": len(items), "file": dest.name, "step": api.ws.mine()}
 
 
 def carry_kit(api, req: dict) -> dict:
@@ -249,15 +268,16 @@ def carry_kit(api, req: dict) -> dict:
     names = [str(n)[:80] for n in (req.get("names") or []) if isinstance(n, str) and n.strip()][:20]
     iv = api.ws.job_dir(jid) / "interview"  # the files a carry may write, every one of them in its undo step
     cands = [iv / "kit.json", iv / "alts.json", iv / "names.txt"]
+    made = made_rels(api, jid)  # the maker's files and the question map: undone with the scripts (C3-02)
     for s in C.kit_sources(src_iv):
         if not s["file"].startswith("@"):
             stem = Path(s["file"]).stem
             cands += [iv / s["file"], iv / f"{stem}-carried.md"] + [iv / f"{stem}-carried-{n}.md" for n in range(2, 10)]
     st = api.ws.job(jid)  # its name, for the undo key
-    with api.ws.lock, api.ws.change({"code": "undo_carry", "company": st.get("company") or st.get("role")}, [str(p.relative_to(api.ws.root)) for p in cands]):   # one undo takes the carry back
+    with api.ws.lock, api.ws.change({"code": "undo_carry", "company": st.get("company") or st.get("role")}, list(dict.fromkeys([p.relative_to(api.ws.root).as_posix() for p in cands] + made))):   # one undo takes the carry back
         report = C.carry(src_iv, iv, korean=korean, names=names, job_from=src)
+        report["questions"] = len(api.tasks.ensure_kit(jid, "ko" if korean else "en"))  # the map sees them, inside the step
     api.tasks.let_kit_go(jid)  # its server reads the new files
-    report["questions"] = len(api.tasks.ensure_kit(jid, "ko" if korean else "en"))  # the map sees them
     report["korean"] = korean
     return report
 
@@ -268,3 +288,13 @@ def kit_stamp(api, job_id: str) -> float:
         return 0.0  # never made
     f = api.ws.path("out", "interview", job_id, "plan.json")  # where the tailor step writes the map (src/interview's out_dir)
     return round(f.stat().st_mtime, 3) if f.is_file() else 0.0  # its time, or 0 before the first map
+
+
+def make_map(api, jid: str, lang: str) -> dict:
+    """The question map made (again) from the documents, as one undo step of its own: the bar's Undo takes back this map and
+    never an older change (C3-05). Returns the map's size."""
+    st = api.ws.job(jid)  # its name, for the undo key
+    with api.ws.lock, api.ws.change({"code": "undo_map", "company": st.get("company") or st.get("role")}, made_rels(api, jid)):
+        n = len(api.tasks.ensure_kit(jid, lang))  # the maker's files and the map, made
+    api.tasks.let_kit_go(jid)  # its server reads them
+    return {"questions": n}

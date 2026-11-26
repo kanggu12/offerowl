@@ -33,6 +33,15 @@ class DeckTest(unittest.TestCase):
         self.assertGreaterEqual(len(rows), 10)  # the example posting has more than ten lines
         self.assertIn("대본 없음", self.html)  # a line no script answers says so
 
+    def test_the_cue_page_names_a_script_in_the_pages_language_first(self):
+        """A Korean cue page puts the Korean title first and the English one under it; an English page the other way round (C2-16)."""
+        from interview import cue  # the cue cards
+        for lang in ("ko", "en"):
+            page = cue.page(self.job, lang=lang)  # the page
+            card = re.search(r'<h2><span class="id">[^<]*</span><span>([^<]*)<span class=ko>([^<]*)</span>', page)  # its first card's two titles
+            self.assertIsNotNone(card, lang)
+            self.assertEqual(bool(re.search("[가-힣]", card.group(1))), lang == "ko", lang)  # Hangul first on the Korean page only
+
     def test_each_script_once_in_the_interview_s_order(self):
         """A script prints once, in the order an interview runs, and lists the other questions it answers."""
         ids = [i for i, _ in self.scenes()]  # in deck order
@@ -114,6 +123,17 @@ class DeckTest(unittest.TestCase):
         own = [sid for sid, (it, _, _) in scenes.items() if it.get("role") == "scenes" and __import__("pathlib").Path(str(it["path"])).name == name]
         self.assertEqual(own, ids[:len(own)])  # the named file's scripts first, as written
         self.assertEqual(len(ids), len(set(ids)))  # none twice
+
+    def test_a_leftover_part_of_one_or_two_scripts_is_no_part_of_its_own(self):
+        """After the named file's scripts, the map's other scripts keep a part of their own only when it holds three or more:
+        one or two join the part before them (a tab and a cell of the cover for a page or two read as leftovers, C2-20)."""
+        scenes = deck.scenes_of(self.job)  # every script
+        name = pathlib.Path(str(next(iter(scenes.values()))[0]["path"])).name  # the first file's name
+        self.job.kit["deck"] = {"order": "file", "files": [name]}  # that file leads
+        counts = {p["part"]: p["n"] for p in deck.data(self.job, lang="ko")["counts"]["parts"]}  # the parts and their sizes
+        own = {re.sub(r"^[A-Z]{1,2}\.\s*", "", it.get("cat") or "") for it, _, _ in scenes.values() if it.get("role") == "scenes" and pathlib.Path(str(it["path"])).name == name}
+        small = [p for p, n in counts.items() if n <= 2 and p not in own]  # a leftover part of one or two
+        self.assertEqual([], small)
 
     def test_a_korean_scene_heads_its_english_note_english(self):
         """A scene spoken in Korean prints its English under the dialogue under the heading 영어, in the page and in the

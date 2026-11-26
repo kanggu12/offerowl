@@ -27,10 +27,30 @@ def cap_from_env() -> int:
     return n if 4 <= n <= 1024 else MAX_REQUESTS  # too few would refuse the page's own requests; too many is no cap
 
 
-def busy_answer(retry_after: int) -> bytes:
-    """The whole answer to a request no slot is free for: 503, when to try again, and a code the page reads."""
-    body = b'{"error": "busy"}'  # the page's code for it (core.js tries again)
-    head = (f"HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nRetry-After: {retry_after}\r\n"
+BUSY_PAGE = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+             "<meta http-equiv=\"refresh\" content=\"3\"><title>Offerowl</title><style>"
+             "body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f1ea;color:#23211d;font:16px/1.6 system-ui,sans-serif}"
+             "@media(prefers-color-scheme:dark){body{background:#141414;color:#ececec}}"
+             "main{padding:24px 16px;max-width:30em}h1{margin:0 0 8px;font-size:20px}p{margin:4px 0}</style></head><body><main>"
+             "<h1>Offerowl is answering many requests at once.</h1><p>The page loads again in a moment.</p>"
+             "<p lang=\"ko\">Offerowl이 요청을 많이 받고 있습니다. 잠시 뒤 다시 불러옵니다.</p></main></body></html>")  # a person's page: both languages, it reloads itself (the server does not know the person's language)
+
+
+def wants_page(first: bytes) -> bool:
+    """Does what came of a request look like a browser opening a page: a GET that is not the API's and takes HTML?"""
+    line, _, rest = first.partition(b"\r\n")  # the request line, then the headers
+    parts = line.split(b" ")  # method, path, version
+    if len(parts) < 2 or parts[0] != b"GET" or parts[1].startswith(b"/api/"):  # the API answers in JSON
+        return False
+    return any(h.lower().startswith(b"accept:") and b"text/html" in h.lower() for h in rest.split(b"\r\n"))  # a browser says so
+
+
+def busy_answer(retry_after: int, page: bool = False) -> bytes:
+    """The whole answer to a request no slot is free for: 503, when to try again, and a code the page reads (core.js). For a
+    browser opening a page (`page`) the body is a small page of its own that reloads, never raw JSON (D3-11)."""
+    body = BUSY_PAGE.encode("utf-8") if page else b'{"error": "busy"}'  # a page for a person, the code for the page's script
+    kind = "text/html; charset=utf-8" if page else "application/json"
+    head = (f"HTTP/1.1 503 Service Unavailable\r\nContent-Type: {kind}\r\nRetry-After: {retry_after}\r\n"
             f"Connection: close\r\nContent-Length: {len(body)}\r\n\r\n")
     return head.encode("ascii") + body
 
@@ -73,10 +93,11 @@ class Server(http.server.ThreadingHTTPServer):
         read first (a close with it unread would reset the connection and lose the answer), then 503, then the close."""
         try:
             request.settimeout(0.2)  # a client that sends nothing does not hold the accept loop
+            first = b""  # what came of the request
             with contextlib.suppress(OSError):  # nothing came, or the client is gone
-                request.recv(65536)  # the request line and headers, as far as they came
+                first = request.recv(65536)  # the request line and headers, as far as they came
             request.settimeout(1)  # the answer is small: it fits the socket's buffer at once
-            request.sendall(busy_answer(self.retry_after))  # 503, Retry-After, {"error": "busy"}
+            request.sendall(busy_answer(self.retry_after, wants_page(first)))  # 503, Retry-After, JSON for the API, a page for a browser
         except OSError:  # the client went away meanwhile: nothing to answer
             pass
         finally:

@@ -59,7 +59,7 @@ def post_carry(a, req, path):
 def post_kit(a, req, path):
     """POST /api/v1/interview/kit: make the interview kit without tailoring the rest."""
     jid = a.need_job(req)  # which job
-    return {"questions": len(a.tasks.ensure_kit(jid, lang_of(req.get("lang"))))}  # the map's size
+    return studio.make_map(a, jid, lang_of(req.get("lang")))  # the map's size, as an undo step of its own
 
 
 def post_scripts(a, req, path):

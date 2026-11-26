@@ -726,7 +726,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     if (score > 0.04) out.push({ i, score, kn, dn, sim: ds ? ds[0] : null, why: ds && dn > 0.55 ? ds : null });
   });
   out.sort((a, b) => b.score - a.score);  // best first
-  const weak = d ? d.max < 0.6 || (kmax === 0 && d.max < 0.7) : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62; no word of the query in any script needs a closer match (gibberish reached 0.6)
+  let whole = 0; if (!d && words.length) for (const doc of DOCS) whole = Math.max(whole, words.filter((x) => doc.tf.has(x)).length);  // keywords alone: the most of the query's whole words any one script holds (a bigram of Hangul here and there is no match: C3-01)
+  const weak = d ? d.max < 0.6 || (kmax === 0 && d.max < 0.7) : kmax === 0 || (words.length > 0 && whole / words.length < 0.5);  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62; no word of the query in any script needs a closer match (gibberish reached 0.6)
   return { list: out.slice(0, 40), words, weak };
 }
 // <<< engine:rank

@@ -594,6 +594,14 @@ function docsPart(j, tk) {                                                      
 }
 const STEP_WORDS = { queued: "Starting", waiting_turn: "Waiting for the task before it to finish", writing_resume: "Writing the resume from your evidence", reviewing_depth: "Reviewing each project's depth", drawing_figures: "Drawing the figures from your evidence", analysis: "Ordering the resume for this job", asking_agent: "Asking the agent", matching_words: "Matching the posting by its words",  // what a running task is doing now
   typesetting_resume: "Typesetting the resume", writing_cover: "Writing the cover letter", typesetting_cover: "Typesetting the cover letter", interview_kit: "Making the interview questions" };
+async function makeMap(jid, go) {                                                   // the question map made (again) from the documents: an undo step of its own, and what was made said (C3-13)
+  const r = await act("/api/v1/interview/kit", { job: jid, lang: docLang() });
+  if (!r) return;                                                                   // refused: the note says why
+  if (go) { UI.jobTab = "interview"; UI.ivPart = "map"; }                           // the map itself, where it was made for
+  toast(tn(r.questions, "Made the question map: {n} question.", "Made the question map: {n} questions."), r.step ? { words: t("Undo"), run: () => undoOnly(r.step) } : null, "done");
+  if (typeof boardReload === "function") boardReload(jid);                          // the board reads it
+  render();
+}
 function tailorJob(jid) {                                                           // one action for all three documents
   return act("/api/v1/jobs/tailor", { job: jid, lang: docLang(), theme: UI.theme, maxPages: UI.maxPages, cover: UI.cover, typeset: UI.typeset && !S.engine });
 }
@@ -644,6 +652,7 @@ function interviewPart(j) {                                                     
     b && b.ready && part === "search" ? wideKeys : null,                              // the scripts over the whole width, and in a window of their own: both stay in the panel
     b && b.ready && part === "deck" && b.deck && b.deck.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "deck?lang=" + LANG) }, icon("slides"), t("Interview deck to print")) : null,   // the deck's printable pages in the panel's language
     b && b.ready && part === "map" && b.cue && b.cue.available ? h("button", { class: "btn", onclick: () => openKit(j.id, "cue") }, icon("copy"), t("Cue cards to print")) : null,
+    b && b.ready && part === "map" ? h("button", { class: "btn", type: "button", "data-key": "iv-remake", onclick: () => makeMap(j.id, false) }, icon("map"), t("Make the question map again")) : null,   // a map made before a fix keeps its old questions: made again from the documents (C3-03)
     b && b.ready && part === "map" ? addScenes() : null,                             // scripts written before, in the kit's markdown, beside the map they join (practice is a tab of its own: no second key for it)
     b && b.ready && part === "map" ? carryKeys() : null);                            // or everything another application's kit holds
   const addScenes = () => h("button", { class: "btn", onclick: () => { UI.scenesFor = j.id; $("scenepick").click(); } }, icon("upload"), t("Add scenes you wrote"));   // scripts written before
@@ -671,14 +680,14 @@ function interviewPart(j) {                                                     
   if (!b.ready && UI.ivPart === "talk") return h("div", { class: "ivpart" }, keys, talkPart(j), materialsPart(j));   // a talk needs no question map
   if (!b.ready) return h("div", { class: "ivpart" }, h("div", { class: "empty glass" }, h("h3", { text: t("No interview kit for this job yet") }),
     h("p", { text: t("The question map comes from the posting and your resume, on this PC. Scripts are written by the agent.") }),
-    h("div", { class: "part-keys" }, h("button", { class: "btn primary", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }) }, icon("map"), t("Make the question map")),   // an icon as its neighbours have (C3-19)   // the main key first: it works on this PC alone
+    h("div", { class: "part-keys" }, h("button", { class: "btn primary", onclick: () => makeMap(j.id, true) }, icon("map"), t("Make the question map")),   // an icon as its neighbours have (C3-19)   // the main key first: it works on this PC alone
       addScenes(),                                                                   // or the scripts written before, which make the map too
       carryKeys(),                                                                   // or another application's kit, carried whole
       h("button", { class: "btn", onclick: () => { UI.ivPart = "talk"; render(); } }, icon("slides"), t("Prepare a presentation")))), materialsPart(j));   // a talk the interviewers asked for, without the map
   const tk = task("scripts:" + j.id);                                                // the writing task, when one runs
   const writing = tk.state === "running";                                           // writing now
   const parts = [["search", t("Search the scripts"), "search", t("Search")], ["deck", t("Interview deck"), "slides", t("Deck")], practice ? ["practice", t("Practice"), "mic", t("Practice")] : null,
-    ["map", t("Question map and scripts"), "map", t("Question map")], ["talk", t("Presentation"), "chart", t("Presentation")]].filter(Boolean);   // practice when the kit has it; each with a phone's short name
+    ["map", t("Question map and scripts"), "map", t("Map")], ["talk", t("Presentation"), "chart", t("Presentation")]].filter(Boolean);   // practice when the kit has it; each with a phone's short name
   const part = parts.some(([k]) => k === UI.ivPart) ? UI.ivPart : "search";         // what the tab shows: the search view, the deck, practice, the map and its scripts, or the talk
   const switcher = h("div", { class: "seg ivseg", role: "tablist", "aria-label": t("Interview") },
     parts.map(([k, w, ic, ws]) => h("button", { type: "button", role: "tab", "aria-selected": part === k ? "true" : "false", "aria-label": w, onclick: () => { UI.ivPart = k; render(); } },
@@ -703,12 +712,12 @@ function interviewPart(j) {                                                     
       h("div", { class: "card-h" }, h("h3", { text: t(CATEGORY[c.kind] || c.kind) }), h("span", { class: "chip count", text: String(c.questions.length) })),
       segBar([["strong", "var(--green)"], ["draft", "var(--orange)"], ["weak", "var(--amber)"], ["none", "var(--rule-2)"]].map(([k, color]) =>   // how many of its questions a script answers
         ({ n: c.questions.filter((q) => (q.coverage || "none") === k).length, words: t(COVERAGE[k]), color })).filter((x) => x.n), { label: t(CATEGORY[c.kind] || c.kind), id: "cov-" + c.kind, compact: true }),   // the kinds this column has: a legend of "0"s said nothing and wrapped one entry alone (C2-25)
-      h("ol", {}, c.questions.slice(0, (UI.mapAll || {})[j.id + "|" + c.kind] ? c.questions.length : 5).map((q) => h("li", {}, h("span", { class: "lit " + (COVERAGE_CLS[q.coverage] || "off"), title: t(COVERAGE[q.coverage] || COVERAGE.none) }, h("span", { class: "sr", text: t(COVERAGE[q.coverage] || COVERAGE.none) })),
+      h("ol", {}, c.questions.slice(0, (UI.mapAll || {})[j.id + "|" + c.kind] || c.questions.length <= 6 ? c.questions.length : 5).map((q) => h("li", {}, h("span", { class: "lit " + (COVERAGE_CLS[q.coverage] || "off"), title: t(COVERAGE[q.coverage] || COVERAGE.none) }, h("span", { class: "sr", text: t(COVERAGE[q.coverage] || COVERAGE.none) })),
         h("span", { text: (docLang() === "en" ? q.ask_en : q.ask_ko) || q.text })))),
       // the rest of the column's questions, here: the key opened the search with an empty box, which lists no questions (C2-17)
-      c.questions.length > 5 ? moreRow((UI.mapAll || {})[j.id + "|" + c.kind] ? t("Show fewer") : t("{n} more", { n: c.questions.length - 5 }),
+      c.questions.length > 6 ? moreRow((UI.mapAll || {})[j.id + "|" + c.kind] ? t("Show fewer") : t("{n} more", { n: c.questions.length - 5 }),
         { run: () => { UI.mapAll = { ...(UI.mapAll || {}), [j.id + "|" + c.kind]: !(UI.mapAll || {})[j.id + "|" + c.kind] }; render(); } }) : null))),
-    b.scripts.length ? scriptsPart(b.scripts) :
+    b.scripts.length ? scriptsPart(b.scripts, j) :
       h("div", { class: "empty glass" }, h("h3", { text: t("No scripts yet") }), h("p", { text: S.agent.state === "ready" ? t("Write scripts to let the agent answer the likeliest questions first.") : t("Scripts are written by the agent. Turn it on to draft them.") }),
         S.agent.state === "ready" ? null : h("div", { class: "part-keys" }, h("button", { class: "btn", type: "button", onclick: () => openAgentMenu() }, icon("agent"), t("Turn on the agent")))),   // the one fix, beside its words
     materialsPart(j));                                                              // the person's own files, under what the kit made
@@ -839,23 +848,22 @@ async function saveMaterial(jid, m) {                                           
 }
 const PLAIN_TITLE = /^(질문|문항|question|q)$/i;                                    // a Korean title that names no question ("### D1. 질문 / Tell me about yourself."), as kit.js reads it
 const koTitle = (x) => (PLAIN_TITLE.test(String(x || "").trim()) ? "" : x);         // said only when it says something
-function scriptsPart(list) {                                                        // the scripts: every title on the left, the one open read on the right
+function scriptsPart(list, j) {                                                     // the scripts: every title on the left, the one open read on the right, drawn as the search view's card (C2-16)
   const at = Math.min(Math.max(0, UI.scriptOpenJob === S.job ? UI.scriptOpen || 0 : 0), list.length - 1);   // the open one, within range: this application's own (another's place never carries over)
   const s = list[at];                                                               // its scenes
+  const ko = LANG === "ko";                                                         // a Korean panel names the Korean title first, as the search view does
+  const first = (x) => (ko ? x.title_ko || x.title_en : x.title_en || x.title_ko), second = (x) => (ko ? x.title_en : koTitle(x.title_ko) ? x.title_ko : "");   // the title, and the other language's under it
+  const k = j ? ivKitView(j) : null;                                                // the search view's own cards, once the scripts are read
+  const card = k ? k.view.card(s.id) : null;                                        // this script as the board draws it
   return h("section", { class: "scripts", "aria-label": t("Script cards") },
     h("h2", { class: "scripts-h", text: t("Script cards") }),
     h("nav", { class: "scriptlist paper", "aria-label": t("Script cards") }, list.map((x, i) => h("button", { class: "scriptrow", "aria-current": i === at ? "true" : "false",
       onclick: () => { UI.scriptOpen = i; UI.scriptOpenJob = S.job; render(); } },
-      h("b", { text: x.title_en || x.title_ko }), x.title_en && koTitle(x.title_ko) ? h("span", { class: "ro", text: x.title_ko }) : null,
+      h("span", { class: "sid", text: x.id }), h("b", { text: first(x) }), second(x) && second(x) !== first(x) ? h("span", { class: "ro", text: second(x) }) : null,   // its number, the title, the other language's
       x.draft ? h("span", { class: "chip ai", text: t("Draft by the agent") }) : null))),
-    h("article", { class: "script paper", "aria-label": s.title_en || s.title_ko },
-      h("div", {}, h("div", { class: "t-en", text: s.title_en || s.title_ko }), s.title_en && koTitle(s.title_ko) ? h("div", { class: "t-ko", text: s.title_ko }) : null,
-        s.draft ? h("span", { class: "chip ai", text: t("Draft by the agent") }) : null),
-      s.key ? h("p", { class: "key" }, h("b", { text: t("Key") + " " }), speech(s.key)) : null,
-      s.turns.map((tn) => h("div", { class: "turn " + tn.who }, h("span", { class: "who", text: tn.who === "me" ? t("You") : t("Interviewer") }),
-        h("span", { class: "en" }, speech(tn.en)))),
-      s.turns.some((tn) => tn.ko) ? h("div", { class: "notes", "aria-label": t("Translation") },   // the translation after the dialogue, as a note: the spoken lines come first
-        s.turns.filter((tn) => tn.ko).map((tn) => h("p", { class: tn.who }, h("b", { text: (tn.who === "me" ? t("You") : t("Interviewer")) + " " }), tn.ko.replace(/\*\*|==/g, "")))) : null));
+    card ? h("article", { class: "script paper", "aria-label": first(s) }, card) : h("article", { class: "script paper", "aria-label": first(s) },   // the cards are not read yet: the title and the key meanwhile
+      h("div", { class: "t-en", text: first(s) }), s.key ? h("p", { class: "key" }, h("b", { text: t("Key") + " " }), speech(s.key)) : null,
+      h("p", { class: "hint", role: "status", text: t("Reading the interview kit…") })));
 }
 // ---------------------------------------------------------------- the presentation interview (src/interview/talk.py): its brief, then its deck and script
 
@@ -965,8 +973,8 @@ function progressPart(j) {                                                      
       j.stage === "result" ? h("div", { class: "field" }, h("span", { text: t("Result") }), h("div", { class: "seg results", role: "group", "aria-label": t("Result") },
         Object.keys(RESULT).map((k) => { const on = resultOn(j, k); return h("button", { type: "button", "aria-pressed": on ? "true" : "false",   // a second press takes it back
           onclick: () => { if (on && j.result !== k) return; act("/api/v1/tracker/edit", { job: j.id, result: on ? "" : k }); } }, h("span", { class: "lit " + (on ? RESULT_CLS[k] : "off"), "aria-hidden": "true" }), t(RESULT[k])); }))) : null,   // lit when chosen: an unchosen offer is no green
-      h("label", { class: "field" }, h("span", { text: t("Next step") }), h("input", { "data-key": `p-${j.id}-next`, value: j.next || "", placeholder: t("Add a next step"),
-        oninput: debounce((e) => act("/api/v1/tracker/edit", { job: j.id, next: e.target.value }), 700) }))),
+      h("label", { class: "field" }, h("span", { text: t("Next step") }), h("input", { "data-key": `p-${j.id}-next`, "data-job-next": j.id, "data-was": j.next || "", value: j.next || "", placeholder: t("Add a next step"),   // data-was: the words it started from
+        oninput: debounce((e) => saveNext(e.target, j.id), 700) }))),
     h("div", { class: "prow names" },                                               // its company and role, as the posting gave them or as the person writes them (POST /api/v1/tracker/edit)
       h("label", { class: "field" }, h("span", { text: t("Company") }), h("input", { "data-key": `p-${j.id}-company`, value: j.company || "", placeholder: t("Company"),
         onchange: (e) => act("/api/v1/tracker/edit", { job: j.id, company: e.target.value.trim() }, t("Saved. Undo takes it back.")) })),   // saved when the box is left: one undo step
@@ -984,7 +992,7 @@ function progressPart(j) {                                                      
 // ---------------------------------------------------------------- every application at once: by stage, or by date
 
 function trackBoard(jobs) {                                                         // four columns of cards
-  const board = h("div", { class: "board", onscroll: (e) => { UI.boardLeft = e.target.scrollLeft; } });   // on a phone the columns slide sideways (skin.css); where the person slid it is kept
+  const board = h("div", { class: "board", onscroll: (e) => { if (PHONE.matches) UI.boardLeft = e.target.scrollLeft; } });   // on a phone the columns slide sideways (skin.css); where the person slid it is kept
   requestAnimationFrame(() => {                                                     // laid out: where the person left it, or on the first look the open application's column
     if (!board.isConnected || board.scrollWidth <= board.clientWidth + 1) return;   // no sideways room
     const f = UI.boardFollow, moved = f && board.querySelector(`.col[data-stage="${f.to}"] .tcard[data-job="${CSS.escape(f.id)}"]`);   // a note just moved on by its key
@@ -1005,8 +1013,8 @@ function trackBoard(jobs) {                                                     
         h("div", { class: "tc-top" }, mono(j.company || j.role || j.id, "sm", j.stage), h("button", { class: "co tco", type: "button", onclick: () => openApplication(j.id), text: j.company || j.role || j.id }),   // its mark; the name opens the application
           st === "result" && j.result ? stagePill(j) : null),   // how it ended, on the name's line: a long role never pushes it down
         j.company && j.role ? h("span", { class: "ro", text: j.role }) : null,
-        UI.nextEdit === j.id ? h("input", { class: "tnext", "data-key": `b-${j.id}-next`, value: j.next || "", placeholder: t("Add a next step"), "aria-label": t("Next step"), draggable: "false",   // a box only while it is typed in
-          oninput: debounce((e) => { j.next = e.target.value; act("/api/v1/tracker/edit", { job: j.id, next: e.target.value }); }, 700),
+        UI.nextEdit === j.id ? h("input", { class: "tnext", "data-key": `b-${j.id}-next`, "data-job-next": j.id, "data-was": j.next || "", value: j.next || "", placeholder: t("Add a next step"), "aria-label": t("Next step"), draggable: "false",   // a box only while it is typed in; data-was: the words it started from
+          oninput: debounce((e) => { j.next = e.target.value; saveNext(e.target, j.id); }, 700),
           onblur: () => setTimeout(() => {                                         // a redraw (its own save coming back, a poll) takes the box away and draws it again with the keyboard in it (drawPane): the typing goes on
             const again = document.querySelector(`[data-key="b-${CSS.escape(j.id)}-next"]`);
             if (again && document.activeElement === again) return;
@@ -1156,7 +1164,7 @@ function roundAsked(r, j) {                                                     
   const cat = b && b.ready ? (b.categories || []).find((c) => c.kind === "asked") : null;
   const qs = cat ? cat.questions.filter((q) => (q.rounds || []).includes(r.id)) : [];   // this round's questions as the map read them, a question asked again among them
   if (!qs.length) return h("div", { class: "round-asked" }, head, h("ul", {}, lines.map((q) => h("li", { text: q }))),   // no kit yet (or still read): the words as written
-    b && b.ready === false ? h("div", { class: "round-kit" }, h("button", { class: "btn small", type: "button", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }) }, icon("map"), t("Make the question map"))) : null);
+    b && b.ready === false ? h("div", { class: "round-kit" }, h("button", { class: "btn small", type: "button", onclick: () => makeMap(j.id, false) }, icon("map"), t("Make the question map"))) : null);
   const tk = task("scripts:" + j.id), writing = tk.state === "running";            // the agent writing this job's scripts now
   const missing = qs.filter((q) => ["none", "weak"].includes(q.coverage || "none")).map((q) => q.id).slice(0, 30);   // no script answers them, or one only in part (30 a press, as the route takes)
   const open = (id) => { UI.jobTab = "interview"; ivOpenScript(id); };              // the script in the scripts' search, on the interview tab

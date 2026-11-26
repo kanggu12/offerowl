@@ -18,9 +18,11 @@ def style_names(api) -> list[str]:
     return sorted(f.stem for f in folder.glob("*.json")) if folder.is_dir() else []  # by name
 
 
-def add_style(api, req: dict) -> str:
+def add_style(api, req: dict, step: bool = True) -> str:
     """A person's own style pack into the workspace's style/ folder, checked first, so a broken pattern can never stop a
-    check later. {name, pack}: the pack is the JSON of docs/WRITING.md. Returns the name it is kept under."""
+    check later. {name, pack}: the pack is the JSON of docs/WRITING.md. Returns the name it is kept under. A pack kept over one of
+    the same name is one undo step (D3-01), so the old rules come back with Undo; `step` is False for a caller that makes the
+    step itself (add_rule)."""
     name = re.sub(r"[^\w가-힣.-]+", "-", str(req.get("name") or "").strip())[:60].strip("-.") or "mine"  # a safe file name
     if name == "default":  # the shipped pack keeps its name
         name = "mine"
@@ -65,7 +67,11 @@ def add_style(api, req: dict) -> str:
             write_resume.load_style(str(trial))  # an unknown numbers policy, say, stops every later draft: stopped here instead
         except (SystemExit, Exception) as exc:  # the loader's message, or a value it cannot use
             raise ValueError("style") from exc
-    write_json(api.ws.path("style", f"{name}.json"), pack)  # kept with the workspace (and its backups)
+    if step:  # the pack replaced or added as one undo step
+        with api.ws.change({"code": "undo_style", "title": name[:60]}, [f"style/{name}.json"]):
+            write_json(api.ws.path("style", f"{name}.json"), pack)  # kept with the workspace (and its backups)
+    else:  # the caller's own step holds it
+        write_json(api.ws.path("style", f"{name}.json"), pack)
     return name  # the page selects it
 
 
@@ -118,7 +124,7 @@ def add_rule(api, req: dict) -> dict:
             elif row not in side:
                 side.append(row)
     with api.ws.change({"code": "undo_rule", "title": row[0][:60]}, [f"style/{name}.json"]):  # one undo step
-        name = add_style(api, {"name": name, "pack": pack})  # checked as a new pack is, and kept
+        name = add_style(api, {"name": name, "pack": pack}, step=False)  # checked as a new pack is, and kept in this step
     api.set_settings({"style": name})  # in use from now on
     now = (pack["claims"].get(kind) or [])  # the list as kept
     n = len(now.get("ko" if lang == "both" else lang) or []) if isinstance(now, dict) else len(now)  # its rows in that language

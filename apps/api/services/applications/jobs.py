@@ -137,6 +137,10 @@ def board(api, req: dict) -> None:
     with api.ws.lock:  # looked up and changed in one step: a job deleted for good meanwhile is refused, never half written
         jid = api.need_job(req)  # which job
         st = api.ws.job(jid)  # its status
+        was = req.get("next_was")  # the words the person's box started from, when it says (D3-07)
+        if "next" in req and isinstance(was, str) and isinstance(req["next"], str) \
+                and (st.get("next") or "") != was.strip()[:1000] and (st.get("next") or "") != req["next"].strip()[:1000]:  # another window changed them since
+            raise ValueError("next_changed")  # refused, nothing overwritten: the page says so and shows the other words
         off = req.get("removed") is True and not st.get("removed")  # taken off now (only an explicit true removes)
         days = [req.get("date")] + (list(req["dates"].values()) if isinstance(req.get("dates"), dict) else [])  # every day sent
         if any(isinstance(d, str) and d and not tracker.is_day(d) for d in days):  # 2026-02-30: refused in words, never answered ok with nothing done

@@ -22,6 +22,7 @@ function libraryDoc() {                                                         
     Object.values(j.builds || {}).map((b) => b.at).join()]), (S.editions || []).map((e) => Object.values(e.builds || {}).map((b) => b.at).join()), ((S.general || {}).builds && Object.values(S.general.builds).map((b) => b.at).join())]);
   if (!UI.docs[key]) {                                                              // a new list to fetch: the old one goes, and stays drawn until the new arrives
     for (const k of Object.keys(UI.docs)) if (k.startsWith("library|") && k !== key && k !== UI.libKey) delete UI.docs[k];
+    for (const k of Object.keys(UI.docTries)) if (k.startsWith("library|") && k !== key) { delete UI.docTries[k]; delete UI.docWait[k]; }   // the failures of numbers no longer wanted are forgotten
     getDoc(key, "/api/v1/library");
   }
   if (UI.docs[key] && !UI.docs[key].error) UI.libKey = key;
@@ -190,6 +191,7 @@ function viewTrash(d, q, setUI) {                                               
 
 function viewLibrary(host) {
   const d = libraryDoc();                                                           // the files
+  if (!d && docFailed("library|")) return fill(host, h("div", { class: "lib" }, h("p", { class: "ins-none", text: t("The list could not be read.") })));   // asked and not answered: said, not listing for ever (D3-08)
   if (!d) return fill(host, h("div", { class: "lib loading", "aria-busy": "true" }, h("p", { class: "ins-none", text: t("Listing your files…") })));
   if (d.error) return fill(host, h("div", { class: "lib" }, h("p", { class: "ins-none", text: t("The list could not be read.") })));
   const rows = d.rows || [];

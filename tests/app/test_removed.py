@@ -287,6 +287,71 @@ class TestRemoved(PanelCase):
         self.assertTrue((target / "keep").is_dir() and odd.is_dir() and root.is_dir())  # nothing else was touched
         link.unlink()
 
+    def test_a_second_aside_of_the_same_second_is_listed_and_deleted(self):
+        root = self.api.ws.root  # the workspace's folder
+        second = root.with_name(root.name + "-before-restore-20260103-000000-2")  # as backup.aside_name names a second restore in one second (D3-16)
+        (second / "profile").mkdir(parents=True)
+        (second / "profile" / "profile.json").write_text("{}", encoding="utf-8")
+        self.assertIn(second.name, [a["name"] for a in self.removed()["asides"]])  # listed
+        self.post("/api/v1/removed/delete", {"id": "aside:" + second.name})  # and deletable from the panel
+        self.assertFalse(second.exists())
+
+    def test_a_killed_restore_or_backup_leaves_nothing_after_the_next_start(self):
+        import os  # file times and the process id
+        from apps.api.services.library import backup  # the sweep
+        ws = self.api.ws
+        parent = ws.root.parent  # the data folder
+        dead = 2 ** 22 + 12345  # a process id no system has in use
+        part = parent / f".upload-{dead}-1.part"  # an upload killed midway
+        part.write_bytes(b"x" * 10)
+        half = parent / f"{ws.root.name}.restoring-{dead}"  # an unpacking killed midway
+        (half / "profile").mkdir(parents=True)
+        zipped = parent / f".backup-{dead}-abc.zip"  # a download killed midway
+        zipped.write_bytes(b"x")
+        mine = parent / f".upload-{os.getpid()}-1.part"  # this process's own, at work
+        mine.write_bytes(b"x")
+        old_live = parent / f".backup-{os.getppid()}-old.zip"  # a live process's (the parent's), but days old: a reused id
+        old_live.write_bytes(b"x")
+        os.utime(old_live, (time.time() - 3 * 86400, time.time() - 3 * 86400))
+        other = parent / "notes.zip"  # not ours
+        other.write_bytes(b"x")
+        self.assertEqual(4, backup.sweep_leftovers(ws, old_s=3600))  # the three of the dead process and the old one of a reused id
+        self.assertFalse(part.exists() or half.exists() or zipped.exists())  # the dead process's leftovers went
+        self.assertTrue(mine.exists() and other.exists())  # this process's piece and a stranger's file stay
+        mine.unlink()
+        other.unlink()
+        old_live.unlink(missing_ok=True)
+
+    def test_a_backup_is_made_in_the_data_folder_and_outside_the_lock(self):
+        import threading  # a second thread that wants the lock
+        import zipfile as zf  # to wrap the writer
+        from apps.api.services.library import backup  # the writer
+        ws = self.api.ws
+        ws.path("profile", "probe.txt").write_text("words", encoding="utf-8")  # a file to zip, whatever the other tests left
+        seen = {}  # what the zipping saw
+        real = zf.ZipFile.write  # the real entry writer
+
+        def watching(zself, *a, **k):  # at every file written
+            if "free" not in seen:  # once
+                got = []  # whether another thread gets the lock now
+                t = threading.Thread(target=lambda: got.append(ws.lock.acquire(timeout=2)) or (got[0] and ws.lock.release()))
+                t.start()
+                t.join()
+                seen["free"] = got[0]  # the lock was free while zipping
+            return real(zself, *a, **k)
+        zf.ZipFile.write = watching
+        try:
+            path = backup.write_file(ws)
+        finally:
+            zf.ZipFile.write = real
+        try:
+            self.assertEqual(ws.root.parent, path.parent)  # beside the workspace, never /tmp
+            self.assertTrue(seen.get("free"))  # the workspace's writes were not held
+            self.assertIn(backup.MARK, zf.ZipFile(path).namelist())  # and it is a backup
+        finally:
+            path.unlink(missing_ok=True)
+            ws.path("profile", "probe.txt").unlink(missing_ok=True)
+
     def test_deleting_waits_for_a_running_task(self):
         jid = self.post("/api/v1/jobs", {"posting": POSTING.read_text(encoding="utf-8"), "company": "Waits", "role": "Backend"})["job"]
         self.wait_task("analyze:" + jid)

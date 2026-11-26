@@ -200,7 +200,26 @@ async function act(path, body, okText, okKind = "done") {                       
     if (okText) toast(okText, okKind === "done" && j && j.step ? { words: t("Undo"), run: () => undoOnly(j.step) } : null, okKind);   // a change made: its Undo on the note (a phone's band covers the bar's)
     schedule(); return j;                                                           // polled while a task runs
   }
-  catch (e) { toast(e.message === "offline" ? (/^\/api\/v1\/undo/.test(path) ? t("Offerowl is not answering, so nothing was undone.") : t("Offerowl is not answering, so this was not saved.")) : errorText(e), null, "bad"); return null; }   // an undo is not a save (D3-09)   // the reason in words; a server gone says so too, beside the bar's band
+  catch (e) { actFailed(path, e); return null; }                                   // the reason in words; a server gone says so too, beside the bar's band
+}
+function actFailed(path, e) {                                                       // a refused or lost write said in a toast
+  toast(e.message === "offline" ? (/^\/api\/v1\/undo/.test(path) ? t("Offerowl is not answering, so nothing was undone.") : t("Offerowl is not answering, so this was not saved.")) : errorText(e), null, "bad");   // an undo is not a save (D3-09)
+}
+// A "next step" box saves the words it started from along with the new ones (D3-07): a window whose box started from words
+// another window has since changed is refused, and shows the other window's words with a note, never overwriting them
+async function saveNext(el, jid) {
+  const sent = el.value;                                                            // what was typed
+  try {
+    await api("/api/v1/tracker/edit", { job: jid, next: sent, next_was: el.dataset.was || "" });   // the words it started from
+    el.dataset.was = sent;                                                          // saved: the next save starts from these
+    schedule();                                                                     // polled while a task runs
+  } catch (e) {
+    if (!(e.info && e.info.what === "next_changed")) return actFailed("/api/v1/tracker/edit", e);   // anything else is said as any failed write is
+    toast(t("The next step was changed in another window, so your words were not saved. Its words are shown."), null, "bad");   // said, never silent
+    await refresh();                                                                // the other window's words
+    const now = ((S.jobs || []).find((j) => j.id === jid) || {}).next || "";        // what the server holds
+    document.querySelectorAll(`[data-job-next="${CSS.escape(jid)}"]`).forEach((b) => { b.value = now; b.dataset.was = now; });   // every box of this card shows them
+  }
 }
 // A window opened on one application's scripts (/?job=<id>&show=scripts, app.js fromAddress) keeps that application: the
 // panel's other windows keep theirs, and the server's choice stays the plain panel's. It lasts until an application is
@@ -263,9 +282,11 @@ function schedule() {                                                           
   document.documentElement.dataset.hour = hr >= 20 || hr < 6 ? "night" : "day";     // after dark the desk's lamp is on (skin.css)
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });   // shown again: the state now, then the poll goes on
+const docFailed = (prefix) => Object.keys(UI.docTries || {}).some((k) => k.startsWith(prefix));   // a document of this family was asked for and did not come (the server is down, or busy)
 function setOffline(off) {                                                          // the band that says the server is gone
   if (UI.offline === off) return;                                                   // no redraw when nothing changed
   UI.offline = off;                                                                 // the views read this flag
+  if (!off) UI.docWait = {};                                                        // the server is back: a document that failed meanwhile is asked for at once, not after its wait (D3-08)
   if (S) render();                                                                  // nothing to draw before the first state arrives
 }
 async function getDoc(key, path, fam) {                                             // a fetched document, cached by key; fam: the same document under its other keys (interview.js)
@@ -390,6 +411,7 @@ function errorText(e) {                                                         
     checks_failed: t("These documents did not pass their checks, so they stay here. The list above the document says what failed."),
     changed: t("The PDFs changed after they were checked. Make the PDFs again."), copy_unreadable: t("The copy on the Desktop did not read back, so it was taken away. Try again."),
     material_changed: t("This file changed after you added it, so no copy was made."), material: t("That file is no longer in the list. Open the job again."),
+    next_changed: t("The next step was changed in another window, so your words were not saved. Its words are shown."),
     removed: t("That was put back or deleted already. The list shows how things are now."), busy: t("Wait until the work in progress ends, then try again."),
     delete_failed: t("Some of its files could not be deleted: another program may have them open. Close it and try again."),
     blind_table: t("That file is not a mask table."), blind_unread: t("The blind edition's text could not be read, so nothing was exported. Make the PDFs again."),
@@ -412,6 +434,9 @@ function errorText(e) {                                                         
     bad_brief: t("Write at least one topic the interviewers asked for."),
     already_carried: t("Its scripts were brought in already. Undo the earlier one first to bring them again."),
     questions_moved: t("The questions changed in another window, so nothing was saved here. Open the application again."),
+    json: t("That request could not be read. Open the page again and try once more."), shape: t("That request could not be read. Open the page again and try once more."),   // D3-10: the server's own body refusals
+    length: t("That request could not be read. Open the page again and try once more."),
+    kit_unreachable: t("The interview kit did not answer."),
     body_too_large: t("That is too long to send in one piece. Shorten it, or add it as a file."),
     program: t("Programs are not added. Add documents, pictures or notes."),
     not_that_kind: t("That file is not what its name says, so it was not added."),

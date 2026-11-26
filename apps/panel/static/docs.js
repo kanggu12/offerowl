@@ -640,6 +640,7 @@ function viewDocuments(host) {                                                  
     // inspector's key at the row's end where it is a drawer
     h("div", { class: "doctools" }, docTabs, modes, zoomSeg(), evsum, h("span", { class: "grow" }), why && !counts.unsupported ? h("span", { class: "hint why", text: why }) : null,
       h("button", { class: "btn insp-toggle", onclick: () => { UI.drawer = true; render(); }, "aria-label": t("Open the inspector") }, icon("panel"), t("Inspector"))));
+  const subline = $("dochead").querySelector(".viewhead > .sub"); if (subline) subline.title = subline.textContent;   // a subtitle the wide head cuts short with an ellipsis keeps its words on hover (B3-13)
   fill(host,
     buildBand(ed),                                                                  // the last PDFs of this edition failed: why, with the key that fixes it
     counts.unsupported ? h("div", { class: "band" }, h("p", { text: UI.doc === "cover"   // the letter's sentences have no Edit of their own: what can be done there

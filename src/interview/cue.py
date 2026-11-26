@@ -135,8 +135,10 @@ def page(job, ids=None, sections=None, roles=("scenes",), lang=None):
     cards = scene_cards(job, ids, sections, roles)  # the chosen scenes
     body = []  # card HTML
     for it, pairs in cards:  # one card per scene
-        title = html.escape(unref(it.get("ten") or it.get("tko") or it["id"]).replace("**", "").replace("==", ""))  # the English title, or the Korean one
-        sub = html.escape(unref(it.get("tko") or "").replace("**", "").replace("==", "")) if it.get("ten") else ""  # the Korean title under it
+        first, other = (("tko", "ten") if strings["lang"] == "ko" else ("ten", "tko"))  # a Korean page names the Korean title first, as the search view does (C2-16)
+        plain = lambda x: unref(x or "").replace("**", "").replace("==", "")  # a title without its marks and the writer's references
+        title = html.escape(plain(it.get(first) or it.get(other) or it["id"]))  # the title in the page's language, or the other one
+        sub = html.escape(plain(it.get(other))) if it.get(first) and it.get(other) else ""  # the other language's title under it
         rows = []  # the exchanges
         for who, en, ko in pairs:  # each line with its translation
             if who == "면접관":  # the interviewer: small and grey, a cue for what is being asked

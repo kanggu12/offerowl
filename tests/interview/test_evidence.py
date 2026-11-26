@@ -382,6 +382,22 @@ class AnticipateTest(unittest.TestCase):
         page = "01 ALPHA PROJECT 02 / 03 2 0 2 3.0 1 - 2 0 2 3.0 9\nMoving the scheduler to a pair of nodes\nRole Lead and more words on this page to pass the size rule for a page\f"
         self.assertEqual("Moving the scheduler to a pair of nodes", plan.portfolio_pages(page)[0][1])  # the words
 
+    def test_a_cover_the_persons_employers_and_section_heads_are_no_questions(self):
+        """The map asks about claims: not the cover that only carries the name, not the person's own employers, not the
+        capitalised labels of a resume's layout."""
+        prof = {"person": {"name": "홍길동", "name_en": "Gildong Hong"}, "roles": [{"org": "Delta Cloud"}, {"heading": "KT"}], "skills": []}  # a fictional person
+        resume = "ROLE  Platform engineer at KT\nFOCUS  Storage\n- Used TCP and NVMe at work on the servers\n"  # labels, an employer, two terms
+        tmp, job = workspace(prof, resume=resume)  # a workspace of its own
+        self.addCleanup(shutil.rmtree, tmp)  # removed afterwards
+        from interview.job import read_text  # files
+        terms = [t for t, _ in plan.own_terms(job, read_text(job.submitted("resume")), "")]  # the terms
+        self.assertEqual({"TCP"}, {t for t in terms if t in {"ROLE", "FOCUS", "KT", "TCP"}})  # only the real one
+        body = "Moving the scheduler to a pair of nodes with a longer text that fills the page well beyond twelve words\f"  # a real page
+        pages = plan.portfolio_pages("홍길동 Portfolio of Gildong Hong, a platform engineer, twenty twenty six edition\f" + body, plan.person_names(prof))
+        self.assertEqual(["Moving the scheduler to a pair of nodes with a longer text that fills the page well beyond twelve words"], [t for _, t, _ in pages])  # the cover is gone
+        self.assertEqual(1, len(plan.portfolio_pages("홍길동 Hong, Gildong\f" + body, plan.person_names(prof))))  # a cover that writes the name in both orders and nothing else
+        self.assertEqual(2, len(plan.portfolio_pages("홍길동 Portfolio of Gildong Hong, a platform engineer, twenty twenty six edition\f" + body)))  # without names both stay
+
 
 if __name__ == "__main__":  # run directly
     unittest.main()

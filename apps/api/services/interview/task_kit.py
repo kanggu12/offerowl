@@ -29,6 +29,7 @@ class Kits:
     def __init__(self):
         super().__init__()  # the other parts' own
         self.kit_srvs = {}  # job -> (its own kit server, the agent it was given) for the panel's /kit/<job>/, the most recent last (kit_url)
+        self._deck_cache, self._deck_lock = {}, threading.Lock()  # the panel's deck data per kit stamp
         self.kit_lock = threading.Lock()  # one start at a time: two first requests never bind two servers for one job
 
     @staticmethod
@@ -108,7 +109,16 @@ class Kits:
         from interview import deck as ivdeck  # src/interview/deck.py
         from interview.job import Job  # the kit's job folder
         try:
-            return ivdeck.data(Job(self.ws.job_dir(job_id), confined=True), lang=lang)  # read from the files as they are now
+            job = Job(self.ws.job_dir(job_id), confined=True)  # the kit's job folder
+            from interview import corpus  # the stamp of the scripts' files
+            watched = [job.out_path() / "plan.json", job.dir / "status.json"]  # what else the deck reads: the map and the application's record
+            key = (job_id, lang, repr(corpus.stamp(job)), tuple((f.stat().st_mtime_ns, f.stat().st_size) if f.is_file() else None for f in watched))  # changes with any file it is made from
+            with self._deck_lock:  # two requests at once make it once
+                if key not in self._deck_cache:  # 2.5 s for a kit of 600 scripts: made once per change (C3-21)
+                    while len(self._deck_cache) >= 4:  # a few kits at a time
+                        self._deck_cache.pop(next(iter(self._deck_cache)))
+                    self._deck_cache[key] = ivdeck.data(job, lang=lang)  # read from the files as they are now
+                return self._deck_cache[key]
         except (OSError, SystemExit) as exc:  # the kit is unreadable: said in the log, the panel says the deck could not be read
             log.warning("interview deck for %s could not be read: %s", job_id, exc)
             return None

@@ -75,8 +75,49 @@ def resume_lines(text):
     return rows
 
 
-def portfolio_pages(text):
-    """[(page number, title, text)]: pages split at form feeds, else at markdown headings of level one or two."""
+def person_names(prof):
+    """The words of the person's own names, lower case: "홍길동", and "gildong" and "hong" from "Hong, Gildong" or "Gildong Hong"."""
+    person = (prof or {}).get("person") if isinstance((prof or {}).get("person"), dict) else {}  # the person's block
+    english = person.get("en") if isinstance(person.get("en"), dict) else {}  # some profiles keep the English name apart
+    names = (person.get("name"), person.get("name_en"), english.get("name"))  # every place a name may be
+    return {w.lower() for n in names for w in re.findall(r"[A-Za-z]+|[가-힣]+", str(n or "")) if len(w) >= 2}  # its words, one letter is no name
+
+
+def employer_names(prof):
+    """The person's own employers, folded: the whole names and every Latin word of them ("KT", "Gamma Labs" and "gamma")."""
+    out = set()  # folded names
+    for role in (prof or {}).get("roles") or []:  # every company
+        if not isinstance(role, dict):  # a malformed role is skipped
+            continue
+        career = role.get("career") if isinstance(role.get("career"), dict) else {}  # the ledger form
+        names = [role.get(k) for k in ("org", "heading")]  # the plain form
+        for block in (career.get("en"), career.get("ko")):  # both languages of its names
+            if isinstance(block, dict):  # written
+                names += [block.get(k) for k in ("name", "short")]  # the full and the short name
+        for n in names:  # one name
+            n = str(n or "").strip()  # as written
+            if not n:  # empty
+                continue
+            out.add(n.lower())  # the whole name
+            out.update(w.lower() for w in re.findall(r"[A-Za-z][A-Za-z0-9&.]*", n))  # each Latin word
+    return out
+
+
+def is_cover(title, lines, k, names):
+    """A page that only names the person (the deck's cover): its title is made of the name's words alone, or it is a short
+    first page with the name in its first lines."""
+    words = lambda x: [w.lower() for w in re.findall(r"[A-Za-z]+|[가-힣]+", str(x))]  # a text's words
+    title_words = words(title)  # the title's
+    if title_words and all(w in names for w in title_words):  # nothing but the name
+        return True
+    head = set(words(" ".join(lines[:4])))  # the first lines of the page
+    # a short first page holding the name: its Hangul name whole, or two of its Latin words
+    return k == 1 and len(" ".join(lines).split()) < 60 and (any(w in head and re.match("[가-힣]", w) and len(w) >= 3 for w in names) or len(names & head) >= 2)
+
+
+def portfolio_pages(text, names=()):
+    """[(page number, title, text)]: pages split at form feeds, else at markdown headings of level one or two. names: the
+    person's folded names, so that a cover which only carries them is no page to ask about."""
     if "\f" in text:  # pdftotext output
         chunks = text.split("\f")  # one chunk per PDF page
     else:  # a markdown or plain export
@@ -89,6 +130,8 @@ def portfolio_pages(text):
         physical = [re.sub(r"^#+\s*", "", x).strip() for x in c.splitlines() if x.strip()]  # the page's own lines
         # its first line that reads as words: a running head in capitals with its page count and spaced-out dates is not a title
         title = next((x for x in physical if len(x.split()) >= 2 and re.search(r"[a-z가-힣]{2}", x)), None) or next((x for x in physical if len(x.split()) >= 2), physical[0])
+        if names and is_cover(title, physical, k, names):  # the cover that carries the person's name
+            continue
         pages.append((k, re.sub(r"\s{2,}", " ", title)[:120], "\n".join(body)))  # the title squeezed and capped for tables
     return pages
 
@@ -105,13 +148,26 @@ def own_terms(job, resume, portfolio):
             if name and name not in seen and 1 <= len(name.split()) <= 3:  # new and short; long phrases are not terms
                 seen[name] = 1  # counted once, after the abbreviations
     initials = name_initials(prof)  # the person's own initials, printed on a deck's every page, are not a term
+    employers = employer_names(prof)  # nobody is asked what their own employer is
+    heads = heading_words("\n".join(texts))  # capitals that only head a section of the resume ("ROLE", "FOCUS")
     lower = {}  # one entry per spelling, ignoring case (K8S and K8s)
     for a, k in seen.items():  # merge spellings that differ only in case
-        if a in initials:  # nobody asks what your initials stand for
+        if a in initials or a.lower() in employers or a in heads:  # initials, an own employer and a section head are no terms
             continue
         lower.setdefault(a.lower(), (a, 0))  # the first spelling seen is the one shown
         lower[a.lower()] = (lower[a.lower()][0], lower[a.lower()][1] + k)  # add this spelling's count to it
     return list(lower.values())  # (term, count) pairs in order of first use
+
+
+def heading_words(text):
+    """Capitalised words of 4 letters or more that only ever start a line ("ROLE  Platform lead", "FOCUS"): labels of a
+    layout, never an abbreviation the person uses inside a sentence."""
+    starts, inside = set(), set()  # where each capitalised word was seen
+    for ln in str(text or "").splitlines():  # line by line
+        ln = ln.strip()  # no margin
+        for m in re.finditer(r"(?<![A-Za-z0-9])[A-Z]{4,}(?![A-Za-z0-9])", ln):  # an all-capital word
+            (starts if m.start() == 0 else inside).add(m.group(0))  # at the head of its line, or inside it
+    return starts - inside  # only ever at a line's head
 
 
 def name_initials(prof):
@@ -266,6 +322,7 @@ def build(job, out=None):
     rp, pp = job.submitted("resume"), job.submitted("portfolio")  # the documents that were sent
     resume = read_text(rp) if rp else ""  # no resume sent, no resume questions
     portfolio = read_text(pp) if pp else ""  # the same for the portfolio
+    prof = (read_json(job.profile_path, {}) or {}) if job.profile_path else {}  # the confirmed facts: the name for the cover
     rows = []  # the map
 
     def add(kind, pid, source, txt, ask, section=""):  # one map entry, rated for coverage on its own text
@@ -281,7 +338,7 @@ def build(job, out=None):
     for k, (n, line) in enumerate(resume_lines(resume), 1):  # one entry per resume line, ids r1, r2, ...
         # the source is the resume file and line; the questions ask the person to explain the line
         add("resume", f"r{k}", f"{rp.name}:{n}", line, {"en": fill(STD["resume"]["en"], text=line), "ko": fill(STD["resume"]["ko"], text=line)})
-    for k, (page, title, body) in enumerate(portfolio_pages(portfolio), 1):  # one entry per portfolio page, ids f1, f2, ...
+    for k, (page, title, body) in enumerate(portfolio_pages(portfolio, person_names(prof)), 1):  # one entry per portfolio page, ids f1, f2, ...
         rating_text = title + "\n" + body  # a page is covered by what it shows, not only its title
         rating, by, _ = cov.rate(rating_text)  # rated on the whole page, which is why add() is not used here
         # the entry shows only the page title, with the file and page number as its source

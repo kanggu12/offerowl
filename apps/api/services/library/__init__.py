@@ -14,5 +14,6 @@ files) and agent (the finished runs). A job's card and folder, and the Trash's m
 
 Offers: removed_counts (how many things the Trash holds, for the state). Everything else it does is its endpoints.
 """
+from . import backup  # noqa: F401  the backup, whose leftovers the start sweeps
 from .removed import counts as removed_counts  # noqa: F401  the Trash's counts, for the state
 from .routes import GET as GET_ROUTES, POST as POST_ROUTES, UPLOADS as UPLOAD_ROUTES  # noqa: F401  its endpoints, which the gateway gathers

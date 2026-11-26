@@ -360,8 +360,10 @@ every dated step.
   to point, what to say, the one line when time runs short, the questions to expect), then the questions with what backs
   each answer; beside it the keys to the slides and the script as PDFs and **Save to the Desktop**. It needs no question map.
 - "Add scenes you wrote" takes scene files in the kit's markdown into the job's kit folder (`POST /api/v1/interview/scenes`):
-  a file with no scene is refused, a name already there gets a number, and files named `deep…`, `terms…` or `notes…` keep
-  those roles in kit.json.
+  a file with no scene, or one whose words the kit holds already, is refused (each with its own word in the note), a name
+  already there gets a number, and files named `deep…`, `terms…` or `notes…` keep those roles in kit.json. Each write that
+  changes the kit's scripts or its map (scenes added, a kit carried, **Make the question map**, **Make the question map
+  again**) is an undo step of its own that takes the question map back with it.
 - **Your materials** (`apps/api/services/applications/materials.py`), under the scripts: files prepared for the job with other tools, kept byte for
   byte with their SHA-256: PDF, PowerPoint, Word, Markdown, HTML, text, Python, PNG and JPG, 50 MB each at most; any other kind is
   refused with `material_kind`. Drop them on the part (a folder is walked) or choose them. A name loses the characters a disk

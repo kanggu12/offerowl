@@ -988,4 +988,16 @@ CATALOGS.ko = {
   "Write at least one topic the interviewers asked for.": "면접관이 요청한 주제를 하나 이상 적어 주세요.",
   "This page of the interview kit is not there.": "찾는 면접 자료가 없습니다.", "Open the Interview tab": "면접 탭 열기",
   "{company} interview kit": "{company} 면접 자료",
+  // 0.16.1: the kit's writes as undo steps, the map made again (round 3: C3-02, C3-03, C3-05, C3-13)
+  "Added scenes to {what}": "{what}에 대본 추가", "Added scenes": "대본 추가", "Made the question map of {what}": "{what}의 예상 질문 만듦", "Made a question map": "예상 질문 만듦",
+  "Make the question map again": "예상 질문 다시 만들기", "Map": "질문 지도", "No answer to submit yet.": "제출할 답이 아직 없습니다.",   // the map's tab on a phone: one short word (C3-15)
+  "Made the question map: {n} question.": "예상 질문 {n}개를 만들었습니다.", "Made the question map: {n} questions.": "예상 질문 {n}개를 만들었습니다.",
+  "{n} file was in the kit already.": "파일 {n}개는 이미 들어 있습니다.", "{n} files were in the kit already.": "파일 {n}개는 이미 들어 있습니다.",
+  "{n} file held no scenes.": "파일 {n}개에는 대본이 없었습니다.", "{n} files held no scenes.": "파일 {n}개에는 대본이 없었습니다.",
+  // 0.16.1: sturdiness (round 3, area D2)
+  "Kept the writing rules {what}": "작성 규칙 {what} 저장", "Kept writing rules": "작성 규칙 저장", "Kept a rule: {what}": "규칙 저장: {what}", "Kept a rule": "규칙 저장",
+  "The next step was changed in another window, so your words were not saved. Its words are shown.": "다른 창에서 다음 할 일이 바뀌어 입력한 내용은 저장하지 않았습니다. 바뀐 내용을 보여 드립니다.",
+  "That request could not be read. Open the page again and try once more.": "요청을 읽지 못했습니다. 페이지를 다시 열어 한 번 더 해 보세요.", "The interview kit did not answer.": "면접 자료가 응답하지 않습니다.",
+  "The slides use the resume's sentences.": "슬라이드에는 이력서 문장이 들어갑니다.",
+  "Replace the rules {name}?": "{name} 규칙을 바꿀까요?", "The rules kept under that name are replaced by this file. Undo brings them back.": "그 이름으로 저장된 규칙이 이 파일로 바뀝니다. 되돌리기로 돌아옵니다.", "Replace": "바꾸기",
 };

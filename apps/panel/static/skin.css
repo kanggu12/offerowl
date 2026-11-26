@@ -2449,7 +2449,7 @@ html[data-motion="off"] .pgr-step.prev:hover:not(:disabled) svg { transform: non
 .more-key { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--key-face);
   box-shadow: var(--key-lift); color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 500; white-space: nowrap; cursor: pointer;
   transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease); }
-.more-key svg { width: 16px; height: 16px; transform: rotate(-90deg); }               /* the back mark turned to point down: what follows (a key's mark is 16 px, C3-18) */
+.more-key svg { width: 14px; height: 14px; transform: rotate(-90deg); }               /* the back mark turned to point down: what follows (a sign, 14 px as a pager's arrow) */
 .more-key.on svg { transform: rotate(180deg); }                                      /* a way to another view: it points on */
 .more-key:hover { background: var(--key-face-hi); border-color: var(--key-edge-hi); color: var(--ink); }
 .more-key:hover svg { transform: rotate(-90deg) translateX(-2px); } .more-key.on:hover svg { transform: rotate(180deg) translateX(-2px); }
@@ -2551,7 +2551,6 @@ body::after { display: block; content: ""; position: fixed; inset: 0; z-index: -
 .kit-cards:not(.measure) .kit-block > .kit-card { height: auto; align-self: flex-start; }   /* a long answer balanced over its inner columns, as tall as its words (the plan measured it at the board's height) */
 .kit-screens { flex: none; height: var(--ctl-h); }                                    /* "2 / 5" between its keys, as tall as the bar's keys */
 .kit-screens[hidden] { display: none; }
-.kit-screens .kit-at { display: inline-grid; place-items: center; min-width: 52px; padding: 0 6px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 .ivseg .w-s { display: none; }                                                        /* the interview's parts: their whole names on a wide window */
 @media (max-width: 640px) {                                                           /* a phone: the five parts on one row by their short names, and the application's head on two lines */
   .seg.ivseg { flex-wrap: nowrap; } .ivseg .w-l { display: none; } .ivseg .w-s { display: inline; } .ivseg button svg { display: none; }
@@ -2731,3 +2730,34 @@ svg[data-i] { overflow: visible; }                                              
 /* the kit's page that is not there (web.py missing_page): the panel's own card on the panel's desk, in the middle of the window */
 .kitgone-in { min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box; }
 .kitgone-card { width: min(440px, 100%); box-sizing: border-box; }
+
+/* ---- 0.16.1: the interview kit's board and the question map (round 3, C3-11, C3-12, C3-17) ---- */
+.kit-screens .combo { min-width: 84px; }                                              /* the screens' picker, "2 / 5" on its key, as the other pagers' */
+.kit-slot.tall > .kit-card { height: 100%; overflow-y: auto; overscroll-behavior: contain; }   /* an answer longer than a screen: one column that scrolls inside its card, never a second screen wide */
+.qboard { align-items: start; }                                                       /* each column as tall as its questions: a row at one height left empty bands under the short ones (C3-12) */
+.kit-body .ko-note, .deck-note { padding: 2px 0 2px 14px; border: 0; border-left: 1px solid var(--line-2); border-radius: 0; background: none; }   /* the English beside the script: a column with a hairline rule, never a box inside the card (C3-17) */
+.kit-body .ko-note .nh { padding: 0; background: none; }                              /* its name as plain words, not a chip inside the box */
+.kit-q::placeholder { text-overflow: ellipsis; }                                      /* a placeholder longer than the box ends in "…", never in half a syllable (C3-15) */
+@media (max-width: 640px) {                                                           /* a phone */
+  .pr-head h3 { flex: 1 0 100%; }                                                     /* the title on its own line, so both clocks sit on the next one (the second dropped to a line of its own) */
+  .ivtop .part-keys { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }   /* the part's keys one under another at one width, never four widths */
+  .ivtop .part-keys > .btn { width: 100%; justify-content: center; }
+  .ivtop .part-keys .carry { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }   /* which application, then its key: one row, even halves */
+  .ivtop .part-keys .carry .combo, .ivtop .part-keys .carry .btn { width: 100%; }
+}
+.scriptrow .sid { font: 600 11px/1.4 var(--mono, monospace); color: var(--ink-3); }   /* the script's number over its title, as the search view's rows carry it (C2-16) */
+.script:has(> .kit-one) { padding: 0; gap: 0; }                                       /* the search view's own card is the whole script: no second box around it */
+.script > .kit-one .kit-card { border: 0; background: none; }
+/* ---- 0.16.1: sturdiness (area D2) ---- */
+/* the keys that fix several lines of a run's list at once stand under the list, with the list's own spacing */
+.problist-keys { display: flex; flex-wrap: wrap; gap: var(--gap-xs); margin-top: var(--gap-s); }
+/* the Documents head keeps one height on every tab (B3-13): from 1400 px the title and the keys share one row, the subtitle giving way with an ellipsis (its words are on the key's title); from 860 px up to that the keys always take the row under the title */
+@media (min-width: 1400px) {
+  .dochead .viewhead { flex-wrap: nowrap; }
+  .dochead .viewhead > .sub { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dochead .viewhead > .docacts { flex: none; flex-wrap: nowrap; }
+  .dochead .viewhead > .grow { flex: 1 1 0; min-width: 0; }
+}
+@media (min-width: 860px) and (max-width: 1399px) {
+  .dochead .viewhead > .docacts { flex: 1 1 100%; }
+}

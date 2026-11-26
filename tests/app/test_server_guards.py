@@ -261,5 +261,56 @@ class Chunks(unittest.TestCase):
         self.assertTrue(got.startswith(b"HTTP/1.1 411") or got.startswith(b"HTTP/1.0 411"), got[:80])  # told to send a length
 
 
+class Slow(unittest.TestCase):
+    """A client that never finishes its request head holds a slot only for the head's own short timeout (D3-11)."""
+
+    def test_an_unfinished_request_head_is_dropped_after_the_head_timeout(self):
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-slow-"))  # the data folder
+        self.addCleanup(shutil.rmtree, tmp, True)
+        p = mock.patch.dict(os.environ, {"OFFEROWL_PANEL_BACKEND": "none", "OFFEROWL_DESKTOP": str(tmp / "Desktop")})  # nothing real
+        p.start()
+        self.addCleanup(p.stop)
+        from apps.panel import server  # the panel's server
+        srv = server.serve(0, data=tmp / "data")  # a free port
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        handler = srv.RequestHandlerClass  # the panel's own
+        with mock.patch.object(handler, "header_timeout", 1):  # a second instead of ten, for the test
+            port = srv.server_address[1]
+            with socket.create_connection(("127.0.0.1", port), timeout=10) as s:
+                s.sendall(b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n")  # the head never ends
+                t0 = time.monotonic()
+                got = s.recv(4096)  # the server closes it: nothing, or an error answer
+                self.assertLess(time.monotonic() - t0, 5)  # long before the body timeout of 120 s
+            with socket.create_connection(("127.0.0.1", port), timeout=10) as s:  # a whole request still gets its answer
+                s.sendall(f"GET /api/v1/history HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n".encode())
+                answer = s.recv(100)
+                self.assertIn(b" 200 ", answer.split(b"\r\n")[0], answer)  # answered as ever
+        self.assertIsInstance(got, bytes)
+
+    def test_a_file_over_its_cap_is_answered_413_to_a_client_still_sending(self):
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-big-"))  # the data folder
+        self.addCleanup(shutil.rmtree, tmp, True)
+        p = mock.patch.dict(os.environ, {"OFFEROWL_PANEL_BACKEND": "none", "OFFEROWL_DESKTOP": str(tmp / "Desktop")})  # nothing real
+        p.start()
+        self.addCleanup(p.stop)
+        from apps.panel import server  # the panel's server
+        srv = server.serve(0, data=tmp / "data")  # a free port
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        port, size = srv.server_address[1], 12_000_000  # a photo is capped at 10 MB (D3-12: this was a broken pipe, not a 413)
+        with socket.create_connection(("127.0.0.1", port), timeout=20) as s:
+            s.sendall((f"POST /api/v1/photo HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/octet-stream\r\n"
+                       f"X-File-Name: big.png\r\nContent-Length: {size}\r\n\r\n").encode())
+            sent = 0
+            while sent < size:  # the whole body, as a client that does not stop to read does
+                s.sendall(b"\0" * min(1 << 20, size - sent))
+                sent += min(1 << 20, size - sent)
+            got = s.recv(4096)
+        self.assertIn(b" 413 ", got.split(b"\r\n")[0], got[:100])  # told, not cut off
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -13,7 +13,7 @@ import os  # the process id in a working name
 import re  # names a backup may hold
 import shutil  # the working folder
 import stat  # a link in a zip
-import tempfile  # the backup built in a file, never whole in memory
+import tempfile  # a unique name for the backup built in a file, never whole in memory
 import time  # the kept folder's name
 import zipfile  # the file
 from pathlib import Path, PurePosixPath  # paths on disk, and names in a zip
@@ -27,6 +27,7 @@ MARK = "offerowl-backup.json"  # the entry that says what this file is
 MAX_UNPACKED = 4_000_000_000  # bytes a backup may unpack to: a real workspace is tens of megabytes, a planted zip may be far more
 MAX_ENTRIES = 200_000  # entries a backup may hold, for the same reason
 ODD_NAME = re.compile(r'[<>"|?*:\\\x00-\x1f]')  # never in a name the workspace writes; a path with one of these could break out of a page or of the folder
+BACKUP_PREFIX = ".backup-"  # a backup being made is named by the process that makes it (sweep_leftovers)
 PASSING = re.compile(r"\.\d+\.\d+\.tmp$")  # a write in progress (workspace.tmp_name)
 
 
@@ -50,22 +51,83 @@ STORED = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".docx", ".pptx", ".
 
 
 def write_file(ws: Workspace, version: int = 1) -> Path:
-    """The workspace as a zip in a temporary file, which the caller sends and then deletes. Never whole in memory: a real
-    workspace backs up to hundreds of megabytes. Files a job's working folder holds for a moment stay out."""
-    fd, name = tempfile.mkstemp(prefix="offerowl-backup-", suffix=".zip")  # outside the workspace: it is not in its own backup
+    """The workspace as a zip in a file inside the data folder (never /tmp: a container's /tmp is memory, and a killed download
+    leaves no stray file there), which the caller sends and then deletes. Never whole in memory: a real workspace backs up to
+    hundreds of megabytes. The file list is taken under the workspace lock and the zipping runs outside it, so a write is
+    never held for the seconds a big workspace takes (D3-05). Files a job's working folder holds for a moment stay out."""
+    ws.root.parent.mkdir(parents=True, exist_ok=True)  # the data folder, on its own disk
+    fd, name = tempfile.mkstemp(prefix=f"{BACKUP_PREFIX}{os.getpid()}-", suffix=".zip", dir=ws.root.parent)  # beside the workspace, not in it: it is not in its own backup; the pid in the name tells a later start whose it was
     os.close(fd)
     path = Path(name)
     try:
-        with ws.lock, zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:  # no write of this workspace lands half way through
+        with ws.lock:  # only the listing waits for the writes
+            files = [(f, f.relative_to(ws.root)) for f in sorted(p for p in ws.root.rglob("*") if p.is_file())]  # every file, in a fixed order, with its name in the zip
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:  # the zipping, outside the lock
             z.writestr(MARK, json.dumps({"app": "offerowl", "backup": version, "at": time.strftime("%Y-%m-%d %H:%M")}))  # what this file is
-            for f in sorted(p for p in ws.root.rglob("*") if p.is_file()):  # every file, in a fixed order
-                rel = f.relative_to(ws.root)  # its name in the zip
-                if _kept(rel):  # what a person would want back
+            for f, rel in files:
+                if not _kept(rel):  # what a person would want back
+                    continue  # an undo step, a working folder, a write in progress
+                try:
                     z.write(f, rel.as_posix(), compress_type=zipfile.ZIP_STORED if f.suffix.lower() in STORED else zipfile.ZIP_DEFLATED)
+                except FileNotFoundError:  # taken off since the listing (a deletion for good): not part of the backup
+                    continue
     except BaseException:  # a half-made file goes
         path.unlink(missing_ok=True)
         raise
     return path
+
+
+def _alive(pid: int) -> bool:
+    """Is a process with this id running? (os.kill(pid, 0) on Windows would send Ctrl+C, so it asks the system instead.)"""
+    if pid <= 0:  # not a process id
+        return False
+    if os.name == "nt":  # Windows
+        import ctypes  # the system call
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # query-limited-information
+        if not handle:  # no such process
+            return False
+        code = ctypes.c_ulong()  # its exit code
+        ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)  # signal 0 only asks
+    except ProcessLookupError:  # gone
+        return False
+    except OSError:  # alive, owned by another user
+        return True
+    return True
+
+
+def sweep_leftovers(ws: Workspace, old_s: int = 6 * 3600) -> int:
+    """At server start: delete what a killed restore or backup download left beside the workspace (D3-03, D3-04): the upload's
+    .upload-<pid>-<thread>.part, the unpacking folder <workspace>.restoring-<pid> and a backup's .backup-<pid>-*.zip. One is
+    kept only when its process still runs and it is not old (a pid is reused). Returns how many went."""
+    parent, n = ws.root.parent, 0  # the data folder, and how many went
+    shapes = [re.compile(r"\.upload-(\d+)-\d+\.part"), re.compile(r"\.backup-(\d+)-.*\.zip"),
+              re.compile(re.escape(ws.root.name) + r"\.restoring-(\d+)")]  # the names the three writers give, each with its pid
+    try:
+        found = list(parent.iterdir())
+    except OSError:  # a folder that cannot be listed: nothing to sweep
+        return 0
+    for p in found:
+        for shape in shapes:
+            m = shape.fullmatch(p.name)  # one of ours?
+            if not m or p.is_symlink():  # a link of that name is never followed
+                continue
+            pid = int(m.group(1))  # its owner
+            try:
+                young = time.time() - p.stat().st_mtime < old_s  # touched lately
+            except OSError:
+                continue
+            if pid == os.getpid() or (young and _alive(pid)):  # this process's own, or a live one's at work
+                continue
+            if p.is_dir():
+                shutil.rmtree(p, ignore_errors=True)  # a half-unpacked workspace
+            else:
+                p.unlink(missing_ok=True)  # a piece
+            n += 1
+    return n
 
 
 def write(ws: Workspace, version: int = 1) -> bytes:

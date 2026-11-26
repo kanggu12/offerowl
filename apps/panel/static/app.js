@@ -349,15 +349,18 @@ $("scrim").addEventListener("click", () => { UI.drawer = false; if (UI.askOpen) 
 $("filepick").addEventListener("change", (e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) makeFrom({ files: f }); });  // picked files start a run
 $("scenepick").addEventListener("change", async (e) => {                         // interview scenes written before, into the job in view
   const files = [...e.target.files]; e.target.value = ""; if (!files.length || !UI.scenesFor) return;
-  let scenes = 0, refused = 0;                                                      // what came in
+  let scenes = 0, refused = 0, twice = 0, step = null;                              // what came in, what held no scenes, what was in the kit already
   for (const f of files) {                                                          // one request each
     try {
       const r = await postFile(`/api/v1/interview/scenes?job=${enc(UI.scenesFor)}`, f);
       const j = await r.json().catch(() => ({}));                                   // its answer
-      if (r.ok) scenes += j.scenes || 0; else refused++;                            // counted
+      if (r.ok) { scenes += j.scenes || 0; step = j.step || step; }                 // counted; the last step is the one the toast's Undo takes back
+      else if (j.error === "already_there") twice++; else refused++;                // the reason, as the server gives it (C3-05)
     } catch (_) { refused++; }
   }
-  toast(refused ? t("{n} scenes added; {m} files held no scenes.", { n: scenes, m: refused }) : tn(scenes, "{n} scene added.", "{n} scenes added."), null, refused ? "warn" : "done");
+  const said = [scenes || !(refused || twice) ? tn(scenes, "{n} scene added.", "{n} scenes added.") : "", twice ? tn(twice, "{n} file was in the kit already.", "{n} files were in the kit already.") : "",
+    refused ? tn(refused, "{n} file held no scenes.", "{n} files held no scenes.") : ""].filter(Boolean).join(" ");   // each reason on its own
+  toast(said, step && files.length === 1 ? { words: t("Undo"), run: () => undoOnly(step) } : null, refused || twice ? "warn" : "done");   // one file: its own Undo on the note
   if (typeof boardReload === "function") boardReload(UI.scenesFor);                 // the board reads them again
   refresh();
 });
@@ -394,7 +397,10 @@ $("stylepick").addEventListener("change", async (e) => {                        
   let pack = null;                                                                  // its rules
   try { pack = JSON.parse(await f.text()); } catch (_) { /* not JSON */ }
   if (!pack || typeof pack !== "object" || Array.isArray(pack)) { toast(t("That file is not a rules file."), null, "bad"); return; }
-  const r = await act("/api/v1/style", { name: f.name.replace(/\.json$/i, ""), pack });   // checked and kept, then in use
+  const name = f.name.replace(/\.json$/i, "");                                       // the name it is kept under, as the server makes it
+  const kept = name.replace(/[^\p{L}\p{N}_.-]+/gu, "-").slice(0, 60).replace(/^[-.]+|[-.]+$/g, "") || "mine";   // a safe file name, "mine" when nothing is left
+  if ((S.styles || []).includes(kept === "default" ? "mine" : kept) && !await askFirst({ title: t("Replace the rules {name}?", { name: kept === "default" ? "mine" : kept }), text: t("The rules kept under that name are replaced by this file. Undo brings them back."), ok: t("Replace") })) return;   // a pack of that name is there: asked first
+  const r = await act("/api/v1/style", { name, pack });                            // checked and kept, then in use
   if (r) toast(t("The rules {name} are in use.", { name: r.style }), null, "done");
 });
 $("blindpick").addEventListener("change", async (e) => {                         // a person's own table for the blind edition
@@ -407,7 +413,7 @@ $("blindpick").addEventListener("change", async (e) => {                        
 });
 $("folderpick").addEventListener("change", (e) => { const f = [...e.target.files]; e.target.value = ""; if (f.length) makeFrom({ files: f }); });  // a picked folder, every file in it
 window.addEventListener("resize", debounce(redrawAll, 200));                       // the pages are laid out for the new width
-PHONE.addEventListener?.("change", () => { $("canvas")._key = null; render(); });  // the phone layout turned on or off
+PHONE.addEventListener?.("change", () => { UI.boardLeft = null; $("canvas")._key = null; render(); });  // the phone layout turned on or off: the board starts from its open column again, not at the desktop's scroll (B3-25)
 const underBar = () => $("top").classList.toggle("under", window.scrollY > 4);    // the bar takes its glass once the page slides under it
 window.addEventListener("scroll", underBar, { passive: true });                    // as the page scrolls,
 window.addEventListener("resize", underBar);                                       // and when a new window size moves the page without a scroll event (WebKit, measured)

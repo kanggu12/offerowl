@@ -40,6 +40,7 @@
    "toc_deep": "이력 {name}",
    "toc_count": "{name} ({n}문항)",
    "toc_folded": "대본 묶음",
+   "toc_cont": "{name} (이어서)",
    "toc_rows": "이력 상세, 용어, 참고 자료",
    "labels": {
     "면접관": "면접관",
@@ -270,6 +271,7 @@
    "toc_deep": "Resume: {name}",
    "toc_count": "{name} ({n} items)",
    "toc_folded": "Script groups",
+   "toc_cont": "{name} (continued)",
    "toc_rows": "Resume deep dives, terms and references",
    "labels": {
     "면접관": "Interviewer",

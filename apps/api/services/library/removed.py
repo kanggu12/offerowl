@@ -37,10 +37,10 @@ ASIDE_FILES = 100_000  # files counted for an aside's size: a folder larger than
 
 
 def asides(ws) -> list[Path]:
-    """The folders backup.restore kept beside the workspace (<workspace>-before-restore-YYYYmmdd-HHMMSS), real folders only:
+    """The folders backup.restore kept beside the workspace (<workspace>-before-restore-YYYYmmdd-HHMMSS, with -N when a second one came in that second), real folders only:
     a link of that name, or anything else beside the workspace, is never listed and never deleted."""
     root = ws.root.resolve()  # the workspace as the system names it
-    name = re.compile(re.escape(root.name) + r"-before-restore-\d{8}-\d{6}")  # the one shape restore() gives them
+    name = re.compile(re.escape(root.name) + r"-before-restore-\d{8}-\d{6}(-\d+)?")  # the shapes restore() gives them: a second one in the same second takes a number (aside_name)
     try:
         found = list(root.parent.iterdir())  # beside it
     except OSError:  # a parent that cannot be listed: nothing to offer

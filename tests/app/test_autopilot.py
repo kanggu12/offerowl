@@ -715,6 +715,19 @@ class Deliver(unittest.TestCase):
         t._clean_engine("-general", "ko", self.ed)
         self.assertFalse(staged.exists())  # it leaves with the edition's other working copies
 
+    def test_a_rules_file_written_over_one_of_its_name_is_an_undo_step(self):
+        first = {"banned_chars": "—"}  # the pack kept first
+        self.c.post("/api/v1/style", {"name": "again", "pack": first})
+        path = self.c.api.ws.path("style", "again.json")  # where it lives
+        before = path.read_bytes()
+        self.c.post("/api/v1/style", {"name": "again", "pack": {"banned_chars": "~"}})  # written over (D3-01)
+        self.assertNotEqual(before, path.read_bytes())  # replaced
+        top = self.c.get("/api/v1/history")["steps"][0]["label"]  # the newest step in the list, as its label says
+        self.assertEqual("undo_style", top["code"])  # it is a step of its own
+        self.c.post("/api/v1/history/undo", {"steps": 1})
+        self.assertEqual(before, path.read_bytes())  # the old rules are back
+        self.c.post("/api/v1/settings", {"style": "default"})  # as it was
+
     def test_a_rules_file_is_checked_kept_and_used(self):
         with self.assertRaises(Exception):  # a pattern that would stop every check later
             self.c.post("/api/v1/style", {"name": "mine", "pack": {"banned_patterns": [["(unclosed", "why"]]}})

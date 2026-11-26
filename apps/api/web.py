@@ -59,8 +59,23 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
     sys_version = ""  # nor the Python build after it
     body_read = False  # set once the request's body is read; a refusal before that reads it first (refuse)
     DRAIN_MAX = 1_000_000  # bytes of a refused request's body read before the answer
+    LINGER_MAX = 300_000_000  # bytes of a refused body read and dropped after the answer (the largest upload is 60 MB; a backup's cap is larger, and is left to the reset)
     timeout = 120  # seconds a socket read or write may wait: a client that says a length and stops sending, or a kept-alive
     #                connection nobody uses, lets its thread go (http.server closes the connection on the timeout)
+
+    header_timeout = 10  # seconds the request line and headers may take (D3-11): a client that opens a connection and never finishes them
+    #                      frees its slot in 10 s, not 120, so 80 such sockets cannot keep the panel "busy" for two minutes
+
+    def handle_one_request(self) -> None:
+        """One request, with the short timeout for its head; parse_request gives the long one back for the body and the answer."""
+        self.connection.settimeout(self.header_timeout)  # also the wait for the next request of a kept-alive connection
+        super().handle_one_request()
+
+    def parse_request(self) -> bool:
+        """The request line and headers are read: from here the ordinary timeout holds (a body that is slow to come)."""
+        ok = super().parse_request()
+        self.connection.settimeout(self.timeout)  # a long upload may take its time between pieces
+        return ok
 
     @classmethod
     def bind(cls, router: Router, port: int) -> None:
@@ -213,15 +228,31 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         """A refusal sent before the request's body was read. The body is read first, up to a megabyte: a socket closed with
         bytes unread is reset, and on Windows the reset can reach the client before the answer does, which then reads as a
         dropped connection instead of the refusal."""
+        left = 0  # bytes of the body still to come after the answer
         if self.command == "POST" and not self.body_read:  # a body that may still be on its way
             try:
                 n = int(self.headers.get("Content-Length") or 0)  # its size, as the client says
                 if 0 < n <= (drain or self.DRAIN_MAX):  # a small one (or one up to the limit given): read and dropped
                     self.connection.settimeout(10)  # a client that sends less than it said does not hold the thread
                     self.rfile.read(n)
+                elif n > 0:  # a large one (a file over its cap, D3-12): answered first, then the rest is read and dropped
+                    left = n
             except (ValueError, OSError):  # a bad length, or a client that stopped sending: answered all the same
                 pass
         self.send(code, body)  # the refusal
+        if left:  # the client is still sending: reading it out lets it finish and read the answer (closing now reset the connection)
+            self.close_connection = True  # nothing after this body is read as a request
+            self.body_read = True
+            try:
+                self.connection.settimeout(5)  # a client that stops sending lets the thread go
+                end = time.monotonic() + 30  # and no one holds it longer than this
+                while left > 0 and time.monotonic() < end and left <= self.LINGER_MAX:  # a body larger than any upload is left to the reset
+                    piece = self.rfile.read(min(left, 1 << 20))
+                    if not piece:  # the client closed
+                        break
+                    left -= len(piece)
+            except OSError:  # a client that stopped or went away
+                pass
 
     def length_required(self) -> None:
         """411 for a body sent in chunks (Transfer-Encoding): every write here is read by its Content-Length, which browsers
@@ -369,8 +400,9 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             return self.refuse(403, {"error": str(exc)})  # names the check that refused
         except BodyTooLarge:  # over MAX_JSON: read and dropped up to a limit, so the answer arrives before the socket closes
             return self.refuse(413, {"error": "body_too_large"}, drain=MAX_JSON * 4)
-        except (ValueError, RecursionError):  # not JSON, not an object, a bad length header, or JSON nested a hundred thousand deep
-            return self.refuse(400, {"error": "bad_request"})  # nothing was done
+        except (ValueError, RecursionError) as exc:  # not JSON, not an object, a bad length header, or JSON nested a hundred thousand deep
+            what = str(exc) if str(exc) in ("length", "shape") else "json"  # which check refused it: a bad length, a body that is no object, or one that is no JSON (D3-10)
+            return self.refuse(400, {"error": "bad_request", "what": what})  # nothing was done, and the page can say why
         except Exception:  # an upload that failed on its own (a full disk): answered, not a dropped connection
             log.exception("POST %s", path)  # the traceback goes to the log, not the page
             return self.send(500, {"error": "unexpected"})  # the page shows a general error

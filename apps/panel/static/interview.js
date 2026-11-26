@@ -402,7 +402,7 @@ function practiceView(j, kit0) {                                                
   async function send(extra) {                                                      // an answer (typed, or a recording's words) to the kit, then its feedback
     const q = prQ();                                                                // the question
     const text = (extra && extra.text !== undefined ? extra.text : PR.draft || "").trim();   // what was said or typed
-    if (!text) { const box = el.querySelector("textarea"); if (box) box.focus(); return; }   // nothing to look at
+    if (!text) { toast(t("No answer to submit yet."), null, "info"); const box = el.querySelector("textarea"); if (box) box.focus(); return; }   // nothing to look at: said, and the box takes the keyboard (C2-19)
     const seconds = (extra && extra.seconds) || (Date.now() - PR.tq) / 1000;        // the answer's time
     PR.view = "busy"; PR.busy = fmt("pr_checking"); PR.said = text; draw();         // the wait is shown
     try {

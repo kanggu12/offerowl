@@ -393,7 +393,14 @@ def select(job, kinds=None, ids=None, n=None):
         pages = file_order(rows, scenes, files)  # in the file's order
         if files:  # the kit's other scripts follow as the map ranks them, as in a deck made from the map alone
             printed = {sid for _, _, sid in pages}  # already in
-            pages += [pg for pg in pick(rows, scenes, None, None, n) if pg[2] not in printed]  # the posting, the resume, the technical questions
+            extra = [pg for pg in pick(rows, scenes, None, None, n) if pg[2] not in printed]  # the posting, the resume, the technical questions
+            sizes = {}  # how many scripts each leftover part brings
+            for pg in extra:
+                sizes[pg[0]] = sizes.get(pg[0], 0) + 1
+            for pg in extra:  # a leftover part of one or two scripts is no part of its own (a tab and a cell of the cover for a page or two): it joins the part before it
+                if sizes[pg[0]] <= 2 and pages:
+                    pg[0] = pages[-1][0]  # the file's last heading, or the leftover part before this one
+                pages.append(pg)  # in the map's order, after the file's own scripts
         pages = asked_first(pages, rows, scenes, n)  # what an earlier round asked, right after the greeting
     else:  # the map's likeliest questions, part by part
         pages = pick(rows, scenes, want_kinds, want_ids, n)  # what the deck prints

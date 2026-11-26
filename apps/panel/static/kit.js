@@ -333,7 +333,7 @@ function menuLabel(name) {  // "D. Behavioral, career, HR" -> "D" + short name
         h("button", { type: "button", "data-v": String(v), "aria-pressed": "false", text: w })))));
   const scrPrev = h("button", { type: "button", class: "pgr-step prev", title: t("Previous"), "aria-label": t("Previous") }, icon("back"));   // the board a screen back, as the pager's keys
   const scrNext = h("button", { type: "button", class: "pgr-step next", title: t("Next"), "aria-label": t("Next") }, icon("back"));
-  const scrAt = h("span", { class: "kit-at", "aria-live": "polite" });              // which screen of how many: the board goes on sideways
+  const scrAt = h("select", { class: "pgr-pick kit-at", "aria-label": t("Go to page"), "aria-live": "polite" });   // which screen of how many, as the panel's other pagers say it: a picker "n / N"
   const screensBox = h("div", { class: "pgr-keys kit-screens", role: "group", "aria-label": t("Pages"), hidden: true }, scrPrev, scrAt, scrNext);
   const elMenu = h("nav", { class: "kit-menu", "aria-label": fmt("menu_aria") });   // the sections, a key each
   const elRank = h("nav", { class: "kit-rank", "aria-label": fmt("rank_aria") });   // the answers on the board, in reading order
@@ -435,7 +435,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     if (score > 0.04) out.push({ i, score, kn, dn, sim: ds ? ds[0] : null, why: ds && dn > 0.55 ? ds : null });
   });
   out.sort((a, b) => b.score - a.score);  // best first
-  const weak = d ? d.max < 0.6 || (kmax === 0 && d.max < 0.7) : kmax === 0;  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62; no word of the query in any script needs a closer match (gibberish reached 0.6)
+  let whole = 0; if (!d && words.length) for (const doc of DOCS) whole = Math.max(whole, words.filter((x) => doc.tf.has(x)).length);  // keywords alone: the most of the query's whole words any one script holds (a bigram of Hangul here and there is no match: C3-01)
+  const weak = d ? d.max < 0.6 || (kmax === 0 && d.max < 0.7) : kmax === 0 || (words.length > 0 && whole / words.length < 0.5);  // with bge-m3, off-topic questions top out near 0.5 to 0.6, on-topic ones above 0.62; no word of the query in any script needs a closer match (gibberish reached 0.6)
   return { list: out.slice(0, 40), words, weak };
 }
 // <<< engine:rank
@@ -532,6 +533,9 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
       if (hk <= H) { st.cur = { kind: "col", items: [k], used: hk }; slots.push(st.cur); st.used += 1; order.push(k); continue; }
       const nkey = "n|" + H + "|" + keyOf(k); let n = cache.get(nkey);              // a long answer: the fewest inner columns that hold it at full height
       if (n === undefined) { n = Math.max(2, Math.ceil(hk / H)); const html = cardHtml(board[k], k); while (n < 60 && !fitsBlock(html, n * cw + (n - 1) * GAP, n, H, n <= C)) n++; cache.set(nkey, n); }
+      if (n > C) {                                                                  // more words than one screen holds: one answer reads within one screen, so it takes one column and scrolls inside its card (C3-11)
+        st.cur = { kind: "col", items: [k], used: H, tall: true }; slots.push(st.cur); st.used += 1; order.push(k); st.cur = null; continue;
+      }
       const left = (C - (st.used % C)) % C;                                         // columns left on this screen
       if (left > 0 && left < n && !strict) {                                        // the card would run off this screen: give the rest of the screen to short answers, so it starts a screen (a section's own order runs on across the screens instead)
         for (let c = 0; c < left; c++) {
@@ -547,7 +551,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   }
   const slotHtml = (sl, st) => (sl.kind === "block"                                 // one placed column or block, as the board draws it
     ? `<div class="kit-block${sl.n <= st.C ? " whole" : ""}" style="width:${sl.n * st.cw + (sl.n - 1) * GAP}px;--n:${sl.n}">${cardHtml(board[sl.items[0]], sl.items[0])}</div>`
-    : `<div class="kit-slot" style="width:${st.cw}px">${sl.items.map((k) => cardHtml(board[k], k)).join("")}</div>`);
+    : `<div class="kit-slot${sl.tall ? " tall" : ""}" style="width:${st.cw}px">${sl.items.map((k) => cardHtml(board[k], k)).join("")}</div>`);
   function layoutNarrow(el) {                                                       // a narrow view: every answer in one column, in rank order, and the page scrolls
     el.className = "kit-cards phone lang-" + lang;
     el.innerHTML = board.map((r, k) => cardHtml(r, k)).join("");                    // no measuring: the column grows with the cards
@@ -635,7 +639,8 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
     screensBox.hidden = total <= 1;                                                 // one screen: nothing to turn
     if (!sliding) return;
     const at = Math.min(total, Math.round(el.scrollLeft / step) + 1);
-    scrAt.textContent = `${at} / ${total}`;                                         // the board turns a whole screen at a time, so a count says more lies on (a fade would dim whole words)
+    if (scrAt.options.length !== total) scrAt.replaceChildren(...Array.from({ length: total }, (_, k) => h("option", { value: String(k), "data-short": `${k + 1} / ${total}`, text: t("Page {n}", { n: k + 1 }) })));   // every screen in the list, "n / N" on the key (the board turns a whole screen at a time)
+    scrAt.value = String(at - 1);                                                   // the screen in view
     scrPrev.disabled = at <= 1; scrNext.disabled = at >= total;
   }
   function drawToc() {                                                              // the contents: every item with its full title; in a small view the largest groups fold into one row each until it all fits
@@ -680,7 +685,7 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
         const at = rows.find(([, r]) => r.left >= parts[f].left - 1 && r.left < parts[f].right && r.top >= parts[f].top - 1);   // the first row in that column
         if (!at) continue;
         const again = document.createElement("h3"); again.className = "kit-cont"; again.setAttribute("aria-hidden", "true");   // said once to a screen reader, at the section's start
-        again.textContent = head.textContent; at[0].before(again); added.push(again);
+        again.textContent = fmt("toc_cont", { name: head.textContent }); at[0].before(again); added.push(again);   // the name, and that it goes on (C2-22)
       }
     }
     if (added.length && toc.offsetHeight > room) { added.forEach((x) => x.remove()); return false; }   // no room for the names: the columns as they were
@@ -846,13 +851,16 @@ function rank(q) {  // fused ranking for a query: {list: [{i, score, kn, dn, sim
   elCards.addEventListener("wheel", (e) => {                                        // a vertical wheel turns the board a screen at a time
     if (mode === "toc" || narrowNow || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;   // the contents and a narrow view scroll as the page does
     if (elCards.scrollWidth <= elCards.clientWidth + 1) return;                     // one screen of answers: the wheel is the page's
+    const inner = e.target.closest ? e.target.closest(".kit-slot.tall > .kit-card") : null;   // a long answer scrolls inside its own card while it has more to read that way
+    if (inner && inner.scrollHeight > inner.clientHeight + 1 && (e.deltaY > 0 ? inner.scrollTop + inner.clientHeight < inner.scrollHeight - 1 : inner.scrollTop > 0)) return;
     e.preventDefault();
     const now = Date.now(); if (now - lastWheel < 420) return; lastWheel = now;
     page(e.deltaY > 0 ? 1 : -1);
   }, { passive: false });
   let tScroll = 0, keepLeft = 0;                                                    // one mark update per frame while sliding; where the board stands, for a redraw of the panel around it
   elCards.addEventListener("scroll", () => { keepLeft = elCards.scrollLeft; cancelAnimationFrame(tScroll); tScroll = requestAnimationFrame(markVisible); });
-  scrPrev.addEventListener("click", () => page(-1)); scrNext.addEventListener("click", () => page(1));   // the screen keys turn the board as the arrow keys do
+  scrPrev.addEventListener("click", () => page(-1)); scrNext.addEventListener("click", () => page(1));
+  scrAt.addEventListener("change", () => elCards.scrollTo({ left: Number(scrAt.value) * (elCards.clientWidth + GAP), behavior: "smooth" }));   // a screen picked from the list   // the screen keys turn the board as the arrow keys do
   let lastEsc = 0;                                                                  // time of the previous Escape
   root.addEventListener("keydown", (e) => {                                         // the keyboard, while it is inside the view
     if (e.altKey && !e.ctrlKey) {                                                   // language shortcuts; Alt+letters open browser menus on Windows, so digits

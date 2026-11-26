@@ -62,6 +62,10 @@ class Api:
                 log.info("job ids made ASCII: %s", moved)
         except (OSError, ValueError):  # a folder another program holds open (Windows): tried again at the next start
             log.exception("job ids not made ASCII yet")
+        try:  # a restore or a backup download killed partway leaves files beside the workspace: gone at the start (D3-03, D3-04)
+            library.backup.sweep_leftovers(self.ws)  # the library's backup writes them
+        except OSError:  # a folder another program holds (Windows): tried again at the next start
+            log.exception("leftovers of a killed restore not swept")
         self.facts = Facts(self.ws)  # facts and the profile
         self.card = AgentCard(self.settings)  # the agent card
         self.tasks = Tasks(self.ws, self.facts, self.card)  # long tasks
@@ -154,13 +158,17 @@ class Api:
         """Change the settings that were sent (each one checked)."""
         with self._settings_lock:  # read, changed and written as one: a second change waits for the first
             turned_on = self._set_settings_locked(req)
-        if turned_on:  # an edition that passed already goes there now, not at the next build
-            for lang in ("ko", "en"):  # each language made
-                try:
-                    documents.keep_portfolio(self.tasks, lang)  # nothing when that edition was never made or did not pass
-                except OSError as exc:  # a Desktop that cannot be written: the next build tries again
-                    log.warning("portfolio not kept on the Desktop: %s", exc)  # for the log only
+        if turned_on:  # an edition that passed already goes there now, not at the next build: as a task, so the request answers at once (D3-06: shrinking a deck took 5 to 11 s inside it)
+            self.tasks.start("portfolio:desk", self._keep_portfolios)  # a second change while it runs is covered by that run's own look at the settings
         return self.settings()  # with the defaults filled in again
+
+    def _keep_portfolios(self) -> None:
+        """The task of set_settings: the general edition's portfolio kept on the Desktop, in each language made."""
+        for lang in ("ko", "en"):  # each language made
+            try:
+                documents.keep_portfolio(self.tasks, lang)  # nothing when that edition was never made or did not pass
+            except OSError as exc:  # a Desktop that cannot be written: the next build tries again
+                log.warning("portfolio not kept on the Desktop: %s", exc)  # for the log only
 
     def job_in(self, req: dict) -> str | None:
         """The job a request names, or None when it names none (the general edition)."""

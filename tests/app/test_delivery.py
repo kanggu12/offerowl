@@ -12,6 +12,8 @@ import os  # the Desktop and the Office switch
 import pathlib  # paths
 import shutil  # the edition's files
 import sys  # the import path
+import threading  # a held task
+import time  # how long a request took
 import unittest  # the runner
 import zipfile  # the Word and PowerPoint files
 from unittest import mock  # Word, PowerPoint and the typesetting stood in for
@@ -216,7 +218,7 @@ class DeskPortfolio(Edition):
         self.assertEqual({"kept": []}, self.a.state()["desk"])
 
     def test_turned_on_it_copies_at_once_and_after_each_build_replaces_its_own_copy(self):
-        self.a.set_settings({"desk_portfolio": True})  # an edition that passed already goes now
+        self.setting({"desk_portfolio": True})  # an edition that passed already goes now
         self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())
         self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
         self.assertEqual({"kept": ["홍길동_포트폴리오_20261119.pdf"]}, self.a.state()["desk"])  # the panel shows its name, never a path
@@ -229,7 +231,7 @@ class DeskPortfolio(Edition):
     def test_a_file_it_did_not_write_is_never_touched(self):
         self.desk.mkdir(parents=True)
         (self.desk / "홍길동_포트폴리오_20261119.pdf").write_bytes(b"the person's own portfolio")  # same name, not its copy
-        self.a.set_settings({"desk_portfolio": True})
+        self.setting({"desk_portfolio": True})
         self.assertEqual(b"the person's own portfolio", (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
         self.assertEqual(["홍길동_포트폴리오_20261119.pdf", "홍길동_포트폴리오_20261119_2.pdf"], self.on_desk())  # the next free name
         self.new_deck("again")
@@ -237,7 +239,7 @@ class DeskPortfolio(Edition):
         self.assertEqual(b"the person's own portfolio", (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())
 
     def test_a_deck_made_on_another_day_takes_that_day_s_name(self):  # 0.13.2: the names carry the build's day
-        self.a.set_settings({"desk_portfolio": True})
+        self.setting({"desk_portfolio": True})
         self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())
         self.new_deck("made again")
         self.record(at="2026-11-20 09:30")  # on the next day
@@ -245,21 +247,21 @@ class DeskPortfolio(Edition):
         self.assertEqual(["홍길동_포트폴리오_20261120.pdf"], self.on_desk())  # its copy of the day before is gone, never a second one
 
     def test_its_copy_changed_by_the_person_is_theirs_now(self):
-        self.a.set_settings({"desk_portfolio": True})
+        self.setting({"desk_portfolio": True})
         (self.desk / "홍길동_포트폴리오_20261119.pdf").write_bytes(b"edited by the person")  # its copy, changed since
         self.new_deck("again")
         self.assertEqual("홍길동_포트폴리오_20261119_2.pdf", self.keep())
         self.assertEqual(b"edited by the person", (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())  # left as it is
 
     def test_a_new_name_replaces_its_old_copy_and_nothing_else(self):
-        self.a.set_settings({"desk_portfolio": True})
+        self.setting({"desk_portfolio": True})
         profile.details(self.a, {"fields": {"name": "한서연"}})  # the person's name, typed anew: the file's name changes
         name = self.keep()
         self.assertNotEqual("홍길동_포트폴리오_20261119.pdf", name)
         self.assertEqual([name], self.on_desk())  # the old copy, its own and unchanged, is gone with it
 
     def test_a_build_that_failed_its_checks_or_a_blind_one_never_goes(self):
-        self.a.set_settings({"desk_portfolio": True})
+        self.setting({"desk_portfolio": True})
         before = (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes()
         self.new_deck("broken")
         self.record(issues=["page 3 of 2"])  # failed
@@ -269,11 +271,11 @@ class DeskPortfolio(Edition):
         self.assertEqual(before, (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())  # the last copy that passed stays
 
     def test_the_export_names_the_kept_copy_instead_of_a_second_one(self):
-        self.a.set_settings({"desk_portfolio": True})
+        self.setting({"desk_portfolio": True})
         names = self.a.tasks.export("-general", "ko")
         self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], names)  # the kept copy, named
         self.assertEqual(["홍길동_이력서_20261119.pdf", "홍길동_포트폴리오_20261119.pdf"], self.on_desk())  # no _2 beside it
-        self.a.set_settings({"desk_portfolio": False})  # turned off: the export writes its own copy again
+        self.setting({"desk_portfolio": False})  # turned off: the export writes its own copy again
         self.assertIn("홍길동_포트폴리오_20261119_2.pdf", self.a.tasks.export("-general", "ko"))
         self.assertEqual({"kept": []}, self.a.state()["desk"])  # and the panel lists nothing kept
 
@@ -282,6 +284,37 @@ class DeskPortfolio(Edition):
         fat_deck(self.ed / "deck.pdf", words)  # curves of seven decimals, a logo, a gradient
         pdfmeta.stamp(self.ed / "deck.pdf", "홍길동 포트폴리오", "홍길동")  # its title and author, as the build writes them
         self.record()
+
+    def settle(self) -> None:
+        """Wait for the task a settings change starts (the portfolio kept on the Desktop is made again as a task, D3-06)."""
+        for _ in range(600):  # a minute at most
+            if not self.a.tasks.busy("portfolio:desk"):
+                return
+            time.sleep(0.1)
+        self.fail("the portfolio task never ended")
+
+    def setting(self, req: dict) -> None:
+        """A change of the settings, and the wait for the portfolio task it may start."""
+        self.a.set_settings(req)
+        self.settle()
+
+    def test_a_size_change_answers_at_once_and_the_work_runs_as_a_task(self):
+        gate = threading.Event()  # holds the work until the test lets it go
+        calls = []  # the languages it was asked for
+
+        def slow(tasks, lang):  # a shrink that takes long
+            gate.wait(10)
+            calls.append(lang)
+        with mock.patch.object(documents, "keep_portfolio", slow):
+            t0 = time.time()
+            self.a.set_settings({"desk_portfolio": True, "deck_max_mb": 3})  # on, with a new size
+            self.assertLess(time.time() - t0, 1.5)  # answered while the work waits
+            self.assertTrue(self.a.tasks.busy("portfolio:desk"))  # and it shows as running
+            gate.set()  # let it go
+            self.settle()
+        self.assertEqual(["ko", "en"], calls)  # both languages were looked at
+        self.a.set_settings({"desk_portfolio": False, "deck_max_mb": None})  # as it was
+        self.settle()
 
     def kept(self) -> dict:
         """What the record says of the Korean copy."""
@@ -293,7 +326,7 @@ class DeskPortfolio(Edition):
         deck, copy = self.ed / "deck.pdf", self.desk / "홍길동_포트폴리오_20261119.pdf"
         safe = pdf_shrink.shrink(deck, self.tmp / "probe.pdf")["after"]  # as small as no visible change makes it
         mb = (safe + deck.stat().st_size) / 2 / pdf_shrink.MB  # a size between: the deck is over it, a smaller copy is under
-        self.a.set_settings({"desk_portfolio": True, "deck_max_mb": mb})
+        self.setting({"desk_portfolio": True, "deck_max_mb": mb})
         self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())
         self.assertLessEqual(copy.stat().st_size, round(mb * pdf_shrink.MB))  # under the size asked for
         self.assertLess(copy.stat().st_size, deck.stat().st_size)  # a copy of its own, smaller than the deck
@@ -305,25 +338,28 @@ class DeskPortfolio(Edition):
         self.assertEqual("홍길동_포트폴리오_20261119.pdf", self.keep())  # its own smaller copy, replaced in place
         self.assertEqual((sha256(copy), sha256(deck)), (self.kept()["sha256"], self.kept()["from"]))
         self.assertLessEqual(copy.stat().st_size, round(mb * pdf_shrink.MB))
-        self.a.set_settings({"deck_max_mb": None})  # no size any more: the copy is the deck again, at once
+        self.setting({"deck_max_mb": None})  # no size any more: the copy is the deck again, at once
         self.assertEqual(deck.read_bytes(), copy.read_bytes())  # byte for byte
         self.assertNotIn("max_bytes", self.kept())
 
     def test_with_no_pikepdf_the_copy_goes_as_it_is_and_the_record_says_why(self):
         with mock.patch.object(pdf_shrink, "_pikepdf", side_effect=pdf_shrink.Unavailable("pikepdf")):  # the desktop app's Python
-            self.a.set_settings({"desk_portfolio": True, "deck_max_mb": 0.0001})  # a size the fictional deck is over
+            self.setting({"desk_portfolio": True, "deck_max_mb": 0.0001})  # a size the fictional deck is over
         self.assertEqual((self.ed / "deck.pdf").read_bytes(), (self.desk / "홍길동_포트폴리오_20261119.pdf").read_bytes())  # copied as it is
         self.assertEqual(("unavailable", 100), (self.kept()["shrink"], self.kept()["max_bytes"]))  # and why
         self.assertEqual("홍길동_포트폴리오_20261119.pdf", self.keep())  # tried again at the next build, not taken for done
 
     def test_the_size_setting_takes_a_size_and_nothing_else(self):
-        for bad in ("1.99", True, -1, 0, 5000, float("nan")):  # text, a switch, nothing, too much, not a number
-            self.a.set_settings({"deck_max_mb": bad})
+        for bad in ("1.99", True):  # text and a switch: refused with the setting's name (D3-13)
+            with self.assertRaises(ValueError):
+                self.setting({"deck_max_mb": bad})
+        for bad in (-1, 0, 5000, float("nan")):  # nothing, too much, not a number: a number, so ignored
+            self.setting({"deck_max_mb": bad})
             self.assertNotIn("deck_max_mb", self.a.settings(), bad)
-        self.a.set_settings({"deck_max_mb": 1.99})  # under a site's 2 MB, however it counts a megabyte
+        self.setting({"deck_max_mb": 1.99})  # under a site's 2 MB, however it counts a megabyte
         self.assertEqual(1.99, self.a.settings()["deck_max_mb"])
         self.assertEqual(1_990_000, delivery.deck_limit(self.a.tasks))  # in bytes of a megabyte of 1,000,000
-        self.a.set_settings({"deck_max_mb": None})  # cleared
+        self.setting({"deck_max_mb": None})  # cleared
         self.assertNotIn("deck_max_mb", self.a.settings())
         self.assertIsNone(delivery.deck_limit(self.a.tasks))
 
@@ -342,7 +378,7 @@ class DeskPortfolio(Edition):
             deck_pdf(made / "d.pdf", DECK)
             pdfmeta.stamp(made / "d.pdf", "홍길동 포트폴리오", "홍길동")
             return made / "d.pdf"
-        self.a.set_settings({"desk_portfolio": True})
+        self.setting({"desk_portfolio": True})
         for p in (mock.patch.object(resume, "build", side_effect=build), mock.patch.object(resume, "build_deck", side_effect=build_deck),
                   mock.patch.object(resume, "build_plain", side_effect=SystemExit("no plain words")),
                   mock.patch.object(self.a.tasks, "_check", return_value=([], [])), mock.patch.object(self.a.tasks, "engine_ready", return_value=""),

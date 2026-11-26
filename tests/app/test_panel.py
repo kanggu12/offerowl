@@ -391,6 +391,27 @@ class TestTracker(PanelCase):
         rec = self.post("/api/v1/reminders", {"job": jid, "at": "2099-01-01T09:30", "text": "접속 " + link})["reminder"]
         self.assertIn(link, rec["text"])
 
+    def test_the_servers_own_body_refusals_say_what_was_wrong(self):
+        for raw, what in ((b"{not json", "json"), (b"[1, 2]", "shape"), (b"\xff\xfe", "json"), (b"[" * 100_000, "json")):  # D3-10: a 400 with no word showed "a problem on this PC"
+            req = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/v1/settings", data=raw, method="POST",
+                                         headers={"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{self.port}"})
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen(req, timeout=20)
+            self.assertEqual(400, cm.exception.code)
+            self.assertEqual({"error": "bad_request", "what": what}, json.loads(cm.exception.read()), raw[:12])
+
+    def test_a_next_step_saved_from_a_stale_start_is_refused(self):
+        jid = self.post("/api/v1/jobs", {"company": "델타", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # a card
+        self.post("/api/v1/tracker/edit", {"job": jid, "next": "first words", "next_was": ""})  # window A starts from nothing
+        out = self.post("/api/v1/tracker/edit", {"job": jid, "next": "other words", "next_was": ""}, expect=400)  # window B started from nothing too (D3-07)
+        self.assertEqual("next_changed", out["what"])  # refused, with the word the page says in its own
+        st = self.post("/api/v1/tracker/edit", {"job": jid, "next": "second words", "next_was": "first words"})["state"]  # one that started from them
+        self.assertEqual("second words", next(j for j in st["jobs"] if j["id"] == jid)["next"])
+        st = self.post("/api/v1/tracker/edit", {"job": jid, "next": "second words", "next_was": "stale"})["state"]  # already the words it sends: nothing to overwrite
+        st = self.post("/api/v1/tracker/edit", {"job": jid, "next": "plain"})["state"]  # a caller that sends no start (the CLI, an agent) saves as before
+        self.assertEqual("plain", next(j for j in st["jobs"] if j["id"] == jid)["next"])
+        self.post("/api/v1/jobs/remove", {"job": jid})  # off the board, so the timeline test beside it sees its own card only
+
     def test_board_timeline_reminders(self):
         jid = self.post("/api/v1/jobs", {"company": "감마클라우드", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # a card
         st = self.post("/api/v1/tracker/next", {"job": jid})["state"]  # preparing -> submitted
@@ -715,6 +736,13 @@ class TestServingLimit(unittest.TestCase):
         self.assertIn(b"Retry-After: 2", head)
         self.assertIn(b"Content-Length: %d" % len(body), head)  # the length said is the length sent
         self.assertEqual({"error": "busy"}, json.loads(body))
+        head, body = ownport.busy_answer(2, page=True).split(b"\r\n\r\n", 1)  # for a browser opening a page (D3-11)
+        self.assertIn(b"text/html", head)
+        self.assertIn(b"Content-Length: %d" % len(body), head)
+        self.assertTrue(body.startswith(b"<!doctype html>") and b'http-equiv="refresh"' in body)  # a page that reloads itself, not raw JSON
+        for first, want in ((b"GET / HTTP/1.1\r\nAccept: text/html,*/*\r\n\r\n", True), (b"GET /api/v1/state HTTP/1.1\r\nAccept: text/html\r\n\r\n", False),
+                            (b"GET / HTTP/1.0\r\n\r\n", False), (b"POST /x HTTP/1.1\r\nAccept: text/html\r\n\r\n", False), (b"", False)):
+            self.assertEqual(want, ownport.wants_page(first), first)  # a page for a person, JSON for the API and for a script
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "measured on Linux, whose system queue the burst waits in")
     def test_a_burst_waits_in_the_system_s_queue_instead_of_being_dropped(self):

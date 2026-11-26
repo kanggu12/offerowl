@@ -245,10 +245,11 @@ function undoLabel(l) {                                                         
     undo_draft: ["Wrote the resume"], undo_figures: ["Drew the deck's figures"], undo_board: ["Changed the card of {what}", "Changed a card"], undo_board_days: ["Cleared the day stamped on {n} applications"], undo_lock: ["Locked the submitted copies"],
     undo_sentence: ["Changed a sentence"], undo_lock_sentence: ["Locked a sentence"], undo_unlock_sentence: ["Unlocked a sentence"],
     undo_reminder: [["Added a reminder for {what}", "Added a reminder"], ["Removed a reminder of {what}", "Removed a reminder"], ["Changed a reminder of {what}", "Changed a reminder"]][rem], undo_round: ["Changed an interview round of {what}", "Changed an interview round"],
-    undo_remove_job_material: ["Removed {what}", "Removed a file"], undo_blind: ["Changed the blind edition's table"], undo_remove_job: ["Removed the job {what}", "Removed a job"],
+    undo_remove_job_material: ["Removed {what}", "Removed a file"], undo_blind: ["Changed the blind edition's table"], undo_style: ["Kept the writing rules {what}", "Kept writing rules"], undo_rule: ["Kept a rule: {what}", "Kept a rule"], undo_remove_job: ["Removed the job {what}", "Removed a job"],
     undo_remove_edition: ["Removed the edition {what}", "Removed an edition"], undo_put_back: ["Put back {what}", "Put back from the trash"],
     undo_questions: ["Changed the questions of {what}", "Changed the questions"],
     undo_carry: ["Brought scripts into {what}", "Brought scripts in"],
+    undo_scenes: ["Added scenes to {what}", "Added scenes"], undo_map: ["Made the question map of {what}", "Made a question map"],
     undo_answer: ["Changed an answer of {what}", "Changed an answer"],
     undo_own_copy: ["Started {what} from another edition", "Started an edition from another"], undo_own_edition: ["Brought in an edition for {what}", "Brought in an edition"] };   // 0.10.0: an own edition started or brought in
   const words = L[x.code] || ["A change"];                                          // an unknown step still reads

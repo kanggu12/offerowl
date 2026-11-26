@@ -119,7 +119,7 @@ function problemWhat(p) {                                                       
   if (p.step === "export") return lang ? t("The {lang} files were not saved to the Desktop.", { lang }) : t("Nothing was saved to the Desktop.");
   if (p.step === "interview") return t("The interview scripts were not written.");
   if (p.step === "answers") return t("The form's answers were not finished.");
-  return t("Not finished: {step}.", { step: t(RUN_STEPS[p.step] || p.step) });     // any other step, by its name in the list above
+  return t(RUN_STEPS[p.step] || p.step) + ".";                                        // any other step, by its name in the list above: the list's own line says they were not finished (A3-19: every row began "Not finished:")
 }
 function problemWhy(p) {                                                            // why, as a sentence of its own ("" when the code says no more)
   const code = String(p.why || "");                                                 // the step's reason
@@ -130,7 +130,7 @@ function problemWhy(p) {                                                        
   const SAID = { checks_failed: t("They did not pass their checks. Documents shows which."), changed: t("They changed after their checks."),
     copy_unreadable: t("The copy did not read back."), blind_unread: t("The blind edition's text could not be read."), answers_need_attention: t("An answer still needs your fix."),
     failed: t("The agent stopped part way."), agent_stopped: t("The agent stopped part way."), needs_agent: errorInfo("agent_unavailable").msg, agent_unavailable: errorInfo("agent_unavailable").msg,
-    not_written: t("No agent wrote it."), no_files: runError("no_files").msg, no_roles: runError("no_roles").msg };
+    needs_draft: t("The slides use the resume's sentences."), not_written: t("No agent wrote it."), no_files: runError("no_files").msg, no_roles: runError("no_roles").msg };
   if (SAID[code]) return SAID[code];                                                // the run's own codes
   const info = errorInfo(code, { detail: p.detail });                               // the panel's reasons (needs_translation, name_missing, renderer_missing ...)
   return info.msg === errorInfo("unexpected").msg && code !== "unexpected" ? problemWords(code) : info.msg;   // a known one in words, else its short words
@@ -147,12 +147,24 @@ function problemFix(p, run) {                                                   
   if (["engine_not_ready", "renderer_missing", "browser_missing"].includes(code)) return { words: info.fix, href: info.href, go: info.go };
   return ["typeset", "export"].includes(p.step) ? toDocs : null;                     // the documents show the build's own band, and their export
 }
-function problemItem(p, run) {                                                      // one line of the list: the sentence, then its key
-  const why = problemWhy(p), found = problemFix(p, run);
-  const fix = found && found.agent && !agentOn() ? { words: t("Turn on the agent"), go: () => openAgentMenu() } : found;   // its fix asks the agent, which is off: turning it on comes first
-  return h("li", { class: "lit bad" }, h("span", { class: "pl-w", text: [problemWhat(p), why].filter(Boolean).join(" ") }),
-    fix ? (fix.href ? h("a", { class: "btn small", href: fix.href, target: "_blank", rel: "noopener", text: fix.words })
-      : h("button", { class: "btn small" + (fix.agent ? " agent" : ""), type: "button", onclick: fix.go, text: fix.words })) : null);   // a fix that sends to the agent is orange
+function problemFixOf(p, run) {                                                     // the key one line would carry, or null
+  const found = problemFix(p, run);
+  return found && found.agent && !agentOn() ? { words: t("Turn on the agent"), go: () => openAgentMenu() } : found;   // its fix asks the agent, which is off: turning it on comes first
+}
+function fixKey(fix) {                                                              // one fix as a key
+  return fix.href ? h("a", { class: "btn small", href: fix.href, target: "_blank", rel: "noopener", text: fix.words })
+    : h("button", { class: "btn small" + (fix.agent ? " agent" : ""), type: "button", onclick: fix.go, text: fix.words });   // a fix that sends to the agent is orange
+}
+function problemItem(p, run, own) {                                                 // one line of the list: the sentence, then its key (own: the key is the line's alone)
+  const why = problemWhy(p), fix = own ? problemFixOf(p, run) : null;
+  return h("li", { class: "lit bad" }, h("span", { class: "pl-w", text: [problemWhat(p), why].filter(Boolean).join(" ") }), fix ? fixKey(fix) : null);
+}
+function problemList(probs, run) {                                                  // the lines, and a key that fixes several of them once under them (A3-19: five identical "Turn on the agent" keys stood in a column)
+  const fixes = probs.map((p) => problemFixOf(p, run));
+  const count = (f) => f ? fixes.filter((x) => x && x.words === f.words).length : 0;   // how many lines want this very key
+  const shared = [...new Map(fixes.filter((f) => f && count(f) > 1).map((f) => [f.words, f])).values()];   // each repeated key once
+  return [h("ul", { class: "problist" }, probs.map((p, i) => problemItem(p, run, fixes[i] && count(fixes[i]) === 1))),
+    shared.length ? h("div", { class: "problist-keys" }, shared.map(fixKey)) : null];
 }
 function runError(code) {                                                           // why a run stopped, in words, and the one fix
   const E = {
@@ -607,7 +619,7 @@ function resultCard(run) {                                                      
         h("span", { class: "thumb" }, icon("chat", 22)), h("span", { class: "iv-words" }, h("b", { text: t("Interview scripts") }), h("span", { class: "sub", text: t("Search and practice") })), icon("open", 16)) : null)
       : h("p", { class: "usage-none", text: t("No PDF was made.") }),
     probs.length && !needs.length ? h("p", { class: "hint", text: t("What the run of {at} could not do:", { at: dayTime(at) }) }) : null,   // that run's, not now's: the agent may be on since
-    probs.length && !needs.length ? h("ul", { class: "problist" }, probs.map((p) => problemItem(p, run))) : null,   // each a sentence with its fix
+    probs.length && !needs.length ? problemList(probs, run) : null,                 // each a sentence, its own fix on its line, a repeated one once under them
     h("div", { class: "fill", "aria-hidden": "true" }),                                       // the Desktop line and the keys sit on the card's foot
     h("div", { class: "usage-sub" }, h("span", { text: files.length ? tn(files.length, "{n} file saved to your Desktop", "{n} files saved to your Desktop") : t("Nothing was copied.") }),
       files.length ? h("button", { class: "btn sm", onclick: openDesktop }, icon("folder"), t("Open the Desktop folder")) : null),
