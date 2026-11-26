@@ -985,7 +985,10 @@ class Questions(unittest.TestCase):
         roles = {s["file"]: s["role"] for s in json.loads((iv / "kit.json").read_text(encoding="utf-8"))["sources"] if s["file"] != "@stories"}
         self.assertEqual("deep", roles[deep["file"]])
         self.assertEqual("scenes", roles[got["file"]])
-        again = interview.add_scenes(self.c.api, self.jid, "qa.md", (kit / "qa.md").read_bytes())  # the same name twice: never over the first
+        with self.assertRaises(ValueError) as e:  # the very same file again: said, never kept twice (0.16.1, C3-05)
+            interview.add_scenes(self.c.api, self.jid, "qa.md", (kit / "qa.md").read_bytes())
+        self.assertEqual("already_there", str(e.exception))
+        again = interview.add_scenes(self.c.api, self.jid, "qa.md", (kit / "qa.md").read_bytes() + "\n<!-- a later copy -->\n".encode())  # another file under the same name: never over the first
         self.assertNotEqual(got["file"], again["file"])
 
     def test_a_run_for_the_job_answers_its_questions(self):

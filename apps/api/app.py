@@ -159,14 +159,16 @@ class Api:
         with self._settings_lock:  # read, changed and written as one: a second change waits for the first
             turned_on = self._set_settings_locked(req)
         if turned_on:  # an edition that passed already goes there now, not at the next build: as a task, so the request answers at once (D3-06: shrinking a deck took 5 to 11 s inside it)
-            self.tasks.start("portfolio:desk", self._keep_portfolios)  # a second change while it runs is covered by that run's own look at the settings
+            desk = documents.desktop_dir()  # the Desktop of this moment: the task runs later, when the environment may name another (a test's
+            # own Desktop is gone by then and the person's real one would be written: 0.16.1 left twelve test PDFs on a real Desktop)
+            self.tasks.start("portfolio:desk", self._keep_portfolios, desk)  # a second change while it runs is covered by that run's own look at the settings
         return self.settings()  # with the defaults filled in again
 
-    def _keep_portfolios(self) -> None:
-        """The task of set_settings: the general edition's portfolio kept on the Desktop, in each language made."""
+    def _keep_portfolios(self, desk=None) -> None:
+        """The task of set_settings: the general edition's portfolio kept on the Desktop of the request, in each language made."""
         for lang in ("ko", "en"):  # each language made
             try:
-                documents.keep_portfolio(self.tasks, lang)  # nothing when that edition was never made or did not pass
+                documents.keep_portfolio(self.tasks, lang, desk)  # nothing when that edition was never made or did not pass
             except OSError as exc:  # a Desktop that cannot be written: the next build tries again
                 log.warning("portfolio not kept on the Desktop: %s", exc)  # for the log only
 

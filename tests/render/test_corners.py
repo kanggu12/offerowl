@@ -290,9 +290,14 @@ class SettingTests(Builds):
         self.assertEqual("round", a.tasks.corners())
         a.set_settings({"corners": "square"})
         self.assertEqual(("square", "square"), (a.settings()["corners"], a.tasks.corners()))
-        for bad in ("Square", "rounded", "", 1, True, ["square"], {"corners": "square"}):  # another word, a case, a number, a list
+        for bad in ("Square", "rounded", ""):  # another word or a case: a stale page's value, ignored
             a.set_settings({"corners": bad})
-            self.assertEqual("square", a.settings()["corners"], bad)  # refused: the setting stays as it was
+            self.assertEqual("square", a.settings()["corners"], bad)  # the setting stays as it was
+        for bad in (1, True, ["square"], {"corners": "square"}):  # a value of the wrong type: refused with its name (0.16.1)
+            with self.assertRaises(ValueError) as e:
+                a.set_settings({"corners": bad})
+            self.assertEqual("corners", str(e.exception))
+            self.assertEqual("square", a.settings()["corners"], bad)  # and the setting stays as it was
         a.set_settings({"corners": "round"})
         self.assertEqual(("round", "round"), (a.settings()["corners"], a.tasks.corners()))
         a.set_settings({"corners": None})  # cleared

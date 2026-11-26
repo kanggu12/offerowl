@@ -302,7 +302,7 @@ class DeskPortfolio(Edition):
         gate = threading.Event()  # holds the work until the test lets it go
         calls = []  # the languages it was asked for
 
-        def slow(tasks, lang):  # a shrink that takes long
+        def slow(tasks, lang, desk=None):  # a shrink that takes long
             gate.wait(10)
             calls.append(lang)
         with mock.patch.object(documents, "keep_portfolio", slow):
@@ -314,6 +314,28 @@ class DeskPortfolio(Edition):
             self.settle()
         self.assertEqual(["ko", "en"], calls)  # both languages were looked at
         self.a.set_settings({"desk_portfolio": False, "deck_max_mb": None})  # as it was
+        self.settle()
+
+    def test_the_task_writes_to_the_desktop_of_its_request_never_a_later_one(self):
+        """0.16.1 left twelve test PDFs on a real Desktop: the setting's task ran after the test had put the environment back,
+        and the Desktop it looked up then was the person's own. The task carries the Desktop of the request."""
+        gate = threading.Event()  # holds the task until the environment has changed
+        real, seen = delivery.keep_portfolio, []  # the real copy, and the Desktop each run was given
+
+        def held(tasks, lang, desk=None):
+            gate.wait(10)
+            seen.append(desk)
+            return real(tasks, lang, desk)
+        late = self.tmp / "LaterDesktop"  # the folder the environment names by the time the task runs
+        with mock.patch.object(documents, "keep_portfolio", held):
+            self.a.set_settings({"desk_portfolio": True})  # asked while this test's Desktop is the one named
+            with mock.patch.dict(os.environ, {"OFFEROWL_DESKTOP": str(late)}):  # as a tearDown puts the environment back
+                gate.set()
+                self.settle()
+        self.assertEqual([self.desk, self.desk], seen)  # both languages went to the Desktop of the request
+        self.assertFalse(late.exists())  # nothing written where the environment pointed later
+        self.assertEqual(["홍길동_포트폴리오_20261119.pdf"], self.on_desk())
+        self.a.set_settings({"desk_portfolio": False})  # as it was
         self.settle()
 
     def kept(self) -> dict:

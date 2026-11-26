@@ -6,6 +6,85 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-11-26
+
+A round of fixes over every view after a review by area: what a page says in its toasts and notes, forms that say what is
+wrong under the field, a submitted application kept as it went, the interview kit's own windows and links, sturdier
+uploads and settings, a studio backdrop for a cut-out photo and a switch that leaves the time at each company off an
+edition.
+
+### Security
+
+- An upload's file name loses its control characters before it is kept or shown (a NUL stayed in a material's name).
+- A job's material named .pdf, .pptx, .docx, .png or .jpg must start as that kind; random bytes under such a name are
+  refused.
+- `POST /api/v1/materials/read` refuses ids that are not a list of strings with 400 (a number was a 500), and a setting of
+  the wrong type is refused with its name (a string sent as a number or a list, a switch sent as a string).
+- A request's head has 10 seconds to arrive (connections that never finish their headers made every request busy); a busy
+  answer to a page is a small page that reloads itself, the API keeps its JSON; an upload over its limit gets its 413
+  instead of a dropped connection. A body that is no JSON, of the wrong shape or length says which.
+
+### Added
+
+- A cut-out photo (a PNG with a see-through ground) is set on a studio backdrop in the edition's colour pack: the name
+  band's colour lit from behind the head. The copy is made again when the photo changes and the canvas shows the same
+  picture (`GET /api/v1/photo?theme=`).
+- An own edition's `form.json` takes `"tenure": false`: the resume prints no time at each company and no total, the bands'
+  dates in their quiet grey, the department and role columns keeping their widths; the canvas draws it the same way.
+- The calendar file of an application's Progress tab holds that application's reminders and its interview rounds from
+  today on; without a job, every application's.
+- Questions pasted without a limit say in the toast that they took the usual one.
+- The question map can be made again from its keys; adding written scenes and making the map are undo steps of their own,
+  and taking a kit from another application is one undo step with its map.
+
+### Changed
+
+- A submitted, locked application's questions and answers are read only, in the panel and in the API, as its documents
+  are.
+- Fit reads a posting without the part a form's questions take: a short heading over them and a numbered line with its own
+  limit are never rated as requirements.
+- A form's short questions ("1. 지원 동기 (500자)") are read: a numbered line or one with its own limit is a question
+  however short.
+- A first line that starts with a company's name names the company when an application is added from a posting.
+- Forms say what is wrong under the field in the panel's words (the fit's re-paste, the round form, reminders, a posting
+  too short to read), never in the browser's bubble.
+- The due band shows one row per reminder with its key at the row's end; a board card's day is this year's month and day.
+- An upload's toast is one sentence of what happened, then each refused file in a sentence of its own; the same file under
+  the same name is said and not listed twice, and a list name's number counts the listed copies only.
+- A window opened on one application's scripts (`/?job=<id>&show=scripts`) keeps that application while the panel's other
+  windows keep theirs; an old kit link's part (#practice, #deck, #map, #talk) and question (`?q=`) open there.
+- A kit page that is not there is a page of the panel's own, in the person's language, with the key back to the Interview
+  tab; a kit with no script offers no print keys; the printable cue page's tab names the company.
+- The writer's own references (a script's sources, an id in brackets, a bracketed note on the ledger) leave every card and
+  the printed cue page.
+- Make, the profile, the Library and the bar's sheets: a posting with no agent ready is refused before anything is made, a
+  failed step says its reason, Esc closes the fact forms, the profile's tabs slide on a phone, the details mark an email
+  that is no address, keys are flat paper with a rim in both themes.
+- A phone's Documents head is one row of short keys; an unwritten cover letter is one card with its key; the sent copies
+  are named by the document and the day they went.
+- Practice says how many questions each kind holds; the question map's columns open their other questions in place and
+  are as tall as their questions.
+- The search board turns by an "n / N" pager like the other pagers, an answer longer than a screen scrolls in its card, a
+  query no script matches says so instead of a full board, and the English beside a script is a column with a hairline.
+- The question map leaves out the cover, the person's own employers and labels that only start a line.
+- A style pack written over one of the same name asks first and is an undo step; the "next step" box refuses to write over
+  words another window changed and shows them.
+- Changing the portfolio's size limit shrinks the Desktop copy as a task; the request answers at once.
+- The backup is made in the data folder and zipped outside the workspace's lock; leftovers of a killed backup or restore are
+  swept at start; Insights and the Library say when their numbers could not be read and read again when the server is back.
+- A failed run lists its steps without repeating their keys; the Documents head keeps one height across tabs; the board
+  opens on the open application's column after the window narrows.
+
+### Fixed
+
+- After a note's Undo the keyboard goes on from the work area; Undo while the server is down says nothing was undone.
+- `/api/v1/history/undo` refuses steps outside 1 to 50 (it undid the newest change for 0 or none).
+- An English word missing from the evidence is shown as the text spells it.
+- A talk brief whose topics were all emptied is refused instead of kept with no topic.
+- The deck of the interview kit is cached per kit (a repeat open took 2.5 seconds); a file-ordered deck folds a part of one
+  or two scripts into the part before it; the Trash lists a second restore made in the same second.
+- The read-only preview of a material has no resize grip; a Korean unit sits on its number in the answers' count.
+
 ## [0.16.0] - 2026-11-24
 
 The API's code in seven services that each own their files and their endpoints, behind one gateway: still one process,
@@ -1028,7 +1107,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/kanggu12/offerowl/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/kanggu12/offerowl/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/kanggu12/offerowl/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/kanggu12/offerowl/compare/v0.14.6...v0.15.0

@@ -287,10 +287,12 @@ def kept_copy(tasks, lang: str, deck: Path) -> str | None:
     return Path(mine["name"]).name if _ours(desktop_dir(), mine) else None  # there and unchanged
 
 
-def keep_portfolio(tasks, lang: str) -> str | None:
+def keep_portfolio(tasks, lang: str, desk: Path | None = None) -> str | None:
     """With desk_portfolio on, the general edition's deck PDF in this language copied to the Desktop, when its build passed
     its checks (smaller, under the size deck_max_mb asks for): in place of the copy this setting wrote before (recognised by
-    its recorded hash), else under the first free name. Returns the name on the Desktop, or None when nothing was copied."""
+    its recorded hash), else under the first free name. Returns the name on the Desktop, or None when nothing was copied.
+    desk: the Desktop as it was when the work was asked for (a task started by a setting runs later, and the folder it means
+    is the one of that moment, never the one the environment names by then)."""
     import pdfmeta  # src/pdfmeta.py: the deck's title and author
     if tasks.card.settings_fn().get("desk_portfolio") is not True:  # off unless asked for
         return None
@@ -305,7 +307,7 @@ def keep_portfolio(tasks, lang: str) -> str | None:
     meta = pdfmeta.read(deck)  # what a reader shows in its title bar
     if not meta.get("title") or not meta.get("author") or re.fullmatch(r"owl_(?:cover_)?[0-9a-f]{8}.*", meta.get("title") or ""):  # no title of its own
         return None
-    dest = desktop_dir()  # the Desktop
+    dest = desk or desktop_dir()  # the Desktop: the one of the request when a task carries it
     dest.mkdir(parents=True, exist_ok=True)  # a fresh Desktop folder in a test
     full = sha256(deck)  # the deck that was checked
     limit = deck_limit(tasks)  # the size the person keeps it under, or None
