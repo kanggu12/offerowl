@@ -72,6 +72,19 @@ class ModelPrintsWhatThePdfPrints(unittest.TestCase):
         head = next(b for b in self.m["blocks"] if b["type"] == "section" and b.get("key") == "career")  # its heading
         self.assertEqual(f"(총경력 {self.p['total']})", head["note"])  # the total beside the title, as printed
 
+    def test_an_edition_made_without_tenure_draws_no_time_per_company(self):
+        import copy  # the model's blocks, changed in a copy
+        from apps.api.services.documents import documents as DOC  # the canvas's model, as the documents service serves it
+        from apps.api.services.documents.task_own import OWN_FORM_KEYS  # what an own edition's form.json may say
+        self.assertIn("tenure", OWN_FORM_KEYS)  # tenure: false reaches the typesetter (it was dropped there)
+        blocks = copy.deepcopy(self.m["blocks"])  # the full example's model
+        DOC.hide_tenure(blocks)  # as documents.resume does for such an edition
+        self.assertFalse(any(r.get("tenure") for b in blocks if b["type"] == "career" for r in b["rows"]))  # no tenure column
+        self.assertFalse(any(b.get("tenure") for b in blocks if b["type"] == "role"))  # no "(2년 3개월)" after a band's dates
+        head = next(b for b in blocks if b["type"] == "section" and b.get("key") == "career")  # the career heading
+        self.assertNotIn("note", head)  # no "(총경력 …)"
+        self.assertTrue(all(b.get("period") for b in blocks if b["type"] == "role"))  # the dates stay
+
     def test_the_education_dates_read_as_printed(self):
         rows = self.block("education")[0]["rows"]  # the schools
         self.assertEqual([[e["period"], e["school"], e["sub"], e["major"], e["degree"], e["note"]] for e in self.p["education"]],

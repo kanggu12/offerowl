@@ -40,7 +40,7 @@ class PanelKeys(unittest.TestCase):
             env.pop(k, None)
         cls.srv = subprocess.Popen([sys.executable, str(ROOT / "apps" / "panel" / "server.py"), "--port", "0", "--data", str(data)],
                                    env=env, stdout=subprocess.PIPE, text=True, encoding="utf-8")  # its first line is the address
-        base = cls.srv.stdout.readline().strip()
+        base = cls.base = cls.srv.stdout.readline().strip()  # kept for the tests that open a second window
         cls.pw = sync_playwright().start()
         try:
             cls.browser = cls.pw.chromium.launch()  # headless
@@ -273,6 +273,40 @@ class PanelKeys(unittest.TestCase):
         p.wait_for_timeout(300)
         self.assertEqual(0, p.locator(".tcard input.tnext").count())  # then it closes
         p.evaluate("UI.jobsMode = 'list'; render()")
+
+    def test_7f_a_window_opened_on_an_application_keeps_it_and_the_others_keep_theirs(self):
+        # the Interview tab's "Open in a window" (/?job=<id>&show=scripts) and an old kit link (/kit/<id>/#practice, ?q=): the
+        # window shows that application without choosing it for the whole server, so the first window stays on its own
+        # application through its polls (it was switched within 6 s, its question emptied); an old link's part and question
+        # are read (#practice was left in the address over the search, ?q= was dropped)
+        p = self.page
+        p.evaluate("UI.jobsMode = 'list'; go('interview'); UI.ivPart = 'search'; render()")
+        first = p.evaluate("S.job")  # the application of test 6, whose kit test 7b made
+        other = p.evaluate("""async (text) => (await act('/api/v1/jobs', { company: 'Delta Payments', role: 'SRE', posting: text })).job""", POSTING.read_text(encoding="utf-8"))
+        p.evaluate("(jid) => openApplication(jid, 'interview')", first)  # the new job was put in view: the first one again, as the person had it
+        p.wait_for_function("(jid) => S.job === jid", arg=first, timeout=10000)
+        second = p.context.new_page()
+        try:
+            second.goto(self.base.rstrip("/") + f"/?job={other}&show=scripts&lang=en#practice")
+            second.wait_for_function("(jid) => typeof S !== 'undefined' && S && S.job === jid && UI.view === 'jobs'", arg=other, timeout=30000)
+            self.assertEqual(["practice", ""], second.evaluate("[UI.ivPart, location.hash]"))  # the part the old link named, and the address read
+            p.evaluate("refresh()")  # the first window's poll
+            p.wait_for_timeout(800)
+            self.assertEqual(first, p.evaluate("S.job"))  # still its own application
+            second.evaluate("refresh()")  # and the second window's poll keeps its own
+            second.wait_for_timeout(800)
+            self.assertEqual(other, second.evaluate("S.job"))
+            second.goto(self.base.rstrip("/") + f"/kit/{first}/?q=kubernetes")  # an old search link of the first application's kit
+            second.wait_for_function("() => !!document.querySelector('#canvas .kit .kit-q')", timeout=60000)
+            second.wait_for_timeout(600)
+            self.assertEqual("kubernetes", second.evaluate("document.querySelector('#canvas .kit .kit-q').value"))   # asked in its scripts
+            self.assertEqual("", second.evaluate("location.search.includes('q=') ? location.search : ''"))  # and read once
+            second.evaluate("(jid) => openApplication(jid, 'fit')", other)  # an application chosen in that window: the server's choice from now on
+            second.wait_for_function("(jid) => S.job === jid && !UI.ownJob", arg=other, timeout=10000)
+        finally:
+            second.close()
+        p.evaluate("(jid) => openApplication(jid, 'interview')", first)  # as the later tests expect it
+        p.wait_for_function("(jid) => S.job === jid", arg=first, timeout=10000)
 
     def test_8_no_page_errors(self):
         self.assertEqual([], self.errors)

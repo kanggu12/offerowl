@@ -85,6 +85,20 @@ class Api:
         """set_settings' reading, checking and writing of settings.json, under its lock. True when the portfolio kept on the
         Desktop was just turned on, or its size changed while it is on."""
         s = read_json(self.settings_file, {})  # saved choices
+        # each setting's type (D3-13): a value of the wrong type is refused with the setting's name; a string the page no longer
+        # offers (a stale page's form) is left as before, ignored, so the rest of that request still applies
+        text = ("lang", "theme", "backend", "agent", "form", "deck_style", "style", "llm_url", "llm_model")  # strings
+        flags = ("export_extras", "export_pptx", "desk_portfolio", "photo")  # booleans
+        for k in text:
+            if k in req and not isinstance(req[k], str):
+                raise ValueError(k)  # 400 bad_request, what names the setting
+        for k in flags:
+            if k in req and not isinstance(req[k], bool):
+                raise ValueError(k)
+        if "corners" in req and req["corners"] is not None and not isinstance(req["corners"], str):  # a string, or null to clear
+            raise ValueError("corners")
+        if "deck_max_mb" in req and req["deck_max_mb"] is not None and (isinstance(req["deck_max_mb"], bool) or not isinstance(req["deck_max_mb"], (int, float))):  # a number, or null to clear
+            raise ValueError("deck_max_mb")
         if req.get("lang") in ("auto", "ko", "en"):  # only a language the page offers
             s["lang"] = req["lang"]  # kept for the next start
         if req.get("theme") in ("auto", "light", "dark"):  # only a theme the page draws

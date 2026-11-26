@@ -291,6 +291,21 @@ class KeptAsTheyCame(Server):
             code, out = self.send("big.md", b"x" * 11)  # over it
         self.assertEqual((413, "too_large"), (code, out.get("error")))  # refused before it is read
 
+    def test_a_binary_kind_must_start_as_that_kind(self):
+        code, out = self.send("random.pdf", b"\x00\x01 not a pdf at all " * 10)  # bytes named .pdf (D3-14)
+        self.assertEqual((400, "material_kind"), (code, out.get("error")))  # refused as the kind it is not
+        self.assertEqual("ok.pdf", self.add("ok.pdf", b"%PDF-1.4\n%fictional\n")["name"])  # a PDF's own start is kept
+
+    def test_the_same_file_again_is_said_and_a_removed_copy_takes_no_number(self):
+        note = "# 3차 면접 메모\n".encode("utf-8")  # a fictional note
+        first = self.add("r3_note.md", note)
+        code, out = self.send("r3_note.md", note)  # the very same file again (B3-11)
+        self.assertEqual((400, "material_duplicate"), (code, out.get("error")))  # said, never listed twice
+        self.assertEqual(1, len([r for r in M.records(self.api.ws, self.job) if r.get("name") == "r3_note.md"]))
+        self.post("/api/v1/jobs/materials/remove", {"job": self.job, "id": first["id"]})  # taken off the list
+        again = self.add("r3_note.md", note)  # brought in again
+        self.assertEqual("r3_note", again["title"])  # the removed copy takes no number from the list's names
+
     def test_names_are_made_safe_and_a_taken_name_gets_a_number(self):
         plain = "# 메모\n".encode("utf-8")  # the same fictional note under several names
         hostile = self.add('..\\..\\C:\\x\\a<b>:"q"|z?*.md', plain)  # folders of both systems and characters a disk refuses
@@ -304,7 +319,7 @@ class KeptAsTheyCame(Server):
         self.assertFalse((self.folder.parent.parent / "etc").exists())  # nothing landed outside
         self.assertEqual("CON", self.add("CON.md", plain)["title"])  # a device name of Windows is listed as it came
         self.assertTrue((self.folder / "_CON.md").is_file())  # and kept with a mark, so Windows can hold it
-        first, second, third = (self.add("면접 노트.md", plain) for _ in range(3))  # the same name three times
+        first, second, third = (self.add("면접 노트.md", plain + str(i).encode()) for i in range(3))  # the same name three times, three different notes
         self.assertEqual(["면접 노트", "면접 노트 (2)", "면접 노트 (3)"], [first["title"], second["title"], third["title"]])  # a twin says which one it is
         self.assertTrue((self.folder / "면접 노트 (3).md").is_file())  # under the same number on disk
         self.add("notes.md", plain)  # a name in small letters

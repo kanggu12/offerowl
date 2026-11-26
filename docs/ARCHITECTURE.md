@@ -242,7 +242,9 @@ document (the resume as the canvas draws it, the cover letter, the interview boa
   A file upload says `{"error": "<check>"}` in the same words (for example `empty`, `photo`, `not_scenes`, `material_kind`).
 - A request the safety rules turn away answers 403 `{"error": "<rule>"}` (`host`, `cross_site`, `origin`, `type`,
   `length`), and a file over its cap 413 `{"error": "too_large"}` ([Safety](#safety)).
-- An unknown path answers 404 `{"error": "not_found"}`.
+- An unknown path answers 404 `{"error": "not_found"}`. An unknown job is told apart by where it is asked: a JSON route
+  (`/api/v1/jobs/<id>`, `/fit`, `/materials/<m>`) refuses it with 400 and `what` `job`, as every write does, while a
+  page or a file (`/kit/<id>/...`, a material's file) answers 404, as a browser expects of an address that is not there.
 - A bug answers 500 `{"error": "unexpected"}`. Its trace goes to the log, never to the answer.
 - Long work runs as a task. The write answers at once with `"started"`, and `state.tasks[<key>]` follows it:
   `{state: running | done | error, step, result, error: {code}}`.

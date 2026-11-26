@@ -28,7 +28,7 @@ NAMES = sorted(p.name for p in SERVICES.iterdir() if (p / "__init__.py").is_file
 # job's folder after job_dir(...) / or after "jobs/<id>/". The Library deletes whole jobs (their folder into the core's
 # .gone/, their files out of the undo steps), and the documents read every edition's record under jobs/.
 OWNS = {  # service: (its starts of ws.path, its names in a job's folder)
-    "profile": ({"profile", "sources", "style", "blind.json"}, set()),  # the person's files; nothing in a job's folder
+    "profile": ({"profile", "sources", "style", "blind.json", "out/_photo"}, set()),  # the person's files and the photo's studio copies; nothing in a job's folder
     "applications": (set(), {"posting.md", "plan.json", "questions.json", "materials"}),  # a job's posting, plan, questions, materials
     "documents": ({"deck", "jobs", "out/desk_portfolio.json"}, {"draft.json", "draft.record.json", "resume", "own", "submitted", "live", "depth.*"}),  # the editions
     "interview": ({"out/interview"}, {"interview"}),  # the kits

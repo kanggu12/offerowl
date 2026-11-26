@@ -155,24 +155,35 @@ def post_material_export(a, req, path):
     return {"exported": materials.export(a.ws, a.need_job(req), str(req.get("id") or ""))}  # the name written, for the page's message
 
 
+def answers_open(a, jid) -> None:
+    """A submitted, locked application's questions and answers went out as they are: refused like its documents (B3-17)."""
+    if jid and (a.ws.job(str(jid)) or {}).get("locked"):  # submitted
+        raise ValueError("locked")  # the page says the application was submitted and locked
+
+
 def post_questions(a, req, path):
     """POST /api/v1/jobs/questions: a job's application questions, in order."""
+    answers_open(a, req.get("job"))  # never once submitted
     answers.set_questions(a, req)  # checked and kept
     return None  # the new state is the whole answer
 
 
 def post_paste(a, req, path):
     """POST /api/v1/jobs/questions/paste: a form's questions pasted as it shows them, read with their limits."""
-    return {"added": answers.paste_questions(a, req)}  # how many came in
+    answers_open(a, req.get("job"))  # never once submitted
+    added, assumed = answers.paste_questions(a, req)  # how many came in, how many without a written limit
+    return {"added": added, "assumed": assumed}
 
 
 def post_write(a, req, path):
     """POST /api/v1/jobs/questions/write: their answers, by the agent."""
+    answers_open(a, req.get("job"))  # never once submitted
     return {"started": a.tasks.answers(a.need_job(req), [str(x) for x in req.get("ids") or []] or None)}  # False when they are being written
 
 
 def post_answer(a, req, path):
     """POST /api/v1/jobs/questions/edit: the person's own words for one answer."""
+    answers_open(a, req.get("job"))  # never once submitted
     answers.edit_answer(a, req)  # checked and kept
     return None  # the new state is the whole answer
 
@@ -187,6 +198,7 @@ def post_answers_export(a, req, path):
 
 def upload_questions(a, q, name, data):
     """POST /api/v1/jobs/questions/file?job=: a picture or a file of an application form, its questions read (OCR for a picture) and added."""
+    answers_open(a, q.get("job"))  # never once submitted
     return {"added": answers.questions_from_file(a, str(q.get("job") or ""), name, data)}  # read and added; the page draws them
 
 

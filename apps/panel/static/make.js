@@ -464,7 +464,7 @@ async function seeExample() {                                                   
   const ex = await act("/api/v1/example", { lang: LANG });                          // read as a profile file: no agent
   if (!ex) return;
   for (let i = 0; i < 120; i++) {                                                   // a profile reads in a moment
-    try { S = await api("/api/v1/state"); } catch (_) { return; }                   // the state now
+    try { S = ownJob(await api("/api/v1/state")); } catch (_) { return; }           // the state now
     if (task("ingest").state !== "running") break;                                  // read
     await new Promise((ok) => setTimeout(ok, 250));                                 // a quarter of a second
   }

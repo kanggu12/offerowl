@@ -516,7 +516,7 @@ button.mt-row:hover .mt-name { text-decoration: underline; text-underline-offset
 .mat-pic { display: block; max-width: 100%; height: auto; justify-self: start; border: 1px solid var(--paper-line); }   /* a picture at its own size, never wider than the pane */
 .mt-view .shots img { border: 1px solid var(--paper-line); }                          /* a white page on the white sheet still shows its edge */
 .mat-raw { width: 100%; min-height: 96px; max-height: 70vh; padding: var(--gap-s) var(--pad-s); border: 1px solid var(--paper-line); border-radius: var(--r-lg);
-  background: var(--well-in); color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; resize: vertical;   /* the words as written, wrapped, in a box that scrolls */
+  background: var(--well-in); color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; resize: none;   /* the words as written, wrapped, in a box that scrolls (read only: no grip, B3-22) */
   font-variant-ligatures: none; }                                                     /* every character as it is in the file: == stays two signs */
 .mat-raw.code { font-family: var(--mono); font-size: var(--fs-xs); }                  /* code in its own letters */
 .mat-raw:focus { outline: 2px solid var(--focus); outline-offset: 0; }

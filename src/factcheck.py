@@ -133,7 +133,8 @@ def unsupported(text: str, evidence: str, *, check_latin: bool = True, names: st
         pool = latin_tokens(evidence) | latin_tokens(names)  # the Latin words of the evidence, and the names a question or a posting gives
         new = sorted(w for w in latin_tokens(text) if not plural_ok(w, pool))  # plural tolerant
         if new:  # Latin words the evidence lacks
-            bad.append(msg("latin", x=", ".join(new[:5])))  # the first five
+            spelt = lambda w: (re.search(r"(?<![A-Za-z0-9])" + re.escape(w) + r"(?![A-Za-z0-9])", text, re.I) or [w])[0]  # noqa: E731  as the text writes it (B3-23: "zorblax" for "Zorblax")
+            bad.append(msg("latin", x=", ".join(spelt(w) for w in new[:5])))  # the first five
     ev_flat = re.sub(r"\s+", "", (evidence or "") + "\n" + (names or ""))  # organisations compare without spaces; a posting may name its own
     orgs = sorted(o for o in korean_orgs(text) if o not in ev_flat)  # names the evidence does not hold
     if orgs:  # organisations the evidence lacks

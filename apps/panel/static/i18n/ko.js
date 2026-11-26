@@ -264,7 +264,7 @@ CATALOGS.ko = {
   "This application was submitted and locked.": "제출하고 잠근 지원입니다.", "Edit the Korean sentence, then translate again.": "한국어 문장을 고친 뒤 다시 번역하세요.",
   "Change this part in your profile.": "이 부분은 프로필에서 고치세요.", "Pick a date for the reminder.": "알림 날짜를 고르세요.",
   "Write what to be reminded of.": "무엇을 알릴지 적으세요.", "That sentence changed. Pick it again.": "문장이 바뀌었습니다. 다시 고르세요.",
-  "{name} could not be added: the file is empty.": "{name}: 빈 파일이라 넣지 못함", "{name} could not be added: it is larger than 60 MB.": "{name}: 60MB보다 커서 넣지 못함",
+  "{name} could not be added: the file is empty.": "{name}: 빈 파일이라 넣지 못했습니다.", "{name} could not be added: it is larger than 60 MB.": "{name}: 60MB보다 커서 넣지 못함",
   // counts of one (English has its own words for them)
   "{n} application": "지원 {n}건", "{n} fact": "사실 {n}개", "{n} fact found": "사실 {n}개를 찾음", "{n} sentence": "문장 {n}개",
   "Undo {n} change?": "바꾼 것 {n}개를 되돌릴까요?", "{n} sentence has no evidence. Fix it before exporting.": "근거 없는 문장이 {n}개 있습니다. 내보내기 전에 고치세요.",
@@ -469,7 +469,10 @@ CATALOGS.ko = {
   "The company, the role and any application questions are read from it.": "회사, 직무, 지원서 문항은 공고에서 읽습니다.",
   "The form's questions, as it shows them": "지원서 화면의 문항 그대로", "1. Why this company? (700 characters)": "1. 지원 동기를 기술해 주세요. (700자 이내)",
   "Your own portfolio, page for page as you made it. Make the PDFs to see it here.": "내가 만든 포트폴리오를 쪽마다 그대로 씁니다. PDF를 만들면 여기에 보입니다.", "Shorter": "더 짧게", "Plainer": "더 쉽게", "Result first": "성과를 앞에", "Read the questions": "문항 읽기", "Read from a screenshot or a file": "캡처나 파일에서 읽기", "Reading the questions...": "문항을 읽는 중...", "Paste the questions first.": "문항을 먼저 붙여 넣으세요.",
+  "Too short for a posting: paste its whole text, or a link to it.": "공고로 읽기에 너무 짧습니다. 공고 전문이나 그 링크를 넣어 주세요.",
   "{n} question added.": "문항 {n}개를 넣었습니다.", "{n} questions added.": "문항 {n}개를 넣었습니다.",
+  "{n} had no limit: set to the usual one, change it beside the count.": "{n}개는 글자 수 한도가 없어 기본값으로 두었습니다. 글자 수 옆에서 바꿉니다.",
+  "{n} had no limit: set to the usual one, change it beside each count.": "{n}개는 글자 수 한도가 없어 기본값으로 두었습니다. 글자 수 옆에서 바꿉니다.",
   "No question was found in it. Paste the form's questions as they appear.": "문항을 찾지 못했습니다. 지원서 화면의 문항을 그대로 붙여 넣으세요.",
   "Questions a posting lists come in with it. Paste the rest from the form: each limit is read too. Each answer is written from your facts and checked like every sentence.": "공고에 적힌 문항은 공고와 함께 들어옵니다. 나머지는 지원서 화면에서 붙여 넣으세요. 글자 제한도 함께 읽습니다. 답은 내 사실로 쓰고 다른 문장처럼 검사합니다.",
   // lists read in parts: the jobs beside the one open, the facts a page at a time, the scripts beside the one read
@@ -495,9 +498,12 @@ CATALOGS.ko = {
   "This file cannot be shown here. Open the file instead.": "이 파일은 여기서 보여 줄 수 없습니다. 파일을 열어 보세요.",
   "The preview shows the start of the file. Open the file to read it all.": "미리 보기는 파일의 앞부분입니다. 전부 읽으려면 파일을 여세요.",
   "The preview shows the first {n} of {m} pages.": "미리 보기는 {m}쪽 중 앞의 {n}쪽입니다.", "The preview shows the first {n} pages.": "미리 보기는 앞의 {n}쪽입니다.",
-  "{name} was not added: this kind of file is not kept.": "{name}: 받지 않는 종류라 넣지 못함", "{name} could not be added: it is larger than 50 MB.": "{name}: 50MB보다 커서 넣지 못함",
-  "{name} could not be added.": "{name}: 넣지 못함", "{n} file added.": "파일 {n}개를 넣었습니다.", "{n} files added.": "파일 {n}개를 넣었습니다.",
+  "{name} was not added: this kind of file is not kept.": "{name}: 받지 않는 종류라 넣지 못했습니다.", "{name} could not be added: it is larger than 50 MB.": "{name}: 50MB보다 커서 넣지 못했습니다.",
+  "{name} could not be added.": "{name}: 넣지 못했습니다.", "{n} file added.": "파일 {n}개를 넣었습니다.", "{n} files added.": "파일 {n}개를 넣었습니다.",
   "{n} more file was not added.": "다른 파일 {n}개도 넣지 못했습니다.", "{n} more files were not added.": "다른 파일 {n}개도 넣지 못했습니다.",
+  "{name}: the same file is in the list already.": "{name}: 같은 파일이 이미 목록에 있습니다.",
+  "Offerowl is not answering, so nothing was undone.": "Offerowl 서버가 답하지 않아 되돌리지 못했습니다.",
+  "{n} file was not added.": "파일 {n}개를 넣지 못했습니다.", "{n} files were not added.": "파일 {n}개를 넣지 못했습니다.",
   "This file changed after you added it, so no copy was made.": "넣은 뒤에 파일이 바뀌어 복사하지 않았습니다.",
   "That file is no longer in the list. Open the job again.": "그 파일은 목록에 없습니다. 공고를 다시 열어 주세요.", "Removed {what}": "{what} 삭제",
   // the blind edition: its switch, its pages, its table and its export
@@ -738,7 +744,7 @@ CATALOGS.ko = {
   "send": "보내기", "new line": "줄 바꿈",
   "Add your old resume, portfolio or notes first: there is nothing yet to make the documents from.": "먼저 예전 이력서, 포트폴리오, 메모 같은 자료를 넣으세요. 아직 서류를 만들 자료가 없습니다.",
   "This application holds as many as it can keep. Remove an old one first.": "이 지원에 더 넣을 수 없습니다. 오래된 것을 먼저 지우세요.",
-  "That application is not there any more. It may be in the Trash.": "그 지원이 없습니다. 휴지통에 있을 수 있습니다.",
+  "That application is not there any more. It may be in the Trash.": "찾는 지원이 없습니다. 휴지통에 있을 수 있습니다.",
   "That could not be done. Open the page again and try once more.": "처리하지 못했습니다. 화면을 다시 열고 한 번 더 해 보세요.",
   "{n} file could not be added: {names}": "파일 {n}개를 넣지 못했습니다: {names}", "{n} files could not be added: {names}": "파일 {n}개를 넣지 못했습니다: {names}",
   "Passed, write the result": "날짜 지남, 결과 적기",
@@ -978,4 +984,8 @@ CATALOGS.ko = {
   "Untitled posting": "이름 없는 공고",
   "Not an email address": "이메일 주소가 아닙니다",
   "In the trash: {what}": "휴지통: {what}", "{n} photo": "사진 {n}장", "{n} photos": "사진 {n}장",
+  // 0.16.1: the Interview tab (round 3)
+  "Write at least one topic the interviewers asked for.": "면접관이 요청한 주제를 하나 이상 적어 주세요.",
+  "This page of the interview kit is not there.": "찾는 면접 자료가 없습니다.", "Open the Interview tab": "면접 탭 열기",
+  "{company} interview kit": "{company} 면접 자료",
 };

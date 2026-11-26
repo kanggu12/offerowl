@@ -84,7 +84,7 @@ class AnswerTasks:
         ko = any(A.lang_of(q["text"]) == "ko" for q in done)  # the file's language
         who = self.person_name("ko" if ko else "en")  # the person's name, in that language
         word = "지원서 문항" if ko else "Application answers"  # the file's name word
-        unit = lambda q: (" 자" if ko else " characters") if q["unit"] == "chars" else " words"  # noqa: E731  how the form counts
+        unit = lambda q: ("자" if ko else " characters") if q["unit"] == "chars" else " words"  # noqa: E731  how the form counts ("27 / 700자": a Korean unit sits on its number)
         body = "\n\n".join(f"{i}. {q['text']}\n({A.count(q['answer'], q['unit'])} / {q['limit']}{unit(q)})\n\n{q['answer']}" for i, q in enumerate(done, 1))  # numbered, each with its length
         # named as every file handed out is (apps/api/services/documents/delivery.py): the words joined by underscores with no space, the day the
         # answers were last written at the end (홍길동_감마_지원서_문항_20261120.txt), a name a file has already gets _2, _3

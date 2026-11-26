@@ -739,7 +739,7 @@ const LABELS = STR.labels || {};  // how each field label is shown in the page's
 const labelOf = (k) => (k ? LABELS[k] || k : "");  // a shown label; an empty speaker stays empty
 // Cross-references for the writer, such as "(see project 2)", mean nothing in the live moment. The job's kit.json lists them as
 // regular expressions ("strip"); they are removed from titles and text before showing.
-const REF_DEFAULT = ["\\s*\\([^()]*\\b[\\w.-]+\\.(?:md|txt|json)\\b[^()]*\\)", "\\s*\\([^()]*\\bproject_[\\w-]+[^()]*\\)", "\\s*\\((?:[^()]*\\s)?대장(?=[\\s)\\d])[^()]*\\)"];  // the writer's own files named in brackets ("(qa.md D3)", "(project_x 메모)", "(대장 12)"), in every kit
+const REF_DEFAULT = ["\\s*\\([^()]*\\b[\\w.-]+\\.(?:md|txt|json)\\b[^()]*\\)", "\\s*\\([^()]*\\bproject_[\\w-]+[^()]*\\)", "\\s*\\((?:[^()]*\\s)?대장(?=[\\s)\\d에의])[^()]*\\)", "\\s*(?:대본 근거|Script basis|Sources)\\s*:\\s*[A-Z]\\d{1,3}(?:\\s*,\\s*[A-Z]\\d{1,3})*\\.?", "\\s*\\(\\s*[A-Z]\\d{1,3}(?:\\s*,\\s*[A-Z]\\d{1,3})*\\s*\\)"];  // the writer's own files named in brackets ("(qa.md D3)", "(project_x 메모)", "(대장 12)"), in every kit
 const REF = new RegExp(REF_DEFAULT.concat(KIT.strip || []).join("|"), "g");
 const unref = (s) => (REF ? String(s).replace(REF, "") : String(s));  // text without the writer's cross-references
 ITEMS.forEach((it) => { it.tko = unref(it.tko).replace(/==|\*\*|`/g, ""); });  // titles: no cross-references, no marks

@@ -143,18 +143,23 @@ const UI = {                                                                    
   docTries: {},                                                                     // how many times in a row each failed, for the wait
   notified: {},                                                                     // reminders already shown as notifications
   typed: {},                                                                        // words typed in forms not sent yet, by field key
+  fieldNotes: {},                                                                   // a kept form's field whose words were refused: its note under it, by field key, through a redraw
 };
 const DRAFT_KEYS = /^(j-|r-|i-|f-|sentence-edit$)/;                                 // forms whose words are kept until sent (the rest save as you type): i- is an interview round
 document.addEventListener("input", (e) => {                                         // every keystroke in a kept form
   const k = e.target && e.target.dataset && e.target.dataset.key;                   // its field
   if (k && DRAFT_KEYS.test(k)) UI.typed[k] = e.target.value;                        // kept until the form is sent or closed
 });
-function forget(prefix) { for (const k of Object.keys(UI.typed)) if (k.startsWith(prefix)) delete UI.typed[k]; }  // a form was sent or closed
+function forget(prefix) {                                                           // a form was sent or closed: its words and its fields' notes go
+  for (const k of Object.keys(UI.typed)) if (k.startsWith(prefix)) delete UI.typed[k];
+  for (const k of Object.keys(UI.fieldNotes)) if (k.startsWith(prefix)) delete UI.fieldNotes[k];
+}
 
 // ---------------------------------------------------------------- the API
 
 const NOT_SAVED = /^\/api\/v1\/(interview\/start|jobs\/select|open|ask|agent\/[a-z_-]+)$/;   // writes that keep none of the person's work: the kit started, a job in view, a folder opened, an ask begun, the agent checked
 async function api(path, body, tries = 2) {                                         // one request; writes return the new state
+  if (path === "/api/v1/jobs/select") UI.ownJob = null;                            // an application chosen in this window: the one the server keeps, as every window has
   let r;                                                                            // declared outside try so the checks below can read it
   try {                                                                             // only a network failure throws here, not an HTTP error
     r = await fetch(path, body === undefined ? { cache: "no-store" } :              // no body means a read, never served from the cache
@@ -170,7 +175,7 @@ async function api(path, body, tries = 2) {                                     
     await new Promise((done) => setTimeout(done, wait * 1000));                     // then the same request again, which is safe: nothing of it was done
     return api(path, body, tries - 1);
   }
-  if (j && j.state) { S = j.state; render(); }                                      // every write sends the state back
+  if (j && j.state) { S = ownJob(j.state); render(); }                              // every write sends the state back (a window on its own application keeps it)
   if (!r.ok) throw Object.assign(new Error(j.error || "unexpected"), { info: j, status: r.status });   // a refused request, with its status (a 503 is the server's load, not a refusal)
   if (body !== undefined && !NOT_SAVED.test(path)) flashSaved();                   // autosave: say it was kept (a request that keeps nothing says nothing)
   return j;                                                                         // callers read extra fields such as started or undone
@@ -195,7 +200,17 @@ async function act(path, body, okText, okKind = "done") {                       
     if (okText) toast(okText, okKind === "done" && j && j.step ? { words: t("Undo"), run: () => undoOnly(j.step) } : null, okKind);   // a change made: its Undo on the note (a phone's band covers the bar's)
     schedule(); return j;                                                           // polled while a task runs
   }
-  catch (e) { toast(e.message === "offline" ? t("Offerowl is not answering, so this was not saved.") : errorText(e), null, "bad"); return null; }   // the reason in words; a server gone says so too, beside the bar's band
+  catch (e) { toast(e.message === "offline" ? (/^\/api\/v1\/undo/.test(path) ? t("Offerowl is not answering, so nothing was undone.") : t("Offerowl is not answering, so this was not saved.")) : errorText(e), null, "bad"); return null; }   // an undo is not a save (D3-09)   // the reason in words; a server gone says so too, beside the bar's band
+}
+// A window opened on one application's scripts (/?job=<id>&show=scripts, app.js fromAddress) keeps that application: the
+// panel's other windows keep theirs, and the server's choice stays the plain panel's. It lasts until an application is
+// chosen in this window (api above) or that one is gone
+function ownJob(st) {                                                               // a state with this window's own application in view
+  if (!st || !UI.ownJob) return st;                                                 // a plain window: the server's choice
+  if (!(st.jobs || []).some((j) => j.id === UI.ownJob)) { UI.ownJob = null; return st; }   // removed meanwhile: the server's choice again (the note says it went)
+  if (st.job !== UI.ownJob && S && S.job === UI.ownJob) st.english = S.english;    // a write's state is the server's view: its translation flag as the last poll gave it for this one
+  st.job = UI.ownJob;                                                               // this window's application
+  return st;
 }
 let stateTag = { tag: "", of: null };                                               // the ETag of the state drawn, and that very state object
 async function refresh() {                                                          // the state again
@@ -203,11 +218,11 @@ async function refresh() {                                                      
   // asks for the whole state again, or a 304 could keep that S beside a server that went back to the tagged one
   const tag = stateTag.of === S && S ? stateTag.tag : "";                           // "" asks for the whole state
   try {
-    const r = await fetch("/api/v1/state", { cache: "no-store", headers: tag ? { "If-None-Match": tag } : {} });  // no-store: the tag is ours, not the browser cache's
+    const r = await fetch("/api/v1/state" + (UI.ownJob ? "?job=" + enc(UI.ownJob) : ""), { cache: "no-store", headers: tag ? { "If-None-Match": tag } : {} });  // no-store: the tag is ours, not the browser cache's; a window on its own application asks for the state as it sees it
     setOffline(false);                                                              // any answer at all means the server is back
     if (r.ok) {                                                                     // a new state (a 304 is not ok: nothing changed, nothing to draw)
       const before = S;                                                             // the state drawn until now
-      S = await r.json();                                                           // unpacked by the browser when it came compressed
+      S = ownJob(await r.json());                                                   // unpacked by the browser when it came compressed
       stateTag = { tag: r.headers.get("ETag") || "", of: S };                       // for the next poll
       render();                                                                     // drawn
       noteEnded(before, S);                                                         // long work that ended out of sight says so
@@ -394,6 +409,7 @@ function errorText(e) {                                                         
     example_over_own: t("Your own facts are kept, so the example was not added: it would replace your profile."),
     fact_empty: t("Write a title or what it says first."),
     talk_minutes: t("A talk lasts 5 to 120 minutes."),
+    bad_brief: t("Write at least one topic the interviewers asked for."),
     already_carried: t("Its scripts were brought in already. Undo the earlier one first to bring them again."),
     questions_moved: t("The questions changed in another window, so nothing was saved here. Open the application again."),
     body_too_large: t("That is too long to send in one piece. Shorten it, or add it as a file."),
@@ -547,6 +563,10 @@ async function undoOnly(id) {                                                   
   const r = await act("/api/v1/undo", { only: id });                                // the server compares the names under its lock
   if (r) toast(r.moved ? t("A later change came first, so nothing was undone. The history lists both.")
     : r.undone ? t("Undone: {what}", { what: undoLabel(r.undone) }) : t("Nothing to undo."), null, r.moved ? "warn" : r.undone ? "done" : "info");   // as the bar's Undo says it
+  requestAnimationFrame(() => requestAnimationFrame(() => {                          // after the page drew what came back (B3-21: the key that was pressed is gone with its toast)
+    if (document.activeElement && document.activeElement !== document.body) return;  // focus is somewhere already
+    const w = $("work"); if (w) { w.setAttribute("tabindex", "-1"); w.focus({ preventScroll: true }); }   // the keyboard goes on from the work area, never from the page's top
+  }));
 }
 
 // ---------------------------------------------------------------- the panel's own question
@@ -739,6 +759,34 @@ function edgeFade(row) {
 const hourOf = (at) => (String(at || "").match(/[T ](\d{2}:\d{2})/) || ["", ""])[1];   // 2026-11-09 14:32 (or T14:32:05) as 14:32; "" for a day alone
 const pad2 = (n) => String(n).padStart(2, "0");
 const dayTime = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;   // a Date as 2026-11-10 04:37, this PC's time
+// A field whose words were refused says why under it, in the panel's own line (never the browser's bubble, whose complaint
+// stayed on the field and kept its form from being sent again): the rim turns the problem's colour, the keyboard goes back
+// to it, and the next keystroke takes the note away. A kept form's note (its words survive a redraw) is drawn again with it.
+function fieldNote(box, words) {
+  const key = box.dataset.key || "";                                                // the field's name in the form
+  const host = box.closest(".field, .dt-cell") || box.parentElement;                // the field's own box: the note goes under the field
+  const old = host && [...host.children].find((x) => x.classList.contains("fnote"));   // the note it shows now
+  if (key && DRAFT_KEYS.test(key)) { if (words) UI.fieldNotes[key] = words; else delete UI.fieldNotes[key]; }   // kept with the words typed, through a redraw
+  if (!words) {                                                                     // put right: the note and the mark go
+    if (old) old.remove();
+    box.removeAttribute("aria-invalid"); box.removeAttribute("aria-describedby");
+    return;
+  }
+  const id = "fn-" + (key || Math.random().toString(36).slice(2));                  // the note's name, which the field points to
+  const note = old || h("span", { class: "fnote", id, role: "alert" });             // said once as it appears, for a reader that cannot see it
+  note.textContent = words;
+  if (!old && host) host.append(note);                                              // under the field
+  box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", note.id);   // the field says what is wrong with it
+  box.addEventListener("input", () => fieldNote(box, ""), { once: true });           // a new try takes the note away
+  box.focus({ preventScroll: true });                                               // back on the field to put it right
+}
+function noteOf(box) {                                                              // the note a field drawn again still has (its kept words were refused), to stand under it; null for none
+  const key = box.dataset.key, words = key && UI.fieldNotes[key];
+  if (!words) return null;                                                          // nothing refused
+  box.setAttribute("aria-invalid", "true"); box.setAttribute("aria-describedby", "fn-" + key);   // marked as when it was said
+  box.addEventListener("input", () => fieldNote(box, ""), { once: true });           // a new try takes it away
+  return h("span", { class: "fnote", id: "fn-" + key, text: words });              // already said once: drawn again without a second announcement
+}
 function pickField(kind, attrs, value, onValue) {                                   // a day or a time typed the panel's way, or picked from the browser's own
   const read = kind === "date" ? isoDay : isoTime;
   const box = h("input", Object.assign({ type: "text", inputmode: "decimal", autocomplete: "off", spellcheck: "false", maxlength: 16,
@@ -749,20 +797,19 @@ function pickField(kind, attrs, value, onValue) {                               
     if (chosen && key && DRAFT_KEYS.test(key)) UI.typed[key] = v;                   // typed or picked in a kept form: a redraw brings it back (picking types nothing)
   };
   const pick = h("input", { type: kind, class: "pick", tabindex: "-1", "aria-hidden": "true",   // the browser's calendar or clock, never seen itself
-    onchange: (e) => { show(e.target.value, true); box.setCustomValidity(""); if (onValue) onValue(e.target.value); } });   // its answer, written the panel's way
+    onchange: (e) => { show(e.target.value, true); fieldNote(box, ""); if (onValue) onValue(e.target.value); } });   // its answer, written the panel's way: a note on the typed words goes
   const now = read(box.value);                                                      // what the field holds now, read
   if (now !== null) show(now);                                                      // a kept 2026/11/12 comes back as 2026-11-12
   box.addEventListener("change", () => {                                            // typed: read in any common way
     const v = read(box.value);
-    if (v === null) { box.setCustomValidity(t(kind === "date" ? "Write the day as 2026-11-09." : "Write the time as 19:00.")); box.reportValidity(); return; }
-    box.setCustomValidity(""); show(v, true);                                        // shown back as the panel writes it
+    if (v === null) { fieldNote(box, t(kind === "date" ? "Write the day as 2026-11-09." : "Write the time as 19:00.")); return; }   // said under the field, in the panel's words
+    fieldNote(box, ""); show(v, true);                                               // shown back as the panel writes it
     if (onValue) onValue(v);
   });
-  box.addEventListener("input", () => box.setCustomValidity(""));                   // a new try clears the last complaint
   const word = kind === "date" ? t("Pick a day") : t("Pick a time");
   const opener = h("button", { type: "button", class: "btn icon pick-key", title: word, "aria-label": word,
     onclick: () => { try { pick.showPicker(); } catch (_) { pick.focus(); } } }, icon(kind === "date" ? "calendar" : "clock"));   // opens the browser's own
-  return h("span", { class: "pickfield" }, box, opener, pick);
+  return [h("span", { class: "pickfield" }, box, opener, pick), noteOf(box)];       // the field, and under it the note its kept words still have
 }
 const dayField = (attrs, value, onDay) => pickField("date", attrs, value, onDay);   // a day: 2026-11-09
 const timeField = (attrs, value, onTime) => pickField("time", attrs, value, onTime);   // a time: 19:00

@@ -82,12 +82,27 @@ def resume(tasks, lang: str = "ko", theme: str = "navy", job: str | None = None)
                  edits=facts.edits(), locks=w["locks"], details=facts.details(), plan=plan, job=job, translated=translated, draft=w["draft"], live=w["live"])
     out = R.build()  # blocks, sentences, counts
     out["form"] = tasks.look()["form"]  # the form chosen in the panel
+    if job and tasks.own_form(job, lang).get("tenure") is False:  # an edition made without the time at each company (own/form.json): drawn as it prints
+        hide_tenure(out["blocks"])
     pictures(tasks, out, job, lang, theme)  # the photo, the figures and the logos the printed resume carries
     out["blocks"] = for_form(out["blocks"], out["form"])  # shown as it will print
     out["draft"] = D.summary(tasks, w["owner"], bool(w["live"]), job) if w["draft"] else None  # who wrote it, when, and whether the facts moved on
     out["missing"] = problems(facts.profile())  # a name, an email, one role
     out["profile_lang"] = tasks.profile_lang()  # the language the profile itself is written in
     return out  # what the canvas draws
+
+
+def hide_tenure(blocks: list) -> None:
+    """No time spent at each company and no total, as src/resume_form.js prints an edition made with tenure off: the career
+    table's rows and the companies' bands lose their tenure, the career heading its "(총경력 …)"."""
+    for i, b in enumerate(blocks):  # every block of the model
+        if b.get("type") == "career":  # the career summary table
+            for r in b.get("rows") or []:
+                r["tenure"] = ""  # the column goes when no row has it (docs.js careerTable, as the printed table)
+            if i and blocks[i - 1].get("type") == "section":  # its heading, right before it
+                blocks[i - 1].pop("note", None)  # no total beside the title
+        elif b.get("type") == "role":  # a company's band
+            b["tenure"] = ""  # its dates alone, in the band's quiet grey (docs.js)
 
 
 def pictures(tasks, out: dict, job: str | None, lang: str, theme: str) -> None:
@@ -105,7 +120,7 @@ def pictures(tasks, out: dict, job: str | None, lang: str, theme: str) -> None:
     form = tasks.own_form(job, lang) if job else {}  # how a job's own edition was made: it may have gone without the photo or the hierarchy figure
     photo = tasks.photo_for_build() if out["form"] == "detailed" and form.get("photo") is not False else None  # the photo, when the setting puts it on the resume (the detailed form's name band only)
     if photo:  # in the name band's left cell, as printed
-        out["person"]["photo"] = f"/api/v1/photo?v={int(photo.stat().st_mtime)}&w=240"  # the canvas draws it 76 px wide: a small copy (the PDF reads the file itself)
+        out["person"]["photo"] = f"/api/v1/photo?v={int(photo.stat().st_mtime)}&w=240&theme={theme}"  # the canvas draws it 76 px wide: a small copy (the PDF reads the file itself)
     try:
         figs = tasks.resume_figures(jid, lang, theme)  # drawn from the edition's profile, kept until it changes
     except Exception as exc:  # noqa: BLE001  the canvas draws without them rather than not at all

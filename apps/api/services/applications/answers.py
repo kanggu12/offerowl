@@ -235,7 +235,8 @@ def parse_questions(text: str, strict: bool = False) -> list[dict]:
             bare = bare[:-1].rstrip()
         numbered = bool(NUMBERED_RE.match(bare))  # a numbered line
         body = NUMBERED_RE.sub("", bare).strip()  # the question's words
-        if len(body) < 8 and not (len(body) >= 4 and "?" in body):  # a line that only carried a limit (a short question still counts): it belongs to the question before it
+        own = (numbered or bool(lim)) and len(body) >= 2 and bool(re.search(r"[가-힣A-Za-z]", body))  # "1. 지원 동기 (500자)": a numbered line, or one with its own limit, is a question however short (B3-04)
+        if len(body) < 8 and not (len(body) >= 4 and "?" in body) and not own:  # a line that only carried a limit (a short question still counts): it belongs to the question before it
             if lim and last is not None and not last.get("_lim"):
                 last.update(limit=lim[0], unit=lim[1], _lim=True)
             elif SECTION_RE.search(line):  # a heading
@@ -252,7 +253,8 @@ def parse_questions(text: str, strict: bool = False) -> list[dict]:
         last = q
     out = []  # the questions, with a usual limit where none was written
     for q in rows[:MAX_QUESTIONS]:
-        out.append({"text": q["text"], "limit": q["limit"] or (150 if q["unit"] == "words" else 500), "unit": q["unit"]})
+        out.append({"text": q["text"], "limit": q["limit"] or (150 if q["unit"] == "words" else 500), "unit": q["unit"],
+                    **({} if q["limit"] else {"assumed": True})})  # no limit written: the usual one, said to the person (B3-20)
     return out
 
 
@@ -325,9 +327,9 @@ def set_questions(api, req: dict) -> None:
         write_json(f, {"questions": qs})  # kept
 
 
-def paste_questions(api, req: dict) -> int:
+def paste_questions(api, req: dict) -> tuple[int, int]:
     """The questions of a form pasted as the form shows them, read with their limits and added after the ones kept.
-    Returns how many were added."""
+    Returns how many were added and how many of them had no limit written (given the usual one)."""
     jid = api.need_job(req)  # which job
     found = parse_questions(str(req.get("text") or "")[:20000])  # each question with its limit
     if not found:  # nothing that reads as a question
@@ -337,9 +339,10 @@ def paste_questions(api, req: dict) -> int:
     with LOCK, api.ws.change({"code": "undo_questions", "company": st.get("company") or st.get("role")}, [f"jobs/{jid}/questions.json"]):  # the answering task writes here too; one undo step
         old = read_json(f, {}).get("questions") or []  # as kept
         have = {q.get("text") for q in old}  # a question pasted twice is kept once
-        rows = [{"text": q["text"], "limit": q["limit"], "unit": q["unit"]} for q in old] + [q for q in found if q["text"] not in have]
+        rows = [{"text": q["text"], "limit": q["limit"], "unit": q["unit"]} for q in old] + [{k: v for k, v in q.items() if k != "assumed"} for q in found if q["text"] not in have]
         write_json(f, {"questions": clean_questions(rows, old)})  # ids and answers kept
-    return len([q for q in found if q["text"] not in have])
+    new = [q for q in found if q["text"] not in have]  # the ones added
+    return len(new), sum(1 for q in new if q.get("assumed"))
 
 
 def questions_from_file(api, jid: str, name: str, data: bytes) -> int:
@@ -358,7 +361,7 @@ def questions_from_file(api, jid: str, name: str, data: bytes) -> int:
             text = postings.page_text(data.decode("utf-8", "replace"))
         else:
             text = ingest.ocr(f, block=True) if suffix in ingest.IMAGES else ingest.to_text(f)  # a screenshot read line by line; a PDF's text layer
-    return paste_questions(api, {"job": jid, "text": text})
+    return paste_questions(api, {"job": jid, "text": text})[0]  # how many came in
 
 
 def edit_answer(api, req: dict) -> None:

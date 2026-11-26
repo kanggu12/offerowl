@@ -129,6 +129,8 @@ def board(tasks, job_id: str, lang: str = "ko") -> dict:
                         "turns": tt, "draft": bool(it.get("draft"))})  # the dialogue
     drafted = sum(1 for s in scripts if s["draft"])  # the scripts that are the agent's drafts (the page says how many of the scripts)
     counts = {"questions": len(rows), "scripts": len(scripts), "uncovered": sum(1 for r in rows if r.get("coverage") == "none") - was_none, "drafted": drafted}  # the board's totals
+    if not scripts:  # a kit with no script yet: nothing to print (C3-14: "대본 0개" with a print key, a cue page of 0 cards)
+        base = {**base, "cue": {**base["cue"], "available": False}, "deck": {**base["deck"], "available": False}}
     return {"ready": True, "categories": cats, "scripts": scripts, "counts": counts, **base}  # the board
 
 

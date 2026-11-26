@@ -9,6 +9,7 @@ import http.client  # a request with a browser's navigation headers
 import json  # the kit's health answer
 import os  # the model's setting
 import pathlib  # paths
+import re  # the words of a page
 import shutil  # the stand-in model folder, removed
 import socket  # a request no client library would send
 import sys  # the import path
@@ -154,7 +155,35 @@ class TestKitProxy(PanelCase):
         r = conn.getresponse()
         r.read()
         self.assertEqual((302, "/?job=no-such-job&show=scripts"), (r.status, r.getheader("Location")))   # the panel, which says it is gone
+        conn.request("GET", f"/kit/{q(jid)}/?q={q('자기소개 해 주세요')}", headers=nav)  # an old search link's question goes with it (it was dropped)
+        r = conn.getresponse()
+        r.read()
+        self.assertEqual((302, f"/?job={q(jid)}&show=scripts&q={q('자기소개 해 주세요')}"), (r.status, r.getheader("Location")))
         conn.close()
+
+    def test_a_kit_page_that_is_not_there_is_a_page_of_the_panel(self):
+        """A person opening a page of the kit that is not there (the talk's slides before the talk is made, an old link) gets a
+        page of the panel's own: its theme, its face, its stylesheets and its words in the language chosen in the panel, the
+        application's name in its title, a key back to its scripts. It mixed Korean and English on a page of its own colours."""
+        jid, company = self.jobs[0]
+        self.assertTrue(self.post("/api/v1/interview/start", {"job": jid})["started"])  # the kit runs: the kit itself answers 404
+        nav = {"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document"}
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=60)
+        conn.request("GET", f"/kit/{q(jid)}/talk/deck.pdf", headers=nav)
+        r = conn.getresponse()
+        page = r.read().decode("utf-8")
+        conn.close()
+        self.assertEqual(404, r.status)
+        for part in ("/static/theme.js", "/static/i18n.js", "/static/i18n/ko.js", "/static/tokens.css", "/static/skin.css", "/static/kitgone.js"):   # the panel's own
+            self.assertIn(part, page)
+        self.assertIn(f"<title>{company} · Offerowl</title>", page)  # whose kit, before the page's words are put in its language
+        self.assertIn(f'href="/?job={q(jid)}&amp;show=scripts"', page)  # the way back
+        self.assertIsNone(re.search(r"[가-힣]", page.replace(company, "")), page)  # one language in the page itself: the table gives the Korean
+        self.assertNotIn("<style>", page)  # no colours of its own
+        self.assertIn("script-src 'self'", r.getheader("Content-Security-Policy") or "")  # the panel's policy
+        words = (ROOT / "apps" / "panel" / "static" / "kitgone.js").read_text(encoding="utf-8")
+        for w in re.findall(r'data-w="(\w+)"', page):  # every place of the page has its words in the script
+            self.assertIn(f"{w}: t(", words)
 
     def test_the_start_route_answers_for_the_job(self):
         jid = self.jobs[1][0]

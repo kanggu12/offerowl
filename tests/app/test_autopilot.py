@@ -748,6 +748,29 @@ class Deliver(unittest.TestCase):
         self.c.post("/api/v1/photo/remove", {})
         self.assertIsNone(self.c.get("/api/v1/state")["photo"])  # gone
 
+    def test_a_cut_out_photo_is_set_on_the_theme_s_studio_light(self):
+        import io  # the pictures in memory
+        from PIL import Image  # the photos made and read here
+        from apps.api.services.profile import photo  # the backdrop
+        cut = Image.new("RGBA", (60, 80), (0, 0, 0, 0))  # a see-through ground
+        cut.paste((200, 150, 120, 255), (20, 20, 40, 80))  # and a person in front of it
+        buf = io.BytesIO(); cut.save(buf, "PNG")
+        api = self.c.api
+        profile.set_photo(api, buf.getvalue())  # a cut-out photo
+        kept = api.tasks.photo_for_build()
+        made = api.tasks.photo_in(kept, "crimson")  # as the crimson pack prints it
+        self.assertEqual("studio_crimson.jpg", made.name)
+        im = Image.open(made).convert("RGB")
+        corner, light = im.getpixel((1, 78)), im.getpixel((30, 10))  # a bottom corner, the light above the head
+        self.assertLess(max(abs(a - b) for a, b in zip(corner, (0x18, 0x18, 0x1B))), 20)  # the band's colour at the corners
+        self.assertGreater(sum(light), sum(corner) + 60)  # lit behind the head: a slope, never a flat fill
+        self.assertLessEqual(max(abs(a - b) for a, b in zip((200, 150, 120), im.getpixel((30, 60)))), 4)  # the person as taken (a JPEG's few levels)
+        self.assertEqual(made, api.tasks.photo_in(kept, "crimson"))  # made once while the photo is the same
+        self.assertEqual(kept, api.tasks.photo_in(kept, "nope"))  # an unknown pack: the photo as it is
+        self.assertEqual(made.read_bytes(), self.c.get("/api/v1/photo", theme="crimson"))  # the canvas asks for the same picture
+        profile.set_photo(api, JPEG)  # a photo with its own backdrop
+        self.assertEqual(api.tasks.photo_for_build(), api.tasks.photo_in(api.tasks.photo_for_build(), "crimson"))  # kept as it is
+
     def test_a_photo_keeps_its_picture_and_its_turn_but_not_what_the_phone_wrote(self):
         from apps.api.services.profile import photo  # the reader of the turn
         head, rest = JPEG[:20], JPEG[20:]  # the start and JFIF, then the tables, the frame and the scan
@@ -883,6 +906,32 @@ class Questions(unittest.TestCase):
         self.assertEqual([("지원 동기와 입사 후 포부를 기술해 주세요.", 700, "chars"), ("가장 어려웠던 기술적 문제와 해결 과정을 서술하십시오.", 1000, "chars"),
                           ("협업 경험을 말씀해 주세요", 500, "chars"), ("Why do you want to join us?", 300, "words"),
                           ("성장 과정(가족, 학교)을 기술하세요", 750, "chars")], got)  # a limit on the next line belongs to the question; bytes are halved
+        short = [(q["text"], q["limit"]) for q in parse_questions("1. 지원 동기 (500자)\n2. 성장 과정 (1000자)\n3. 입사 후 포부 (700자)")]  # the usual short form questions
+        self.assertEqual([("지원 동기", 500), ("성장 과정", 1000), ("입사 후 포부", 700)], short)  # each its own question, though under eight letters (it was no_questions)
+
+    def test_a_submitted_application_s_answers_stay_as_they_went(self):
+        self.c.post("/api/v1/jobs/questions", {"job": self.jid, "questions": [{"text": "지원 동기를 쓰세요.", "limit": 300}]})
+        card = self.c.api.ws.job_dir(self.jid) / "status.json"  # its record
+        st = json.loads(card.read_text(encoding="utf-8"))
+        st["locked"] = {"at": "2026-11-07", "folder": "sent", "files": {}, "lang": "ko"}  # submitted, as the lock records it
+        card.write_text(json.dumps(st, ensure_ascii=False), encoding="utf-8")
+        q = self.questions()[0]
+        for path, body in (("/api/v1/jobs/questions/edit", {"job": self.jid, "id": q["id"], "answer": "바꾼 답"}),
+                           ("/api/v1/jobs/questions", {"job": self.jid, "questions": []}),
+                           ("/api/v1/jobs/questions/paste", {"job": self.jid, "text": "1. 새 문항을 쓰세요. (300자)"}),
+                           ("/api/v1/jobs/questions/write", {"job": self.jid})):
+            with self.assertRaises(RuntimeError) as e:  # refused, as its documents are (B3-17)
+                self.c.post(path, body)
+            self.assertIn("locked", str(e.exception))
+        self.assertEqual([("지원 동기를 쓰세요.", "")], [(x["text"], x.get("answer") or "") for x in self.questions()])  # nothing changed
+
+    def test_a_first_line_that_starts_with_a_company_names_the_company(self):
+        jid = self.c.post("/api/v1/jobs", {"posting": "가나다랩스 플랫폼 엔지니어\n\n주요 업무\n- Kubernetes 클러스터 운영과 장애 대응\n- 모니터링 체계 개선"})["job"]
+        j = next(x for x in self.c.get("/api/v1/state")["jobs"] if x["id"] == jid)
+        self.assertEqual(("가나다랩스", "플랫폼 엔지니어"), (j["company"], j["role"]))  # B3-16: the company was empty and the role the whole line
+        jid2 = self.c.post("/api/v1/jobs", {"posting": "플랫폼 엔지니어 채용\n\n주요 업무\n- Kubernetes 클러스터 운영과 장애 대응"})["job"]
+        j2 = next(x for x in self.c.get("/api/v1/state")["jobs"] if x["id"] == jid2)
+        self.assertEqual("", j2["company"])  # a role's own first word is never taken for a company
 
     def test_a_posting_brings_its_questions_but_never_its_duty_lines(self):
         posting = POSTING + "\n\n주요 업무\n- 결제 승인 서비스를 설계하고 운영하실 분\n\n지원서 문항\n① 본인의 강점을 설명해 주세요 (800자 이내)\n② 이 직무에 지원한 이유는 무엇인가요?\n"

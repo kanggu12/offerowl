@@ -140,8 +140,9 @@ function build(profilePath, cfg = {}) {
     // Column widths that hold common content (Korean with logos: period 1850, company 2850, department 2600, role 2100;
     // English: 1700, 3300, 2550, 1650, so a long university name stays on one line). cfg.widths.career overrides
     const full = lang === "en" ? [1700, 3300, 2550, 1650] : anyRoleLogo ? [1850, 2850, 2600, 2100] : [1850, 2400, 3000, 2100];
+    const spare = W - full.reduce((a, b) => a + b, 0);                    // the tenure column's width, free when it is hidden
     const preset = anyDept
-      ? (showTenure ? full : [full[0], full[1] + 350, full[2] + 300])
+      ? (showTenure ? full : [full[0], full[1] + spare, full[2]])         // hidden: the department and the role keep their widths (wider, a cell broke before one word, "엔지니어", "(인턴)"); the company takes the rest
       : (showTenure ? [full[0], full[1] + 750, full[2] + full[3] - 750] : [full[0], full[1] + 1350]);
     const widths = (cfg.widths && cfg.widths.career) || [...preset, W - preset.reduce((a, b) => a + b, 0)];
     ch.push(L.ftable(widths, roles.map(r => [
@@ -209,7 +210,7 @@ function build(profilePath, cfg = {}) {
     // the job title the line under the band prints (after the department and its " / "): what the title checks read. The long
     // title (titleLong) is printed by the one-column form only, so it is never the one held to them here
     const shown = r.sub ? String(r.sub).split(" / ").pop() : (r.title || "");
-    const band = L.fband(r.org, r.period + (r.tenure ? ` (${r.tenure})` : ""), { boldRight: true, title: shown, place: r.place,
+    const band = L.fband(r.org, r.period + (r.tenure ? ` (${r.tenure})` : ""), { boldRight: !!r.tenure, title: shown, place: r.place,   // with the tenure hidden (tenure: false) the period alone, in the band's quiet grey
       logo, badge: logo && !badgeOk ? "" : r.badge });
     ch.push(...[].concat(band));
     const sub = r.sub || [[r.dept, r.title].filter(Boolean).join(" / "), r.context].filter(Boolean).join(", ");

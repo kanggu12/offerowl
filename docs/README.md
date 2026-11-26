@@ -114,9 +114,9 @@ Everything Offerowl writes comes from here.
 </picture>
 
 - **Your details**: name, contact, headline and introduction, saved as you type, and the resume's **photo**: a JPEG or a PNG,
-  printed in a 3:4 cell beside your name in both languages. A PNG with a transparent background takes the colour of the
-  theme you choose behind you, so the photo follows every theme; a photo with its own backdrop keeps it. **On the resume**
-  takes it off without removing it.
+  printed in a 3:4 cell beside your name in both languages. A PNG with a transparent background is set on a studio
+  backdrop in the colour of the theme you choose, lit from behind your head, so the photo follows every theme; a photo
+  with its own backdrop keeps it. **On the resume** takes it off without removing it.
 - **Your files**: each shows how many facts it gave. **Remove** takes it and its facts out at once; the note that says so
   holds **Undo**, and the [Trash](#9-your-files) brings both back later.
 - **Facts**: what each one says, the source's own words, and the file they came from. **Keep**, **Edit** or **Drop** them.

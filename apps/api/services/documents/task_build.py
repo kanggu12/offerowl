@@ -432,6 +432,7 @@ class Builds:
         form = self.own_form(job_id, lang)  # a job's own edition: how it was made
         photo = self.photo_for_build() if form.get("photo") is not False and not blind else None  # the resume's photo, unless the edition was made without one; a blind edition has none (a face is not covered by a bar)
         if photo:  # staged where the engine reads it, in the container too (resume.rel copies it into output/_inputs)
+            photo = self.photo_in(photo, theme)  # a cut-out photo on this pack's studio backdrop (2026-11-26: a flat band colour behind it read as pasted on)
             cfg["photo"] = {"file": resume.rel(str(photo)), "layout": "flush",  # the photo fills its 3:4 cell
                             **{k: v for k, v in (form.get("photo") or {}).items() if k in ("layout", "w")}}  # or the edition's own cell
         write_json(out_dir / "job.json", cfg)  # kept with the edition
@@ -605,7 +606,7 @@ class Builds:
         spec = self.style_spec()  # the person's rules, staged for the check
         if spec != "default":  # their staged copy goes too
             found.append(out / "_inputs" / (hashlib.sha1(str(Path(spec).resolve()).encode()).hexdigest()[:8] + "_" + Path(spec).name))  # named as resume.rel names it
-        for f in self.photo_paths():  # the photo's staged copy: a face does not stay in the engine's folder
+        for f in (*self.photo_paths(), *self.studio_paths()):  # the photo's staged copy, and its studio copy's: a face does not stay in the engine's folder
             found.append(out / "_inputs" / (hashlib.sha1(str(f.resolve()).encode()).hexdigest()[:8] + "_" + f.name))  # named as resume.rel names it
         prof = read_json(out_dir / "profile.json", {})  # the logo pictures the profile names were staged beside it (resume.stage_logos)
         for h in [*(prof.get("roles") or []), *(prof.get("education") or []), *[p for r in prof.get("roles") or [] if isinstance(r, dict) for p in r.get("projects") or []]]:

@@ -53,7 +53,7 @@ function sentenceOf(sid) {                                                      
 // ---------------------------------------------------------------- sentences
 
 function sourcesOf(m) {                                                             // the document's source files in the order its sentences first cite them: [{file, n}]
-  if (m._sources) return m._sources;                                                // worked out once per model
+  if (m._sources && m._sourcesLang === LANG) return m._sources;                    // worked out once per model and page language (its typed rows' words were kept in the first language drawn, B3-07)
   const seen = new Map();                                                           // file -> its row
   let details = 0, typed = 0;                                                       // sentences resting only on Your details, or on facts the person added
   for (const rec of Object.values(m.sentences || {})) {                            // every sentence, in the document's order
@@ -67,6 +67,7 @@ function sourcesOf(m) {                                                         
       if ((rec.evidence || []).some((e) => e && e.where === "details")) details += 1; else typed += 1;   // Your details, or a fact added by hand
     }
   }
+  m._sourcesLang = LANG;                                                            // the language its words are in
   m._sources = [...seen.values(), ...(details ? [{ file: t("Your details"), n: details, typed: true }] : []),   // numbered from one, in order; the person's own words last
     ...(typed ? [{ file: t("Facts you added"), n: typed, typed: true }] : [])];
   return m._sources;
@@ -178,7 +179,7 @@ function resumeUnits(m) {                                                       
       if (b.logo) add(h("div", { class: "r-gap" }), { keep: true });               // the band's 200 twips above it are a paragraph of their own
       add(h("div", { class: "r-band" + (b.logo ? "" : " plain") }, b.logo ? h("img", { class: "r-logo", src: b.logo, alt: "" }) : null,
         h("b", { text: b.org }), b.badge ? h("span", { class: "badge", text: b.badge }) : null,
-        b.place ? h("span", { class: "place", text: b.place + "   " }) : null, h("span", { class: "when", text: (b.period || "") + (b.tenure ? ` (${b.tenure})` : "") })),
+        b.place ? h("span", { class: "place", text: b.place + "   " }) : null, h("span", { class: "when" + (b.tenure ? "" : " quiet"), text: (b.period || "") + (b.tenure ? ` (${b.tenure})` : "") })),   // the dates alone in grey, as the printed band (tenure off)
         { keep: true });
       if (b.sub) add(h("p", { class: "r-sub" + ((m.colors || {}).acc === "1F1F1F" ? " ink" : ""), text: b.sub }), { keep: true }); // the underlined line under the band
       if (b.desc) add(h("p", { class: "r-desc", text: b.desc }), { keep: true });   // the grey line about the company, kept with the first project
@@ -221,7 +222,8 @@ function careerTable(m, b, L) {                                                 
   const en = m.lang === "en", logos = b.rows.some((r) => r.logo);                   // the edition; a logo column needs a wider name column
   const dept = b.rows.some((r) => r.department), tenure = b.rows.some((r) => r.tenure);   // the columns the table has
   const full = en ? [1700, 3300, 2550, 1650] : logos ? [1850, 2850, 2600, 2100] : [1850, 2400, 3000, 2100];   // period, company, department, role
-  const preset = dept ? (tenure ? full : [full[0], full[1] + 350, full[2] + 300]) : (tenure ? [full[0], full[1] + 750, full[2] + full[3] - 750] : [full[0], full[1] + 1350]);
+  const spare = TWIPS_W - full.reduce((a, x) => a + x, 0);                        // the tenure column's width, free when no row has a tenure
+  const preset = dept ? (tenure ? full : [full[0], full[1] + spare, full[2]]) : (tenure ? [full[0], full[1] + 750, full[2] + full[3] - 750] : [full[0], full[1] + 1350]);   // hidden: the department and the role keep their widths, as resume_form.js
   const widths = [...preset, TWIPS_W - preset.reduce((a, x) => a + x, 0)];         // the last column takes the rest
   const head = [L.period, L.org, ...(dept ? [L.dept] : []), L.role || L.dept, ...(tenure ? [L.tenure] : [])]; // the head row
   const align = ["c", "l", "l", "l", "c"].slice(0, head.length - 1).concat(tenure ? ["c"] : ["l"]);   // dates and tenure centred
@@ -593,7 +595,7 @@ function viewDocuments(host) {                                                  
     h("button", { "aria-pressed": UI.mode === k ? "true" : "false", onclick: () => { UI.mode = k; render(); }, text: t(w) })));
   const cov = UI.doc === "cover" ? coverModel() : null;                              // the cover letter, on its tab
   const counts = (cov && cov.state === "drafted" ? cov.counts : null) || (UI.doc === "cover" ? {} : (m && m.counts)) || {};  // the evidence totals of the document on screen
-  const evsum = !m || !counts.sentences || UI.doc === "deck" || ownFileIn(edition(), UI.doc) || m.missing && m.missing.length && !(m.blocks || []).length ? null :   // a file the person made has no sentences of Offerowl's; the deck's are the resume's
+  const evsum = !m || !counts.sentences || UI.doc === "deck" || ownFileIn(edition(), UI.doc) || (j && j.locked && j.locked.brought) || m.missing && m.missing.length && !(m.blocks || []).length ? null :   // a file the person made has no sentences of Offerowl's, nor do the own files a submission went out with (B3-03); the deck's are the resume's
     h("span", { class: "evsum" }, counts.unsupported ? h("span", { class: "chip bad", text: t("{n} without evidence", { n: counts.unsupported }) })
       : h("span", { class: "chip ok", text: t("Every sentence has evidence") }), h("span", { class: "sep", "aria-hidden": "true", text: "·" }), tn(counts.sentences || 0, "{n} sentence", "{n} sentences"));   // two facts, apart
   const ed = edition(), b = ed && ed.builds && ed.builds[lang];                     // the typeset edition
@@ -628,7 +630,7 @@ function viewDocuments(host) {                                                  
   const from = (((j || named()) || {}).own_info || {}).from;                        // the edition its words were started from, when they were
   fill($("dochead"),                                                                // the head, over the document and its inspector
     h("div", { class: "viewhead" }, h("h1", { text: t("Documents") }),
-      h("span", { class: "sub", text: (j ? (ownForJob ? t("For {job}", { job: jobName }) : t("For {job}: the general resume as it is", { job: jobName })) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it"))
+      h("span", { class: "sub", text: (j ? (ownForJob || UI.doc !== "resume" ? t("For {job}", { job: jobName }) : t("For {job}: the general resume as it is", { job: jobName })) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it"))   // "the general resume" only on the resume's tab (B3-14)
         + (from ? " · " + t("Started from {name}", { name: from.name || from.job }) : "") }),   // and where its words came from
       startKey(),                                                                   // beside what the edition prints: start it from another edition's words
       h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), depthKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn)),   // the page's actions beside its title, as one group; Export and its lock on one row

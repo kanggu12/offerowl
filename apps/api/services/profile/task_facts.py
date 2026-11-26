@@ -197,6 +197,35 @@ class FactTasks:
         their staged copies by them)."""
         return self.ws.path("profile", "photo.jpg"), self.ws.path("profile", "photo.png")
 
+    def studio_paths(self) -> tuple:
+        """Where a cut-out photo's studio copies are kept, one per colour pack (out/_photo/studio_<theme>.jpg), there or not
+        (a build's clean-up names their staged copies by them)."""
+        from .evidence import THEMES  # src/themes.json's packs
+        return tuple(self.ws.path("out", "_photo", f"studio_{t}.jpg") for t in THEMES if not t.startswith("_"))
+
+    def photo_in(self, photo: Path, theme: str) -> Path:
+        """The photo as a resume in this colour pack prints it: a cut-out PNG on the pack's studio backdrop (photo.studio: the
+        name band's colour lit from behind the head), made again when the photo is newer; any other photo as it is."""
+        from . import photo as P  # the backdrop
+        from .evidence import THEMES  # the packs' name-band colours
+        fill = (THEMES.get(theme) or {}).get("nameFill") if isinstance(THEMES.get(theme), dict) else None
+        if not fill or photo.suffix.lower() != ".png":  # an unknown pack, or a photo with its own backdrop
+            return photo
+        f = self.ws.path("out", "_photo", f"studio_{theme}.jpg")  # this pack's copy
+        try:
+            if f.is_file() and f.stat().st_mtime_ns >= photo.stat().st_mtime_ns:  # made from this photo already
+                return f
+            made = P.studio(photo.read_bytes(), fill)  # None: nothing see-through, or no Pillow
+            if not made:
+                return photo
+            f.parent.mkdir(parents=True, exist_ok=True)
+            write_bytes = f.with_name(f.name + ".tmp")  # whole or not at all
+            write_bytes.write_bytes(made)
+            write_bytes.replace(f)
+            return f
+        except OSError:  # a folder that cannot be written: the photo as it is
+            return photo
+
     def photo_for_build(self):
         """The resume's photo (the workspace's profile/photo.jpg or .png) when the setting puts it on the resume, else None."""
         if self.card.settings_fn().get("photo", True) is False:  # taken off the resume

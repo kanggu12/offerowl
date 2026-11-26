@@ -24,10 +24,16 @@ PRINT_SCRIPT = '<script>document.getElementById("print").addEventListener("click
 MAX_CARDS = 400  # the most cards one page holds (a whole kit prints in parts)
 
 
+# kit.js REF_DEFAULT: the writer's own cross-references (a file, a project memory, the ledger in brackets, a script's sources
+# "대본 근거: V2, V3." and an id in brackets "(Z13)", C3-09), taken out of every printed line as the search view does
+REF_DEFAULT = [r"\s*\([^()]*\b[\w.-]+\.(?:md|txt|json)\b[^()]*\)", r"\s*\([^()]*\bproject_[\w-]+[^()]*\)", r"\s*\((?:[^()]*\s)?대장(?=[\s)\d에의])[^()]*\)",
+               r"\s*(?:대본 근거|Script basis|Sources)\s*:\s*[A-Z]\d{1,3}(?:\s*,\s*[A-Z]\d{1,3})*\.?", r"\s*\(\s*[A-Z]\d{1,3}(?:\s*,\s*[A-Z]\d{1,3})*\s*\)"]
+
+
 def _unref(kit):  # the kit's cross-reference patterns are JavaScript syntax, which Python reads the same way here
     """A function that removes the writer's cross-references, as the search view does."""
     pats = []  # the patterns that compile in Python
-    for p in kit.get("strip") or []:  # each pattern of the kit
+    for p in [*REF_DEFAULT, *(kit.get("strip") or [])]:  # the search view's own patterns first (kit.js REF_DEFAULT), then the kit's
         try:
             pats.append(re.compile(p))  # most JavaScript patterns are valid Python patterns
         except re.error:  # one that is not is skipped, not fatal
@@ -112,6 +118,15 @@ body { margin: 0; padding: 18px; color: var(--ink); font: 400 10.5pt/1.5 "Preten
 """
 
 
+def _company(job) -> str:
+    """The company the deck's cover names, for the page's tab: two cue tabs are told apart (C3-20)."""
+    try:
+        from interview import deck  # the cover's naming
+        return str(deck.company_role(job)[0] or "")
+    except Exception:  # noqa: BLE001  a kit without its record: the title alone
+        return ""
+
+
 def page(job, ids=None, sections=None, roles=("scenes",), lang=None):
     """The cue card page as one HTML string."""
     strings = i18n.page(lang)  # the page's language
@@ -133,7 +148,7 @@ def page(job, ids=None, sections=None, roles=("scenes",), lang=None):
     count = strings["cue_count"].format(n=len(cards))  # how many cards the page holds
     sheet = f'<main class="sheet">{"".join(body)}</main>' if body else f'<p class="empty">{html.escape(strings["cue_empty"])}</p>'  # the cards, or why there are none
     return (f'<!doctype html><html lang="{strings["lang"]}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-            f'<title>{html.escape(strings["cue_title"])}</title><style>{CSS}</style></head><body>'
+            f'<title>{html.escape(strings["cue_title"] + " " + _company(job))}</title><style>{CSS}</style></head><body>'
             f'<div class="bar"><h1>{html.escape(strings["cue_title"])}</h1><span class="n">{html.escape(count)}</span>'
             f'{PRINT_KEY.format(label=html.escape(strings["cue_print"]))}</div>{sheet}{PRINT_SCRIPT}</body></html>')
 

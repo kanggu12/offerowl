@@ -2449,7 +2449,7 @@ html[data-motion="off"] .pgr-step.prev:hover:not(:disabled) svg { transform: non
 .more-key { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--key-face);
   box-shadow: var(--key-lift); color: var(--ink-2); font: inherit; font-size: 12.5px; font-weight: 500; white-space: nowrap; cursor: pointer;
   transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease); }
-.more-key svg { width: 13px; height: 13px; transform: rotate(-90deg); }               /* the back mark turned to point down: what follows */
+.more-key svg { width: 16px; height: 16px; transform: rotate(-90deg); }               /* the back mark turned to point down: what follows (a key's mark is 16 px, C3-18) */
 .more-key.on svg { transform: rotate(180deg); }                                      /* a way to another view: it points on */
 .more-key:hover { background: var(--key-face-hi); border-color: var(--key-edge-hi); color: var(--ink); }
 .more-key:hover svg { transform: rotate(-90deg) translateX(-2px); } .more-key.on:hover svg { transform: rotate(180deg) translateX(-2px); }
@@ -2709,3 +2709,25 @@ svg[data-i] { overflow: visible; }                                              
 .seg.fact-tabs.fade-l { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
 .seg.fact-tabs.fade-l.fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 #toast .toast-w { min-width: 0; overflow-wrap: anywhere; }                          /* a name with no space (a link) wraps inside the note: it fell over the view tabs (A3-11) */
+/* ---- 0.16.1: applications, documents, materials ---- */
+/* a field's refused words said under it in the panel's own line (core.js fieldNote), as the agent card's error is: the browser's bubble stayed on the field and kept its form from going again */
+.fnote { display: block; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--red); overflow-wrap: anywhere; }
+:is(.field, .dt-cell) :is(input, textarea)[aria-invalid="true"], :root[data-theme] :is(.field, .dt-cell) :is(input, textarea)[aria-invalid="true"] { border-color: var(--red); }   /* the field it speaks of */
+/* a row of fields lined up at their feet (the reminder; a round's kind, day and time): the note is one line, and the fields beside the one it is under take the same room at their feet */
+:is(.remind form, .round-top) .fnote { white-space: nowrap; overflow-wrap: normal; }
+:is(.remind form, .round-top):has(.fnote) > :not(:has(> .fnote)) { margin-bottom: calc(16px + var(--gap-xs)); }   /* so the boxes and the key stay on one line */
+.r-band .when.quiet { font-weight: 400; color: #6b6b6b; }                          /* an edition printed without the time at each company: its dates alone, in the band's grey, as layout.js prints them */
+
+/* the due band, one row per reminder (B3-12): the band's title above, each row's name and words on the left, its key at the end */
+.band.due { display: block; }
+.band.due .due-h { display: block; margin-bottom: 4px; }
+.band.due .due-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.band.due .due-rows li { display: flex; align-items: baseline; gap: 10px; }
+.band.due .due-what { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.band.due .due-name { font-weight: 700; }
+.band.due .due-done { margin-left: 0; vertical-align: 0; flex: none; }
+.band.due .due-more { margin-top: 6px; }
+/* ---- 0.16.1: the Interview tab ---- */
+/* the kit's page that is not there (web.py missing_page): the panel's own card on the panel's desk, in the middle of the window */
+.kitgone-in { min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box; }
+.kitgone-card { width: min(440px, 100%); box-sizing: border-box; }

@@ -17,6 +17,7 @@ import http.server  # the server
 import json  # bodies
 import logging  # errors to the log
 import os  # OFFEROWL_ALLOWED_HOSTS, and an upload's own file name
+import re  # a file name's control characters
 import threading  # an upload's own file name
 import time  # the date in a backup's name
 import urllib.error  # the kit's refusals
@@ -410,9 +411,11 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             return
         if method == "GET" and not sub and self.headers.get("Sec-Fetch-Mode") == "navigate" and self.headers.get("Sec-Fetch-Dest") == "document":
             # a person opening the kit's own address (a bookmark, a link from before): its scripts in the panel's Interview
-            # tab, inside the panel's menus. Its printable pages, its practice and its API stay at /kit/<job>/...
+            # tab, inside the panel's menus. Its printable pages, its practice and its API stay at /kit/<job>/... A question
+            # the old link asked (?q=) is asked there too; its part (#practice) comes with the address, as a browser keeps it
+            ask = (urllib.parse.parse_qs(parts.query).get("q") or [""])[0].strip()[:200]  # the old search link's question
             self.send_response(302)
-            self.send_header("Location", f"/?job={urllib.parse.quote(jid, safe='')}&show=scripts")
+            self.send_header("Location", f"/?job={urllib.parse.quote(jid, safe='')}&show=scripts" + (f"&q={urllib.parse.quote(ask, safe='')}" if ask else ""))
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -546,6 +549,7 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         if data is None:  # refused, and answered
             return  # nothing more
         name = urllib.parse.unquote(self.headers["X-File-Name"])  # the file's own name: its kind, and the name it is kept under
+        name = re.sub(r"[\x00-\x1f\x7f]", "", name)  # no control character in a name any list shows (D3-15: a NUL stayed in the record's name)
         if not route.whole_name:  # a route that does not shorten it itself
             name = name[:200]
         try:
@@ -559,20 +563,29 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         return self.headers.get("Sec-Fetch-Mode") == "navigate" and self.headers.get("Sec-Fetch-Dest") == "document"
 
     def missing_page(self, jid: str) -> None:
-        """A kit page that is not there, said as the panel says it, with the way back to the application's scripts."""
-        import html as H  # the id is escaped
-        back = f"/?job={urllib.parse.quote(jid, safe='')}&show=scripts"
-        body = ("<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-                "<title>Offerowl</title><style>:root{color-scheme:light dark;--bg:#f6f6f4;--ink:#18181b;--ink2:#5c5c62;--line:rgba(0,0,0,.14)}"
-                "@media (prefers-color-scheme:dark){:root{--bg:#141416;--ink:#f2f2f3;--ink2:#a6a6ad;--line:rgba(255,255,255,.16)}}"
-                "body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,sans-serif}"
-                "main{max-width:420px;padding:24px}h1{margin:0 0 6px;font-size:18px}p{margin:0 0 16px;color:var(--ink2)}"
-                "a{display:inline-block;padding:7px 14px;border:1px solid var(--line);border-radius:2px;color:var(--ink);text-decoration:none}</style></head>"
-                "<body><main><h1>찾는 면접 자료가 없습니다</h1><p>The page of this interview kit is not there. It may not be made yet.</p>"
-                f"<a href=\"{H.escape(back)}\">면접 탭으로 · Back to the scripts</a></main></body></html>").encode("utf-8")
+        """A kit page that is not there (a talk's PDF not made yet, an old link), said on a page of the panel's own: its theme,
+        its face, its card and its words in the language the person chose in the panel (the panel's own scripts read the
+        choice kept in this browser, as every panel page does), with the key back to the application's scripts. The words in
+        the page are the English ones the panel's table translates (kitgone.js)."""
+        import html as H  # the id and the company are escaped
+        back = f"/?job={urllib.parse.quote(jid, safe='')}&show=scripts"  # the application's Interview tab in the panel
+        st = self.router.api.ws.job(jid) or {}  # its card, for the tab's name
+        company = str(st.get("company") or st.get("role") or jid)[:80]  # how the panel names the application
+        body = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+                f"<title>{H.escape(company)} · Offerowl</title><link rel=\"icon\" href=\"/brand/icon.svg\" type=\"image/svg+xml\">"
+                "<script src=\"/static/theme.js\"></script><script src=\"/static/i18n.js\"></script><script src=\"/static/i18n/ko.js\"></script>"
+                "<link rel=\"stylesheet\" href=\"/static/tokens.css\"><link rel=\"stylesheet\" href=\"/static/components.css\">"
+                "<link rel=\"stylesheet\" href=\"/static/app.css\"><link rel=\"stylesheet\" href=\"/static/skin.css\"></head>"
+                f"<body class=\"kitgone\" data-company=\"{H.escape(company)}\"><main class=\"kitgone-in\"><section class=\"empty glass kitgone-card\" aria-labelledby=\"kitgone-h\">"
+                "<h3 id=\"kitgone-h\" data-w=\"head\">This page of the interview kit is not there.</h3>"
+                f"<div class=\"part-keys\"><a class=\"btn primary\" data-w=\"back\" href=\"{H.escape(back)}\">Open the Interview tab</a></div>"
+                "</section></main><script src=\"/static/kitgone.js\"></script></body></html>").encode("utf-8")
         self.send_response(404)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", CSP)  # the panel's own policy: its scripts and styles from here, nothing else
+        self.send_header("Cache-Control", "no-store")  # made again when the page is
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":  # a HEAD has no body
+            self.wfile.write(body)

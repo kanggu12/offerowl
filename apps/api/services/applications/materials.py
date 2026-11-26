@@ -53,6 +53,7 @@ KINDS = {  # the kinds a job keeps, by their extension, and the type a file of e
     "jpg": "image/jpeg",  # a photo of a whiteboard
 }
 TEXT = ("md", "html", "txt", "py")  # the kinds that are text, answered with their character set
+MAGIC = {"pdf": (b"%PDF-",), "pptx": (b"PK\x03\x04",), "docx": (b"PK\x03\x04",), "png": (b"\x89PNG\r\n\x1a\n",), "jpg": (b"\xff\xd8\xff",)}  # how each binary kind starts (D3-14: random bytes named .pdf were kept)
 PAGED = ("pdf", "pptx", "docx")  # the kinds a preview shows as page pictures
 MAX_BYTES = 50_000_000  # one file: a long deck full of pictures fits, a video does not
 PREVIEW_PAGES = 60  # the pages a preview draws: a long document shows its start, and the file holds the rest
@@ -168,7 +169,7 @@ def title_of(name: str, n: int) -> str:
 
 def add(ws, jid: str, name: str, data: bytes) -> dict:
     """Keep one file as a job's material, byte for byte, and list it. Returns its record. Raises ValueError with a code: job,
-    material_kind, empty, too_large, not_kept."""
+    material_kind, empty, too_large, not_kept, material_duplicate (the same file under the same name is listed already)."""
     try:
         card = ws.job(jid)  # the job's card on the board
     except ValueError:  # an id no folder could have
@@ -180,6 +181,8 @@ def add(ws, jid: str, name: str, data: bytes) -> dict:
         raise ValueError("empty")
     if len(data) > MAX_BYTES:  # over the cap (the upload's own check stops it sooner)
         raise ValueError("too_large")
+    if ext in MAGIC and not data.startswith(MAGIC[ext]):  # a file whose bytes are not the kind its name says
+        raise ValueError("material_kind")
     digest = hashlib.sha256(data).hexdigest()  # what came in
     with ws.lock:  # one writer: two uploads never take the same name or id
         d = folder(ws, jid)  # jobs/<job>/materials/
@@ -187,6 +190,11 @@ def add(ws, jid: str, name: str, data: bytes) -> dict:
         raw = read_json(d / "index.json", [])  # the index as written: the records, and the ids left by deletions
         raw = [r for r in raw if isinstance(r, dict) and MAT_ID.fullmatch(str(r.get("id") or ""))] if isinstance(raw, list) else []  # a hand-edited line with no id goes
         items = records(ws, jid)  # every record, the removed ones too: their files are still here
+        gone = removed(ws, jid)  # the ids taken off the list
+        listed = [r for r in items if r["id"] not in gone]  # what the list shows
+        came = unicodedata.normalize("NFC", re.split(r"[\\/]", str(name))[-1])  # the name it came with
+        if any(r.get("sha256") == digest and unicodedata.normalize("NFC", str(r.get("name") or "")) == came for r in listed):  # the very same file under the same name is listed already (B3-11: it came in again as "(2)")
+            raise ValueError("material_duplicate")
         taken = {p.name.lower() for p in d.iterdir()} | {str(r.get("file") or "").lower() for r in items}  # on disk and in the index
         file, twin = free_name(taken, stem, ext)  # a twin gets a number
         dest = d / file  # where it is kept
@@ -200,7 +208,10 @@ def add(ws, jid: str, name: str, data: bytes) -> dict:
         given = unicodedata.normalize("NFC", re.split(r"[\\/]", str(name))[-1])  # the name it came with, without its folders
         if len(given) > 200:  # a name longer than any list shows: shortened before its extension, which says its kind
             given = given[:200 - len(ext) - 1].rstrip() + "." + given.rpartition(".")[2]
-        rec = {"id": f"m{n}", "title": title_of(given, twin), "name": given,  # its id, the name it is listed under, the name it came with
+        titles, k = {str(r.get("title") or "").lower() for r in listed}, 1  # the names the list shows (one name in any case, as Windows and macOS hold them): a removed copy never takes a number (B3-11)
+        while title_of(given, k).lower() in titles:  # its twin is listed
+            k += 1
+        rec = {"id": f"m{n}", "title": title_of(given, k), "name": given,  # its id, the name it is listed under, the name it came with
                "file": file, "kind": ext, "size": len(data), "added": today(), "sha256": digest}  # where it is, what it is, when, and its hash
         write_json(d / "index.json", raw + [rec])  # listed after the others, the deleted ones' ids kept
     return view(rec)  # as the page shows it

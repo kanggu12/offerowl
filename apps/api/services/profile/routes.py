@@ -11,10 +11,13 @@ from . import actions, masks, photo, sources, style  # the person's actions on t
 
 
 def get_photo(a, q, m):
-    """GET /api/v1/photo: the resume's photo, for the details card; with ?w=240 the panel's small copy."""
+    """GET /api/v1/photo: the resume's photo, for the details card; with ?w=240 the panel's small copy; with ?theme=<pack> as a
+    resume in that colour pack prints it (a cut-out photo on the pack's studio backdrop, the canvas's header)."""
     f = photo.photo_file(a)  # the file, if any
     if not f:  # none kept
         raise NotFound("/api/v1/photo")  # 404
+    if q.get("theme"):  # the canvas: the photo as printed in its pack
+        f = a.tasks.photo_in(f, str(q["theme"]))  # an unknown pack, or a photo with its own backdrop: the file as it is
     if q.get("w"):  # ?w=240: the panel's small copy, a fraction of the bytes the page would decode to draw it 120 px wide
         w = int(q["w"]) if str(q["w"]).isdigit() else 0  # a width in pixels
         small = photo.thumbnail(f, max(16, min(w, photo.THUMB_MAX))) if w else None  # None: no Pillow, or small already
@@ -51,7 +54,10 @@ def get_style(a, q, m):
 
 def post_read(a, req, path):
     """POST /api/v1/materials/read: read the listed materials."""
-    return {"started": a.tasks.ingest([str(x) for x in req.get("ids") or []])}  # False when a reading already runs
+    ids = req.get("ids") or []  # the materials' ids
+    if not isinstance(ids, list) or not all(isinstance(x, str) for x in ids):  # a number or a boolean was a 500 (D3-02)
+        raise ValueError("ids")  # 400 bad_request, what "ids"
+    return {"started": a.tasks.ingest(ids)}  # False when a reading already runs
 
 
 def post_remove(a, req, path):

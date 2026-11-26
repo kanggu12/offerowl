@@ -246,6 +246,10 @@ class Kits:
         except ivtalk.TalkError as e:
             raise ValueError("bad_brief") from e
         stored = self.talk_brief(job_id)  # what is kept now: keys the form does not show (pages, the theme, swaps) stay as they are
+        topics = keep["topics"] if "topics" in keep else stored.get("topics")  # the topics the brief will hold: the ones sent, else the ones kept
+        titled = [x for x in (topics if isinstance(topics, list) else []) if str(x.get("title") if isinstance(x, dict) else x if isinstance(x, str) else "").strip()]  # each with words
+        if not titled:  # an emptied topics box ([] read as "the usual four" and was kept as no topic at all): nothing is kept
+            raise ValueError("bad_brief")
         if isinstance(keep.get("topics"), list) and isinstance(stored.get("topics"), list):  # a topic's own minutes and kinds stay with its title
             old = {str(x.get("title")): x for x in stored["topics"] if isinstance(x, dict)}
             keep["topics"] = [{**old.get(str(x.get("title")), {}), **x} if isinstance(x, dict) else x for x in keep["topics"]]

@@ -442,8 +442,13 @@ function fromAddress() {                                                        
     toast(t("That application is not there any more. It may be in the Trash."), null, "info");
     return;
   }
-  UI.ivWide = true; UI.ivPart = "search"; UI.jobsMode = "list"; UI.jobPhone = true;  // its scripts, the list folded away, and on a phone the application alone (this window only: the choice kept in the browser is the other window's)
-  (S.job === jid ? Promise.resolve() : act("/api/v1/jobs/select", { job: jid })).then(() => { go("interview"); UI.addressJob = jid; });   // the address stays while the person stays there: a reload lands on the same scripts
+  const part = { "#practice": "practice", "#deck": "deck", "#map": "map", "#talk": "talk" }[location.hash] || "search";   // an old link to a part of the kit (/kit/<id>/#practice) opens that part
+  const ask = (q.get("q") || "").trim().slice(0, 200);                              // an old search link's question (/kit/<id>/?q=, web.py passes it on): asked in the scripts
+  UI.ivWide = true; UI.ivPart = part; UI.jobsMode = "list"; UI.jobPhone = true;     // its scripts, the list folded away, and on a phone the application alone (this window only: the choice kept in the browser is the other window's)
+  if (ask) UI.kitAsk = ask;                                                         // the search view asks it once it is drawn (views.js ivKit)
+  UI.ownJob = jid; S.job = jid;                                                     // this window's own application: the server's choice, and with it the panel's other windows, stay as they are
+  if (location.hash || ask) history.replaceState(null, "", `/?job=${enc(jid)}&show=scripts`);   // read once: the address is the scripts' own again
+  go("interview"); UI.addressJob = jid;                                             // the address stays while the person stays there: a reload lands on the same scripts
 }
 function keepAddress() {                                                            // the scripts' address is dropped once the person leaves them (another view, tab or application)
   if (UI.addressJob && (UI.view !== "jobs" || UI.jobTab !== "interview" || S.job !== UI.addressJob)) { history.replaceState(null, "", location.pathname); UI.addressJob = null; }

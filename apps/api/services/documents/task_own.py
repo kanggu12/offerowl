@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[4]  # the repository (or the app's bundl
 # competencyWeak, competencyDrop: the competencies it sends to the back or leaves out, which a job drafted from the profile takes from
 # its posting analysis (tasks.edition_cfg reads no plan.json for an own edition, so without them it printed the profile's order only)
 OWN_FORM_KEYS = ("competencyFigure", "footerLabel", "skillsFocus", "skillsStrong", "skillsHighlight", "photo", "plain", "titleView", "blind",
-                 "competencyWeak", "competencyDrop")
+                 "competencyWeak", "competencyDrop", "tenure")  # tenure: false prints no "N년 N개월" per company and no total
 
 
 class OwnEdition:

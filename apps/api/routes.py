@@ -33,8 +33,14 @@ def get_health(a, q, m):
 
 
 def get_state(a, q, m):
-    """GET /api/v1/state: everything the panel draws (a poll: polls that come together share one state)."""
-    return 200, a.state_for_poll(), JSON  # fresh, or the one being made when this poll came (nothing written since it began)
+    """GET /api/v1/state: everything the panel draws (a poll: polls that come together share one state). ?job=<id>: the state
+    as a window that shows that application sees it (a window opened on its scripts keeps its own application, and the
+    panel's other windows keep theirs): its job and whether its English edition has its translation, nothing changed."""
+    st = a.state_for_poll()  # fresh, or the one being made when this poll came (nothing written since it began)
+    own = str(q.get("job") or "")  # the application the window shows, when it is its own
+    if own and own != st.get("job") and any(j.get("id") == own for j in st.get("jobs") or []):  # an application there is, not the one in view
+        st = {**st, "job": own, "english": bool(a.tasks.english_for(own))}  # a copy: the shared state stays the server's
+    return 200, st, JSON
 
 
 def get_history(a, q, m):

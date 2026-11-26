@@ -118,6 +118,9 @@ def main():
             job.parent.mkdir(parents=True, exist_ok=True)  # output/ may be new
             job.write_text(json.dumps({**json.loads((ROOT / f"examples/job_full_{lang}.json").read_text(encoding="utf-8")), "out": f"form_{form}_{lang}", "form": form, "maxPages": 4}), encoding="utf-8")  # the example's job, in this form
             builds.append((f"{form} {lang}", f"examples/sample_full_{lang}.json", str(job.relative_to(ROOT)), f"form_{form}_{lang}"))  # checked like the others
+    job = OUT / "no_tenure_ko.job.json"  # the full example with the tenure off, as an own edition's form.json may ask (0.16.1)
+    job.write_text(json.dumps({**json.loads((ROOT / "examples/job_full_ko.json").read_text(encoding="utf-8")), "out": "no_tenure_ko", "tenure": False}), encoding="utf-8")
+    builds.append(("no tenure ko", "examples/sample_full_ko.json", str(job.relative_to(ROOT)), "no_tenure_ko"))  # checked below
     for name, prof, job, out in builds:
         if "--no-build" not in sys.argv:
             rc, last = build(prof, job)
@@ -134,6 +137,13 @@ def main():
             # The service row is drawn in the timeline figure, not in the text layer
             ok(f"{name}: timeline figure drawn", (OUT / "_figures" / f"{out}_timeline.png").exists())
             ok(f"{name}: ledger notes stay out", "원장 메모" not in t and "example.com/news" not in t)
+            continue
+        if name == "no tenure ko":  # the time at each company and the total left out, the dates kept
+            flat = re.sub(r"\s+", " ", t)  # the text on one line
+            ok(f"{name}: no total beside the career heading", "총경력" not in flat)
+            ok(f"{name}: no tenure column", re.search(r"재직(?! 중)", flat) is None)  # the column's head ("재직 중" is an ongoing role's period)
+            ok(f"{name}: no time per company", re.search(r"\d+년 \d+개월|\(\d+개월\)|\(\d+년\)", t) is None)  # neither in the table nor after a band's dates
+            ok(f"{name}: the dates kept", re.search(r"20\d\d\.\d\d ~ 20\d\d\.\d\d", flat) is not None)
             continue
         if name.split()[0] in ("compact", "table"):  # another form: its own parts, and what it leaves out
             form, edition = name.split()  # which form, which edition

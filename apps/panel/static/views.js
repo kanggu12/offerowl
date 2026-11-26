@@ -329,11 +329,13 @@ function dueBand() {                                                            
   const due = S.due || [], more = due.length - DUE_SHOWN;                           // the rest are a key away
   // no live region: the band is drawn again with the page, and a screen reader would read the whole list out each time; the
   // bar's Applications key already says how many are due ("지원, 할 일 2")
-  return h("div", { class: "band info due" }, h("p", {}, h("b", { text: t("Due now") }), " ",
-    due.slice(0, DUE_SHOWN).map((d, i) => [i ? " · " : "",
-      h("button", { class: "due-name", type: "button", title: t("Open the application"), onclick: () => { openApplication(d.job, "progress"); go("jobs"); }, text: d.name }), ": ", linked(d.text), " ",   // whose, then what: the name opens the application
-      h("button", { class: "btn small due-done", type: "button", onclick: () => act("/api/v1/reminders", { job: d.job, id: d.id, done: true }, t("Marked done. Undo takes it back.")) }, t("Mark done"))])),   // dealt with, from here
-    more > 0 ? h("button", { class: "btn small", type: "button", onclick: () => { UI.jobsMode = "timeline"; UI.editDays = false; render(); } },   // every reminder is on the timeline, by day
+  // one row per reminder (B3-12: one paragraph ran names, texts and keys together, "·" at line ends, 262 px on a phone):
+  // the name and what to do on the left, its key at the row's end, rows under the band's title
+  return h("div", { class: "band info due" }, h("b", { class: "due-h", text: t("Due now") }),
+    h("ul", { class: "due-rows" }, due.slice(0, DUE_SHOWN).map((d) => h("li", {},
+      h("span", { class: "due-what" }, h("button", { class: "due-name", type: "button", title: t("Open the application"), onclick: () => { openApplication(d.job, "progress"); go("jobs"); }, text: d.name }), " ", linked(d.text)),   // whose, then what: the name opens the application
+      h("button", { class: "btn small due-done", type: "button", onclick: () => act("/api/v1/reminders", { job: d.job, id: d.id, done: true }, t("Marked done. Undo takes it back.")) }, t("Mark done"))))),   // dealt with, from here
+    more > 0 ? h("button", { class: "btn small due-more", type: "button", onclick: () => { UI.jobsMode = "timeline"; UI.editDays = false; render(); } },   // every reminder is on the timeline, by day
       tn(more, "{n} more on the timeline", "{n} more on the timeline")) : null);
 }
 function keepListPlace(list, open) {                                                // a redraw builds the list anew, at its top
@@ -401,12 +403,14 @@ async function addJob(form) {                                                   
   const v = form.elements.posting.value.trim();                                     // the one box: a link or the posting
   if (!v) { toast(t("Paste the posting, or a link to it."), null, "info"); form.elements.posting.focus(); return; }   // nothing to add: said here, never sent to be refused
   const link = /^https?:\/\/\S+$/i.test(v);                                        // a link alone is fetched by the server
+  if (!link && v.length < 20) { fieldNote(form.elements.posting, t("Too short for a posting: paste its whole text, or a link to it.")); form.elements.posting.focus(); return; }   // the server's own bound (jobs.py), said under the box instead of a refusal (B3-26)
   const r = await act("/api/v1/jobs", link ? { url: v } : { posting: v }, t("Added. Its fit is open."));
   if (r && r.job) { UI.adding = false; forget("j-"); openApplication(r.job, "fit"); }   // the new job opens on its fit (the server put it in view)
 }
 // ---------------------------------------------------------------- the application's own questions (apps/api/services/applications/answers.py)
 const qCount = (text, unit) => (unit === "words" ? String(text || "").trim().split(/\s+/).filter(Boolean).length : [...String(text || "").trim()].length);   // as the form counts, and as the server does (apps/api/services/applications/answers.py count): characters, not UTF-16 halves
 const qUnit = (q) => (q.unit === "words" ? t("words") : t("characters"));       // the limit's unit
+const qCountText = (n, q) => { const u = qUnit(q); return `${n} / ${q.limit}${/^[가-힣]/.test(u) ? "" : " "}${u}`; };   // "756 / 1000자", "120 / 150 words": a Korean unit sits on its number (B3-19)
 function factWords(rest) {                                                          // what the fact check found, in the panel's language (src/factcheck.py words it in the server's)
   const FC = [[/^number not in the evidence: (.*)$/s, "A number not in your facts: {x}"], [/^counted word not in the evidence: (.*)$/s, "A counted word not in your facts: {x}"],
     [/^Latin word not in the evidence: (.*)$/s, "An English word not in your facts: {x}"], [/^organisation not in the evidence: (.*)$/s, "A company or body not in your facts: {x}"]];
@@ -423,25 +427,27 @@ function issueWords(code) {                                                     
 async function saveQuestions(j, list, done) {                                       // the job's questions, in order (done: the words of the note, with its Undo)
   return act("/api/v1/jobs/questions", { job: j.id, seen: (j.questions || []).map((q) => q.id), questions: list.map((q) => ({ text: q.text, limit: q.limit, unit: q.unit })) }, done);   // seen: the list this page had, so another window's question is never written over
 }
+const holdsBack = (i) => !String(i).startsWith("too_short") && String(i) !== "markup";   // a problem the export refuses for (task_answers.export): a short answer or a mark goes as it is (B3-02)
 function answerRow(j, q) {                                                          // one question: its answer, its length, its problems, its facts
+  const sent = !!j.locked;                                                          // submitted: the answers went out as they are, read only (B3-17)
   const key = `qa-${j.id}-${q.id}`;                                                 // the answer box
   const n = UI.typed[key] !== undefined ? qCount(UI.typed[key], q.unit) : q.count;  // its length as typed
-  const counter = h("span", { class: "chip" + (n > q.limit ? " bad" : ""), text: `${n} / ${q.limit} ${qUnit(q)}` });
+  const counter = h("span", { class: "chip" + (n > q.limit ? " bad" : ""), text: qCountText(n, q) });
   const limits = [...new Set([...(q.unit === "words" ? [100, 150, 200, 250, 300, 500] : [300, 500, 700, 800, 1000, 1500, 2000]), q.limit])].sort((a, b) => a - b);   // a limit is chosen, never typed
   const limitPick = h("select", { class: "sel sm", "aria-label": t("Limit"), onchange: (e) => saveQuestions(j, (j.questions || []).map((x) => (x.id === q.id ? { ...x, limit: Number(e.target.value) } : x))) },
     limits.map((l) => h("option", { value: String(l), selected: l === q.limit || null, text: String(l) })));   // the number alone: the count beside it names the unit
-  const box = h("textarea", { "data-key": key, rows: 6, placeholder: t("The answer appears here. You can also write it yourself."),
-    oninput: (e) => { counter.textContent = `${qCount(e.target.value, q.unit)} / ${q.limit} ${qUnit(q)}`; counter.classList.toggle("bad", qCount(e.target.value, q.unit) > q.limit); },   // the count as it is typed
+  const box = h("textarea", { "data-key": key, rows: 6, readonly: sent || null, placeholder: t("The answer appears here. You can also write it yourself."),
+    oninput: (e) => { counter.textContent = qCountText(qCount(e.target.value, q.unit), q); counter.classList.toggle("bad", qCount(e.target.value, q.unit) > q.limit); },   // the count as it is typed
     onchange: (e) => act("/api/v1/jobs/questions/edit", { job: j.id, id: q.id, answer: e.target.value }).then(() => forget(key)) });   // saved and checked when the box is left
   box.value = UI.typed[key] !== undefined ? UI.typed[key] : q.answer || "";         // the words survive a redraw
   return h("article", { class: "qa" },
-    h("div", { class: "qa-head" }, h("b", { text: q.text }), counter, limitPick,
-      h("button", { class: "btn sm quiet", type: "button", onclick: () => saveQuestions(j, (j.questions || []).filter((x) => x.id !== q.id), t("Question removed.")) }, icon("close", 15), t("Remove the question"))),   // said in words; one undo step: its note's Undo brings it back with its answer
+    h("div", { class: "qa-head" }, h("b", { text: q.text }), counter, sent ? null : limitPick,
+      sent ? null : h("button", { class: "btn sm quiet", type: "button", onclick: () => saveQuestions(j, (j.questions || []).filter((x) => x.id !== q.id), t("Question removed.")) }, icon("close", 15), t("Remove the question"))),   // said in words; one undo step: its note's Undo brings it back with its answer
     box,
-    (q.issues || []).length ? h("ul", { class: "problist" }, q.issues.map((i) => h("li", { class: "lit bad", text: issueWords(i) }))) : null,
+    (q.issues || []).length ? h("ul", { class: "problist" }, q.issues.map((i) => h("li", { class: "lit " + (holdsBack(i) ? "bad" : "warn"), text: issueWords(i) }))) : null,   // what keeps it home in red; a short answer or a mark, a note (B3-02)
     (q.cited || []).length ? h("p", { class: "hint", text: t("From your facts: {names}", { names: q.cited.map((c) => c.title).filter(Boolean).join(", ") }) }) : null,
     h("div", { class: "qa-keys" },
-      h("button", { class: "btn sm", disabled: !agentOn() || task("answers:" + j.id).state === "running" || null, onclick: () => act("/api/v1/jobs/questions/write", { job: j.id, ids: [q.id] }) }, icon("refresh"), t("Write this one again")),
+      sent ? null : h("button", { class: "btn sm", disabled: !agentOn() || task("answers:" + j.id).state === "running" || null, onclick: () => act("/api/v1/jobs/questions/write", { job: j.id, ids: [q.id] }) }, icon("refresh"), t("Write this one again")),
       q.answer ? h("button", { class: "btn sm", onclick: () => navigator.clipboard.writeText(q.answer).then(() => toast(t("Copied."), null, "done")) }, icon("copy"), t("Copy")) : null));
 }
 function questionsCard(j) {                                                         // the questions a form asks, with their limits, answered from the facts
@@ -449,7 +455,7 @@ function questionsCard(j) {                                                     
   const add = h("form", { class: "qa-add", onsubmit: async (e) => { e.preventDefault();       // the form's questions, pasted as it shows them
     const text = String(UI.typed["qa-new"] || "").trim(); if (!text) { toast(t("Paste the questions first.")); return; }
     const r = await act("/api/v1/jobs/questions/paste", { job: j.id, text });          // read with their limits by the server
-    if (r) { forget("qa-"); toast(tn(r.added, "{n} question added.", "{n} questions added."), null, "done"); } } },
+    if (r) { forget("qa-"); toast(tn(r.added, "{n} question added.", "{n} questions added.") + (r.assumed ? " " + tn(r.assumed, "{n} had no limit: set to the usual one, change it beside the count.", "{n} had no limit: set to the usual one, change it beside each count.") : ""), null, "done"); } } },   // a limit the form did not show is said (B3-20)
     h("label", { class: "field wide" }, h("span", { text: t("The form's questions, as it shows them") }),
       h("textarea", { "data-key": "qa-new", rows: 3, placeholder: t("1. Why this company? (700 characters)"), oninput: (e) => { UI.typed["qa-new"] = e.target.value; },
         ondragover: (e) => e.preventDefault(), ondrop: (e) => { const f = e.dataTransfer.files[0]; if (f) { e.preventDefault(); e.stopPropagation(); questionsFromFile(j.id, f); } } })),   // a screenshot dropped on the box, and only here: the page's own drop would start a run with it
@@ -458,13 +464,13 @@ function questionsCard(j) {                                                     
   return h("section", { class: "qcard", "aria-label": t("Application questions") },   // inside the job's tab: no box of its own
     h("div", { class: "card-h" }, h("h3", { text: qs.length ? tn(qs.length, "{n} question", "{n} questions") : t("No questions yet") }), sentLine(agentOn()),   // a name before the chip that says where they go
       busy ? pill("busy", t("Writing {done} of {total}", { done: (tk.done || 0) + 1, total: tk.total || qs.length })) : null),
-    qs.map((q) => answerRow(j, q)), add,
-    qs.length && !agentOn() ? h("div", { class: "band info" }, h("p", { text: t("Writing the answers needs the agent. You can write them yourself in the boxes.") }),   // why the writing keys wait
+    qs.map((q) => answerRow(j, q)), j.locked ? null : add,                         // a submitted application takes no new question (B3-17)
+    qs.length && !agentOn() && !j.locked ? h("div", { class: "band info" }, h("p", { text: t("Writing the answers needs the agent. You can write them yourself in the boxes.") }),   // why the writing keys wait
       h("button", { class: "btn small", onclick: () => openAgentMenu(), text: t("Turn on the agent") })) : null,
     qs.length ? h("div", { class: "nextkeys" },
-      h("button", { class: "btn primary", disabled: busy || !agentOn() || null, onclick: () => act("/api/v1/jobs/questions/write", { job: j.id }) }, icon("edit"), qs.some((q) => q.answer) ? t("Write every answer again") : t("Write the answers")),
+      j.locked ? null : h("button", { class: "btn primary", disabled: busy || !agentOn() || null, onclick: () => act("/api/v1/jobs/questions/write", { job: j.id }) }, icon("edit"), qs.some((q) => q.answer) ? t("Write every answer again") : t("Write the answers")),
       qs.some((q) => q.answer) ? h("button", { class: "btn", onclick: () => navigator.clipboard.writeText(qs.filter((q) => q.answer).map((q, i) => `${i + 1}. ${q.text}\n\n${q.answer}`).join("\n\n")).then(() => toast(t("Copied."))) }, icon("copy"), t("Copy all")) : null,
-      qs.some((q) => q.answer) ? h("button", { class: "btn", disabled: qs.some((q) => (q.issues || []).length) || null, title: qs.some((q) => (q.issues || []).length) ? t("An answer still needs your fix. Its problems are under it.") : null, onclick: async () => { const r = await act("/api/v1/jobs/questions/export", { job: j.id }); if (r && r.exported && r.exported.length) toast(t("Saved to the Desktop: {name}", { name: r.exported[0] }), null, "done"); } }, icon("download"), t("Save to the Desktop")) : null) : null,   // refused while an answer has a problem: the key says so by waiting
+      qs.some((q) => q.answer) ? h("button", { class: "btn", disabled: qs.some((q) => (q.issues || []).some(holdsBack)) || null, title: qs.some((q) => (q.issues || []).some(holdsBack)) ? t("An answer still needs your fix. Its problems are under it.") : null, onclick: async () => { const r = await act("/api/v1/jobs/questions/export", { job: j.id }); if (r && r.exported && r.exported.length) toast(t("Saved to the Desktop: {name}", { name: r.exported[0] }), null, "done"); } }, icon("download"), t("Save to the Desktop")) : null) : null,   // refused while an answer has a problem: the key says so by waiting
     tk.state === "error" ? band(tk.error.code, { retry: () => act("/api/v1/jobs/questions/write", { job: j.id }) }) : null);
 }
 function jobDetail(j, phone) {                                                      // one application: its head, its tabs and the part open (on a phone, the way back to the list)
@@ -509,14 +515,13 @@ function jobDetail(j, phone) {                                                  
 }
 function fitPart(j, f) {                                                            // the posting line by line: a row each, its evidence when opened
   if (!f || f.error) return h("p", { class: "hint", text: t("Working out the fit…") });   // loading, or refused for now (asked again with the next revision)
-  if (!f.lines.length) return h("form", { class: "posting-again", onsubmit: async (e) => { e.preventDefault();   // no line found: the part with the duties pasted here, read again at once
+  if (!f.lines.length) return h("form", { class: "posting-again", novalidate: true, onsubmit: async (e) => { e.preventDefault();   // no line found: the part with the duties pasted here, read again at once
       const box = e.target.elements.posting, v = box.value.trim();
-      if (v.length < 20) { box.setCustomValidity(t("Paste the part of the posting with its duties and requirements.")); box.reportValidity(); return; }
+      if (v.length < 20) { fieldNote(box, t("Paste the part of the posting with its duties and requirements.")); return; }   // said under the box, in the panel's words
       if (await act("/api/v1/jobs/posting", { job: j.id, posting: v }, t("The posting is read again."))) forget(`fit-posting-${j.id}`); } },
     h("p", { class: "hint", text: t("Offerowl found no duty or requirement lines in this posting. Paste the part with the duties and requirements.") }),
     h("label", { class: "field" }, h("span", { text: t("The posting's duties and requirements") }),
-      h("textarea", { name: "posting", "data-key": `fit-posting-${j.id}`, rows: 5, class: "short", placeholder: t("Paste the part of the posting with its duties and requirements."),
-        oninput: (e) => e.target.setCustomValidity("") })),
+      h("textarea", { name: "posting", "data-key": `fit-posting-${j.id}`, rows: 5, class: "short", placeholder: t("Paste the part of the posting with its duties and requirements.") })),
     h("div", { class: "part-keys" }, h("button", { class: "btn primary", type: "submit", text: t("Read the posting again") }), sentLine(false)));
   const want = ["strong", "weak", "none"].includes(UI.fitFilter) ? UI.fitFilter : "all";   // the rating shown
   const lines = f.lines.map((ln, i) => ({ ln, i })).filter(({ ln }) => want === "all" || ln.rating === want);   // the lines of that rating, with their place
@@ -666,10 +671,10 @@ function interviewPart(j) {                                                     
   if (!b.ready && UI.ivPart === "talk") return h("div", { class: "ivpart" }, keys, talkPart(j), materialsPart(j));   // a talk needs no question map
   if (!b.ready) return h("div", { class: "ivpart" }, h("div", { class: "empty glass" }, h("h3", { text: t("No interview kit for this job yet") }),
     h("p", { text: t("The question map comes from the posting and your resume, on this PC. Scripts are written by the agent.") }),
-    h("div", { class: "part-keys" }, h("button", { class: "btn primary", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }), text: t("Make the question map") }),   // the main key first: it works on this PC alone
+    h("div", { class: "part-keys" }, h("button", { class: "btn primary", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }) }, icon("map"), t("Make the question map")),   // an icon as its neighbours have (C3-19)   // the main key first: it works on this PC alone
       addScenes(),                                                                   // or the scripts written before, which make the map too
       carryKeys(),                                                                   // or another application's kit, carried whole
-      h("button", { class: "btn", onclick: () => { UI.ivPart = "talk"; render(); }, text: t("Prepare a presentation") }))), materialsPart(j));   // a talk the interviewers asked for, without the map
+      h("button", { class: "btn", onclick: () => { UI.ivPart = "talk"; render(); } }, icon("slides"), t("Prepare a presentation")))), materialsPart(j));   // a talk the interviewers asked for, without the map
   const tk = task("scripts:" + j.id);                                                // the writing task, when one runs
   const writing = tk.state === "running";                                           // writing now
   const parts = [["search", t("Search the scripts"), "search", t("Search")], ["deck", t("Interview deck"), "slides", t("Deck")], practice ? ["practice", t("Practice"), "mic", t("Practice")] : null,
@@ -802,7 +807,8 @@ async function addMaterials(jid, files) {                                       
   const said = [];                                                                  // why a file stayed out, one sentence each
   const refused = (f, why) => said.push(why === "kind" ? t("{name} was not added: this kind of file is not kept.", { name: f.name })
     : why === "empty" ? t("{name} could not be added: the file is empty.", { name: f.name })
-      : why === "large" ? t("{name} could not be added: it is larger than 50 MB.", { name: f.name }) : t("{name} could not be added.", { name: f.name }));
+      : why === "large" ? t("{name} could not be added: it is larger than 50 MB.", { name: f.name })
+        : why === "twin" ? t("{name}: the same file is in the list already.", { name: f.name }) : t("{name} could not be added.", { name: f.name }));
   const take = [];                                                                  // what the server keeps
   for (const f of files) {                                                          // checked here first, so nothing is sent for nothing
     if (!MAT_KINDS.test(f.name)) refused(f, "kind"); else if (!f.size) refused(f, "empty"); else if (f.size > MAT_MAX) refused(f, "large"); else take.push(f);
@@ -814,14 +820,17 @@ async function addMaterials(jid, files) {                                       
     try {
       const r = await postFile(`/api/v1/jobs/materials?job=${enc(jid)}`, f);        // the raw file and its own name, asked again while the server is busy
       const j = await r.json().catch(() => ({}));                                   // a refused upload may not answer with JSON
-      if (r.ok) added++; else refused(f, j.error === "material_kind" ? "kind" : j.error === "empty" ? "empty" : r.status === 413 ? "large" : "");
+      if (r.ok) added++; else refused(f, j.error === "material_kind" ? "kind" : j.error === "empty" ? "empty" : j.error === "material_duplicate" ? "twin" : r.status === 413 ? "large" : "");
     } catch (_) { refused(f, ""); }                                                 // the server stopped: the band says so
     UI.matSending.done++;                                                           // one more
     render();
   }
   UI.matSending = null;                                                             // done
-  toast([added ? tn(added, "{n} file added.", "{n} files added.") : "", said[0] || "",   // what came in, and the first reason one did not
-    said.length > 1 ? tn(said.length - 1, "{n} more file was not added.", "{n} more files were not added.") : ""].filter(Boolean).join(" "), null, added ? (said.length ? "warn" : "done") : "bad");
+  // B3-10: the bold head is one sentence of what happened (the toast bolds up to the first " · "), then each refused file in a
+  // sentence of its own with its reason (two at most, then how many more); a file name never lands in the bold part
+  const head = added ? tn(added, "{n} file added.", "{n} files added.") : tn(said.length, "{n} file was not added.", "{n} files were not added.");
+  const why = [...said.slice(0, 2), said.length > 2 ? tn(said.length - 2, "{n} more file was not added.", "{n} more files were not added.") : ""].filter(Boolean).join(" ");
+  toast(why ? head + " · " + why : head, null, added ? (said.length ? "warn" : "done") : "bad");
   refresh();                                                                        // the list shows them
 }
 async function saveMaterial(jid, m) {                                               // a copy on the Desktop, byte for byte
@@ -1010,9 +1019,9 @@ function trackBoard(jobs) {                                                     
           : j.next ? h("button", { class: "tnext-view", type: "button", title: t("Next step"),   // words the card can be lifted by; a click opens the box
             onclick: () => editNext(j.id), text: unlinked(j.next) }) : null,       // no next step: no empty row, its key sits in the foot
         UI.nextEdit === j.id ? null : linkKeys(j.next),                             // its links beside the words, to open at once
-        h("div", { class: "tfoot" }, (j.days || {})[st] ? h("span", { class: "when", text: t("Since {date}", { date: j.days[st] }) }) : h("span", { class: "when" }),   // the stage's day as counted; none known, no day (the day it was added is not when it got here)
+        h("div", { class: "tfoot" }, (j.days || {})[st] ? h("span", { class: "when", title: j.days[st], text: t("Since {date}", { date: String(j.days[st]).startsWith(String(new Date().getFullYear()) + "-") ? String(j.days[st]).slice(5) : j.days[st] }) }) : h("span", { class: "when" }),   // the stage's day as counted, this year's as MM-DD (B3-08: "Since 2026-11-…" was cut on every English card), the full day on hover; none known, no day (the day it was added is not when it got here)
           !j.next && st !== "result" && UI.nextEdit !== j.id ? h("button", { class: "btn small ghost icon add-next", type: "button", title: t("Add a next step"), "aria-label": t("Add a next step"), onclick: () => editNext(j.id) }, icon("plus")) : null,
-          st !== "result" ? h("button", { class: "btn small move", "data-to": S.stages[S.stages.indexOf(st) + 1], onclick: () => { const to = S.stages[S.stages.indexOf(st) + 1]; UI.boardFollow = { id: j.id, to }; act("/api/v1/tracker/next", { job: j.id }, t("Moved to {stage}", { stage: t(STAGE[to]) })); }, text: t("Move to {stage}", { stage: t(STAGE[S.stages[S.stages.indexOf(st) + 1]]) }) }) : null))),
+          st !== "result" ? h("button", { class: "btn small move", "data-to": S.stages[S.stages.indexOf(st) + 1], onclick: () => { const to = S.stages[S.stages.indexOf(st) + 1]; UI.boardFollow = { id: j.id, to }; act("/api/v1/tracker/next", { job: j.id }, t("Moved to {stage}", { stage: t(STAGE[to]) })).then((r) => { if (r && to === "result" && !j.result) askResult(j.id); }); }, text: t("Move to {stage}", { stage: t(STAGE[S.stages[S.stages.indexOf(st) + 1]]) }) }) : null))),   // the key ends it as a drop does: how, asked at once (B3-06)
       jobs.some((j) => j.stage === st) ? null : h("p", { class: "hint col-empty", text: t("Nothing here yet.") }));   // an empty stage says so
     const card = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("text/plain") && ![...e.dataTransfer.types].includes("Files");   // a card, not files
     col.addEventListener("dragover", (e) => { if (!card(e)) return; e.preventDefault(); col.classList.add("over"); });      // a card held over it
@@ -1171,10 +1180,10 @@ function roundForm(j, r) {                                                      
   const [d, tm] = String(r ? r.at : "").split("T");
   const key = `i-${j.id}-${r ? r.id : "new"}-`;                                     // kept across redraws until saved or closed (core.js DRAFT_KEYS)
   const close = () => { UI.roundEdit = null; forget(key); render(); };
-  return h("form", { class: "round-form", onsubmit: async (e) => { e.preventDefault(); const f = e.target;
+  return h("form", { class: "round-form", novalidate: true, onsubmit: async (e) => { e.preventDefault(); const f = e.target;
       const day = isoDay(f.elements.day.value), time = isoTime(f.elements.time.value);   // read the way the fields read them
-      if (!day) { f.elements.day.setCustomValidity(t("Write the day as 2026-11-09.")); f.elements.day.reportValidity(); return; }
-      if (time === null) { f.elements.time.setCustomValidity(t("Write the time as 19:00.")); f.elements.time.reportValidity(); return; }
+      if (!day) { fieldNote(f.elements.day, t("Write the day as 2026-11-09.")); return; }   // said under the field, in the panel's words
+      if (time === null) { fieldNote(f.elements.time, t("Write the time as 19:00.")); return; }
       const body = { job: j.id, kind: f.elements.kind.value, at: day + (time ? "T" + time : ""), asked: f.elements.asked.value, notes: f.elements.notes.value };
       if (r) body.id = r.id;
       if (await act("/api/v1/tracker/round", body, t("Round kept."))) close(); } },
@@ -1192,15 +1201,17 @@ function roundForm(j, r) {                                                      
       r ? h("button", { class: "btn small quiet danger", type: "button", onclick: async () => { if (await removeAct("/api/v1/tracker/round", { job: j.id, id: r.id, remove: true }, t("Round removed."))) close(); }, text: t("Remove") }) : null));
 }
 function reminders(jobs, one) {                                                     // add a reminder; let the PC show them (one: the application they belong to)
+  if (one && one.stage === "result" && !(one.reminders || []).length) return null;  // an ended application with none: no section holding a lone calendar key (B3-15)
   const rk = `r-${one ? one.id : "all"}-`;                                          // its fields' keys: words half typed for one application never follow to the next
-  const form = one && one.stage === "result" ? null : h("form", { onsubmit: (e) => { e.preventDefault(); const f = e.target;   // an ended application asks nothing more (tracker.due): no new reminder offered there
-    if (!f.elements.text.value.trim()) { f.elements.text.setCustomValidity(t("Write what to be reminded of.")); f.elements.text.reportValidity(); return; }   // said here, never a request refused
+  const what = h("input", { name: "text", "data-key": rk + "text", placeholder: t("Reply to the invitation") });   // what to be reminded of
+  const form = one && one.stage === "result" ? null : h("form", { novalidate: true, onsubmit: (e) => { e.preventDefault(); const f = e.target;   // an ended application asks nothing more (tracker.due): no new reminder offered there
+    if (!f.elements.text.value.trim()) { fieldNote(f.elements.text, t("Write what to be reminded of.")); return; }   // said under the field, never a request refused (the browser's bubble stayed on it and kept the form from being sent again)
     const day = isoDay(f.elements.day.value), time = isoTime(f.elements.time.value);   // read the way the fields read them
-    if (!day) { f.elements.day.setCustomValidity(t("Write the day as 2026-11-09.")); f.elements.day.reportValidity(); return; }   // a reminder needs its day
-    if (time === null) { f.elements.time.setCustomValidity(t("Write the time as 19:00.")); f.elements.time.reportValidity(); return; }
+    if (!day) { fieldNote(f.elements.day, t("Write the day as 2026-11-09.")); return; }   // a reminder needs its day
+    if (time === null) { fieldNote(f.elements.time, t("Write the time as 19:00.")); return; }
     const at = day + (time ? "T" + time : "");
     act("/api/v1/reminders", { job: one ? one.id : f.elements.job.value, at, text: f.elements.text.value }, t("Reminder kept.")).then((r) => { if (r) { forget(rk); render(); } }); } },   // saved: the whole form empties (its day and time too)
-    h("label", { class: "field" }, h("span", { text: t("What") }), h("input", { name: "text", "data-key": rk + "text", placeholder: t("Reply to the invitation") })),
+    h("label", { class: "field" }, h("span", { text: t("What") }), what, noteOf(what)),   // and under it the note its kept words still have
     one ? null : h("label", { class: "field" }, h("span", { text: t("Job") }), h("select", { name: "job", "data-key": "r-job" }, jobs.map((j) => h("option", { value: j.id, selected: j.id === S.job || null, text: jobName(j) })))),
     h("label", { class: "field" }, h("span", { text: t("Day") }), dayField({ name: "day", "data-key": rk + "day" }, S.today)),
     h("label", { class: "field" }, h("span", { text: t("Time") }), timeField({ name: "time", "data-key": rk + "time" }, "")),

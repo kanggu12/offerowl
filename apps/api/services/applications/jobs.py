@@ -65,6 +65,12 @@ def set_posting(api, jid: str, posting: str) -> None:
         write_text(api.ws.job_dir(jid) / "posting.md", posting + "\n")  # as pasted
 
 
+ROLE_WORDS = re.compile(r"(엔지니어|개발자|매니저|디자이너|연구원|리서처|사이언티스트|분석가|아키텍트|운영자|담당자|기획자|\b(?:PM|PO|SRE|DevOps|MLOps)\b|"
+                        r"engineer|developer|manager|designer|scientist|researcher|architect|analyst|lead\b)", re.I)  # words that name a role
+COMPANY_FORM = re.compile(r"(^\(주\)|^㈜|\(주\)$|㈜$|(?:랩스|랩|테크|소프트|시스템즈|코리아|컴퍼니|그룹|증권|은행|카드|생명|화재|전자|바이오|헬스케어|모빌리티|게임즈|"
+                          r"스튜디오|파트너스|네트웍스|솔루션즈|인베스트먼트|에이아이)$|^[A-Za-z][\w&.-]*(?:Labs?|AI|Inc\.?|Corp\.?|Tech|Technologies|Systems|Software)$)")  # a company's name by its form
+
+
 def add_job(api, req: dict, select: bool = True) -> str:
     """A job from a pasted posting or a link: its folder, the posting, its card on the board. Returns its id. With
     select False (a run adds it) the job in view stays as it is."""
@@ -86,6 +92,10 @@ def add_job(api, req: dict, select: bool = True) -> str:
         role = re.sub(r"\s*(?:채용\s*공고|채용|모집|공고|job posting|hiring)\s*$", "", role, flags=re.I).strip()  # the posting's own word for itself
         if company and role.startswith(company):  # the company named twice
             role = role[len(company):].strip(" -·|,")
+        if not company:  # no company the parser could name: a first line "가나다랩스 플랫폼 엔지니어" starts with it (B3-16)
+            head, _, rest = role.partition(" ")  # its first word, and the rest
+            if rest and ROLE_WORDS.search(rest) and COMPANY_FORM.search(head):  # the rest names the role, the first word reads as a company (never "플랫폼", "Senior")
+                company, role = head.strip("|,·-")[:80], rest.strip()
         role = role[:80]  # bounded
     with api.ws.lock:  # the folder name picked and its job written in one go: two adds at once never share a folder
         jid = _add_job_locked(api, company, role, posting, url)

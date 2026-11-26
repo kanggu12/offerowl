@@ -56,12 +56,32 @@ def prepared(cover, prof: dict, lang: str, profile_key: str | None):
     return PREPARED[key]
 
 
+def duty_part(posting: str) -> str:
+    """A posting without the part a form's questions take: everything from a short heading over the questions
+    ("지원서 문항", "자기소개서", "Application questions", answers.SECTION_RE) to the end, and any numbered line with a
+    character limit of its own ("1. 지원 동기 (500자)", answers.limit_of) wherever it stands. The fit rates duties and
+    requirements; the questions are answered in the Applications view."""
+    from .answers import ASKS_RE, NUMBERED_RE, SECTION_RE, limit_of  # how the questions are read there
+    out = []  # the lines kept
+    for raw in str(posting or "").splitlines():
+        line = raw.strip()
+        body = NUMBERED_RE.sub("", line).strip()  # without its number
+        heading = line and len(line) <= 24 and len(line.split()) <= 4 and not line[:1] in "-•*·▪◦–"  # a short line, never a bullet ("- Answer customer questions" is a duty)
+        if heading and SECTION_RE.search(line) and not ASKS_RE.search(body) and not limit_of(line):  # a heading over the questions
+            break  # the rest is the form's
+        if NUMBERED_RE.match(line) and limit_of(line):  # a question with its own limit, on its own
+            continue
+        out.append(raw)
+    return "\n".join(out)
+
+
 def compute(prof: dict, posting: str, *, lang: str | None = None, evmap: dict | None = None, cands: list | None = None,
             profile_key: str | None = None) -> dict:
     """The fit of a profile to a posting. Never calls a model. A posting without duty lines gives no lines and a
     score of 0, with `reason` saying so. `profile_key` names the profile (its file's hash) so that its units and their
     index are worked out once for every job."""
     import cover  # src/cover.py: the posting parser, the evidence units and the word matching
+    posting = duty_part(posting)  # the form's questions are not requirements (B3-05: "지원 동기 (500자)" was rated, the heading glued to a duty)
     try:
         with PLAN_LOCK:  # one plan at a time
             lang = lang or cover.guess_lang(posting)  # the plan's language, as plan() would guess it

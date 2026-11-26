@@ -181,6 +181,44 @@ def _make_thumbnail(data: bytes, width: int):
         return None
 
 
+def studio(data: bytes, fill: str):
+    """A cut-out photo (a PNG with a see-through background) set on a studio backdrop in a theme's colour, as JPEG bytes; None
+    when the photo has no see-through part (it keeps its own backdrop) or Pillow is not installed. The backdrop is the
+    theme's name-band colour lit from behind the head: a soft light at the upper middle that falls off to the band's colour
+    at the corners, as a portrait taken against a painted backdrop (the 10-26 photo's navy backdrop had that light; a flat
+    fill read as a cut-out pasted on black). Two grey levels of noise keep the slope from banding in the PDF."""
+    try:
+        from PIL import Image, ImageChops, ImageOps  # optional, as for thumbnail()
+    except ImportError:
+        return None
+    try:
+        im = ImageOps.exif_transpose(Image.open(io.BytesIO(data), formats=("PNG",)))  # a cut-out is a PNG; a JPEG has its own backdrop
+        if im.mode not in ("RGBA", "LA", "PA") and not (im.mode == "P" and "transparency" in im.info):  # nothing see-through
+            return None
+        im = im.convert("RGBA")
+        if im.getchannel("A").getextrema()[0] >= 250:  # an alpha channel with nothing see-through in it
+            return None
+        w, h = im.size
+        base = tuple(int(str(fill)[i:i + 2], 16) for i in (0, 2, 4))  # the band's colour, at the far corners
+        light_k = 0.2 if (0.2126 * base[0] + 0.7152 * base[1] + 0.0722 * base[2]) < 128 else 0.5  # a dark band is lit a fifth of the way to white, a light one half
+        light = tuple(round(c + (255 - c) * light_k) for c in base)  # the light behind the head
+        cx, cy, rx, ry = w * 0.5, h * 0.36, w * 0.85, h * 0.92  # where the light stands, and how far it reaches across and down
+        g = Image.radial_gradient("L")  # 256 x 256: 0 at the centre, rising 1.41 a pixel, 255 from 180 px out
+        gw, gh = round(rx * 256 / 180), round(ry * 256 / 180)  # scaled so 255 falls at rx across and ry down
+        mask = Image.new("L", (w, h), 255)
+        mask.paste(g.resize((gw, gh), Image.BICUBIC), (round(cx - gw / 2), round(cy - gh / 2)))  # covers the whole photo (gw > w, gh / 2 > the farther edge)
+        mask = mask.point(lambda v: round(255 * (v / 255) ** 0.9))  # a slightly longer bright middle
+        back = Image.composite(Image.new("RGB", (w, h), base), Image.new("RGB", (w, h), light), mask)  # 0 is light, 255 the band
+        back = ImageChops.add(back, Image.effect_noise((w, h), 1.6).convert("RGB"), 1.0, -128)  # dither: no steps in the slope
+        back = back.convert("RGBA")
+        back.alpha_composite(im)  # the person in front
+        out = io.BytesIO()
+        back.convert("RGB").save(out, "JPEG", quality=92, optimize=True)  # a photograph again
+        return out.getvalue()
+    except Exception:  # noqa: BLE001  a file Pillow cannot read: the photo goes as it is
+        return None
+
+
 # ---------------------------------------------------------------- the resume's photo, kept and taken away
 
 PHOTO_KINDS = {b"\xff\xd8\xff": "jpg", b"\x89PNG": "png"}  # the start of each file a resume photo may be

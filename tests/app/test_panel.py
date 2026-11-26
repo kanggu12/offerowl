@@ -243,6 +243,10 @@ class TestJobs(PanelCase):
         shared = [F.compute(prof, posting, evmap=api.facts.evidence(), cands=api.facts.candidates(), profile_key="test-profile") for _ in range(2)]  # made once, then shared
         self.assertEqual([alone, alone], shared)  # the same fit, line by line, whichever way
         self.assertIn(("test-profile", alone["lang"]), F.PREPARED)  # kept for the next job's fit
+        asked = F.compute(prof, posting + "\n\n지원서 문항\n1. 지원 동기 (500자)\n2. 성장 과정 (1000자)",
+                          evmap=api.facts.evidence(), cands=api.facts.candidates())  # the same posting with a form's questions under it
+        self.assertEqual([x["text"] for x in alone["lines"]], [x["text"] for x in asked["lines"]])  # the questions are not rated (B3-05)
+        self.assertEqual(alone["score"], asked["score"])
         m = self.resume(job=jid)  # the resume for the job
         skills = next(b for b in m["blocks"] if b["type"] == "skills")["rows"]  # its skills table
         self.assertEqual(["Platform", "Data", "Observability"], [r["category"] for r in skills[:3]])  # the job's groups lead
@@ -1058,6 +1062,8 @@ class TestForms(PanelCase):
         self.assertEqual(["edu", "career"], sections()[:2])  # as the standard form asks
         self.post("/api/v1/settings", {"form": "nothing we print", "deck_style": "clean"})  # a stale page's value, and a look
         self.assertEqual("table", self.get("/api/v1/state")["settings"]["form"])  # the odd value is ignored
+        for bad in ({"theme": 3}, {"photo": "yes"}, {"deck_max_mb": "2"}, {"lang": ["ko"]}):  # a value of the wrong type (D3-13)
+            self.post("/api/v1/settings", bad, expect=400)  # refused, never answered ok with nothing kept
         self.post("/api/v1/settings", {"form": "compact"})  # back to one column
         api = self.srv.RequestHandlerClass.panel  # the running API
         out = api.tasks.edition_inputs("-general", "ko")  # what the typesetting reads

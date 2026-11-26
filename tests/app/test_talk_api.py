@@ -107,6 +107,19 @@ class TalkApiTest(unittest.TestCase):
         got = self.post("/api/v1/interview/talk/brief", {"job": self.job, "brief": {"topics": [{"title": "  "}]}}, expect=400)
         self.assertEqual(got.get("what"), "bad_brief")
         self.post("/api/v1/interview/talk/brief", {"job": self.job, "brief": "topics"}, expect=400)
+        # the panel's form with its topics box emptied sends an empty list: read as "the usual four", it was kept as a brief with
+        # no topic at all (200), and a first brief with no topics was kept the same way
+        f = self.tmp / "data" / "workspace" / "jobs" / self.job / "interview" / "talk.json"
+        before = f.read_text(encoding="utf-8") if f.is_file() else None  # what is kept now, if anything
+        for brief in ({"topics": [], "minutes": 30}, {"topics": ["", " "]}):
+            got = self.post("/api/v1/interview/talk/brief", {"job": self.job, "brief": brief}, expect=400)
+            self.assertEqual(got.get("what"), "bad_brief", brief)
+        self.assertEqual(before, f.read_text(encoding="utf-8") if f.is_file() else None)  # nothing was written
+        bare = self.post("/api/v1/jobs", {"company": "델타페이먼츠", "posting": POSTING.read_text(encoding="utf-8")})["job"]   # a job with no brief kept
+        got = self.post("/api/v1/interview/talk/brief", {"job": bare, "brief": {"minutes": 20}}, expect=400)  # a brief that names no topic, with none kept before
+        self.assertEqual(got.get("what"), "bad_brief")
+        self.post("/api/v1/interview/talk/brief", {"job": self.job, "brief": {"topics": ["소개"]}})  # one titled topic is a brief
+        self.assertEqual(self.post("/api/v1/interview/talk/brief", {"job": self.job, "brief": {"minutes": 25}})["brief"]["topics"], ["소개"])  # and later changes keep it
 
     def test_kit_pages_before_the_talk_is_made(self):
         """At the panel's own address the kit's /talk says there is no talk yet, and its PDFs are not there; the Desktop copy
