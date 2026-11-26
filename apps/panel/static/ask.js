@@ -57,7 +57,9 @@ async function askSend(box) {                                                   
   const text = box.value.trim();
   if (!text || task("ask").state === "running") return;                            // nothing to send, or one is still working
   if (!(["claude-code", "codex"].includes(S.agent.backend) && S.agent.state === "ready")) {   // no agent that can act: the words stay, the band above says why
-    toast(t("Requests need Claude Code or Codex, switched on and signed in."), { words: t("Open the AI agent"), run: () => { askToggle(false); UI.agentPop = true; UI.menu = false; render(); } }, "info");
+    const k = document.querySelector("#askpanel .band .btn");                       // the band's own key: the keyboard goes to it, no note saying the band's words again (A3-18)
+    if (k) k.focus({ preventScroll: true });
+    else toast(t("Requests need Claude Code or Codex, switched on and signed in."), { words: t("Open the AI agent"), run: () => { askToggle(false); UI.agentPop = true; UI.menu = false; render(); } }, "info");   // no band drawn (a page drawn before the agent went): said once
     return;
   }
   UI.askDraft = ""; box.value = "";                                                 // the box is free at once: the redraw the request makes draws it empty

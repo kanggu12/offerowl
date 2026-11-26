@@ -25,6 +25,8 @@ function factRows() {
   return factCache.rows;                                                            // the rows read last (none before the first answer)
 }
 const trashHere = () => ((S.removed || {}).sources || 0) + ((S.removed || {}).photo || 0);   // the profile's files and photo in the Trash
+const trashWordsHere = () => { const r = S.removed || {};                          // "휴지통: 내 파일 2개, 사진 3장"
+  return t("In the trash: {what}", { what: [r.sources ? tn(r.sources, "{n} file", "{n} files") : "", r.photo ? tn(r.photo, "{n} photo", "{n} photos") : ""].filter(Boolean).join(", ") }); };
 function viewProfile(host) {                                                        // your details, your files, the facts
   const c = S.facts.counts, d = S.details || {};                                    // the totals and the person's own fields
   if (!UI.filter) UI.filter = c.to_confirm ? "todo" : "kept";                       // nothing to confirm: the facts kept, not an empty list
@@ -41,7 +43,7 @@ function viewProfile(host) {                                                    
       S.materials.length ? h("div", { class: "rows" }, S.materials.map((m) => h("div", { class: "ob-file" },
         h("span", {}, h("b", { text: m.name }), " ", h("span", { class: "hint", text: materialState(m) })),
         h("button", { class: "btn small quiet danger", "data-key": "mat-remove-" + m.id, onclick: () => removeAct("/api/v1/materials/remove", { id: m.id }, t("Removed {name}.", { name: m.name })), text: t("Remove") })))) : null,   // its facts go with it; the note's Undo, or the Trash, brings both back
-      trashLine(trashHere(), tn(trashHere(), "{n} file in the trash", "{n} files in the trash")),   // what was removed here, a key away
+      trashLine(trashHere(), trashWordsHere()),   // what was removed here, a key away: files and photos counted apart (three photos read as "five of your files", A3-10)
       task("ingest").state === "error" ? band(task("ingest").error.code, { retry: () => act("/api/v1/materials/read", { ids: S.materials.map((m) => m.id) }) }) : null)),
     factsSheet(rows, c)));
 }
@@ -51,7 +53,7 @@ function detailsSheet(d) {
   const any = ["name", "email", "name_en", "phone", "headline", "intro"].some((k) => String(d[k] || "").trim());   // anything to read yet
   const editing = UI.editDetails || !any;                                           // nothing yet: the fields at once
   const head = h("div", { class: "card-h" }, h("h3", { text: t("Your details") }), sentLine(false), h("span", { class: "grow" }),
-    any ? h("button", { class: "btn sm", type: "button", "aria-pressed": editing ? "true" : "false", onclick: () => { UI.editDetails = !editing; render(); } },
+    any ? h("button", { class: "btn sm", type: "button", "data-key": "details-edit", "aria-pressed": editing ? "true" : "false", onclick: () => { UI.editDetails = !editing; render(); } },
       icon(editing ? "check" : "edit"), editing ? t("Done") : t("Edit")) : null);   // Edit opens the fields, Done closes them (each word is saved as it is typed)
   // where each field came from (a file a run read, or the person's typing), numbered as the documents number their evidence;
   // the file's words on hover
@@ -80,8 +82,15 @@ function detailsSheet(d) {
           files.length ? h("div", { class: "dr-src", "aria-label": t("Where these came from") }, files.map((f, i) => h("span", {},   // the numbers' sources, one line
             many ? h("span", { class: "evn", text: String(i + 1) }) : null, f.typed ? [icon("edit", 12), t("Typed by you")] : [icon("file", 12), f.file]))) : null)));
   }
-  const field = (key, label, opt = {}) => h("label", { class: "field" }, h("span", { text: t(label) }),   // a one-line field
-    h("input", { "data-key": "d-" + key, type: opt.type || "text", value: d[key] || "", autocomplete: opt.auto || "off", oninput: (e) => saveDetails({ [key]: e.target.value }) }));
+  const badMail = (v) => !!String(v || "").trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim());   // words that are no address (A3-16): marked, never refused, since typing passes "name@" on its way
+  const field = (key, label, opt = {}) => {                                         // a one-line field
+    const bad = key === "email" ? h("span", { class: "field-bad", id: "d-email-bad", hidden: !badMail(d.email) || null, text: t("Not an email address") }) : null;   // the email's state in words, under it
+    const mark = (box, on) => { if (on) box.setAttribute("aria-invalid", "true"); else box.removeAttribute("aria-invalid"); bad.hidden = !on; };   // the rim and the words together
+    return h("label", { class: "field" }, h("span", { text: t(label) }),
+      h("input", { "data-key": "d-" + key, type: opt.type || "text", value: d[key] || "", autocomplete: opt.auto || "off", "aria-invalid": bad && badMail(d[key]) ? "true" : null, "aria-describedby": bad ? "d-email-bad" : null,
+        oninput: (e) => { saveDetails({ [key]: e.target.value }); if (bad && !badMail(e.target.value)) mark(e.target, false); },   // saved as typed; the mark goes as soon as it reads as an address
+        onchange: (e) => { if (bad) mark(e.target, badMail(e.target.value)); } }), bad);   // and comes when the person leaves the field with words that are none
+  };
   const rich = (key, label, rows) => {                                              // a field that carries highlights: the words, a key, and how they read
     const view = h("p", { class: "md-preview", "aria-live": "polite" }, marks(d[key] || "", "hl"));   // drawn as the documents draw it
     const box = h("textarea", { "data-key": "d-" + key, rows, class: "short", "aria-label": t(label),
@@ -95,7 +104,10 @@ function detailsSheet(d) {
     return h("div", { class: "field wide" }, h("span", { class: "rich-head" }, h("span", { text: t(label) }), mark), box,
       h("span", { class: "md-label", text: t("How it reads") }), view);
   };
-  return h("section", { class: "paper viewsheet", "aria-label": t("Your details") }, head,
+  const closeOnEsc = (e) => { if (e.key !== "Escape" || !any) return;              // Esc is Done, as in a fact's edit form (with nothing to read yet the fields are the card)
+    e.stopPropagation(); UI.editDetails = false; render();                          // each word is saved as it is typed: nothing waits
+    const k = document.querySelector('[data-key="details-edit"]'); if (k) k.focus({ preventScroll: true }); };   // the keyboard back on Edit
+  return h("section", { class: "paper viewsheet", "aria-label": t("Your details"), onkeydown: closeOnEsc }, head,
     h("div", { class: "details-wrap" }, photoCell(),
       h("div", { class: "details" }, field("name", "Name", { auto: "name" }), field("email", "Email", { type: "email", auto: "email" }),
         field("name_en", "Name in English"), field("phone", "Phone", { type: "tel", auto: "tel" }),
@@ -133,10 +145,10 @@ function factsSheet(rows, c) {                                                  
       ...(rest > 0 ? [{ n: rest, words: t("The rest"), color: "var(--ink-3)" }] : [])],   // "the rest" as Make and Insights draw it: never the kind "Other" of the list's picker (line-2 was 1.5:1)
       { label: t("Facts by kind"), id: "kinds" })) : null,
     h("div", { class: "facts-tools" },
-      h("div", { class: "seg", "aria-label": t("Show") }, [["todo", "To confirm", c.to_confirm], ["kept", "Kept", c.kept], ["dropped", "Dropped", c.dropped], ["all", "All", c.found]].map(([k, w, n]) =>
-        h("button", { "aria-pressed": UI.filter === k ? "true" : "false", onclick: () => { UI.filter = k; UI.factPage = 0; render(); } }, t(w), " ", h("span", { class: "chip count", text: String(n) })))),
+      fadeRow(h("div", { class: "seg fact-tabs", "aria-label": t("Show") }, [["todo", "To confirm", c.to_confirm], ["kept", "Kept", c.kept], ["dropped", "Dropped", c.dropped], ["all", "All", c.found]].map(([k, w, n]) =>
+        h("button", { "aria-pressed": UI.filter === k ? "true" : "false", onclick: () => { UI.filter = k; UI.factPage = 0; render(); } }, t(w), " ", h("span", { class: "chip count", text: String(n) }))))),   // fadeRow: on a phone the row slides, its fades say so
       h("span", { class: "grow" }),
-      h("button", { class: "btn", "aria-expanded": UI.factAdd ? "true" : "false", onclick: () => { UI.factAdd = !UI.factAdd; render(); }, text: UI.factAdd ? t("Close the form") : t("Add a fact") }),
+      h("button", { class: "btn", "data-key": "fact-add", "aria-expanded": UI.factAdd ? "true" : "false", onclick: () => { UI.factAdd = !UI.factAdd; render(); }, text: UI.factAdd ? t("Close the form") : t("Add a fact") }),   // found again after a redraw (Esc in the form)
       c.to_confirm ? h("button", { class: "btn" + (UI.factAdd || UI.factEdit ? "" : " primary"), onclick: () => act("/api/v1/facts/keep-all", {}, t("Kept. Undo takes them back.")), text: t("Keep the remaining {n}", { n: c.to_confirm }) }) : null),
     rows.length > FACT_PAGE || q || kind ? h("div", { class: "facts-tools" },              // a search and the kinds, once there are more facts than one page holds
       h("input", { class: "input fq", type: "search", "data-key": "fq", value: UI.factQuery || "", placeholder: t("Search your facts"), "aria-label": t("Search your facts"),
@@ -152,13 +164,13 @@ function factsSheet(rows, c) {                                                  
 }
 function factForm() {                                                              // a fact typed by the person: its own evidence, kept at once
   const kinds = ["role", "project", "education", "skill", "certificate", "award", "paper", "patent", "other"];  // the kinds the profile knows
-  const form = h("form", { class: "add-fact", "aria-label": t("Add a fact"), onsubmit: (e) => { e.preventDefault(); const f = e.target.elements;
+  const form = h("form", { class: "add-fact", "aria-label": t("Add a fact"), onkeydown: (e) => { if (e.key === "Escape") { e.stopPropagation(); closeFactForm(); } },   // Esc closes it, as its key does (its words wait in the boxes, as they do then)
+    onsubmit: (e) => { e.preventDefault(); const f = e.target.elements;
     if (!f.title.value.trim() && !f.statement.value.trim()) { toast(t("Write a title or what it says first."), null, "info"); f.title.focus(); return; }   // a fact needs words: said here, never a request refused
     act("/api/v1/facts/add", { kind: f.kind.value, title: f.title.value, org: f.org.value, period: f.period.value, statement: f.statement.value }, t("Added. Undo takes it back."))
       .then((r) => { if (r) { UI.factAdd = false; forget("f-add-");                   // the form closes
         if (UI.filter !== "all") UI.filter = "kept";                                   // a typed fact is kept at once: shown where it now is
         UI.factQuery = ""; UI.factKind = ""; UI.factJump = r.cid; render(); } }); } },   // no search or kind hides it; factsSheet takes the list to its row
-    h("p", { class: "hint", text: t("A fact you type is its own evidence: write what you did, as you would say it.") }),
     h("div", { class: "details" },
       h("label", { class: "field" }, h("span", { text: t("Kind") }), h("select", { name: "kind", "data-key": "f-add-kind" }, kinds.map((k) => h("option", { value: k, selected: k === "other" || null, text: t(KIND[k]) })))),   // "Other" until picked: a note never files itself as a job
       h("label", { class: "field" }, h("span", { text: t("Title") }), h("input", { name: "title", "data-key": "f-add-title" })),
@@ -167,6 +179,10 @@ function factForm() {                                                           
       h("label", { class: "field wide" }, h("span", { text: t("What it says") }), h("textarea", { name: "statement", "data-key": "f-add-statement", rows: 3 }))),
     h("div", {}, h("button", { class: "btn" + (UI.factEdit ? "" : " primary"), type: "submit", text: t("Add the fact") })));   // a fact's own Save leads while it is edited
   return form;                                                                      // under the filters
+}
+function closeFactForm() {                                                         // the add form closed by Esc: the keyboard back on the key that opened it
+  UI.factAdd = false; render();
+  const k = document.querySelector('[data-key="fact-add"]'); if (k) k.focus({ preventScroll: true });
 }
 function photoCell() {                                                              // the resume's photo: a 3:4 cell, its keys and whether it is printed
   const ph = S.photo;                                                               // {at, on} or null
@@ -364,8 +380,7 @@ function stagePill(j) {                                                         
 }
 function jobForm() {                                                                // paste a posting or a link
   const form = h("form", { class: "paper viewsheet", "aria-label": t("Add a job"), onsubmit: (e) => { e.preventDefault(); addJob(form); } },
-    h("div", { class: "card-h" }, h("h3", { text: t("Add a job") }), sentLine(false),
-      h("span", { class: "hint", text: t("The fit is worked out on this PC. Tailoring with the agent sends the posting.") })),
+    h("div", { class: "card-h" }, h("h3", { text: t("Add a job") }), sentLine(false)),   // what goes where is the line's own chip and its hover (B-17)
     // a place to paste, not a page to type in: two rows, and a pasted link adds the job at once
     h("label", { class: "field" }, h("span", { text: t("The posting, or a link to it") }), h("textarea", { name: "posting", "data-key": "j-posting", rows: 2, class: "short", placeholder: t("Paste the posting's text or its link"),
       onpaste: (e) => { const v = (e.clipboardData || window.clipboardData).getData("text").trim(); if (/^https?:\/\/\S+$/i.test(v)) { e.preventDefault(); e.target.value = v; form.requestSubmit(); } } })),
@@ -520,8 +535,7 @@ function fitPart(j, f) {                                                        
     lines.length ? null : h("p", { class: "hint", text: t("No line of this kind.") }),
     f.gaps.length && want !== "strong" ? h("div", { class: "band gaps" }, h("b", {}, h("span", { class: "lit bad", "aria-hidden": "true" }), t("Gaps")),
       f.gaps.some((g) => /\s/.test(g)) ? h("ul", {}, f.gaps.filter((g) => /\s/.test(g)).map((g) => h("li", { text: g }))) : null,   // a requirement in words, one a line
-      f.gaps.some((g) => !/\s/.test(g)) ? h("div", { class: "gap-words" }, f.gaps.filter((g) => !/\s/.test(g)).map((g) => h("span", { class: "chip", text: g }))) : null,   // a single term (UNIX, gcc): side by side
-      h("span", { class: "hint", text: t("Add a fact to your profile if you have done this; the documents never claim what the evidence does not hold.") })) : null);
+      f.gaps.some((g) => !/\s/.test(g)) ? h("div", { class: "gap-words" }, f.gaps.filter((g) => !/\s/.test(g)).map((g) => h("span", { class: "chip", text: g }))) : null) : null);   // a single term (UNIX, gcc): side by side; no advice under them (B-17)
 }
 function fitLine(j, ln, i) {                                                        // one line of the posting: its rating and words; its evidence when opened
   const key = `${j.id}|${i}`, open = UI.lineOpen === key;                          // which line is open
@@ -683,10 +697,12 @@ function interviewPart(j) {                                                     
     h("div", { class: "qboard" }, b.categories.map((c) => h("section", { class: "qcol glass", "aria-label": t(CATEGORY[c.kind] || c.kind) },
       h("div", { class: "card-h" }, h("h3", { text: t(CATEGORY[c.kind] || c.kind) }), h("span", { class: "chip count", text: String(c.questions.length) })),
       segBar([["strong", "var(--green)"], ["draft", "var(--orange)"], ["weak", "var(--amber)"], ["none", "var(--rule-2)"]].map(([k, color]) =>   // how many of its questions a script answers
-        ({ n: c.questions.filter((q) => (q.coverage || "none") === k).length, words: t(COVERAGE[k]), color })), { label: t(CATEGORY[c.kind] || c.kind), id: "cov-" + c.kind, compact: true }),
-      h("ol", {}, c.questions.slice(0, 5).map((q) => h("li", {}, h("span", { class: "lit " + (COVERAGE_CLS[q.coverage] || "off"), title: t(COVERAGE[q.coverage] || COVERAGE.none) }, h("span", { class: "sr", text: t(COVERAGE[q.coverage] || COVERAGE.none) })),
+        ({ n: c.questions.filter((q) => (q.coverage || "none") === k).length, words: t(COVERAGE[k]), color })).filter((x) => x.n), { label: t(CATEGORY[c.kind] || c.kind), id: "cov-" + c.kind, compact: true }),   // the kinds this column has: a legend of "0"s said nothing and wrapped one entry alone (C2-25)
+      h("ol", {}, c.questions.slice(0, (UI.mapAll || {})[j.id + "|" + c.kind] ? c.questions.length : 5).map((q) => h("li", {}, h("span", { class: "lit " + (COVERAGE_CLS[q.coverage] || "off"), title: t(COVERAGE[q.coverage] || COVERAGE.none) }, h("span", { class: "sr", text: t(COVERAGE[q.coverage] || COVERAGE.none) })),
         h("span", { text: (docLang() === "en" ? q.ask_en : q.ask_ko) || q.text })))),
-      c.questions.length > 5 ? moreRow(t("and {n} more in the search view", { n: c.questions.length - 5 }), { on: true, run: () => { UI.ivPart = "search"; render(); } }) : null))),   // the rest, in the search view
+      // the rest of the column's questions, here: the key opened the search with an empty box, which lists no questions (C2-17)
+      c.questions.length > 5 ? moreRow((UI.mapAll || {})[j.id + "|" + c.kind] ? t("Show fewer") : t("{n} more", { n: c.questions.length - 5 }),
+        { run: () => { UI.mapAll = { ...(UI.mapAll || {}), [j.id + "|" + c.kind]: !(UI.mapAll || {})[j.id + "|" + c.kind] }; render(); } }) : null))),
     b.scripts.length ? scriptsPart(b.scripts) :
       h("div", { class: "empty glass" }, h("h3", { text: t("No scripts yet") }), h("p", { text: S.agent.state === "ready" ? t("Write scripts to let the agent answer the likeliest questions first.") : t("Scripts are written by the agent. Turn it on to draft them.") }),
         S.agent.state === "ready" ? null : h("div", { class: "part-keys" }, h("button", { class: "btn", type: "button", onclick: () => openAgentMenu() }, icon("agent"), t("Turn on the agent")))),   // the one fix, beside its words
@@ -1131,8 +1147,7 @@ function roundAsked(r, j) {                                                     
   const cat = b && b.ready ? (b.categories || []).find((c) => c.kind === "asked") : null;
   const qs = cat ? cat.questions.filter((q) => (q.rounds || []).includes(r.id)) : [];   // this round's questions as the map read them, a question asked again among them
   if (!qs.length) return h("div", { class: "round-asked" }, head, h("ul", {}, lines.map((q) => h("li", { text: q }))),   // no kit yet (or still read): the words as written
-    b && b.ready === false ? h("div", { class: "round-kit" }, h("span", { class: "hint", text: t("A question map shows which of them a script answers.") }),
-      h("button", { class: "btn small", type: "button", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }) }, icon("map"), t("Make the question map"))) : null);
+    b && b.ready === false ? h("div", { class: "round-kit" }, h("button", { class: "btn small", type: "button", onclick: () => act("/api/v1/interview/kit", { job: j.id, lang: docLang() }) }, icon("map"), t("Make the question map"))) : null);
   const tk = task("scripts:" + j.id), writing = tk.state === "running";            // the agent writing this job's scripts now
   const missing = qs.filter((q) => ["none", "weak"].includes(q.coverage || "none")).map((q) => q.id).slice(0, 30);   // no script answers them, or one only in part (30 a press, as the route takes)
   const open = (id) => { UI.jobTab = "interview"; ivOpenScript(id); };              // the script in the scripts' search, on the interview tab
@@ -1148,7 +1163,7 @@ function roundAsked(r, j) {                                                     
           onclick: () => act("/api/v1/interview/scripts", { job: j.id, lang: docLang(), ids: missing }) }, icon("agent"),
           writing ? t("Writing… {done} of {total}", { done: tk.done || 0, total: tk.total || 0 }) : tn(missing.length, "Write a new script", "Write {n} new scripts"))
         : null,
-      h("span", { class: "hint", text: S.agent.state === "ready" ? t("For the questions no script answers, or answers only in part.") : t("Scripts are written by the agent. Turn it on to draft them.") })) : null);
+      S.agent.state === "ready" ? null : h("span", { class: "hint", text: t("Scripts are written by the agent. Turn it on to draft them.") })) : null);   // the key's words say what it writes; with no agent, why there is no key
 }
 function roundForm(j, r) {                                                          // a round written or changed: its kind, day, time, the questions, notes
   const last = (j.rounds || []).slice(-1)[0];
@@ -1197,7 +1212,8 @@ function reminders(jobs, one) {                                                 
     h("div", { class: "part-keys" },
       perm === "default" ? h("button", { class: "btn small", onclick: () => Notification.requestPermission().then(() => render()), text: t("Show reminders as notifications on this PC") }) : null,
       perm === "granted" ? h("span", { class: "pill ok", text: t("Notifications are on") }) : null,
-      h("a", { class: "btn small", href: "/api/v1/reminders.ics", download: "offerowl-reminders.ics", text: t("Add them to your calendar") })),
+      h("a", { class: "btn small", href: `/api/v1/reminders.ics?${one ? "job=" + enc(one.id) + "&" : ""}lang=${LANG}`,   // this application's reminders and rounds, its rounds in the page's words
+        download: `offerowl_${one ? one.id + "_" : ""}calendar_${String(S.today || "").replace(/-/g, "")}.ics`, text: t("Add them to your calendar") })),   // underscores and the day it was made, as every file Offerowl hands over
     jobs.some((j) => (j.reminders || []).length) ? h("div", { class: "rows" }, jobs.flatMap((j) => (j.reminders || []).map((r) => h("div", { class: "remrow" },
       h("span", {}, one ? null : h("b", { text: jobName(j) + " " }), linked(r.text), " ", h("span", { class: "when", text: String(r.at).replace("T", " ") })),
       h("span", { class: "part-keys" }, h("button", { class: "btn small", "data-key": "rem-done-" + r.id, "aria-pressed": r.done ? "true" : "false", onclick: () => act("/api/v1/reminders", { job: j.id, id: r.id, done: !r.done }), text: r.done ? t("Done") : t("Mark done") }),

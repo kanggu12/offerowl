@@ -156,6 +156,8 @@ class WordFiles(Edition):
         rec = self.a.tasks.lock(named, "ko")  # what was sent, frozen
         frozen = self.a.ws.job_dir(named) / "submitted" / pathlib.Path(rec["folder"]).name / "resume.docx"
         names = self.a.tasks.export(named, "ko")  # the copies that went out
+        day = str(rec["at"])[:10].replace("-", "")  # the day they went
+        self.assertTrue(names and all(" " not in n and pathlib.Path(n).stem.endswith("_" + day) for n in names), names)  # named as every export: underscores, the day last (they had spaces and no day)
         docx = [n for n in names if n.endswith(".docx")]
         self.assertEqual(frozen.read_bytes(), (self.desk / docx[0]).read_bytes())  # never made ready again: the record of what was sent
         self.assertEqual(rec["files"]["resume.docx"], sha256(frozen))  # and the frozen copy itself unchanged

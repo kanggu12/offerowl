@@ -10,7 +10,8 @@ A posting alone, once a career is kept, starts the same run without reading anyt
 posting come from the facts already kept.
 
 A step that fails does not stop the ones that do not need it: the figures may fail and the PDFs still come out.
-Without an agent only a profile file can be read, and the run says so before it starts.
+Without an agent only a profile file can be read, and the run says so before it starts. A posting is the agent's to read
+(its application, the letter, the scripts): with no agent ready it is refused before anything is made of it.
 """
 import json  # the list of runs
 import logging  # the panel's log
@@ -209,6 +210,14 @@ def chain(api, mids: list[str], paths: list[str], posting: str, url: str, again:
         args = nxt  # and on
 
 
+def agent_ready(api) -> bool:
+    """An agent that would answer now: the card says ready (its first look after the start is waited for, once)."""
+    card = api.card.card()  # never waits for a CLI
+    if card.get("state") == "checking":  # the panel has just started and has not looked yet: a refusal now would be a guess
+        card = api.card.refresh()  # the first look, ended
+    return card.get("state") == "ready"  # off, not installed or signed out: nothing would be written
+
+
 def merge_requests(old: tuple | None, new: tuple) -> tuple:
     """Two requests that wait for the same run: the files of both, in order, and the newer posting and choices (the older
     posting when the newer has none). Fields: mids, paths, posting, url, again, theme, pages, job."""
@@ -243,6 +252,8 @@ def start(api, req: dict) -> dict:
         names = [Path(str(f)).name for f in files] + [m.get("name") or "" for m in api.ws.materials() if m["id"] in mids]
         if any(not n.lower().endswith(".json") for n in names):
             raise ValueError("needs_agent_files")  # the run would stop at reading them: said now, with the one fix
+    if with_job and not agent_ready(api):  # a posting is the agent's to read: with none ready the run made an application of nothing
+        raise ValueError("needs_agent_posting")  # (a card with no company, its id for a name, and no document): refused before any is made
     paths = [str(f) for f in files] or paths  # the files themselves, so the run does not walk the folders again (none found: the run says why)
     est = estimate(len(mids) + len(files), with_job, agent=(api.card.chosen() or "none") != "none")  # calls and minutes; with no agent, the typesetting's few
     said = {"task": "autopilot", "files": len(mids) + len(files), "skipped": skipped[:20], "estimate": est}  # the answer's facts

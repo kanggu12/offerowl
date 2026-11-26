@@ -177,7 +177,7 @@ function agentPanel(sheet = false) {                                            
   const sec = (v) => (v == null ? "–" : t("{n} s", { n: v }));                      // seconds in the page's words ("14.2초"); an en dash where there is no figure yet
   const ERR_WORDS = { timeout: "Timed out", rate_limited: "Too many requests", unavailable: "Not answering", signed_out: "Signed out" };   // the agent's last error, in words
   const longest = Math.max(0, ...(c.bars || []).map((b) => b.sec || 0));
-  const stats = a.state === "ready" ? h("div", { class: "usage" },
+  const stats = a.state === "ready" || c.calls ? h("div", { class: "usage" },   // the day's requests, while it answers or once it has answered today (switched off since, they are still today's)
     h("div", { class: "usage-top" },
       h("span", { class: "stat" }, h("b", { text: String(c.calls || 0) }), h("span", { class: "k", text: t("Requests today") })),
       h("span", { class: "stat" }, h("b", { text: sec(c.median) }), h("span", { class: "k", text: t("Median response") })),
@@ -197,7 +197,7 @@ function agentPanel(sheet = false) {                                            
   return h("section", { class: "card conn agentcard", "aria-label": t("AI agent") },
     sheet ? h("div", { class: "menu-head" }, h("h2", { text: t("AI agent") }), h("button", { class: "btn icon ghost", type: "button", "aria-label": t("Close"), title: t("Close"), onclick: () => { UI.agentPop = false; render(); } }, icon("close"))) : null,   // as the settings sheet: its name, and a key that closes it
     h("div", { class: "src", "data-state": lamp[0] },
-      h("div", { class: "src-top" }, h("span", { class: "src-name" }, icon("agent"), h("span", { text: name })), pill(lamp[0], t(lamp[1])), key),
+      h("div", { class: "src-top" }, sheet && a.backend === "none" ? null : h("span", { class: "src-name" }, icon("agent"), h("span", { text: name })), pill(lamp[0], t(lamp[1])), key),   // the sheet's head names it already: a row with no agent chosen says only its state (A3-08)
       who, help,
       a.state === "ready" ? facts([[t("Model"), c.model || t("The agent's default")], [t("Effort"), c.effort || t("The agent's default")]]) : null,
       stats));
@@ -230,7 +230,7 @@ function paneKey(name) {                                                        
     UI.docsVer, S.engine, S.english, S.styles, task("regen:" + UI.sel),
     UI.doc, UI.mode, sentAway(), S.agent && S.agent.state]);                       // the cover tab showed the resume's evidence until another change came
   const framed = kitFramed();                                                       // a kit's page is in its frame
-  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.view === "documents" ? "" : UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.settings && S.settings.corners, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.editDays, UI.tlPage, UI.dtPage, todayMarks(), UI.nextEdit, UI.jobTab, UI.ivPart, UI.ivWide, UI.roundEdit, UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen,
+  return JSON.stringify([...base, UI.view, UI.doc, UI.mode, UI.view === "documents" ? "" : UI.sel, UI.editing, UI.docLang, UI.theme, S.settings && S.settings.form, S.settings && S.settings.deck_style, S.settings && S.settings.corners, S.job, UI.filter, UI.factEdit, UI.factAdd, UI.editDetails, UI.jobPhone, UI.pathOpen, UI.adding, UI.jobsMode, UI.editDays, UI.tlPage, UI.dtPage, todayMarks(), UI.nextEdit, UI.jobTab, UI.ivPart, UI.ivWide, UI.roundEdit, UI.fitFilter, UI.lineOpen, UI.factQuery, UI.factKind, UI.factPage, UI.factOpen, UI.scriptOpen, UI.mapAll,
     UI.matOpen, UI.matSending, UI.libGroup, UI.libOwner, UI.libQuery, UI.libPage, (S.jobs || []).map((j) => (j.materials || []).map((m) => m.id).join()),
     (S.jobs || []).map((j) => [j.id, j.stage, j.result, j.next]),                     // a card moved on the board, or its next step changed: drawn at once   // a job's materials: one added or taken off, one opened, an upload going
     // the form's questions: removed, a new limit, an answer edited or checked again. These writes keep no undo step, so the

@@ -6,7 +6,7 @@ from __future__ import annotations
 import re  # paths
 import urllib.parse  # job ids in paths
 
-from ...core.routing import JSON, FileAnswer, NotFound, Upload  # the answers' shapes, and an upload's route
+from ...core.routing import JSON, FileAnswer, NotFound, Upload, lang_of  # the answers' shapes, an upload's route, a request's language
 from . import answers, jobs, materials, postings, tracker  # the form's answers, the jobs, a job's own materials, where its posting is kept, the board
 
 JOB = re.compile(r"^/api/v1/jobs/([0-9A-Za-z가-힣%-]+)$")  # one job, with its posting
@@ -69,8 +69,13 @@ def get_due(a, q, m):
 
 
 def get_ics(a, q, m):
-    """GET /api/v1/reminders.ics: every open reminder for the person's calendar."""
-    return 200, tracker.ics(jobs.jobs_view(a)).encode("utf-8"), "text/calendar; charset=utf-8"  # a file to open
+    """GET /api/v1/reminders.ics[?job=<job>&lang=ko|en]: the open reminders and the rounds from today on, for the person's
+    calendar: one application's with job, every application's without; the rounds named in lang (the panel's language)."""
+    cards = jobs.jobs_view(a)  # every job
+    if q.get("job"):  # one application's, from its Progress tab
+        jid = a.need_job({"job": str(q.get("job"))})  # it exists (an id from before a rename finds it)
+        cards = [c for c in cards if c["id"] == jid]  # that one only
+    return 200, tracker.ics(cards, lang_of(q.get("lang"))).encode("utf-8"), "text/calendar; charset=utf-8"  # a file to open
 
 
 # ------------------------------------------------------------------ writes

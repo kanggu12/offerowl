@@ -196,6 +196,7 @@ class Exports:
         where = str((st.get("name") if st.get("kind") == "edition" else None) or st.get("company") or st.get("role") or job_id).strip()  # the company
         words = {"ko": {"resume": "이력서", "deck": "포트폴리오", "cover": "자기소개서"}, "en": {"resume": "Resume", "deck": "Portfolio", "cover": "Cover letter"}}[lang]
         who, where, mark = self.blind_names(who, where, lang) if lock.get("blind") is True else (who, where, "")  # a blind edition went out under its names
+        from . import delivery  # the safe name and the day, as export() names its files
         extras = self.card.settings_fn().get("export_extras") is True  # Word files too, only when asked
         dest = desktop_dir()  # the Desktop
         dest.mkdir(parents=True, exist_ok=True)  # a fresh Desktop folder in a test
@@ -207,13 +208,13 @@ class Exports:
                     continue
                 if sha256(folder / f) != hashes[f]:  # changed since it was frozen
                     raise ValueError("changed")
-                base = " ".join(re.sub(r'[\\/:*?"<>|]+', " ", " ".join(x for x in (who, where, mark, words[key]) if x)).split())[:120]  # a safe name
+                base = delivery.safe_name(who, where, mark, words[key], delivery.made_day(lock))  # named as every export names its files: underscores and the day it went (it was "홍길동 감마 이력서.pdf")
                 name, n, same = base + Path(f).suffix, 2, None  # first try
                 while (dest / name).exists():  # never overwrite
                     if sha256(dest / name) == hashes[f]:  # those very bytes are there already: named again, never copied again (exports piled up "(741)" copies)
                         same = name
                         break
-                    name, n = f"{base} ({n}){Path(f).suffix}", n + 1
+                    name, n = f"{base}_{n}{Path(f).suffix}", n + 1  # numbered as free_name numbers, with no space
                 if same:
                     reused.append(same)  # said as written, never removed when a later file fails
                     continue

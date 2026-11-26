@@ -459,7 +459,9 @@ class Practice:  # one per server
         """What the page needs before a session: the interviewer, the speech model, the kinds, recent sessions."""
         from interview import transcribe  # the optional speech model
         stt_ok, stt_why = (True, "stand-in") if self.stt else transcribe.available()  # is a speech model installed
-        return {"agent": self.agent(), "stt": stt_ok, "stt_why": stt_why, "kinds": list(KINDS), "default_kinds": list(DEFAULT_KINDS),
+        counts = self.counts()  # how many questions of each kind this kit can ask
+        return {"agent": self.agent(), "stt": stt_ok, "stt_why": stt_why, "kinds": list(KINDS), "counts": counts,
+                "default_kinds": [k for k in DEFAULT_KINDS if counts.get(k)] or [k for k in KINDS if counts.get(k)],  # the usual kinds this kit has (a kind with none drew nothing in 36 draws)
                 "long_pause": LONG_PAUSE, "history": self.store.list(10), "speak": self.lang()}   # the interview's language: the page asks for answers in it
 
     # ----- the questions -----
@@ -488,6 +490,24 @@ class Practice:  # one per server
         ko, en = str((turn or {}).get("q_ko") or "").strip(), str((turn or {}).get("q") or "").strip()
         return bool((ko and cls.QUESTION_KO.search(ko)) or (en and (cls.QUESTION_EN.search(en) or cls.QUESTION_KO.search(en))))
 
+    def scene_for(self, r, scenes):
+        """The scene a map entry is practised with, or None: the best covering scene with dialogue whose first line asks
+        something (an asked question needs no such line), a term's own scene only for a term."""
+        ok = [i for i, _ in r["covered_by"] if i in scenes and scenes[i][1] and (r["kind"] == "asked" or self.asks(scenes[i][1][0]))]  # covering scenes with dialogue whose line asks something, best first
+        real = [i for i in ok if scenes[i][0].get("role") != "terms"]  # a "what is X" entry answers a term, not a posting line
+        return (real or (ok if r["kind"] == "term" else []) or [None])[0]  # the best real scene; a term entry only for a term question
+
+    def counts(self) -> dict:
+        """{kind: how many questions of it a session can ask}: one per scene, as questions() takes them."""
+        scenes = self.scenes()  # also builds the map
+        seen = {k: set() for k in KINDS}  # the scenes each kind would ask with
+        for r in self._plan or []:  # each entry of the map
+            if r["kind"] in seen:  # a kind practice knows
+                sid = self.scene_for(r, scenes)
+                if sid:
+                    seen[r["kind"]].add(sid)
+        return {k: len(v) for k, v in seen.items()}
+
     def questions(self, n=8, kinds=None, seed=None):
         """Up to n questions from the map, each with the scene that covers it; one per scene, kinds taken in turn."""
         scenes = self.scenes()  # also builds the map
@@ -497,9 +517,7 @@ class Practice:  # one per server
         for r in self._plan or []:  # each entry of the map
             if r["kind"] not in pools:  # a kind that was not asked for
                 continue
-            ok = [i for i, _ in r["covered_by"] if i in scenes and scenes[i][1] and (r["kind"] == "asked" or self.asks(scenes[i][1][0]))]  # covering scenes with dialogue whose line asks something, best first
-            real = [i for i in ok if scenes[i][0].get("role") != "terms"]  # a "what is X" entry answers a term, not a posting line
-            sid = (real or (ok if r["kind"] == "term" else []) or [None])[0]  # the best real scene; a term entry only for a term question
+            sid = self.scene_for(r, scenes)  # the scene that answers it
             if sid:  # a question without a scene gets no feedback against a scene, so it is left out
                 pools[r["kind"]].append((r, sid))  # a candidate
         for k in pools:  # shuffle within each kind

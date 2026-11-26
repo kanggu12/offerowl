@@ -100,6 +100,11 @@ class SessionTest(unittest.TestCase):  # the practice service with stand-ins for
         """Without an agent: the scene's own lines, the scene's follow-up, feedback, a saved summary and the history."""
         p = practice.Practice(helpers.example_job(), self.out, backend="none")  # no model
         self.assertEqual(p.setup()["agent"], "")  # the fixed list
+        setup = p.setup()  # what the page offers
+        self.assertEqual(set(practice.KINDS), set(setup["counts"]))  # a count for every kind
+        self.assertTrue(all(setup["counts"][k] > 0 for k in setup["default_kinds"]), setup)  # a kind with no question is never on by default
+        for k, n in setup["counts"].items():  # each count is what a session of that kind alone can ask
+            self.assertEqual(n, len(p.questions(n=99, kinds=[k], seed=1)), k)
         s = p.start(n=4, seed=3)  # four questions
         self.assertEqual((s["interviewer"], len(s["questions"])), ("fixed", 4))  # all from the scripts
         q = s["questions"][0]  # the first question

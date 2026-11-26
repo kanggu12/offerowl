@@ -538,6 +538,29 @@ class Run(unittest.TestCase):
         self.assertIn("needs_agent_files", str(e.exception))
         self.assertEqual([], self.built)  # nothing typeset
 
+    def test_a_posting_with_no_agent_ready_is_refused_before_any_application_is_made(self):
+        """A career kept and no agent ready: a posting (its text or its link) is refused at once with its reason, and no
+        application is made of it. The run used to start, fail five steps of seven and leave a card with no company."""
+        self.c.post("/api/v1/example", {"lang": "ko"})  # a career kept, read as a profile file: no agent needed
+        self.c.wait("ingest", 120)
+        self.c.post("/api/v1/facts/keep-all", {})
+        jobs = lambda: [j["id"] for j in self.c.get("/api/v1/state")["jobs"]]  # noqa: E731  the applications listed
+        before = jobs()
+        os.environ.pop("OFFEROWL_PANEL_AGENT", None)  # the stand-in off
+        self.c.post("/api/v1/settings", {"backend": "none"})  # the agent switched off
+        for req in ({"posting": POSTING}, {"url": "https://example.com/jobs/1"}):  # its words, or its link
+            with self.assertRaises(RuntimeError) as e:  # said at once, never a run that says it started
+                self.c.post("/api/v1/autopilot", req)
+            self.assertIn("needs_agent_posting", str(e.exception))
+        os.environ["OFFEROWL_PANEL_AGENT"] = "standin"  # an agent chosen, but signed out: still none that would answer
+        with mock.patch.object(self.c.api.card, "card", return_value={"backend": "claude-code", "state": "signed_out"}):
+            with self.assertRaises(RuntimeError) as e:
+                self.c.post("/api/v1/autopilot", {"posting": POSTING})
+            self.assertIn("needs_agent_posting", str(e.exception))
+        self.assertEqual(before, jobs())  # no application was made of it
+        self.assertNotEqual("running", (self.c.api.tasks.tasks.get("autopilot") or {}).get("state"))  # and no run started
+        self.assertEqual([], self.built)  # nothing typeset
+
     def test_a_stop_ends_the_run_after_the_step_in_progress(self):
         """The stop button: the next steps are skipped."""
         f = career_folder(self.tmp)  # the person's folder

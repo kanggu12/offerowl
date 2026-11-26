@@ -18,6 +18,7 @@ import logging  # bugs go to the log
 import re  # the schemas' path
 
 from .core.routing import JSON, NotFound, matches  # the answers' shapes, and how a route's matcher is read
+from .core.workspace import HISTORY_MAX  # the undo steps a workspace keeps: the most one request can take back
 from .services import agent, applications, documents, insights, interview, library, profile  # the services, each with its table
 
 log = logging.getLogger("offerowl.api")  # the API's log
@@ -66,7 +67,10 @@ def post_undo(a, req, path):
 def post_history_undo(a, req, path):
     """POST /api/v1/history/undo: back to an earlier point of the history."""
     t = a.tasks  # long tasks
-    n = max(1, min(int(req.get("steps") or 1), 50)) if str(req.get("steps") or "1").isdigit() else 1  # 1 to 50 steps
+    n = req.get("steps")  # how many changes to take back: said, never guessed
+    n = int(n) if isinstance(n, str) and n.isdigit() else n  # "2", as a command line may write it
+    if isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= HISTORY_MAX:  # none, 0, a negative, a word or more than the history keeps:
+        raise ValueError("steps")  # refused before anything is undone (0 or none used to undo the newest change, A3-20)
     done = []  # the labels taken back
     with a.ws.lock:  # the newest step is compared and the steps taken back in one go
         if req.get("newest") is not None and str(req["newest"]) != a.ws.newest()[0]:  # a change came after the list the page drew

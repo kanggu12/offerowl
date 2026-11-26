@@ -589,7 +589,7 @@ function viewDocuments(host) {                                                  
   const lang = docLang();                                                           // the document's language
   const docTabs = h("div", { class: "seg", role: "tablist", "aria-label": t("Document") }, [["resume", "Resume", "file"], ["cover", "Cover letter", "mail"], ["deck", "Portfolio deck", "slides"]].map(([k, w, ic]) =>
     h("button", { role: "tab", "aria-selected": UI.doc === k ? "true" : "false", onclick: () => { UI.doc = k; UI.sel = null; render(); } }, icon(ic), t(w))));
-  const modes = ownFileIn(edition(), UI.doc) ? null : h("div", { class: "seg", "aria-label": t("View") }, [["live", "Live"], ["typeset", "Typeset PDF"]].map(([k, w]) =>   // a file the person made is shown as its pages only
+  const modes = ownFileIn(edition(), UI.doc) ? null : h("div", { class: "seg viewseg", "aria-label": t("View") }, [["live", "Live"], ["typeset", "Typeset PDF"]].map(([k, w]) =>   // a file the person made is shown as its pages only
     h("button", { "aria-pressed": UI.mode === k ? "true" : "false", onclick: () => { UI.mode = k; render(); }, text: t(w) })));
   const cov = UI.doc === "cover" ? coverModel() : null;                              // the cover letter, on its tab
   const counts = (cov && cov.state === "drafted" ? cov.counts : null) || (UI.doc === "cover" ? {} : (m && m.counts)) || {};  // the evidence totals of the document on screen
@@ -601,7 +601,8 @@ function viewDocuments(host) {                                                  
   const why = sent ? null : !b ? t("Make the PDFs to export them.") : counts.unsupported > 0 ? t("Every sentence needs evidence before export.") : null;   // why export waits, said beside it
   const emptyCover = UI.doc === "cover" && (!j || !(coverModel() || {}).state || (coverModel() || {}).state !== "drafted");   // the cover letter's tab with no letter yet: its own key leads there
   const exportBtn = h("button", { class: "btn" + (b && !emptyCover ? " primary" : ""), disabled: why || null,   // export needs the PDFs, and evidence everywhere; the main key once they are there
-    title: why, onclick: () => exportPdfs() }, icon("desktop"), t("Export to Desktop"));
+    title: why, "aria-label": t("Export to Desktop"), onclick: () => exportPdfs() }, icon("desktop"),
+    h("span", { class: "w-l", text: t("Export to Desktop") }), h("span", { class: "w-s", text: t("Export") }));   // a phone's short word: two keys to its row
   const building = !!ed && task("build:" + ed.id).state === "running";              // PDFs on the way
   const frozen = !!(j && j.locked);                                                  // a submitted application is not made again
   // the next step before any PDF, once there is an edition to make them of; a submitted application has none (its lock says so
@@ -715,7 +716,10 @@ function checkWords(x) {                                                        
   const what = x.code === "parity_overview" && OVERVIEW_PARTS[x.part] ? t(OVERVIEW_PARTS[x.part]) : x.what;   // the overview's part in the page's language, not the check's
   const instead = x.code === "claim_retired" && x.new ? t(", write '{new}'", { new: x.new }) : "";   // what the phrase was fixed to, when the rules say
   const part = x.code === "band_off" && BAND_PARTS[x.which] ? t(BAND_PARTS[x.which]) : x.part;   // the band's part, in the page's words
-  return t(CHECK_WORDS[x.code], { ...x, size, what, instead, part });
+  // the words a finding quotes: the checks write their whole line in text ("강조가 9자입니다(…): '고객 예측'"), and the line
+  // put that line where the quote goes, so each finding read twice (and half in Korean on the English page)
+  const quoted = CHECK_WORDS[x.code].includes("'{text}'") ? (String(x.text || "").match(/'([^']*)'\s*$/) || [])[1] : undefined;
+  return t(CHECK_WORDS[x.code], { ...x, size, what, instead, part, text: quoted !== undefined ? quoted : x.text });
 }
 function checksBand(b) {                                                            // the checks a typeset edition failed: what keeps its PDFs from going out
   const coded = b && Array.isArray(b.checks) && b.checks.length ? b.checks : null;  // the findings with their codes, when the build kept them
@@ -728,6 +732,7 @@ function checksBand(b) {                                                        
 function polishBand(b) {                                                            // what the checks would polish: said beside the pages, never a reason to keep them home
   const items = b && Array.isArray(b.polish) ? b.polish : [];
   if (!items.length || (b.issues || []).length) return null;                        // nothing to polish, or a failure says more first
+  if (UI.doc !== "resume" || (job() && job().locked)) return null;                  // the resume's lines, on its tab; a submitted application is not made again (it showed on the letter's tab of one)
   return h("div", { class: "band info", role: "status" }, h("p", { text: t("Worth a look before you send them:") }),
     h("ul", { class: "checklist" }, items.slice(0, 5).map((x) => h("li", { text: checkWords(x) }))),
     items.length > 5 ? moreRow(t("{n} more", { n: items.length - 5 })) : null);
@@ -764,17 +769,13 @@ function buildBand(ed) {                                                        
   return band(bt.error.code, { retry: () => makePdfs(), detail: bt.error.detail });   // a missing English text offers the translation; anything else, to try again
 }
 function sentPanel(j, sent) {                                                       // a submitted application: the copies that went out, as they went
-  const files = Object.entries(sent.files || {});                                   // name -> hash
-  const label = (f) => (sent.brought && sent.name && f === "deck.pdf" ? sent.name : f === "resume.pdf" ? t("Resume") : f === "deck.pdf" ? t("Portfolio deck") : f === "cover.pdf" ? t("Cover letter") : f);
+  const kindOf = (f) => /^resume/.test(f) ? "Resume" : /^deck/.test(f) ? "Portfolio deck" : /^cover/.test(f) ? "Cover letter" : null;   // a copy by its document, whatever its file is called
   return h("div", { class: "empty glass sent-panel" },
     h("h3", {}, icon("lock"), t("Submitted and locked")),
-    h("p", { text: t("The copies that went out on {date} are kept as they went. Export them to your Desktop to read them.", { date: sent.at || "" }) }),
-    h("ul", { class: "matlist" }, files.map(([f, hash]) => h("li", {}, h("span", { class: "nm", text: label(f) }), h("span", { class: "hint mono-hash", text: String(hash).slice(0, 12) })))),
-    h("div", { class: "part-keys" }, h("button", { class: "btn primary", type: "button", onclick: async () => {   // the copies as they went, in the language they went in
-        const r = await act("/api/v1/jobs/export", { job: j.id, lang: sent.lang });
-        if (r && r.exported) toast(r.exported.length ? t("On your Desktop: {names}", { names: r.exported.join(", ") }) : t("Make the PDFs first."), null, r.exported.length ? "done" : "info");
-      } }, icon("desktop"), t("Export to Desktop")),
-      h("button", { class: "btn", type: "button", onclick: () => openApplication(j.id, "docs") }, icon("case"), t("Open the application"))));
+    h("p", { text: t("The copies that went out on {date}, kept as they went.", { date: sent.at || "" }) }),   // the head's export key gives them: no second one here (B-18)
+    h("ul", { class: "matlist" }, Object.keys(sent.files || {}).map((f) => h("li", {}, h("span", { class: "nm", text: kindOf(f) ? t(kindOf(f)) : f }),   // the document's name, never a hash
+      sent.brought && sent.name && f === "deck.pdf" ? h("span", { class: "hint", text: sent.name }) : null))),   // a file the person brought, under its own name beside it
+    h("div", { class: "part-keys" }, h("button", { class: "btn", type: "button", onclick: () => openApplication(j.id, "docs") }, icon("case"), t("Open the application"))));
 }
 function docBody(m, j) {                                                            // the page area under the toolbar
   const body = h("div", { id: "docbody" });                                         // where the pages go
@@ -801,8 +802,7 @@ function docBody(m, j) {                                                        
   if (UI.doc === "resume") {                                                        // the live resume
     const top = writeBand(m);                                                       // what the agent can do for it
     const pages = h("div", {});                                                     // the pages go here
-    if (sent) body.append(h("div", { class: "band info", role: "status" }, h("p", { text: t("This page is drawn from your profile as it is now. The copies you sent stay as they went: Typeset PDF shows them.") }),
-      h("button", { class: "btn small", onclick: () => { UI.mode = "typeset"; render(); }, text: t("Typeset PDF") })));   // a submitted application: what went out is in the PDFs
+    if (sent) body.append(h("div", { class: "band info", role: "status" }, h("p", { text: t("This page is drawn from your profile as it is now; the copies you sent are under Typeset PDF.") })));   // a submitted application: what went out is in the PDFs, whose key is in the head right above (a second one here was B-25)
     const korean = m.lang === "en" ? Object.values(m.sentences || {}).filter((r) => inKorean(m, r)).length : 0;   // the English edition's sentences still in Korean
     if (korean) { const e = errorInfo("needs_translation"); body.append(h("div", { class: "band", role: "status" },   // said, marked on the page, with the key that translates them
       h("p", { text: tn(korean, "{n} sentence of the English edition is still in Korean. It is marked on the page.", "{n} sentences of the English edition are still in Korean. They are marked on the page.") }),
@@ -822,8 +822,7 @@ function docBody(m, j) {                                                        
     if (c.state !== "drafted") return fill(body, h("div", { class: "empty glass" }, h("h3", { text: t("No cover letter yet") }),
       h("p", { text: t("The agent writes it from this job's posting and your evidence, and every sentence names the fact it rests on.") }),
       sendNote(t("Tailoring sends the posting and your evidence to the agent.")),
-      S.agent.state !== "ready" ? h("div", { class: "band info" }, h("p", { text: t("Writing it needs the agent: turn it on to have it written.") }),   // nothing failed: it was never asked
-        h("button", { class: "btn small", onclick: () => openAgentMenu(), text: t("Turn on the agent") }))
+      S.agent.state !== "ready" ? h("button", { class: "btn", onclick: () => openAgentMenu(), text: t("Turn on the agent") })   // the line above says the agent writes it: its key, no box saying it again (B-16)
         : h("button", { class: "btn primary", onclick: () => tailorJob(j.id), text: t("Tailor this job") })));
     drawCover(c, m, body); return body;                                             // the letter
   }
@@ -1004,7 +1003,7 @@ function editInPlace(sid, tries = 12) {                                         
   el.focus();                                                                       // the keyboard goes here
   const range = document.createRange(); range.selectNodeContents(el);               // every word of it
   const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);    // selected, ready to be typed over
-  toast(t("Typing over the sentence: Enter or a click elsewhere saves, Esc puts it back."));   // the keys of a field with no keys of its own, said once
+  // no note on the way in: Enter and a click elsewhere save, Esc puts it back, as any field (B-17)   // the keys of a field with no keys of its own, said once
   const finish = async (save) => {                                                  // Enter or leaving the sentence saves, Esc puts it back
     if (UI.inplace !== sid) return;                                                 // already finished
     UI.inplace = null;                                                              // the canvas may be redrawn again

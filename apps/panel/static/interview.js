@@ -251,8 +251,9 @@ function practiceView(j, kit0) {                                                
     if (view.opened) return; view.opened = true;
     try { PR.setup = await call("setup"); } catch (e) { PR.error = e.message; view.opened = false; }   // the kit could not be reached: said in the part, and asked again when the part is drawn again
     if (PR.setup && !PR.kinds) {                                                    // the kinds remembered from last time, else the kit's default ones
-      const saved = String(store.get("pr-kinds", "") || "").split(",").filter((x) => PR.setup.kinds.includes(x));
-      PR.kinds = saved.length ? saved : PR.setup.default_kinds.slice();
+      const has = (x) => !PR.setup.counts || PR.setup.counts[x] > 0;                 // a kind this kit can ask (a kit made before counts: all)
+      const saved = String(store.get("pr-kinds", "") || "").split(",").filter((x) => PR.setup.kinds.includes(x) && has(x));
+      PR.kinds = saved.length ? saved : PR.setup.default_kinds.filter(has);
     }
     draw();
   }
@@ -297,9 +298,12 @@ function practiceView(j, kit0) {                                                
       row(fmt("pr_interviewer"), sw, h("span", { class: s.agent ? "" : "hint", text: s.agent ? fmt("pr_agent", { name: prWho(s.agent) }) : fmt("pr_no_agent") })),
       row(fmt("pr_count"), h("div", { class: "seg", role: "group", "aria-label": fmt("pr_count") }, PR_COUNTS.map((n) => h("button", { type: "button", "aria-pressed": PR.count === n ? "true" : "false",
         onclick: () => { PR.count = n; store.set("pr-count", n); draw(); }, text: String(n) })))),
-      row(fmt("pr_kinds"), h("div", { class: "seg pr-kinds", role: "group", "aria-label": fmt("pr_kinds") }, s.kinds.map((x) => h("button", { type: "button", "aria-pressed": PR.kinds.includes(x) ? "true" : "false",
-        onclick: () => { PR.kinds = PR.kinds.includes(x) ? PR.kinds.filter((y) => y !== x) : PR.kinds.concat(x); if (!PR.kinds.length) PR.kinds = [x]; store.set("pr-kinds", PR.kinds.join(",")); draw(); },   // at least one kind
-        text: fmt("kind_" + x) })))),
+      // the kinds as toggles that say how many questions each holds: a kind the kit has none of waits (C2-18), and a pressed one
+      // shows its check, unlike the single choice of the count above it (C2-19)
+      row(fmt("pr_kinds"), h("div", { class: "pr-kinds", role: "group", "aria-label": fmt("pr_kinds") }, s.kinds.map((x) => { const n = s.counts ? s.counts[x] || 0 : null;
+        return h("button", { type: "button", class: "pr-kind", "aria-pressed": PR.kinds.includes(x) ? "true" : "false", disabled: n === 0 || null,
+          onclick: () => { PR.kinds = PR.kinds.includes(x) ? PR.kinds.filter((y) => y !== x) : PR.kinds.concat(x); if (!PR.kinds.length) PR.kinds = [x]; store.set("pr-kinds", PR.kinds.join(",")); draw(); } },   // at least one kind
+          icon("check", 14), h("span", { text: fmt("kind_" + x) }), n === null ? null : h("span", { class: "pr-kind-n", text: String(n) })); }))),
       h("p", { class: "hint", text: s.stt ? fmt("pr_stt_on") : fmt("pr_stt_off") }),   // whether a spoken answer is written down here
       h("div", { class: "part-keys" }, keyBtn(fmt("pr_start"), start, { primary: true, icon: "mic" })),
       hist);

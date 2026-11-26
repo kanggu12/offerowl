@@ -130,6 +130,12 @@ def add_reminder(st: dict, at: str, text: str) -> dict:
 
 
 ROUND_KINDS = ("call", "first", "second", "third", "final", "coding", "assignment", "culture", "other")  # an interview round's kind
+ROUND_WORDS = {  # a round's kind as a calendar entry names it: the panel's own words (views.js ROUND_KIND and i18n/ko.js)
+    "en": {"call": "Recruiter call", "first": "First interview", "second": "Second interview", "third": "Third interview",
+           "final": "Final interview", "coding": "Coding test", "assignment": "Assignment", "culture": "Culture fit", "other": "Other round"},
+    "ko": {"call": "채용 담당 통화", "first": "1차 면접", "second": "2차 면접", "third": "3차 면접", "final": "최종 면접",
+           "coding": "코딩 테스트", "assignment": "과제", "culture": "컬처핏 면접", "other": "기타 면접"},
+}
 MAX_ROUNDS = 20  # rounds one card keeps: more than any hiring has
 ROUND_TEXT = 4000  # the questions asked, or the notes, of one round: a long debrief fits
 
@@ -182,20 +188,35 @@ def set_reminder(st: dict, rid: str, done: bool | None = None, remove: bool = Fa
         hit["done"] = bool(done)  # the new state
 
 
-def ics(jobs: list[dict]) -> str:
-    """Every open reminder as an iCalendar file, so the person can put them in the calendar they already use."""
+def ics(jobs: list[dict], lang: str = "ko") -> str:
+    """Every open reminder and every interview round from today on, as an iCalendar file, so the person can put them in the
+    calendar they already use. A round is named by its kind in the panel's language (lang)."""
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")  # when the file was made, in UTC (utcnow() is deprecated from 3.12)
+    words = ROUND_WORDS.get(lang, ROUND_WORDS["en"])  # the rounds' names
+    first_day = datetime.datetime.fromisoformat(today() + "T00:00")  # a round before today is over: not for a calendar
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//offerowl//tracker//EN", "CALSCALE:GREGORIAN"]  # the calendar's head
+
+    def entry(uid: str, when: str, at: datetime.datetime, summary: str, before: str) -> list[str]:
+        """One calendar entry with its alarm (before: how long ahead it rings, as the format writes it)."""
+        summary = summary.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", " ")  # escaped as the format asks
+        whole_day = "T" not in when  # a day without a time is an all-day entry
+        start = f"DTSTART;VALUE=DATE:{at:%Y%m%d}" if whole_day else f"DTSTART:{at:%Y%m%dT%H%M%S}"  # floating local time
+        return ["BEGIN:VEVENT", f"UID:{uid}@offerowl", f"DTSTAMP:{stamp}", start, f"SUMMARY:{summary}",  # one entry
+                "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{summary}", f"TRIGGER:{before}", "END:VALARM", "END:VEVENT"]
+
     for j in jobs:  # each job
+        name = str(j.get("company") or j.get("role") or j.get("id"))  # the job's name
         for r in j.get("reminders") or []:  # each reminder
             at = parse_at(r.get("at"))  # when
             if not at or r.get("done"):  # unreadable or dealt with
                 continue  # left out
-            name = str(j.get("company") or j.get("role") or j.get("id"))  # the job's name
-            summary = f"{name}: {r.get('text', '')}".replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", " ")  # escaped as the format asks
-            whole_day = "T" not in str(r.get("at"))  # a day without a time is an all-day entry
-            start = f"DTSTART;VALUE=DATE:{at:%Y%m%d}" if whole_day else f"DTSTART:{at:%Y%m%dT%H%M%S}"  # floating local time
-            lines += ["BEGIN:VEVENT", f"UID:{j.get('id')}-{r.get('id')}@offerowl", f"DTSTAMP:{stamp}", start,  # one entry
-                      f"SUMMARY:{summary}", "BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{summary}", "TRIGGER:PT0M", "END:VALARM", "END:VEVENT"]
+            lines += entry(f"{j.get('id')}-{r.get('id')}", str(r.get("at")), at, f"{name}: {r.get('text', '')}", "PT0M")  # rings when it is due
+        for r in j.get("rounds") or []:  # each interview round
+            at = parse_at(r.get("at"))  # when
+            if not at or at < first_day:  # unreadable, or already over
+                continue  # left out
+            timed = "T" in str(r.get("at"))  # a round with its hour rings half an hour ahead
+            lines += entry(f"{j.get('id')}-round-{r.get('id')}", str(r.get("at")), at, f"{name}: {words.get(r.get('kind'), words['other'])}",
+                           "-PT30M" if timed else "PT0M")  # an all-day round rings at the day's start
     lines.append("END:VCALENDAR")  # the end
     return "\r\n".join(lines) + "\r\n"  # the format's line ends

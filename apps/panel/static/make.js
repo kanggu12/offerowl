@@ -81,6 +81,10 @@ async function makeFrom({ files = [], paths = [], posting } = {}) {             
     toast(t("The agent is off, so these files cannot be read yet. Turn it on, then drop them again."), { words: t("Turn on the agent"), run: () => openAgentMenu() }, "bad");
     return;
   }
+  if (given.trim() && !agentOn()) {                                                 // a posting is the agent's to read: with none ready a run made an application of nothing (A3-01)
+    toast(t("No AI agent is ready, so the posting was not read."), { words: t("Turn on the agent"), run: () => openAgentMenu() }, "bad");   // the server refuses it too (needs_agent_posting)
+    return;                                                                         // its words stay in the box, to send once the agent is on
+  }
   if (UI.view !== "make") go("make");                                               // the run is followed here
   closeSetup();                                                                     // files dropped over the setup guide start the run it leads to: the run in sight
   const ids = take.length ? await sendFiles(take) : [];                             // sent first
@@ -207,7 +211,7 @@ function heroCard() {                                                           
               text: `${jobName(next)}, ${next.next}` }), untilWords(next) ? h("span", { class: "until", "data-until-job": next.id, text: untilWords(next) })
         : isPast(next) ? h("button", { class: "until past", type: "button", onclick: () => goJob(next, "progress"), text: t("Passed, write the result") }) : null) : null,   // how long until it, kept current (untilWords)
       made ? h("b", { text: t("Latest documents") }) : null,
-      made ? h("span", {}, `${made.name}, ${made.lang === "en" ? t("English") : t("Korean")}, `, h("span", { class: "nowrap", text: made.at })) : null));   // its day and time never broken
+      made ? h("span", {}, `${String(made.name).replace(/[\s.。]+$/, "")}, ${made.lang === "en" ? t("English") : t("Korean")}, `, h("span", { class: "nowrap", text: made.at })) : null));   // its day and time never broken; a role written as a sentence loses its stop before the comma
 }
 function isPast(j) {                                                                // the interview's day is behind us
   const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(((j && (j.days || j.dates)) || {}).interview || "");   // a day left from a move taken back is not one
@@ -321,7 +325,7 @@ function activeStrip() {                                                        
   return h("section", { class: "active", "aria-label": t("Applications in progress") },
     h("div", { class: "active-h" }, h("h2", {}, t("Applications in progress"), h("span", { class: "chip count", text: String(list.length) })), h("button", { class: "btn ghost sm", type: "button", onclick: () => { UI.jobsMode = "board"; go("jobs"); } }, icon("columns"), t("See the board"))),
     h("div", { class: "active-row" + (list.length > 1 ? " many" : "") }, list.map((j) => h("article", { class: "card active-card", "data-stage": j.stage },   // square notes, as many as fit a row (skin.css); on a phone one row that slides
-      h("div", { class: "ac-name" }, mono(j.company || j.id, "", j.stage), h("div", {}, h("b", { class: "ac-co", text: j.company || j.id }), h("span", { class: "ac-role", text: j.role || "" }))),
+      h("div", { class: "ac-name" }, mono(noteName(j), "", j.stage), h("div", {}, h("b", { class: "ac-co", text: noteName(j) }), j.company ? h("span", { class: "ac-role", text: j.role || "" }) : null)),   // no company: the role is the name, said once
       j.next ? h("p", { class: "ac-next" + (nextPast(j.next) ? " past" : ""), title: unlinked(j.next) },   // its next step, its links live; the whole of it on hover (two lines show)
         nextPast(j.next) ? h("span", { class: "past-tag", text: t("Past") }) : null, linked(j.next)) : null,   // a day it names is behind us: said, so a stale step gets rewritten
       stageTrack(j),                                                                   // where it stands, across the card's foot: every card's at one height
@@ -330,6 +334,7 @@ function activeStrip() {                                                        
         h("button", { class: "btn sm", type: "button", onclick: () => goJob(j, "interview") }, icon("chat"), t("Interview")),
         fitRated(j) ? h("span", { class: "ac-fit", title: t("Fit {n}", { n: j.fit.score }) }, h("b", { text: String(j.fit.score) }), h("small", { text: t("Fit") })) : null)))));   // its fit, across from its keys (a real 0 too)
 }
+const noteName = (j) => j.company || j.role || t("Untitled posting");              // a note's name: its company, else its role; never the id made from the posting's first words (A3-01)
 const TRACK = ["preparing", "submitted", "interview", "result"];                    // an application's way, in order
 function stageTrack(j) {                                                            // the stage as four steps across a card: the ones passed, the one it is at, the rest
   const at = Math.max(0, TRACK.indexOf(j.stage));                                   // where it is
@@ -339,7 +344,7 @@ function stageTrack(j) {                                                        
     h("span", { class: "ac-stage", "aria-hidden": "true" }, t(STAGE[j.stage] || "Preparing"), day ? h("small", { text: day }) : null));
 }
 function editionsMade() {                                                           // every edition with PDFs: the jobs, the named editions and the general one
-  const all = [...(S.jobs || []).map((j) => ({ id: j.id, name: [j.company, j.role].filter(Boolean).join(", ") || j.id, builds: j.builds })),
+  const all = [...(S.jobs || []).map((j) => ({ id: j.id, name: [j.company, j.role].filter(Boolean).join(", ") || noteName(j), builds: j.builds })),   // a job with no name: as its note says it, never its id
     ...(S.editions || []).map((e) => ({ id: e.id, name: e.name, builds: e.builds })),
     ...(S.general ? [{ id: GENERAL, name: t("General edition"), builds: S.general.builds }] : [])];
   return all.flatMap((e) => Object.entries(e.builds || {}).map(([lang, b]) => ({ ...e, lang, at: b.at || "",   // one row per language made
@@ -442,6 +447,7 @@ function inCard(running, lead = true) {                                         
   const sendPosting = () => { const p = String(UI.typed["mk-posting"] || "").trim(); if (!p) return; if (career) makeFrom({ posting: p }); else toast(t("Kept. It is used with the next files you add.")); };
   // one line to paste into, not a box to type in: a link starts at once, pasted text keeps its lines
   const posting = field("mk-posting", t("Paste a posting's link or text (optional)"), sendPosting, (text) => {   // a pasted link starts at once
+    if (career && /^https?:\/\/\S+$/.test(text.trim()) && !agentOn()) { setTimeout(sendPosting); return false; }   // no agent ready: the link lands in the box and its note says why it waits
     if (career && /^https?:\/\/\S+$/.test(text.trim())) { UI.typed["mk-posting"] = text.trim(); sendPosting(); return true; }
     return false;                                                                   // text: the person sends it when it is all there
   });
@@ -512,7 +518,12 @@ function runPanel(r) {                                                          
     answers: ["{n} answer", "{n} answers"], interview: ["{n} script", "{n} scripts"], export: ["{n} file", "{n} files"] };   // what a step's number counts, one and many
   const detail = (s) => {                                                           // its number with what it counts, or why it stopped
     if (partial(s)) return "";                                                      // its word says it all
-    if (s.state === "failed") return s.detail ? problemWords(s.detail) || runError(s.detail).short : "";   // the reason
+    if (s.state === "failed") {                                                     // the reason: the step's own code, else the first its problems name
+      const count = /^\d+$/.test(String(s.detail || ""));                           // a count ("0" scripts written, "0" files copied) is no reason: it read as a stop nobody asked for (A3-02)
+      const code = count || !s.detail ? ((r.problems || (r.result || {}).problems || []).find((p) => p.step === s.id && p.why && !/^\d+$/.test(String(p.why))) || {}).why || "" : String(s.detail);
+      if (code) return problemWords(code) || runError(code).short;                  // said in words
+      return count && unit[s.id] ? tn(Number(s.detail), unit[s.id][0], unit[s.id][1]) : "";   // else what it made: "0 scripts"
+    }
     if (s.state !== "done" || !/^\d+$/.test(s.detail || "")) return "";             // no number to show
     const n = Number(s.detail);                                                     // the number
     if (s.id === "contact" && !n) return "";                                        // nothing new to fill in: no zero to puzzle over

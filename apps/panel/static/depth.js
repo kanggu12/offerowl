@@ -44,7 +44,9 @@ function depthKey() {                                                           
   const on = agentOn();                                                             // whether anything goes to the agent
   return h("button", { class: "btn" + (on ? " agent" : ""), type: "button", "data-key": "depth-open", "aria-haspopup": "dialog", "aria-expanded": UI.depthOpen ? "true" : "false",
     title: on ? t("Reviewing sends each project's words and evidence to the agent.") : t("With no agent on, only the checks that need none run."),
-    onclick: () => depthOpen() }, icon("search"), depthBusy() ? t("Reviewing each project's depth") : t("Review each project's depth"));
+    "aria-label": depthBusy() ? t("Reviewing each project's depth") : t("Review each project's depth"), onclick: () => depthOpen() }, icon("search"),
+    h("span", { class: "w-l", text: depthBusy() ? t("Reviewing each project's depth") : t("Review each project's depth") }),
+    h("span", { class: "w-s", text: depthBusy() ? t("Reviewing depth") : t("Depth review") }));   // a phone's short words: two keys to its row
 }
 async function depthOpen() {                                                        // the sheet, and a first review when there is none yet
   const ed = edition(); if (!ed) return;

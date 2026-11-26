@@ -50,7 +50,7 @@ function inspEvidence() {                                                       
     // the files, each with a file sign (the numbers after the sentences count the facts they rest on, not these files)
     h("ol", { class: "srclist" }, src.map((x) => h("li", {}, h("span", { class: "srcn", "aria-hidden": "true" }, icon(x.typed ? "edit" : "file", 13)),
       h("span", { class: "nm", title: x.file }, fileWords(srcName(x.file))), h("span", { class: "hint", text: tn(x.n, "{n} sentence", "{n} sentences") }))))) : null;
-  if (!rec) return [sources, h("div", { class: "ins-sec" }, h("h3", { text: t("Click a sentence to see its evidence") })),
+  if (!rec) return [sources, h("div", { class: "ins-sec" }, h("h3", { text: t("Evidence of this document") })),   // the whole document's evidence until a sentence is chosen: a heading that says what is under it, not how to use the pane (B-17)
     m && m.draft && m.draft.counts && m.draft.at ? h("div", { class: "ins-sec" }, h("p", { class: "hint", text: t("The agent wrote this edition's texts on {at}: {n} for the resume and the deck together. The checks stopped {r}, which were written again, and {d} were dropped.", { at: m.draft.at, n: m.draft.counts.written || 0, r: m.draft.counts.rewritten || 0, d: m.draft.counts.dropped || 0 }) }),   // the draft's texts, never read as this page's sentences
       agentOn() && edition() && !sentAway() ? h("div", {}, h("button", { class: "btn small", onclick: () => writeResume(edition().id), text: t("Write it again") })) : null) : null,
     m && m.counts && m.counts.sentences ? segBar([{ n: m.counts.sentences - (m.counts.unsupported || 0), words: t("With evidence"), color: "var(--violet-bar)" },   // the document's sentences by their evidence, in the chain's own colours (Make)
@@ -88,7 +88,7 @@ function inspEvidence() {                                                       
         : h("div", { class: "note ev-note" }, m && evidenceIndex(m).has(evKey(e)) ? h("span", { class: "evn", text: String(evidenceIndex(m).get(evKey(e))) }) : null,   // the number the canvas shows
           h("q", {}, evidenceQuote(e.quote, rec.text)),
           h("span", { class: "from", text: [e.where && e.where !== "profile" ? bars(e.where) : "", e.file ? t("From {file}", { file: srcName(e.file) }) : ""].filter(Boolean).join(", ") }))))
-        : h("p", { class: "hint", text: t("No fact backs this sentence. Edit it to say what your evidence says, regenerate it, or add the fact to your profile.") })),
+        : h("p", { class: "hint", text: t("No fact backs this sentence.") })),
   ];
 }
 // the sentence's words, a key that highlights the chosen ones (kept as ==...==, never typed), and how it reads: the marks the
@@ -134,8 +134,7 @@ async function regenerate(sid, way) {                                           
 
 function inspFit() {                                                                // the fit to the job in view
   const j = job();                                                                  // the job
-  if (!j) return [h("div", { class: "ins-sec" }, h("h3", { text: t("No job in view") }), h("p", { class: "hint", text: t("Add a job to see how your profile fits its posting, line by line.") }),
-    h("div", {}, h("button", { class: "btn small", onclick: () => go("jobs"), text: t("Add a job") })))];
+  if (!j) return [h("div", { class: "ins-sec" }, h("h3", { text: t("No job in view") }), h("div", {}, h("button", { class: "btn small", onclick: () => go("jobs"), text: t("Add a job") })))];
   const f = fitOf(j.id);                                                            // its fit
   if (!f || f.error) return [h("p", { class: "hint", text: t("Working out the fit…") })];   // loading, or refused for now
   return [h("div", { class: "ins-sec" }, h("h3", { text: j.company || j.role || j.id }),
@@ -156,6 +155,12 @@ function pagesNow() {                                                           
   const ed = edition(), b = ed && ed.builds && ed.builds[docLang()], n = b && Number(b.maxPages);
   return UI.maxPagesChosen || !n ? UI.maxPages : n;
 }
+function typesetFollows(r) {                                                         // a form, look, colour or corner changed: the live pages follow at once, the typeset ones when made again (said once, with the key, when there are any)
+  if (r === null) return;                                                           // the change was refused: its own note said why
+  const ed = edition(), b = ed && ed.builds && ed.builds[docLang()];               // the typeset pages of the edition in view
+  if (!b || (job() && job().locked)) return;                                        // none yet, or a submitted application, which is not made again
+  toast(t("Changed: the typeset PDF follows when you make the PDFs again."), { words: t("Make PDFs"), run: () => makePdfs() }, "info");
+}
 function setDoc(key, value, store) { UI[key] = value; localStore(store, String(value)); if (key === "maxPages") UI.maxPagesChosen = true; render(); }  // a document setting, kept in this browser
 function inspStyle() {                                                              // the documents' language, length and parts
   const seg = (label, key, store, options, now = UI[key]) => h("div", { class: "ins-sec" }, h("h3", { text: t(label) }), h("div", { class: "seg" }, options.map(([v, w]) =>
@@ -165,8 +170,7 @@ function inspStyle() {                                                          
     (S.styles || []).length ? h("div", { class: "seg" }, [["default", t("Offerowl's own")], ...(S.styles || []).map((n) => [n, n === "mine" ? t("My rules") : n])].map(([k, w]) =>   // a pack added without a name is kept as "mine": said in words
       h("button", { "aria-pressed": rulesNow === k ? "true" : "false", onclick: () => act("/api/v1/settings", { style: k }), text: w })))
       : h("dl", { class: "kv" }, h("dt", { text: t("In use") }), h("dd", { text: t("Offerowl's own") })),   // one set of rules: said, as the blind table's is, not a choice of one
-    h("button", { class: "btn small", onclick: () => $("stylepick").click() }, icon("upload"), t("Add your own rules")),   // a JSON file of rules
-    h("p", { class: "hint", text: t("Your rules come first in every draft and every check: words to avoid, numbers or none, how long each part is.") }));
+    h("button", { class: "btn small", onclick: () => $("stylepick").click() }, icon("upload"), t("Add your own rules")));   // a JSON file of rules (what goes in one is docs/USAGE.md's, not the pane's: B-17)
   const bl = S.blind || {}, bc = bl.counts || {};                                   // the blind edition's table in use, and its lists' sizes
   const blind = h("div", { class: "ins-sec" }, h("h3", { text: t("Blind edition") }),   // what a blind edition covers with bars
     h("dl", { class: "kv" }, h("dt", { text: t("Table") }), h("dd", { text: bl.own ? t("Your own") : t("Offerowl's own, which covers nothing") }),
@@ -174,13 +178,12 @@ function inspStyle() {                                                          
       h("dt", { text: t("Hidden whole") }), h("dd", { text: tn(bc.mask_whole || 0, "{n} pattern", "{n} patterns") }),   // values under one bar with their spaces
       h("dt", { text: t("Never shown") }), h("dd", { text: tn(bc.leak || 0, "{n} word", "{n} words") })),   // words the export refuses to let through, matched as written
     h("button", { class: "btn small", onclick: () => $("blindpick").click() }, icon("upload"), t("Use your own table")),   // a JSON file of patterns
-    bl.own ? h("button", { class: "btn small", onclick: () => act("/api/v1/blind", { table: null }, t("Offerowl's own table is in use again.")), text: t("Use Offerowl's own") }) : null,   // back to the shipped one
-    h("p", { class: "hint", text: t("The names, contacts and figures a blind edition covers with bars, as patterns in a JSON file. It is kept in your workspace on this PC.") }));
+    bl.own ? h("button", { class: "btn small", onclick: () => act("/api/v1/blind", { table: null }, t("Offerowl's own table is in use again.")), text: t("Use Offerowl's own") }) : null);   // back to the shipped one; the table's file is described in docs/USAGE.md (B-17)
   return [rules, blind, seg("Document language", "docLang", "offerowl-doclang", [["ko", "Korean"], ["en", "English"]], docLang()),   // the language shown, even before one is chosen
     withKid(seg("Pages at most", "maxPages", "offerowl-maxpages", [[2, "2 pages"], [3, "3 pages"], [4, "4 pages"], [5, "5 pages"], [6, "6 pages"], [7, "7 pages"]], pagesNow()), builtPages()),   // a long career's description runs to six, in English to seven; the PDF on screen's own limit under it when it differs
     h("div", { class: "ins-sec" }, h("h3", { text: t("Corners") }),                // the boxes of the figures, the logo tiles and the deck: rounded, or square
-      h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-corners", checked: (S.settings || {}).corners === "square", onchange: (e) => act("/api/v1/settings", { corners: e.target.checked ? "square" : null }) }), h("span", { class: "track" }), t("Square corners on the figures, logos and portfolio")),   // off: the setting goes, and the corners are rounded as before
-      h("p", { class: "hint", text: t("Make the PDFs again to see a new form or look in the typeset pages.") })),   // the live pages follow at once, the typeset ones at the next make
+      h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-corners", checked: (S.settings || {}).corners === "square", onchange: (e) => act("/api/v1/settings", { corners: e.target.checked ? "square" : null }).then(typesetFollows) }), h("span", { class: "track" }), t("Square corners on the figures, logos and portfolio")),   // off: the setting goes, and the corners are rounded as before
+      null),   // the live pages follow at once; the typeset ones are said when one changes (typesetFollows)
     h("div", { class: "ins-sec" }, h("h3", { text: t("Tailoring makes") }),
       h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-cover", checked: UI.cover, onchange: (e) => setDoc("cover", e.target.checked, "offerowl-cover") }), h("span", { class: "track" }), t("The cover letter")),
       h("label", { class: "toggle" }, h("input", { type: "checkbox", "data-key": "t-typeset", checked: UI.typeset, disabled: !!S.engine || null, onchange: (e) => setDoc("typeset", e.target.checked, "offerowl-typeset") }), h("span", { class: "track" }), t("The PDFs too")),
@@ -194,17 +197,17 @@ function inspStyle() {                                                          
 function inspTheme() {                                                              // the resume's colour pack
   const packs = [["navy", "Navy", "#1B2E4B"], ["teal", "Teal", "#1D5C63"], ["mono", "Grey", "#E4E4E4"], ["wine", "Wine", "#5E2233"], ["forest", "Forest", "#1F4D3A"], ["slate", "Slate", "#2F3B47"], ["crimson", "Black, crimson", "#18181B", "#BE123C"]];  // src/themes.json's packs and their name band colour; crimson's accent is another hue than its black band, so its name and its chip say both
   const set = S.settings || {};                                                     // the saved form and look
-  const choice = (key, now, list) => h("div", { class: "seg" }, list.map(([k, w]) => h("button", { "aria-pressed": now === k ? "true" : "false", onclick: () => act("/api/v1/settings", { [key]: k }), text: t(w) })));  // one of a few
+  const choice = (key, now, list) => h("div", { class: "seg" }, list.map(([k, w]) => h("button", { "aria-pressed": now === k ? "true" : "false", onclick: () => act("/api/v1/settings", { [key]: k }).then(typesetFollows), text: t(w) })));  // one of a few; the typeset pages' turn said
   return [h("div", { class: "ins-sec" }, h("h3", { text: t("Form of the resume") }),
     choice("form", set.form || "detailed", [["detailed", "Detailed"], ["compact", "One column"], ["table", "Tables"]]),
     h("p", { class: "hint", text: t({ detailed: "A career description with an overview, for readers who look closely.", compact: "One column with no table or figure: short, and read well by a job site's program.", table: "Tables like a standard Korean application form, then the work in detail." }[set.form || "detailed"]) })),
     h("div", { class: "ins-sec" }, h("h3", { text: t("Look of the deck") }),
       choice("deck_style", set.deck_style || "classic", [["classic", "Classic"], ["clean", "Clean"]]),   // not "Light": that is this app's own theme, a menu away
-      h("p", { class: "hint", text: t("Make the PDFs again to see a new form or look in the typeset pages.") })),
+      null),   // said when it changes (typesetFollows), not under the choice for good
     h("div", { class: "ins-sec" }, h("h3", { text: t("Colour of the resume and the deck") }),
-    h("div", { class: "swatches" }, packs.map(([k, w, c, a]) => h("button", { class: "swatch", "aria-pressed": UI.theme === k ? "true" : "false", onclick: () => setDoc("theme", k, "offerowl-doctheme") },
+    h("div", { class: "swatches" }, packs.map(([k, w, c, a]) => h("button", { class: "swatch", "aria-pressed": UI.theme === k ? "true" : "false", onclick: () => { setDoc("theme", k, "offerowl-doctheme"); typesetFollows(); } },
       h("i", { style: a ? `background:linear-gradient(90deg, ${c} 0 72%, ${a} 72% 100%)` : `background:${c}`, "aria-hidden": "true" }), t(w)))),   // an accent of its own hue shows at the chip's end
-    h("p", { class: "hint", text: t("One accent colour for headings and the name band; the text stays dark grey on white, as printed.") })),
+    null),   // the swatches show it
     h("div", { class: "ins-sec" }, h("h3", { text: t("This app") }), h("div", { class: "seg" }, [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, w]) =>
       h("button", { "aria-pressed": (document.documentElement.dataset.themeChoice || "auto") === k ? "true" : "false", onclick: () => { localStore("offerowl-theme", k); if (k === "auto") try { localStorage.removeItem("offerowl-theme"); } catch (_) { /* blocked */ } applyTheme(k); render(); }, text: t(w) }))))];
 }
@@ -213,14 +216,13 @@ function inspHistory() {                                                        
   if (!UI.docs[key]) getDoc(key, "/api/v1/history");                                // fetched once
   const steps = (UI.docs[key] || {}).steps;                                         // newest first
   if (!steps) return [h("p", { class: "hint", text: t("Reading the history…") })];  // loading
-  if (!steps.length) return [h("p", { class: "hint", text: t("Nothing changed yet. Every change you make is kept here, and can be taken back.") })];
+  if (!steps.length) return [h("p", { class: "hint", text: t("Nothing changed yet.") })];
   // the same change made again and again in a row (a card moved, then moved on) is one line with its count; undoing it takes
   // back all of them. The list is the whole workspace's, as undo is one for the whole workspace
   const rows = [];
   steps.forEach((s, i) => { const w = undoLabel(s.label), last = rows[rows.length - 1];
     if (last && last.w === w) { last.n += 1; last.to = i; } else rows.push({ w, n: 1, to: i, t: s.t }); });
-  return [h("p", { class: "hint", text: t("Every change in Offerowl, newest first. Click one to undo it and everything after it.") }),
-    h("div", { class: "hist" }, rows.map((r) => h("button", { onclick: async () => {   // asked first on the panel's own sheet: there is no redo
+  return [h("div", { class: "hist" }, rows.map((r) => h("button", { onclick: async () => {   // asked first on the panel's own sheet: there is no redo
       if (await askFirst({ title: tn(r.to + 1, "Undo {n} change?", "Undo {n} changes?"), ok: t("Undo"),
         text: r.to ? t("Everything from \"{what}\" to the newest change is taken back.", { what: r.w }) : t("\"{what}\" is taken back.", { what: r.w }) }))
         histUndo(r.to + 1, steps[0].id); } },

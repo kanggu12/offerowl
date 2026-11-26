@@ -2669,3 +2669,43 @@ body::after { display: block; content: ""; position: fixed; inset: 0; z-index: -
 svg[data-i] { overflow: visible; }                                                    /* a mark that reaches its grid's edge (the gear) is never cut by the closer frame */
 @media (max-width: 720px) { :root .seg.lib-groups, :root[data-theme] .seg.lib-groups { width: 0; min-width: 100%; max-width: 100%; } }   /* the sliding row adds no width of its own to its column (width 0, then the column's whole width): its 524 px widened the page to 536 at 390 */
 
+/* ---------------------------------------------------------------- 0.16.1: a phone's Documents head, the page in the first screen */
+.dochead .w-s { display: none; }                                                     /* a key's short words, for a phone */
+@media (max-width: 640px) {
+  .dochead .viewhead h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* the selected view right above names it: said to a reader, not drawn twice (the head was 497 px, the first page under the fold) */
+  .dochead .w-l { display: none; } .dochead .w-s { display: inline; }               /* the review and the export by their short words */
+  .viewhead .docacts > .btn:not(.lockkey):not(.agent), .viewhead .docacts > .expgrp { flex: 1 1 0; min-width: max-content; }   /* two keys to a row, each its words' width at least */
+  .doctools .seg.viewseg, .doctools .seg.zoomseg { width: auto; flex: 1 1 40%; grid-column: auto; }   /* the view and the page size share one row */
+  .doctools .seg.viewseg + .seg.zoomseg { margin-left: 2px; padding-left: 8px; border-left: 1px solid var(--line); }   /* two choices, not four keys of one: a rule between them, as a wide window has */
+  .doctools .evsum { flex: 1 1 auto; }                                               /* the evidence's line on the next, beside the inspector's key */
+}
+.band > ul.checklist { flex: 1 1 100%; display: grid; gap: 4px; margin: 0; padding-left: 20px; }   /* a band's list under its words, across the band: it sat at the right with the words alone on the left */
+/* practice's kinds: toggles that each say how many questions they hold, a pressed one with its check, unlike the count's single choice above (C2-18, C2-19) */
+.pr-kinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.pr-kind { display: inline-flex; align-items: center; gap: 6px; min-height: var(--ctl-h-sm); padding: 0 10px; border: 1px solid var(--key-edge); border-radius: 2px; background: var(--key-face); color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+.pr-kind svg { width: 14px; height: 14px; visibility: hidden; }                    /* the check keeps its place: a key never moves when it is pressed */
+.pr-kind[aria-pressed="true"] { color: var(--ink); border-color: var(--key-edge-hi); background: var(--key-face-hi); }
+.pr-kind[aria-pressed="true"] svg { visibility: visible; }
+.pr-kind:hover:not(:disabled) { border-color: var(--key-edge-hi); background: var(--key-face-hi); }
+.pr-kind-n { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.pr-kind:disabled { opacity: .5; cursor: default; }                                 /* a kind this kit has no question of */
+
+/* ---- 0.16.1: area A (Make, the profile, the Library, the bar's sheets): keys, numbers and sheets of round 3 ---- */
+.dcite { font-size: max(.6em, 10px); border-radius: 2px; }                           /* a field's source number: readable beside any field, square as every box (A3-03) */
+.dr-contact .dcite { align-self: flex-start; min-width: 14px; height: 14px; padding: 0 3px; line-height: 14px; text-align: center; }   /* in the contact's row it is a flex item: its own box, raised as a superscript (it was 12 x 2 px at line-height 0) */
+:root .btn.danger:hover:not(:disabled), :root[data-theme] .btn.danger:not(.quiet):not(.ghost):hover:not(:disabled), :root[data-theme] .btn.danger:is(.quiet, .ghost):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 12%, transparent); border-color: color-mix(in srgb, var(--red) 72%, transparent); color: var(--red); }   /* a removal key under the pointer: its face and rim deepen as every key's do (the rim stayed at .38, A3-04) */
+:root[data-theme] .lib-row .btn.small:not(.danger) { background: var(--key-face); border-color: var(--key-edge); }   /* the Library's row keys: paper with a rim in both themes (dark had neither, A3-05) */
+:root[data-theme] .lib-row .btn.small:not(.danger):hover:not(:disabled) { background: var(--key-face-hi); border-color: var(--key-edge-hi); }   /* and deepen under the pointer */
+:root, :root[data-theme] { --key-lift: none; }                                      /* keys are flat paper with a rim: no lifted shadow by day either (it was 0 1px 1px, A3-13) */
+:root .btn.primary, :root[data-theme] .btn.primary, :root .btn.primary:active:not(:disabled) { box-shadow: none; }   /* the main key too: ink, flat */
+:root .btn.danger-solid, :root[data-theme] .btn.danger-solid { background: var(--red); border-color: var(--red); color: var(--on-red); }   /* deleting for good, in the panel's question: the one solid red (the paper key's rule had made it plain, A3-17) */
+:root .btn.danger-solid:hover:not(:disabled), :root[data-theme] .btn.danger-solid:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 86%, var(--ink)); border-color: color-mix(in srgb, var(--red) 86%, var(--ink)); color: var(--on-red); opacity: 1; }   /* deepens under the pointer, never fades */
+.field-bad { color: var(--red); font-size: 12px; line-height: 1.4; }                /* a field's problem in words, under it: the panel's own note, never the browser's popup */
+:root .field input[aria-invalid="true"], :root[data-theme] .field input[aria-invalid="true"] { border-color: color-mix(in srgb, var(--red) 72%, transparent); }   /* and its rim */
+@media (max-width: 720px) { :root .seg.fact-tabs, :root[data-theme] .seg.fact-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 0; min-width: 100%; max-width: 100%; }
+  .seg.fact-tabs::-webkit-scrollbar { display: none; } :root .seg.fact-tabs > button { flex: none; } }   /* the profile's four tabs: one row that slides on a phone, as the Library's (a 2 x 2 grid put the underline under one cell, A3-15) */
+.seg.fact-tabs.fade-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.seg.fact-tabs.fade-l { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+.seg.fact-tabs.fade-l.fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+#toast .toast-w { min-width: 0; overflow-wrap: anywhere; }                          /* a name with no space (a link) wraps inside the note: it fell over the view tabs (A3-11) */

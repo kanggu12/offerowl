@@ -107,9 +107,9 @@ function trashAbout(r) {                                                        
 }
 function goneWords(r) {                                                             // what deleting it for good takes, in one sentence
   return ({ source: t("The file and the facts read from it are deleted, also from the history, so undo cannot bring them back."),
-    photo: t("The photo is deleted."), job: t("Its posting, documents, files, interview kit and progress are deleted, also from the history, so undo cannot bring them back."),
+    photo: "", job: t("Its posting, documents, files, interview kit and progress are deleted, also from the history, so undo cannot bring them back."),
     edition: t("Its documents are deleted, also from the history, so undo cannot bring them back."), material: t("The file is deleted, also from the history, so undo cannot bring it back."),
-    aside: t("The whole folder is deleted: your workspace as it was before that restore.") }[r.kind]) || t("It is deleted.");
+    aside: t("The whole folder is deleted: your workspace as it was before that restore.") }[r.kind]) ?? t("It is deleted.");   // the photo's title is enough: "" is no sentence
 }
 function staysLines(sources) {                                                      // what deleting for good never touches, said before it happens
   return [sources ? t("Documents and drafts already made from its facts, and the details it filled in, stay as they are.") : null,   // a file of the profile fed other documents; an application's own go with it

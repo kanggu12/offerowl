@@ -92,7 +92,8 @@ def rows(api) -> list[dict]:
                          {"facts": facts, "ext": Path(name).suffix.lower().lstrip("."), "example": bool(m.get("example"))}))
     for pid, ph in profile.kept_photos(ws):  # each photo removed, under its own name
         stamp = pid[6:]  # YYYYmmdd-HHMMSS: the moment it went
-        out.append(_row(pid, "photo", "photo" + ph.suffix, f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}", ph.stat().st_size, {"ext": ph.suffix.lstrip(".")}))
+        out.append(_row(pid, "photo", "photo" + ph.suffix, f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]} {stamp[9:11]}:{stamp[11:13]}", ph.stat().st_size,  # its day and hour, as every other
+                        {"ext": ph.suffix.lstrip(".")}))  # removal: three photos taken off on one day read as three identical rows (A3-09)
     for kind in ("job", "edition"):  # off the board, and the named editions taken off
         for st in ws.jobs(removed=True, kind=kind):
             if st.get("removed"):

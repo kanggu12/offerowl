@@ -418,6 +418,27 @@ class TestTracker(PanelCase):
         st = self.get("/api/v1/state")  # the card now
         self.assertEqual("preparing", next(j for j in st["jobs"] if j["id"] == jid)["stage"])  # in the first column again
 
+    def test_the_calendar_file_of_one_application_holds_its_rounds(self):
+        jid = self.post("/api/v1/jobs", {"company": "감마클라우드", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # the application in view
+        other = self.post("/api/v1/jobs", {"company": "델타랩스", "posting": POSTING.read_text(encoding="utf-8")})["job"]  # and another
+        self.post("/api/v1/tracker/round", {"job": jid, "kind": "first", "at": "2099-01-02T14:00"})  # an interview to come
+        self.post("/api/v1/tracker/round", {"job": jid, "kind": "call", "at": "2001-01-01"})  # a call long over
+        self.post("/api/v1/reminders", {"job": jid, "at": "2099-01-01", "text": "감마 서류 확인"})
+        self.post("/api/v1/reminders", {"job": other, "at": "2099-02-01", "text": "델타 서류 마감"})
+        one = self.raw_get(f"/api/v1/reminders.ics?job={jid}&lang=ko")[1].decode("utf-8")  # the Progress tab's file: this application only
+        self.assertIn("DTSTART:20990102T140000\r\nSUMMARY:감마클라우드: 1차 면접", one)  # the round to come, on its hour, named as the panel names it
+        self.assertIn("TRIGGER:-PT30M", one)  # it rings half an hour ahead
+        self.assertIn("SUMMARY:감마클라우드: 감마 서류 확인", one)  # its reminders as before
+        self.assertNotIn("채용 담당 통화", one)  # a round that is over stays out
+        self.assertNotIn("델타", one)  # and another application's reminders too
+        self.assertIn("SUMMARY:감마클라우드: First interview", self.raw_get(f"/api/v1/reminders.ics?job={jid}&lang=en")[1].decode("utf-8"))  # in English
+        every = self.raw_get("/api/v1/reminders.ics")[1].decode("utf-8")  # no job: every application's
+        self.assertIn("SUMMARY:델타랩스: 델타 서류 마감", every)
+        self.assertIn("감마 서류 확인", every)
+        with self.assertRaises(urllib.error.HTTPError) as no:  # an application that is not there
+            self.raw_get("/api/v1/reminders.ics?job=no-such-job")
+        self.assertEqual(400, no.exception.code)  # refused with words, as every route refuses an unknown job
+
 
 class TestStandin(PanelCase):
     """The agent's steps through the stand-in, on the real code path of src/ingest.py, src/draft.py and src/llm.py."""
@@ -1273,6 +1294,43 @@ class TestJobUndoAndBoard(unittest.TestCase):
             self.assertIn('"what": "date"', str(no.exception))
         st = self.c.api.ws.job(jid)
         self.assertEqual("2026-03-01", st["dates"][st["stage"]])  # only the real day was kept
+
+
+class TestRefusedInWords(unittest.TestCase):
+    """Requests the page never sends, from a program: refused with their reason, and nothing changed (round 3, A3-16, A3-20)."""
+
+    def setUp(self):
+        from apps.api.client import Client  # the API in this process
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix="offerowl-refused-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        os.environ["OFFEROWL_PANEL_BACKEND"] = "none"  # no agent
+        self.addCleanup(os.environ.pop, "OFFEROWL_PANEL_BACKEND", None)
+        self.c = Client(self.tmp)
+
+    def refused(self, path, body, what):
+        """One request refused with its check's name."""
+        with self.assertRaises(RuntimeError) as no:  # a 400 with words
+            self.c.post(path, body)
+        self.assertIn(f'"what": "{what}"', str(no.exception), body)
+
+    def test_the_history_s_undo_takes_back_only_a_count_it_was_given(self):
+        self.c.post("/api/v1/details", {"fields": {"name": "홍길동"}})  # two changes, one field each (one field's pauses merge into one step)
+        self.c.post("/api/v1/details", {"fields": {"email": "gildong@example.com"}})
+        steps = len(self.c.get("/api/v1/history")["steps"])  # the history now
+        for body in ({}, {"steps": 0}, {"steps": -1}, {"steps": "two"}, {"steps": 1.5}, {"steps": True}, {"steps": 51}):  # 0 or none used to undo the newest change
+            self.refused("/api/v1/history/undo", body, "steps")
+        self.assertEqual(steps, len(self.c.get("/api/v1/history")["steps"]))  # nothing was undone
+        self.assertEqual("gildong@example.com", self.c.api.facts.details().get("email"))
+        self.assertEqual(1, len(self.c.post("/api/v1/history/undo", {"steps": 1})["undone"]))  # a count is taken
+        self.assertEqual(("홍길동", None), (self.c.api.facts.details().get("name"), self.c.api.facts.details().get("email") or None))  # the newest change only
+
+    def test_the_details_take_their_own_fields_as_text(self):
+        self.c.post("/api/v1/details", {"fields": {"email": "gildong@example.com"}})  # as the page sends it
+        for fields in ({"email": 123}, {"nickname": "길동"}, {"name": "홍길동", "email": ["a@example.com"]}):  # a number, a field the card has not, a list
+            self.refused("/api/v1/details", {"fields": fields}, "fields")  # it was answered ok with nothing kept
+        det = self.c.api.facts.details()
+        self.assertEqual(("gildong@example.com", None), (det.get("email"), det.get("name")))  # nothing of them kept, the good field of a mixed one neither
+        self.assertNotIn("nickname", det)
 
 
 class TestNoFileStaysReading(unittest.TestCase):

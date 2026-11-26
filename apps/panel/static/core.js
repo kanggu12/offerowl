@@ -403,6 +403,7 @@ function errorText(e) {                                                         
     no_kit: t("That application has no interview kit yet."),
     no_files_at_paths: t("Nothing readable was found at those paths."),
     needs_agent_files: t("The agent is off, so these files cannot be read yet. Turn it on, then add them again."),
+    needs_agent_posting: t("No AI agent is ready, so the posting was not read."),   // 0.16.1: a posting refused before a run made an application of nothing
     agent_off: t("Requests need Claude Code or Codex, switched on and signed in."),
     needs_tool_agent: t("The command bar needs Claude Code or Codex: a local model cannot act through Offerowl's tools.") };
   if (words[what]) return words[what];                                              // a known refusal
@@ -510,7 +511,7 @@ function toastWords(text) {                                                     
     else if ((c === ")" || c === "]") && depth) depth--;
     else if (!depth && (s.startsWith(": ", i) || s.startsWith(" · ", i))) { cut = i; sep = s.startsWith(": ", i) ? ": " : " · "; }
   }
-  return cut < 0 ? [h("b", { text: s })] : [h("b", { text: s.slice(0, cut) }), " " + s.slice(cut + sep.length)];   // set as text, never as HTML
+  return cut < 0 ? [h("b", { text: s })] : [h("b", { text: s.slice(0, cut) + (sep === ": " ? ":" : "") }), (sep === ": " ? " " : " · ") + s.slice(cut + sep.length)];   // set as text, never as HTML; the colon and the dot stay (without them "되살렸습니다 이력서 사진" read run together)
 }
 function toast(text, key, kind) {                                                   // a short note in the bar (at the top on a phone); key {words, run, icon}: one key in it (Undo)
   const el = $("toast");                                                            // the one toast

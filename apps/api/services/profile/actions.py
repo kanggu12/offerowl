@@ -8,7 +8,7 @@ import json  # the rows' text, for the stamp
 import time  # when the first run began
 
 from ...core.workspace import write_json  # files
-from .facts import FACT_FILES, pick, text_of  # the files a fact change touches, a field in one language, plain text
+from .facts import DETAIL_KEYS, FACT_FILES, pick, text_of  # the fields "Your details" holds, the files a fact change touches, a field in one language, plain text
 
 
 def fact(api, req: dict) -> None:
@@ -61,7 +61,9 @@ def details(api, req: dict) -> None:
     raw = req.get("fields") or {}
     if not isinstance(raw, dict):  # a string, a number or a list where the fields go
         raise ValueError("fields")
-    fields = {k: v for k, v in raw.items() if isinstance(v, str)}  # text only
+    if any(k not in DETAIL_KEYS or not isinstance(v, str) for k, v in raw.items()):  # a field the card has not, or a value that is no text (an email of 123):
+        raise ValueError("fields")  # refused with its reason, never answered ok with nothing kept (A3-16)
+    fields = dict(raw)  # text only, the card's own fields
     key = "details:" + ",".join(sorted(fields))  # one step while typing in the same field
     with api.ws.change({"code": "undo_details", "fields": sorted(fields)}, FACT_FILES, coalesce=key):  # pauses merge
         src = req.get("src") if isinstance(req.get("src"), dict) else None  # a run says which file each field came from
