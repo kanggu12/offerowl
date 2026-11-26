@@ -205,6 +205,11 @@ def post_own_copy(a, req, path):
     return editions.copy(a, req)  # one undo step: the job, the source, the languages, whether it replaced words, the files that stay
 
 
+def post_form(a, req, path):
+    """POST /api/v1/jobs/form {job, lang, about, tenure}: the parts of the resume an edition prints (documents.set_switches)."""
+    return {"switches": documents.set_switches(a, req)}  # every switch as it is now
+
+
 def post_setup(a, req, path):
     """POST /api/v1/engine/setup: install the typesetting libraries."""
     return {"started": a.tasks.setup_engine()}  # False when one already runs
@@ -255,6 +260,7 @@ POST = (  # the writes
     ("/api/v1/editions", post_edition),
     ("/api/v1/jobs/own", post_own),
     ("/api/v1/jobs/own/copy", post_own_copy),
+    ("/api/v1/jobs/form", post_form),
     ("/api/v1/engine/setup", post_setup),
     ("/api/v1/open", post_open),
 )

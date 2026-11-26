@@ -16,7 +16,12 @@ ROOT = Path(__file__).resolve().parents[4]  # the repository (or the app's bundl
 # competencyWeak, competencyDrop: the competencies it sends to the back or leaves out, which a job drafted from the profile takes from
 # its posting analysis (tasks.edition_cfg reads no plan.json for an own edition, so without them it printed the profile's order only)
 OWN_FORM_KEYS = ("competencyFigure", "footerLabel", "skillsFocus", "skillsStrong", "skillsHighlight", "photo", "plain", "titleView", "blind",
-                 "competencyWeak", "competencyDrop", "tenure")  # tenure: false prints no "N년 N개월" per company and no total
+                 "competencyWeak", "competencyDrop", "tenure", "about")  # tenure: false prints no "N년 N개월" per company and no total
+# The parts of the resume any edition can leave out, by language (2026-11-26 the owner: "offerowl에 이력서에 자기소개 포함 유무
+# 옵션은 있어야해"): the about-me ("about": false) and the time at each company with its total ("tenure": false). An own edition
+# keeps them in own/form.json with its other layout choices; any other edition (a job drafted from the profile, the general
+# edition, a named edition) in form.json beside its posting. No file, or no key: printed (a new workspace has none)
+EDITION_SWITCHES = ("about", "tenure")
 
 
 class OwnEdition:
@@ -77,6 +82,20 @@ class OwnEdition:
         d = self.own_dir(job_id)  # the edition, if any
         form = (read_json(d / "form.json", {}) or {}).get(lang) if d else None  # its choices for this language
         return {k: v for k, v in (form or {}).items() if k in OWN_FORM_KEYS}  # only what the form reads
+
+    def edition_form_file(self, job_id: str | None) -> Path:
+        """The file an edition keeps its switches in (EDITION_SWITCHES): own/form.json for a job's own edition, else form.json
+        in the job's folder (the general edition's when no job is named)."""
+        jid = job_id or "-general"  # no job: the general edition
+        own = self.own_dir(jid)  # the job's own edition, if any
+        return own / "form.json" if own is not None else self.ws.job_dir(jid) / "form.json"  # with its layout choices, or beside its posting
+
+    def edition_switches(self, job_id: str | None, lang: str) -> dict:
+        """The parts this edition leaves out in this language, {switch: False}; {} prints every part. Only false turns a part
+        off: a missing file, a missing key or any other value prints it."""
+        form = read_json(self.edition_form_file(job_id), {})  # its switches, by language
+        mine = form.get(lang) if isinstance(form, dict) else None  # this language's
+        return {k: False for k in EDITION_SWITCHES if isinstance(mine, dict) and mine.get(k) is False}  # the parts it leaves out
 
     def own_src(self, job_id: str | None, lang: str) -> Path | str | None:
         """The profile a job's own edition prints in this language, "own_lang" when it was brought in without that language,

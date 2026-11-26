@@ -6,7 +6,8 @@
 // motivation and a name footer.
 //   node src/resume_form.js <profile.json> [job.json]
 //   job fields: out, lang ("ko"|"en"), theme, form ("detailed", "compact" or "table"), skillsFocus, skillsStrong, skillsHighlight, skillsEdit, competencyWeak,
-//   competencyDrop, projectOrder, motivation, photo, sections (titles to include, in order), tenure (false hides it),
+//   competencyDrop, projectOrder, motivation, photo, sections (titles to include, in order), tenure (false hides it), about (false leaves
+//   the about-me out),
 //   titleView ("full" reads a role's long title), competencyFigure (false leaves the hierarchy figure out),
 //   footerLabel (the older footer: the name and this word for the document kind, as an edition the person made had it),
 //   plain (true: section titles with a rule only, no accent bars, English names, rails or outer card borders)
@@ -256,7 +257,9 @@ function build(profilePath, cfg = {}) {
 
   parts.about = () => {
   // About me: stage bands joined by a thin rail (about: [[title, paragraph or paragraphs], ...]); an entry { quote, text } is a
-  // boxed statement with a small heading (a 'how I work' box) placed where it is listed
+  // boxed statement with a small heading (a 'how I work' box) placed where it is listed. An edition made with about: false leaves
+  // it out (the edition's switch, 2026-11-26)
+  if (cfg.about === false) { L.omit(T.about); return; }                  // the person chose a resume without it, and the checks are told
   const about = prof.about || [];
   if (about.length) {
     ch.push(sec(T.about, null, "ABOUT ME"));

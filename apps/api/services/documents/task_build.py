@@ -360,6 +360,7 @@ class Builds:
         cfg = {"lang": lang, "theme": theme if theme in THEMES else "navy", "style": self.style_spec(), **self.look(),
                **{k: plan[k] for k in ("skillsFocus", "competencyWeak", "projectOrder") if plan.get(k)}}
         cfg.update({k: v for k, v in self.own_form(job_id, lang).items() if k != "photo"})  # the photo is the build's to stage
+        cfg.update(self.edition_switches(job_id, lang))  # the parts it leaves out, for any edition (an own edition's are in its form too)
         return cfg
 
     def letter_pages_all(self) -> dict:
@@ -549,6 +550,7 @@ class Builds:
                 "at": time.strftime("%Y-%m-%d %H:%M"), "profile": content_hash(self.facts.profile_file()),  # when, and from which profile's content (stale editions are marked)
                 "own": self.own_stamp(job_id),  # and from which own edition or files, when the job has them
                 "maxPages": max_pages, "cover": cover, "draft": self.draft_stamp(job_id),  # what the panel shows; the draft it was made from
+                "form": self.edition_switches(job_id, lang),  # the parts it left out: another choice makes it stale
                 "checks": checks, "polish": polish}  # the findings with their codes: the panel words them in the person's language
         changes = self.compare_baseline(job_id, lang, out_dir, hashes, blind)  # the pages changed since the copy that last went out (task_compare.py)
         if changes is not None:  # the edition has a baseline

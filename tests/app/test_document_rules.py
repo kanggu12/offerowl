@@ -173,6 +173,12 @@ class StructureTests(unittest.TestCase):
         bad = CLG.section_issues(["개요", "경력요약"], {"ko": ["개요", "경력요약", "자기소개"]}, "ko")
         self.assertEqual(["section_missing"], codes(bad))
         self.assertEqual([], CLG.section_issues(["Overview"], {"ko": self.ORDER}, "en"))  # no English order kept: nothing read
+        # an edition that leaves the about-me out on purpose (its switch, "about": false) is not missing it (the Beloit edition's
+        # first build without it said "절이 빠졌다: 자기소개", 2026-11-26); every other section is still held to the order
+        printed = ["개요", "경력요약", "학력사항", "핵심역량", "보유기술", "상세경력사항", "기타사항", "지원 동기"]
+        self.assertEqual(["section_missing"], codes(CLG.section_issues(printed, {"ko": self.ORDER}, "ko")))
+        self.assertEqual([], CLG.section_issues(printed, {"ko": self.ORDER}, "ko", ["자기소개"]))
+        self.assertEqual(["section_missing"], codes(CLG.section_issues(printed[1:], {"ko": self.ORDER}, "ko", ["자기소개"])))
 
     def test_figures_about_me_and_titles(self):
         figs = [{"name": "owl_ab12cd34_ko_timeline.png"}, {"name": "owl_ab12cd34_ko_stack.png"}]

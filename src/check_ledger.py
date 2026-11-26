@@ -264,9 +264,11 @@ def min_items_issues(prof: dict, mins: dict, lang: str) -> list:
     return out
 
 
-def section_issues(printed: list, order, lang: str) -> list:
-    """The section titles the pack keeps, in its order: each one printed, and the printed ones in that order."""
-    want = terms_of(order, lang)  # the order the pack keeps for this language
+def section_issues(printed: list, order, lang: str, omitted=()) -> list:
+    """The section titles the pack keeps, in its order: each one printed, and the printed ones in that order. A section the
+    edition leaves out on purpose (omitted: its title, as the typesetting names it; the about-me switched off) is not missing."""
+    want = [e for e in terms_of(order, lang)  # the order the pack keeps for this language, but what the edition left out
+            if not ({e} if isinstance(e, str) else set(e)) & set(omitted)]
     if not want:  # none: nothing to read
         return []
     alts = [[e] if isinstance(e, str) else [x for x in e if isinstance(x, str)] for e in want]  # each entry's titles
@@ -354,7 +356,7 @@ def check(text: str, prof: dict, parts: dict, pack: dict, lang: str, ledger=None
     if general:  # a general edition keeps its items; an application drops some for its posting on purpose
         out += min_items_issues(prof, led.get("min_items") or {}, lang)
     if parts:  # what the typesetting set: a document it did not set (a file the person made) is not read here
-        out += section_issues(parts.get("sections") or [], st.get("sections"), lang)
+        out += section_issues(parts.get("sections") or [], st.get("sections"), lang, parts.get("omitted") or [])
         out += figure_issues(parts.get("figures") or [], st.get("figures") or [])
         out += about_issues(parts.get("about") or [], st.get("about_max"))
         out += title_issues(parts.get("titles") or [], st.get("title_lead"), bool(st.get("title_ranks")))

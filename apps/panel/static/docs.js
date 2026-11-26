@@ -629,6 +629,14 @@ function viewDocuments(host) {                                                  
   const asked = building && UI.blindAsk && UI.blindAsk.key === (ed ? ed.id : "") + "|" + lang ? UI.blindAsk.on : null;   // the switch pressed for this edition, while it is made
   const blindSwitch = !ed ? null : h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: asked === null ? !!(b && b.blind) : asked,   // the pages as they are, or as asked
     disabled: building || !!S.engine || !!(j && j.locked) || null, onchange: (e) => makeBlind(e.target.checked) }), h("span", { class: "track" }), t("Blind edition"));   // a submitted edition stays as it went
+  // The parts of the resume this edition prints (POST /api/v1/jobs/form): the about-me and the time at each company. The canvas
+  // follows at once; the PDFs show as made before the change until Make PDFs makes them again. Only on the resume's tab, and never
+  // for a submitted application (its documents stay as they went)
+  const sw = (m && m.switches) || {};                                               // the model says what the edition prints now
+  const partSwitch = (key, words) => !ed || UI.doc !== "resume" || ownFileIn(ed, "resume") ? null : h("label", { class: "toggle", "data-key": "doc-part-" + key },
+    h("input", { type: "checkbox", checked: sw[key] !== false, disabled: building || frozen || !m || null, onchange: (e) => setResumePart(key, e.target.checked) }),
+    h("span", { class: "track" }), t(words));                                       // a switch with its words, as the blind edition's
+  const partSwitches = [partSwitch("about", "About me"), partSwitch("tenure", "Tenure")];   // the about-me first: the part most editions choose
   // a document the person made: their own file stands for the typeset resume, or the resume they wrote prints as written
   // a state, not a key: words with their sign, never a box the height of the keys beside them
   const ownChip = b && (b.notes || []).includes("own_file") ? h("span", { class: "docstate" }, icon("file", 14), h("span", { text: t("Your own file") }))
@@ -646,7 +654,7 @@ function viewDocuments(host) {                                                  
       h("span", { class: "sub", text: (j ? (ownForJob || UI.doc !== "resume" ? t("For {job}", { job: jobName }) : t("For {job}: the general resume as it is", { job: jobName })) : named() ? named().name : (S.jobs || []).length ? t("General edition") : t("Your general edition: add a job to tailor it"))   // "the general resume" only on the resume's tab (B3-14)
         + (from ? " · " + t("Started from {name}", { name: from.name || from.job }) : "") }),   // and where its words came from
       startKey(),                                                                   // beside what the edition prints: start it from another edition's words
-      h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, writeKey(), depthKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn)),   // the page's actions beside its title, as one group; Export and its lock on one row
+      h("span", { class: "grow" }), h("div", { class: "docacts" }, ownChip, blindSwitch, ...partSwitches, writeKey(), depthKey(), makeBtn, h("span", { class: "expgrp" }, exportBtn, lockBtn)),   // the page's actions beside its title, as one group; Export and its lock on one row
       named() ? h("button", { class: "btn small quiet danger edrm", type: "button", "data-key": "edition-remove", "aria-label": t("Remove the edition {name}", { name: named().name }),   // a named edition: off the list, into the Trash; at the row's end, away from its name and the keys that make it
         onclick: () => removeAct("/api/v1/jobs/remove", { job: named().id }, t("Removed the edition {name}. It waits in the trash.", { name: named().name })) }, icon("trash"), t("Remove this edition")) : null),
     // what is shown; why export waits at the row's right (under the keys it came and went, and the head jumped 27 px); the
@@ -903,6 +911,10 @@ async function makePdfs(blind) {                                                
   const own = b && Number(b.maxPages);                                              // the limit the PDFs on screen were made with
   const pages = blind !== undefined && own ? own : UI.maxPagesChosen || !own ? UI.maxPages : own;   // the switch keeps it; the key uses the one picked in the Style tab, else keeps it
   await act("/api/v1/jobs/build", { job: ed.id, lang: docLang(), theme: UI.theme, maxPages: pages, cover: UI.cover && !!job(), blind: keep });  // started; a letter needs a job
+}
+function setResumePart(key, on) {                                                   // one part of the resume printed or left out (the head's switches)
+  const ed = edition(); if (!ed) return;                                            // nothing to set it on
+  act("/api/v1/jobs/form", { job: ed.id, lang: docLang(), [key]: on }, on ? t("The resume prints it again.") : t("The resume leaves it out."));   // one undo step; the state and the canvas follow
 }
 function makeBlind(on) {                                                            // the blind edition's switch: the PDFs again, with or without the bars
   const ed = edition(); if (!ed) return;                                            // nothing to make

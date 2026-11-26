@@ -50,7 +50,7 @@ const PARAS = [];
 // the same sidecar as "parts"): the section titles in print order (the order a pack may hold), the figures placed with their
 // pixel sizes (a figure an edition lost), the about-me parts (how many), the job titles of the company bands (one form), and
 // the company bands themselves (where the band check measures). The typesetting's own list, so a check never holds a stale copy
-const PARTS = { sections: [], figures: [], about: [], titles: [], bands: [] };
+const PARTS = { sections: [], figures: [], about: [], titles: [], bands: [], omitted: [] };   // omitted: titles of parts the edition leaves out on purpose
 function rich(text, o = {}) {
   PARAS.push(String(text).replace(/==/g, ""));                                  // the paragraph as it reads
   // split() with a capture group puts the captured (marked) phrases at the odd positions. Empty pieces are filtered out
@@ -760,4 +760,5 @@ function render(ch, outPath) {
 module.exports = {
   INK, GREY, CONTENT_W, run, p, render, prose, fsec, fband, fsub, fbul, focusRows, ftable, tcap, fimage, fline, frow,
   fcards, fquote, setFont, fheader, fhighlights, setTheme, accent2, setLangKo, setFooterLabel, setFooterName, setDocMeta, setPlain,
+  omit: (title) => PARTS.omitted.push(String(title)),   // a section the edition leaves out on purpose: the checks do not miss it
 };

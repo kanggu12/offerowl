@@ -2822,7 +2822,8 @@ svg[data-i] { overflow: visible; }                                              
 @media (max-width: 640px), (pointer: coarse) {
   :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button, :root[data-theme] :is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button { min-width: 44px; min-height: 44px; }
 }
-:is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button::after { content: none; }   /* the choice is said by the chip's face, never also by the tabs' short line under it (a phone's) */
+:is(.pr-setup .pr-val, .kit-bar, .kit-prefs) .seg > button::after { content: none; }
+.kit .kit-bar .seg > button, :root[data-theme] .kit .kit-bar .seg > button { min-height: var(--ctl-h); }   /* in the kit's bar the chips stand as tall as its keys (they were 6 px short of Contents beside them) */   /* the choice is said by the chip's face, never also by the tabs' short line under it (a phone's) */
 /* a row that slides sideways (the section chips, the deck's tabs) stops with a chip whole past the fade at its start, never cut (C4-11) */
 .kit-menu, .dn-row { scroll-snap-type: x mandatory; scroll-padding-inline: 48px; }
 .kit-menu > .btn, .dn-row > .dn-key { scroll-snap-align: start; }

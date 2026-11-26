@@ -18,6 +18,7 @@ from . import drafts as D  # a job's drafted resume
 from .. import applications  # a job's posting analysis
 from ..profile import SECTION_LABELS, SECTION_NAMES, Resume, field_for, pick_lang, replaced, text_of  # the resume model, its section names and the sentence rules, plain text (the profile's)
 from ...core.workspace import read_json, write_json  # files
+from .task_own import EDITION_SWITCHES  # the parts of the resume an edition can leave out
 
 log = logging.getLogger("offerowl.panel")  # the panel's log
 DOC_LANGS = ("ko", "en")  # the editions
@@ -82,14 +83,68 @@ def resume(tasks, lang: str = "ko", theme: str = "navy", job: str | None = None)
                  edits=facts.edits(), locks=w["locks"], details=facts.details(), plan=plan, job=job, translated=translated, draft=w["draft"], live=w["live"])
     out = R.build()  # blocks, sentences, counts
     out["form"] = tasks.look()["form"]  # the form chosen in the panel
-    if job and tasks.own_form(job, lang).get("tenure") is False:  # an edition made without the time at each company (own/form.json): drawn as it prints
+    sw = tasks.edition_switches(job, lang)  # the parts this edition leaves out (own/form.json, or form.json beside the job)
+    if sw.get("tenure") is False:  # made without the time at each company: drawn as it prints
         hide_tenure(out["blocks"])
     pictures(tasks, out, job, lang, theme)  # the photo, the figures and the logos the printed resume carries
     out["blocks"] = for_form(out["blocks"], out["form"])  # shown as it will print
+    if sw.get("about") is False:  # made without the about-me: drawn as it prints
+        out["blocks"] = drop_part(out["blocks"], "about")
+    out["switches"] = {k: sw.get(k) is not False for k in EDITION_SWITCHES}  # what the head's switches show: true prints the part
     out["draft"] = D.summary(tasks, w["owner"], bool(w["live"]), job) if w["draft"] else None  # who wrote it, when, and whether the facts moved on
     out["missing"] = problems(facts.profile())  # a name, an email, one role
     out["profile_lang"] = tasks.profile_lang()  # the language the profile itself is written in
     return out  # what the canvas draws
+
+
+def drop_part(blocks: list, key: str) -> list:
+    """The canvas's blocks without one part, its heading and all that follows it up to the next heading, as src/resume_form.js
+    prints an edition that leaves the part out (the about-me, "about": false)."""
+    out, skip = [], False  # the blocks kept; inside the part left out
+    for b in blocks:  # in print order
+        if b.get("type") == "section":  # a heading ends one part and starts the next
+            skip = b.get("key") == key  # the part left out starts here
+        if not skip:  # anything else is drawn
+            out.append(b)
+    return out
+
+
+def set_switches(api, req: dict) -> dict:
+    """An edition's switches (POST /api/v1/jobs/form {job, lang, about, tenure}): which parts of the resume it prints. True
+    prints the part (the key is taken out of the file), false leaves it out; a switch not named stays as it is. One undo step.
+    A submitted application keeps its documents as they went (refused "locked"). Answers every switch as it is now."""
+    from ...core.routing import text_field  # the request's text
+    jid = api.need_job(req)  # the job, or the general edition ("-general")
+    if jid != D.GENERAL and (api.ws.job(jid) or {}).get("locked"):  # submitted: its documents stay as they went
+        raise ValueError("locked")
+    lang = text_field(req, "lang")  # the edition's language
+    if lang not in DOC_LANGS:  # ko or en only
+        raise ValueError("lang")
+    asked = {}  # the switches named
+    for k in EDITION_SWITCHES:  # each part an edition can leave out
+        if k in req:  # named
+            if not isinstance(req[k], bool):  # a switch is on or off, never words or a number
+                raise ValueError(k)
+            asked[k] = req[k]
+    if not asked:  # nothing to change: refused, never answered ok with nothing done
+        raise ValueError("fields")
+    f = api.tasks.edition_form_file(jid)  # where this edition keeps them
+    rel = f.relative_to(api.ws.root).as_posix()  # as the history names files
+    off = [k for k, on in asked.items() if not on]  # the parts it leaves out now
+    with api.ws.change({"code": "undo_switch", "parts": sorted(asked), "lang": lang}, [rel]):  # one undo step
+        form = read_json(f, {})  # the file as it is (its other layout choices kept)
+        form = form if isinstance(form, dict) else {}  # a damaged file starts over
+        mine = form.get(lang) if isinstance(form.get(lang), dict) else {}  # this language's choices
+        for k, on in asked.items():  # each switch named
+            if on:
+                mine.pop(k, None)  # printed: the default, so the file says nothing of it
+            else:
+                mine[k] = False  # left out
+        form[lang] = mine
+        f.parent.mkdir(parents=True, exist_ok=True)  # the job's folder exists; the general edition's may not yet
+        write_json(f, form)
+    log.info("edition %s %s leaves out %s", jid, lang, off or "nothing")  # for the log
+    return {k: k not in (api.tasks.edition_switches(jid, lang)) for k in EDITION_SWITCHES}  # each switch as it is now
 
 
 def hide_tenure(blocks: list) -> None:
@@ -361,11 +416,17 @@ def blind_stale(api, b: dict) -> bool:
     return b.get("blind") is True and b.get("blind_table", "") != api.tasks.blind_stamp()
 
 
+def form_stale(api, jid: str, b: dict) -> bool:
+    """An edition made with other switches than it has now (the about-me or the tenure turned on or off since). A record from
+    before switches were kept counts as made with every part."""
+    return (b.get("form") or {}) != api.tasks.edition_switches(jid, b.get("lang") or "ko")
+
+
 def stale(api, jid: str, b: dict) -> bool:
     """Was this edition made from what there is now? An edition made from the job's own edition or own files follows those
     (an older build that did not record them counts as current); any other follows the profile and the draft. A blind
     edition follows its mask table too."""
-    if blind_stale(api, b) or deck_stale(api, b):  # the table changed since its bars were drawn, or the deck source since it wrote the deck
+    if blind_stale(api, b) or deck_stale(api, b) or form_stale(api, jid, b):  # the table changed since its bars were drawn, the deck source since it wrote the deck, or the parts it prints
         return True
     own = api.tasks.own_stamp(jid)  # the job's own things, if any
     if own:  # printed from them, not from the profile
@@ -385,7 +446,7 @@ def general_view(api) -> dict:
     """The edition made with no job in view: PDFs of the profile as it is, for a person who has not picked a posting yet."""
     builds = editions(api.tasks, D.GENERAL)  # per language
     for b in builds.values():  # each edition
-        b["stale"] = not api.facts.same_profile(b.get("profile")) or b.get("draft", "") != api.tasks.draft_stamp(D.GENERAL) or blind_stale(api, b) or deck_stale(api, b)  # facts, the draft, the mask table or the deck source changed since
+        b["stale"] = not api.facts.same_profile(b.get("profile")) or b.get("draft", "") != api.tasks.draft_stamp(D.GENERAL) or blind_stale(api, b) or deck_stale(api, b) or form_stale(api, D.GENERAL, b)  # facts, the draft, the mask table or the deck source changed since
     return {"id": D.GENERAL, "builds": builds}  # the shape of a job, as far as the Documents view reads one
 
 

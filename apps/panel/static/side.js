@@ -250,7 +250,7 @@ function undoLabel(l) {                                                         
     undo_questions: ["Changed the questions of {what}", "Changed the questions"],
     undo_carry: ["Brought scripts into {what}", "Brought scripts in"],
     undo_scenes: ["Added scenes to {what}", "Added scenes"], undo_map: ["Made the question map of {what}", "Made a question map"],
-    undo_answer: ["Changed an answer of {what}", "Changed an answer"],
+    undo_answer: ["Changed an answer of {what}", "Changed an answer"], undo_switch: ["Changed the parts the resume prints"],
     undo_own_copy: ["Started {what} from another edition", "Started an edition from another"], undo_own_edition: ["Brought in an edition for {what}", "Brought in an edition"] };   // 0.10.0: an own edition started or brought in
   const words = L[x.code] || ["A change"];                                          // an unknown step still reads
   return t(what || words.length === 1 ? words[0] : words[1], { what, n: x.n || 0 });   // with its name when it has one

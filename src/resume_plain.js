@@ -97,7 +97,7 @@ function linesOf(prof, cfg = {}) {
     }
     out.push(...bodyLines(s));                     // or its own lines
   }
-  if ((prof.about || []).length) {                 // about me
+  if ((prof.about || []).length && cfg.about !== false) {   // about me, unless the edition leaves it out
     out.push(["head", W.about]);                   // its heading
     for (const a of prof.about) {                  // [title, text or paragraphs], or a boxed { quote, text }
       out.push(["sub", plain(Array.isArray(a) ? a[0] : a.quote)]);   // its title

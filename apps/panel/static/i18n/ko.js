@@ -1022,4 +1022,7 @@ CATALOGS.ko = {
   // 0.16.2: area d (round 4): sturdiness and the server
   "The request stopped coming part way, so nothing was done. Try again.": "요청이 중간에 끊겨 아무것도 하지 않았습니다. 다시 해 보세요.",
   "There is not enough free space on this PC's disk. Free some space and try again.": "이 PC의 디스크에 남은 공간이 모자랍니다. 공간을 비운 뒤 다시 해 보세요.",
+  // 0.16.2: the parts of the resume an edition prints (2026-11-26)
+  "Tenure": "재직 기간", "The resume prints it again.": "이력서에 다시 넣었습니다.", "The resume leaves it out.": "이력서에서 뺐습니다.",
+  "Changed the parts the resume prints": "이력서 구성을 바꿈",
 };

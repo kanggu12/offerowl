@@ -6,6 +6,84 @@ fixes come first in a release.
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-11-26
+
+A fourth round of fixes after a review by area: notes that stay clear of the bar, sturdier requests and files handed out
+under one naming rule, an interview kit whose long actions say they are working, and a lighter, steadier server under many
+tabs.
+
+### Security
+
+- A request whose body stops coming is answered 408 after 10 seconds (it was a 500); a Content-Length that is not a number
+  is refused with `length`.
+- A text field refuses a value that is not a string, with the field's name (a posting of 10^30 made an application, a
+  reminder `["r"]` was kept as the words `['r']`); a fact's edit takes its `fields` as an object of strings; NaN and
+  Infinity in a body are refused; a write that names none of its route's fields is refused instead of answered `ok`.
+- "Busy" is answered at once to every waiting connection (each waited a second on the accept loop, so the twelfth waited
+  nine seconds).
+- HEAD on a file route answers its headers without making the file (HEAD on the backup built the whole archive).
+- A `settings.json` holding a list, a string or `null` no longer stops the panel at its start; a damaged one is kept beside
+  it as `settings.json.bad` before a change replaces it.
+
+### Added
+
+- An edition prints or leaves out the resume's about-me and the time at each company, per language: two switches in the
+  Documents head beside the blind edition's, and `POST /api/v1/jobs/form` (kept in the edition's `form.json`); the canvas
+  follows at once and the PDFs made before count as stale.
+- Backup and restore check the free space before writing and say so (`disk_full`); the backup keys ask first with
+  `?check=1`, so a full disk shows words instead of a download that never comes.
+- The round form sends the round it started from (`was`): a save over a round another window changed is refused with
+  `round_changed` and the form is drawn again from the round as it is.
+- Scene files picked together are one undo step (`join=<step>`), with Undo on the note; a scene file that is not .md or
+  .txt is refused with `scenes_kind`.
+- A fact's title holds up to 200 characters and its words up to 20,000; longer is refused (`fact_title_long`,
+  `fact_statement_long`) instead of cut, and a long title folds in the list as long words do.
+- An email in the details that is not an address is refused (`email`) and waits in the form, marked, until it is one.
+
+### Changed
+
+- A note sits in the bar's free room, or along the bar's foot when it is long and always on a phone: never over the views,
+  the agent's chip or the keys. While the band says the server is down, a failed write adds no second note.
+- Insights stacks its tiles in columns (no hole under the short ones), and the interview-prep rows show the company and
+  the role whole.
+- The Documents head keeps its subtitle (up to two lines) and gives its keys their own row: no sideways scroll in English.
+- A board card keeps its day whole at every width; under 1000 px the stages keep their day under the word.
+- The applications list is one Tab stop (the arrow keys move, Enter opens), and applications added the same day are listed
+  newest first.
+- A submitted application's card lists each document that went out, with its language, its day and a key that opens it.
+- The interview kit: a long action's key is busy from the click and takes no second one (three clicks made three maps and
+  three undo steps); a question no script is close to shows its best three cards and one row for the rest; the writer's
+  notes that name the writer's own records are left out of the cards; the question counts and KO/EN are chips; a short placeholder on a
+  narrow window; sliding rows of chips snap; the map counts the scenes you added and names the ones it renumbered.
+- The kit's empty pages (no talk yet, no script to print) and the busy page are the panel's own designed pages, in one
+  language, light or dark.
+- Files handed out are named with underscores and the day: the calendar file, the backup and a Library export (a made or
+  sent document under the Documents export's name, no name starting with "-", a twin `_2`). The calendar file folds its
+  lines at 75 octets.
+- A poll within a second of the last state reuses it while nothing changed (five tabs: a median of 79 ms became 2 ms), and
+  the kit caches keep the four kits used last.
+- An HTML material's preview fits its page in the panel's font; a Markdown list is spaced as the paragraphs around it.
+
+### Fixed
+
+- A section an edition leaves out on purpose is not reported missing by the typesetting's checks; the kit bar's language
+  chips stand as tall as the keys beside them.
+- A fact's edit with `fields` that were not an object, and four requests with ids or names of the wrong type (question ids,
+  the autopilot's ids and paths, `/open`'s `what`, a carry's `names`), answered 500.
+- A refused day's note vanished at the first redraw; pasting questions that were all there said "0 added" in the done tone.
+- The details form's first row moved when the email's note showed, and Esc did not close it.
+- The Library's empty line had no padding, the Remove key of My files stood 10 px out, and on a phone three of the
+  Library's tabs were off the screen.
+- On a phone a table in an answer was cut at the ask sheet's edge.
+- A posting whose first line is a company's name alone kept that name as the role.
+- The overview figure went blank for a moment after a sentence's edit.
+- A job added and undone at once left an empty folder, and the next job of its name became "-2".
+- An undone carry or scenes add left the kit folders it made; adding scenes made an English kit's map again in Korean;
+  carrying into an empty application said a script was there already.
+- Renaming a job also moves the kit's output paths kept in its undo steps.
+- A round's notes have their label again, the inspector no longer names a sentence's state twice, and the cue page no
+  longer says "카드" twice.
+
 ## [0.16.1] - 2026-11-26
 
 A round of fixes over every view after a review by area: what a page says in its toasts and notes, forms that say what is
@@ -1107,7 +1185,8 @@ Offerowl in one release: your files in, the whole application out, every sentenc
 - Links: an address in a next step, a round's notes, a reminder or a file you added (a meeting's, a booking page's)
   opens in a new tab, named for its service (Google Meet, Zoom, Teams, Calendly) or its site.
 
-[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/kanggu12/offerowl/compare/v0.16.2...HEAD
+[0.16.2]: https://github.com/kanggu12/offerowl/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/kanggu12/offerowl/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/kanggu12/offerowl/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/kanggu12/offerowl/compare/v0.15.0...v0.15.1

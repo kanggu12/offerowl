@@ -268,6 +268,81 @@ class OwnUndoTests(Editions):
         self.assertEqual(PDF, a.tasks.own_file(self.gamma, "cover", "ko").read_bytes())  # the letter, through it all
 
 
+class SwitchTests(Editions):
+    """An edition's switches (POST /api/v1/jobs/form): the about-me and the time at each company printed or left out, for an
+    own edition, a named edition, a job drafted from the profile and the general edition (2026-11-26 the owner: "offerowl에
+    이력서에 자기소개 포함 유무 옵션은 있어야해")."""
+
+    def parts(self, a, job):
+        """The canvas's parts of an edition, by their headings' keys."""
+        return [b.get("key") for b in canvas.resume(a.tasks, "ko", "navy", job)["blocks"] if b.get("type") == "section"]
+
+    def set(self, r, **body):
+        """The head's switch, through the routes."""
+        return r.handle("POST", "/api/v1/jobs/form", None, {"lang": "ko", **body})
+
+    def every(self):
+        """(the job the route names, the job the canvas is drawn for) of each kind of edition."""
+        return [(self.gamma, self.gamma), (self.delta, self.delta), (self.latest, self.latest), ("-general", None)]
+
+    def test_a_workspace_with_no_switch_prints_every_part(self):
+        a, r = self.world()
+        for job, view in self.every():  # nothing set anywhere: no file says anything
+            self.assertEqual({}, a.tasks.edition_switches(view, "ko"))
+            self.assertEqual({"about": True, "tenure": True}, canvas.resume(a.tasks, "ko", "navy", view)["switches"])
+        for view in (self.delta, self.latest):  # the editions with words of their own draw every part (the example's facts are not kept here)
+            self.assertIn("about", self.parts(a, view))  # the about-me printed
+
+    def test_the_about_me_leaves_and_comes_back_in_every_kind_of_edition(self):
+        a, r = self.world()
+        for job, view in self.every():
+            status, body, _ = self.set(r, job=job, about=False)
+            self.assertEqual((200, {"about": False, "tenure": True}), (status, body["switches"]), job)
+            self.assertEqual({"about": False, "tenure": True}, canvas.resume(a.tasks, "ko", "navy", view)["switches"])  # the head's switch
+            if view in (self.delta, self.latest):  # an edition with words of its own: the canvas leaves the part out, the rest stays
+                self.assertNotIn("about", self.parts(a, view))
+                self.assertIn("career", self.parts(a, view))
+            self.assertIs(False, a.tasks.edition_cfg(view, "ko", "navy").get("about"))  # so does the typesetter
+            self.assertEqual({}, a.tasks.edition_switches(view, "en"))  # the English edition is its own
+            status, body, _ = self.set(r, job=job, about=True)
+            self.assertEqual({"about": True, "tenure": True}, body["switches"])
+            if view in (self.delta, self.latest):
+                self.assertIn("about", self.parts(a, view))  # back
+        form = read_json(a.ws.job_dir(self.latest) / "own" / "form.json", {})  # the named edition's own layout choices
+        self.assertEqual({"photo": False, "footerLabel": "경력기술서"}, form["ko"])  # kept beside the switch; printed again: no key left
+
+    def test_the_tenure_is_a_switch_too(self):
+        a, r = self.world()
+        self.set(r, job=self.delta, tenure=False)  # an edition with its career table
+        m = canvas.resume(a.tasks, "ko", "navy", self.delta)
+        self.assertFalse(any(row.get("tenure") for b in m["blocks"] if b["type"] == "career" for row in b["rows"]))  # no time per company
+        self.assertEqual({"about": True, "tenure": False}, m["switches"])
+
+    def test_one_switch_is_one_undo_step_and_the_pdfs_made_before_it_are_stale(self):
+        a, r = self.world()
+        made = {"lang": "ko", "form": {}}  # a build's record: made with every part
+        self.assertFalse(canvas.form_stale(a, self.gamma, made))
+        self.assertFalse(canvas.form_stale(a, self.gamma, {"lang": "ko"}))  # a record from before switches: every part
+        self.set(r, job=self.gamma, about=False)
+        self.assertTrue(canvas.form_stale(a, self.gamma, made))  # made with the about-me: to be made again
+        self.assertFalse(canvas.form_stale(a, self.gamma, {"lang": "ko", "form": {"about": False}}))  # made as it is now
+        r.handle("POST", "/api/v1/undo", None, {})  # one undo
+        self.assertEqual({}, a.tasks.edition_switches(self.gamma, "ko"))  # printed again
+
+    def test_wrong_requests_are_refused_with_their_reason(self):
+        a, r = self.world()
+        for body, what in (({"job": self.gamma, "about": "no"}, "about"), ({"job": self.gamma}, "fields"),
+                           ({"job": self.gamma, "lang": "fr", "about": False}, "lang"), ({"job": "nobody", "about": False}, "job")):
+            status, out, _ = r.handle("POST", "/api/v1/jobs/form", None, {"lang": "ko", **body})
+            self.assertEqual((400, what), (status, out.get("what")), body)
+        st = a.ws.job(self.gamma)  # the application submitted and locked
+        st["locked"] = {"at": "2026-11-26", "folder": "sent", "files": {}, "lang": "ko"}
+        a.ws.save_job(st)
+        status, out, _ = self.set(r, job=self.gamma, about=False)
+        self.assertEqual((400, "locked"), (status, out.get("what")))  # its documents stay as they went
+        self.assertEqual({}, a.tasks.edition_switches(self.gamma, "ko"))
+
+
 class CommandTests(Editions):
     """`offerowl edition`: the same list and copy from a shell, in both languages."""
 

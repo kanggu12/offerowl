@@ -45,6 +45,9 @@ function ok(name, good, detail = "") {                                   // one 
   ok("a section's note is there", at("A note") >= 0);
   ok("about's paragraphs stay apart", shaped.includes("One.") && shaped.includes("Two.") && at("One.,") < 0);
   ok("a boxed statement is there", shaped.includes("Boxed") && shaped.includes("Box text"));
+  const noAbout = P.linesOf({ lang: "en", person: { name: "A", email: "a@example.com" }, summary: {}, roles: [], skills: [],
+    about: [["Title", ["One."]]], motivation: ["Why."] }, { about: false }).map(l => l[1]);   // an edition made without the about-me
+  ok("an edition made with about: false has no about-me", !noAbout.includes("One.") && noAbout.includes("Why."), JSON.stringify(noAbout));
   ok("the job's motivation replaces the profile's", shaped.includes("For this job.") && shaped.includes("And more.") && at("From the profile") < 0);
   const order = [...G.load(path.join(__dirname, "..", "..", "examples", "sample_full_ko.json"), "ko", {}).roles[0].projects].reverse().map(p => p.id);   // a job's order, the other way round
   const prof = G.load(path.join(__dirname, "..", "..", "examples", "sample_full_ko.json"), "ko", { projectOrder: order });   // read for that job

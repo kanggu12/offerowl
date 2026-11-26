@@ -65,6 +65,13 @@ async function build(cfg) {
   ok("a set that names neither keeps the dark accent on the sub-heading", colourOf(navy.body, caption) === sets.navy.acc, String(colourOf(navy.body, caption)));
   ok("on the field names", colourOf(navy.body, field) === sets.navy.acc, String(colourOf(navy.body, field)));
   ok("and on the stage's rail", railOf(navy.body, stage) === sets.navy.acc, String(railOf(navy.body, stage)));
+  // The about-me can be left out of an edition (about: false, the edition's switch, 2026-11-26); by default it prints
+  const noAbout = await build({ out: "choices_no_about", about: false });
+  ok("the about-me prints by default", full.body.includes("자기소개") && full.body.includes("ABOUT ME"));
+  ok("an edition made with about: false leaves it out", !noAbout.body.includes("자기소개") && !noAbout.body.includes("ABOUT ME"));
+  ok("and keeps the rest of the resume", noAbout.body.includes("CAREER SUMMARY") || noAbout.body.includes("OVERVIEW"));
+  const side = JSON.parse(fs.readFileSync(path.join(OUT, "choices_no_about.highlights.json"), "utf8"));   // what the checks read beside it
+  ok("the checks are told the about-me was left out on purpose", (side.parts.omitted || []).includes("자기소개"), JSON.stringify(side.parts.omitted));
   fs.rmSync(OUT, { recursive: true, force: true });                      // nothing left behind
   console.log(`form choices tests: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

@@ -286,7 +286,10 @@
     if (!isFinite(y0)) continue;                                                    // nothing drawn
     out.keys++;                                                                     // how many keys were measured
     const pseudo = ["::before", "::after"].some((w) => { const q = getComputedStyle(k, w); return q.content !== "none" && q.content !== "normal" && (alpha(q.backgroundColor) > 0.05 || q.content.length > 2); });
-    const centred = cs.justifyContent === "center" || (cs.textAlign === "center" && !/flex|grid/.test(cs.display));
+    // centred across: a row flex by its justify-content, a column flex by its align-items (a column's justify-content is up and
+    // down: Insights' two-line names read as centred and their left-aligned words as 139 px off, 0.16.2's walk)
+    const col = /flex/.test(cs.display) && cs.flexDirection.startsWith("column");
+    const centred = (col ? cs.alignItems === "center" : cs.justifyContent === "center") || (cs.textAlign === "center" && !/flex|grid/.test(cs.display));
     const dy = (y0 + y1) / 2 - (top + bottom) / 2, dx = (x0 + x1) / 2 - (left + right) / 2;
     // a lamp drawn by the key's own ::before or ::after has no box to measure: such a key is judged up and down only
     if (Math.abs(dy) > 1 || centred && !pseudo && Math.abs(dx) > 1) out.center.push({ el: desc(k), dy: +dy.toFixed(1), dx: centred && !pseudo ? +dx.toFixed(1) : null });
